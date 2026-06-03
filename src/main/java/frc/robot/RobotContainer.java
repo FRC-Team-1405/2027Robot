@@ -124,9 +124,9 @@ public class RobotContainer {
                 // System.out.println("vision sample count: " + visionSamples.size());
                 for (var sample : visionSamples) {
 
-                        // P1: Smooth theta stddev — use a LerpTable curve instead of binary threshold.
-                        // OFF (2026 behavior): weight > 0.9 → 10.0 rad, else 99999.0 (binary jump).
-                        // ON: smooth monotonically decreasing curve from 99999 → 5 as weight → 1.
+                        // P1: Smooth theta stddev - use a LerpTable curve instead of binary threshold.
+                        // OFF (2026 behavior): weight > 0.9 -> 10.0 rad, else 99999.0 (binary jump).
+                        // ON: smooth monotonically decreasing curve from 99999 -> 5 as weight -> 1.
                         double thetaStddev;
                         if (FeatureSwitches.VISION_SMOOTH_THETA_STDDEV) {
                                 thetaStddev = VisionConstants.Filtering.THETA_STDDEV_WEIGHT_COEFFICIENT.lerp(sample.weight());
@@ -135,7 +135,7 @@ public class RobotContainer {
                                 thetaStddev = sample.weight() > 0.9 ? 10.0 : 99999.0;
                         }
 
-                        // P2: Distance-based XY stddev — more principled than 0.1/weight area-proxy.
+                        // P2: Distance-based XY stddev - more principled than 0.1/weight area-proxy.
                         // OFF (2026 behavior): 0.1 / sample.weight()
                         // ON: LerpTable keyed on actual camera-to-tag distance (meters)
                         double xyStddev;
@@ -341,7 +341,7 @@ public class RobotContainer {
                                                                 Commands.none(),
                                                                 MoveMode.inAllianceZone(drivetrain)));
 
-                // Point at hub toggle (STANDARD ↔ POINT or POINT_VELOCITY_COMPENSATED).
+                // Point at hub toggle (STANDARD <-> POINT or POINT_VELOCITY_COMPENSATED).
                 // Which point mode is active is controlled by the
                 // "MoveMode/Use Velocity Compensated Point" NT toggle in Elastic Dashboard.
                 driverJoystick.y().onTrue(moveMode.togglePointMode());
@@ -367,7 +367,7 @@ public class RobotContainer {
                                 .onFalse(new InstantCommand(
                                                 () -> SmartDashboard.putBoolean("Pickup/PickupButtonPressed", false)));
 
-                // Shoot — continuous auto-fire while held, with drivetrain brake.
+                // Shoot - continuous auto-fire while held, with drivetrain brake.
                 // Hopper is driven by hopperTrigger (follows indexer state).
 
                 final Command shootCommand = AutoFire.teleop(shooter, indexer,

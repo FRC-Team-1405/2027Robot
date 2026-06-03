@@ -73,7 +73,7 @@ public class Camera {
   private ArrayList<Integer> seenTags = new ArrayList<>();
   private ArrayList<VisionUpdate> updates = new ArrayList<>();
 
-  // Rejection counters — reset on each flushUpdates() call
+  // Rejection counters - reset on each flushUpdates() call
   private int rejectionCountVelocity = 0;
   private int rejectionCountBoundary = 0;
 
@@ -121,7 +121,7 @@ public class Camera {
 
     double trust = trustScalar;
 
-    // P1: Field boundary rejection — discard estimates outside plausible field space.
+    // P1: Field boundary rejection - discard estimates outside plausible field space.
     // Prevents corrupted Kalman filter state from tags detected through walls or
     // misidentified at long range. Gated by FeatureSwitch for A/B testing.
     // TODO(2027): Update FIELD_LENGTH and FIELD_WIDTH once 2027 field layout is published.
@@ -174,7 +174,7 @@ public class Camera {
       }
     }
 
-    // P2: TAG_RANKINGS — zero-weight non-scoring tags for a local estimator effect.
+    // P2: TAG_RANKINGS - zero-weight non-scoring tags for a local estimator effect.
     // TODO(2027): Update TAG_RANKINGS values for 2027 game structure.
     // for (int tagId : seenTags) {
     //     trust *= Filtering.TAG_RANKINGS.getOrDefault(tagId, 0.0);
@@ -244,7 +244,7 @@ public class Camera {
       for (var result : results) {
         if (result.hasTargets()) {
           result = pruneTags(result);
-          // P3: Ambiguity threshold — reject single-tag estimates with high pose ambiguity.
+          // P3: Ambiguity threshold - reject single-tag estimates with high pose ambiguity.
           // Ambiguity >= 0.2 means the solver can't reliably distinguish the correct orientation.
           // Multi-tag results are always accepted (they don't have meaningful ambiguity scores).
           if (FeatureSwitches.VISION_AMBIGUITY_THRESHOLD

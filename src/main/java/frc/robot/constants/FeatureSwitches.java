@@ -22,7 +22,7 @@ public class FeatureSwitches {
     public static final boolean PUBLISH_INDIVIDUAL_DRIVE_CURRENTS = false;
 
     // -------------------------------------------------------------------------
-    // Vision A/B Test Switches (all OFF by default — baseline is 2026 behavior)
+    // Vision A/B Test Switches (all OFF by default - baseline is 2026 behavior)
     // -------------------------------------------------------------------------
     // Enable/disable individual filters independently so each can be measured
     // against the baseline in AdvantageScope. See docs/vision-testing-protocol.md.
@@ -32,7 +32,7 @@ public class FeatureSwitches {
     public static final boolean VISION_FIELD_BOUNDARY_REJECTION = false;
 
     /** P1: Use a smooth LerpTable for theta stddev instead of the binary weight>0.9 threshold.
-     *  OFF = 2026 behavior (binary: >0.9 → 10.0 rad, else 99999.0). ON = smooth curve. */
+     *  OFF = 2026 behavior (binary: >0.9 -> 10.0 rad, else 99999.0). ON = smooth curve. */
     public static final boolean VISION_SMOOTH_THETA_STDDEV = false;
 
     /** P2: Publish per-filter NT topics for every vision sample (tag count, area,
