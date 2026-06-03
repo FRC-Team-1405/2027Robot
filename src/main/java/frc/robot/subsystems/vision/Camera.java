@@ -146,6 +146,13 @@ public class Camera {
         .mapToDouble(Double::doubleValue)
         .sum();
 
+    // Compute average camera-to-tag distance for distance-based stddev (P2).
+    double avgDistanceMeters = estRoboPose.targetsUsed.stream()
+        .map(t -> t.getBestCameraToTarget().getTranslation().getNorm())
+        .mapToDouble(Double::doubleValue)
+        .average()
+        .orElse(0.0);
+
     double avgNormalizedPixelsFromCenter = estRoboPose.targetsUsed.stream()
         .map(this::normalizedDistanceFromCenter)
         .mapToDouble(Double::doubleValue)
@@ -186,7 +193,7 @@ public class Camera {
       trust = 1.0;
     }
 
-    var u = new VisionUpdate(pose, estRoboPose.timestampSeconds, trust);
+    var u = new VisionUpdate(pose, estRoboPose.timestampSeconds, trust, avgDistanceMeters);
     previousUpdate = Optional.of(u);
 
     return previousUpdate;

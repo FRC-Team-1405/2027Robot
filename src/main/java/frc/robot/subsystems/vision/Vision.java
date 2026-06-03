@@ -37,10 +37,10 @@ public class Vision extends SubsystemBase {
   private final ChassisSpeeds speeds = new ChassisSpeeds();
   private final ArrayList<VisionSample> samples = new ArrayList<>();
 
-  public record VisionUpdate(Pose2d pose, double timestamp, double weightScalar)
+  public record VisionUpdate(Pose2d pose, double timestamp, double weightScalar, double avgDistanceMeters)
       implements StructSerializable {
 
-    private static final VisionUpdate kEmpty = new VisionUpdate(Pose2d.kZero, 0.0, 1.0);
+    private static final VisionUpdate kEmpty = new VisionUpdate(Pose2d.kZero, 0.0, 1.0, 0.0);
 
     public static VisionUpdate empty() {
       return kEmpty;
@@ -49,7 +49,8 @@ public class Vision extends SubsystemBase {
     public static final Struct<VisionUpdate> struct = ProceduralStructGenerator.genRecord(VisionUpdate.class);
   }
 
-  public record VisionSample(Pose2d pose, double timestamp, double weight) implements StructSerializable {
+  public record VisionSample(Pose2d pose, double timestamp, double weight, double avgDistanceMeters)
+      implements StructSerializable {
     public static final Struct<VisionSample> struct = ProceduralStructGenerator.genRecord(VisionSample.class);
   }
 
@@ -95,7 +96,7 @@ public class Vision extends SubsystemBase {
       weight = 1.0;
     }
 
-    return Optional.of(new VisionSample(update.pose(), update.timestamp(), weight));
+    return Optional.of(new VisionSample(update.pose(), update.timestamp(), weight, update.avgDistanceMeters()));
   }
 
   public double timeSinceLastSample() {

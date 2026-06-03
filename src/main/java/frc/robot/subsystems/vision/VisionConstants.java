@@ -85,7 +85,23 @@ public class VisionConstants {
                                 new LerpTable.LerpTableEntry(12.0, 0.0));
 
                 /**
-                 * P1: Smooth theta (heading) stddev as a function of vision weight.
+                 * P2: Distance-based XY stddev — a more principled alternative to area-proxy weighting.
+                 * Maps estimated distance from camera to tag (meters) → XY stddev multiplier.
+                 * Farther tags = less accurate pose = higher stddev.
+                 *
+                 * This table produces a stddev that is used directly as:
+                 *   stddev = DISTANCE_XY_STDDEV.lerp(avgDistanceMeters)
+                 * replacing the 0.1 / weight formula when VISION_DISTANCE_BASED_STDDEV is enabled.
+                 *
+                 * TODO: Tune breakpoints on the 2027 robot. Good starting point from Team 6328 data:
+                 * single-tag at 1m ≈ 0.1m stddev, at 4m ≈ 0.5m stddev, at 7m+ reject.
+                 */
+                public static final LerpTable DISTANCE_XY_STDDEV = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.5, 0.05),
+                                new LerpTable.LerpTableEntry(2.0, 0.15),
+                                new LerpTable.LerpTableEntry(4.0, 0.45),
+                                new LerpTable.LerpTableEntry(6.0, 1.50),
+                                new LerpTable.LerpTableEntry(7.5, 9999.0));
                  * Replaces the 2026 binary threshold (weight > 0.9 → 10.0 rad, else 99999.0).
                  *
                  * Maps weight [0..1] → theta stddev (radians).

@@ -135,10 +135,20 @@ public class RobotContainer {
                                 thetaStddev = sample.weight() > 0.9 ? 10.0 : 99999.0;
                         }
 
+                        // P2: Distance-based XY stddev — more principled than 0.1/weight area-proxy.
+                        // OFF (2026 behavior): 0.1 / sample.weight()
+                        // ON: LerpTable keyed on actual camera-to-tag distance (meters)
+                        double xyStddev;
+                        if (FeatureSwitches.VISION_DISTANCE_BASED_STDDEV) {
+                                xyStddev = VisionConstants.Filtering.DISTANCE_XY_STDDEV.lerp(sample.avgDistanceMeters());
+                        } else {
+                                xyStddev = 0.1 / sample.weight();
+                        }
+
                         drivetrain.addVisionMeasurement(
                                         sample.pose(),
                                         sample.timestamp(),
-                                        VecBuilder.fill(0.1 / sample.weight(), 0.1 / sample.weight(), thetaStddev));
+                                        VecBuilder.fill(xyStddev, xyStddev, thetaStddev));
 
                         // P2: Log correction magnitude (distance between vision estimate and
                         // current odometry pose) for AdvantageScope tuning.
@@ -147,7 +157,7 @@ public class RobotContainer {
                                 double correctionMag = sample.pose().getTranslation()
                                                 .getDistance(odomNow.getTranslation());
                                 SmartDashboard.putNumber("/Vision/CorrectionMagnitude", correctionMag);
-                                SmartDashboard.putNumber("/Vision/XYStddev", 0.1 / sample.weight());
+                                SmartDashboard.putNumber("/Vision/XYStddev", xyStddev);
                                 SmartDashboard.putNumber("/Vision/ThetaStddev", thetaStddev);
                         }
                 }
