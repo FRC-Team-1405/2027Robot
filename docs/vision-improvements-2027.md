@@ -276,4 +276,158 @@ Phase 3 — Hardware (if needed):
 [ ] Evaluate if 2027 game warrants rear camera for global coverage
 [ ] Confirm cameras are global shutter (check model specs)
 [ ] Confirm cameras use USB3 or MIPI (not USB2 MJPEG)
+[ ] Purchase and configure new coprocessor/cameras per buying guide below
 ```
+
+---
+
+## Hardware Buying Guide
+
+> **Current baseline:** Orange Pi 5 (RK3588S, 4 GB, 2× USB3, 1× GbE, no NVMe, no built-in WiFi)  
+> See [`docs/robot_details/vision_specs.md`](./robot_details/vision_specs.md) for full current spec.
+
+This guide covers recommended upgrades to the coprocessor and cameras based on the requirements
+described in this document: running 2–3 simultaneous PhotonVision streams, USB3 cameras (no MJPEG),
+global shutter, and sufficient USB bandwidth if a rear camera is added.
+
+---
+
+### Coprocessor Upgrade
+
+All Orange Pi 5-series boards use the **same Rockchip RK3588(S) CPU and 6 TOPS NPU** — you will
+not gain AprilTag detection speed by upgrading the SoC alone. The meaningful hardware differences
+are the number of USB3 ports, network speed, and whether a NVMe boot drive is supported.
+PhotonVision pins its service to the four big Cortex-A76 cores on every OPi5 variant equally.
+
+#### Orange Pi 5-Series Comparison
+
+| Feature | **OPi5** (current) | **OPi5 Pro** ⭐ | OPi5 Plus | OPi5 Max |
+|---|---|---|---|---|
+| Chip | RK3588**S** | RK3588**S2** | RK3588 (full) | RK3588 (full) |
+| NPU | 6 TOPS | 6 TOPS | 6 TOPS | 6 TOPS |
+| Max RAM | 16 GB | 16 GB | **32 GB** | **32 GB** |
+| Ethernet | 1× 1 GbE | 1× **2.5 GbE** | 2× **2.5 GbE** | 2× **2.5 GbE** |
+| USB3 ports | 2 | **4** | 2 | 3+ |
+| M.2 NVMe | ❌ None | ✅ 2280 PCIe 3.0 | ✅ 2280 PCIe 3.0 | ✅ PCIe 3.0 |
+| Built-in WiFi | ❌ | ✅ WiFi 6 | ❌ (M.2 module) | ✅ WiFi 6E |
+| PV stable docs | ✅ Listed | ✅ **Listed** | ⚠️ CI only* | ⚠️ CI only* |
+| Est. price (8 GB) | ~$55 | **~$70–85** | ~$85–110 | ~$105–130 |
+
+> \* OPi5 Plus and OPi5 Max are built in PhotonVision's v2027 CI pipeline but are **not yet
+> listed in the stable release documentation** as of June 2026. Verify at
+> [docs.photonvision.org](https://docs.photonvision.org) before purchasing.
+
+#### Recommendation: Orange Pi 5 Pro (8 GB)
+
+The **Orange Pi 5 Pro** is the clear upgrade path for 2027:
+
+- **4× USB3 ports** — run 2 forward cameras + 1 rear camera directly without a hub. USB hubs
+  introduce latency jitter and are a common source of intermittent disconnects at competition.
+- **2.5 GbE** — saturates the robot-side 1 GbE switch, but eliminates the coprocessor as a
+  network bottleneck when streaming debug video to the driver station during tuning.
+- **M.2 2280 NVMe** — boot from SSD instead of SD card. SD cards are the #1 cause of
+  filesystem corruption after robot collisions. A cheap ($15–20) M.2 NVMe SSD dramatically
+  improves boot time and reliability.
+- **WiFi 6 built-in** — no M.2 WiFi module required; frees the slot for NVMe.
+- **Officially supported** in PhotonVision stable release — safe to deploy today.
+
+**What does NOT improve with this upgrade:**
+- AprilTag detection latency (CPU-bound, identical big-core performance)
+- NPU inference (identical 6 TOPS)
+- Pose estimation accuracy (software, not hardware)
+
+#### When to Consider OPi5 Plus Instead
+
+Choose the OPi5 Plus only if:
+- You need **dual Ethernet** (one to robot switch, one to a dedicated vision network or second
+  roboRIO-type device)
+- You plan to run the full **Option B local estimator** (multiple estimator instances) that
+  might benefit from >16 GB RAM
+- PhotonVision has officially added it to the stable release docs by your build season
+
+**Where to buy:**  
+- [AliExpress (official Orange Pi store)](https://www.aliexpress.com/store/1101239862) — cheapest;
+  allow 3–4 weeks shipping
+- [Amazon](https://www.amazon.com/s?k=orange+pi+5+pro) — faster; typically $10–20 more
+
+**Accessories to order with the coprocessor:**
+- M.2 2280 NVMe SSD (any brand, 64–128 GB is sufficient; e.g., Kingston NV3 ~$15)
+- SanDisk Industrial SD card (SDSDQAF3-016G-I, ~$12) — as a fallback boot device
+- USB-C 5V/4A power supply (included in some bundles; verify before ordering)
+- Short right-angle USB-A to USB-A cables for cameras (reduce connector stress)
+
+---
+
+### Camera Upgrade
+
+The current cameras' shutter type should be confirmed before ordering replacements — see the
+checklist item above. Global shutter is **required** to eliminate rolling-shutter skew while
+the robot is moving; a rolling-shutter camera at 60 fps moving at 4 m/s produces ~1.5 cm of
+horizontal smear per tag corner, which degrades PnP accuracy measurably.
+
+PhotonVision recommends cameras in **UVC mode** (plug-and-play, no driver needed). Avoid
+Arducam Pivariety cameras — they require a proprietary library and are incompatible with
+PhotonVision.
+
+#### Camera Comparison
+
+| Camera | Sensor | Shutter | Interface | Resolution | FPS | Color | Price |
+|---|---|---|---|---|---|---|---|
+| **Arducam OV9281** ⭐ | OmniVision OV9281 | **Global** | USB2 UVC | 1280×800 (1 MP) | 60+ fps | Mono | **~$32** |
+| Arducam OV9782 | OmniVision OV9782 | **Global** | USB2 UVC | 1280×800 (1 MP) | 60 fps | Color | ~$40 |
+| Arducam AR0234 | onsemi AR0234CS | **Global** | **USB3 UVC** | 1920×1200 (2.3 MP) | 60 fps | Color/Mono | ~$65 |
+
+#### Primary Recommendation: Arducam OV9281 (~$32 each)
+
+The **Arducam OV9281** is PhotonVision's #1 recommended camera for AprilTag detection and is
+the most battle-tested camera in FRC:
+
+- **Global shutter** — no smear artifact during robot motion
+- **Monochrome sensor** — AprilTag detection does not use color; mono has higher sensitivity
+  and better signal-to-noise ratio in low-light conditions (common in competition venues)
+- **UVC plug-and-play** — detected automatically by PhotonVision, no configuration needed
+- **60+ fps** — important for high-update-rate pose estimation; use PhotonVision's camera
+  settings to set resolution and exposure rather than relying on defaults
+- **~$32 on Amazon** (ASIN: B0972KK7BC) — cost-effective for a 2- or 3-camera setup
+
+**Important:** When running two identical OV9281s, use the
+[Arducam Serial Number Tool](https://docs.arducam.com/UVC-Camera/Serial-Number-Tool-Guide/)
+to assign unique device names. Without this, PhotonVision may swap camera identities between
+reboots when USB enumeration order changes, silently flipping left/right camera transforms.
+
+**Lens selection:**  
+The standard M12 lens shipped with the OV9281 gives ~65° diagonal FOV. For AprilTag detection,
+PhotonVision recommends **~100° diagonal FOV** to maximize the field of view for detecting tags
+at angles and during rotation. Order the Arducam wide-angle lens kit separately, or search for
+"M12 100 degree lens" — most M12 lenses are interchangeable.
+
+#### When to Consider AR0234 Instead
+
+The **Arducam AR0234** (2.3 MP, USB3) offers nearly 3× the pixel count of the OV9281. More
+pixels means:
+- Tags detected reliably at greater distance (more pixels subtend the tag at range)
+- Better multi-tag PnP accuracy (more corner resolution)
+- Higher data throughput — requires USB3; the OPi5 Pro's 4× USB3 handles this well
+
+Trade-offs:
+- ~2× the price (~$65)
+- Color sensor (slightly lower sensitivity than mono in low light)
+- USB3 required — verify your coprocessor's USB3 port count
+
+**Verdict:** Start with OV9281 unless you identify detection range as a specific weakness after
+testing with the [testing protocol](./vision-testing-protocol.md). The OV9281 is adequate for
+most FRC scoring distances (1–6 m).
+
+---
+
+### Sample Configuration Costs
+
+| Configuration | Coprocessor | Cameras | Est. Total |
+|---|---|---|---|
+| Baseline replacement (same capability) | OPi5 Pro 4 GB + NVMe | 2× OV9281 | ~$140 |
+| **Recommended 2027 build** | OPi5 Pro 8 GB + NVMe | 2× OV9281 | ~$165 |
+| 3-camera (add rear) | OPi5 Pro 8 GB + NVMe | 3× OV9281 | ~$200 |
+| High-res upgrade | OPi5 Pro 8 GB + NVMe | 2× AR0234 | ~$215 |
+
+> Prices are estimates as of mid-2026. Check current listings before ordering.
+> Budget an additional ~$30 for cables, mounts, and a lens kit.
