@@ -283,6 +283,9 @@ Phase 3 — Hardware (if needed):
 
 ## Hardware Buying Guide
 
+**WARNING: This analysis below isn't accurate but it gets the vibes right**
+
+
 > **Current baseline:** Orange Pi 5 (RK3588S, 4 GB, 2× USB3, 1× GbE, no NVMe, no built-in WiFi)  
 > See [`docs/robot_details/vision_specs.md`](./robot_details/vision_specs.md) for full current spec.
 
@@ -317,6 +320,8 @@ There is no single supported board that adds more USB3 ports over what you alrea
 ---
 
 ### Coprocessor Upgrade
+
+Photon Vision 2027 supported boards: https://docs.photonvision.org/en/v2027.0.0-alpha-2/docs/quick-start/quick-install.html
 
 All Orange Pi 5-series boards share the **same RK3588(S) CPU and 6 TOPS NPU** — AprilTag
 detection performance is identical across all variants. PhotonVision pins its service to the
