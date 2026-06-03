@@ -12,6 +12,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.RobotContainer;
+import frc.robot.constants.FeatureSwitches;
 import frc.robot.lib.AprilTags;
 import frc.robot.lib.GlobalField;
 import frc.robot.lib.ProceduralStructGenerator;
@@ -129,8 +130,27 @@ public class Vision extends SubsystemBase {
                 timerSinceLastSample.restart();
                 samples.add(sample);
                 GlobalField.setObject(camera.getName() + "Camera", sample.pose());
+                // 2026 baseline: only last camera's weight survives (overwritten per camera)
                 SmartDashboard.putNumber("VisionWeight", sample.weight());
+
+                // P2: Extended per-camera NT logging for AdvantageScope tuning.
+                // All topics scoped under /Vision/<CameraName>/ for easy filtering.
+                if (FeatureSwitches.VISION_EXTENDED_NT_LOGGING) {
+                  String pfx = "/Vision/" + camera.getName() + "/";
+                  SmartDashboard.putNumber(pfx + "Weight", sample.weight());
+                  SmartDashboard.putNumber(pfx + "PoseX", sample.pose().getX());
+                  SmartDashboard.putNumber(pfx + "PoseY", sample.pose().getY());
+                  SmartDashboard.putNumber(pfx + "PoseHeadingDeg",
+                      sample.pose().getRotation().getDegrees());
+                  SmartDashboard.putNumber(pfx + "TimestampSec", sample.timestamp());
+                }
               });
+
+      if (FeatureSwitches.VISION_EXTENDED_NT_LOGGING) {
+        String pfx = "/Vision/" + camera.getName() + "/";
+        SmartDashboard.putNumber(pfx + "RejectVelocity", camera.getRejectionCountVelocity());
+        SmartDashboard.putNumber(pfx + "RejectBoundary", camera.getRejectionCountBoundary());
+      }
 
       seenTags.addAll(camera.getSeenTags());
 

@@ -139,6 +139,17 @@ public class RobotContainer {
                                         sample.pose(),
                                         sample.timestamp(),
                                         VecBuilder.fill(0.1 / sample.weight(), 0.1 / sample.weight(), thetaStddev));
+
+                        // P2: Log correction magnitude (distance between vision estimate and
+                        // current odometry pose) for AdvantageScope tuning.
+                        if (FeatureSwitches.VISION_EXTENDED_NT_LOGGING) {
+                                Pose2d odomNow = drivetrain.getState().Pose;
+                                double correctionMag = sample.pose().getTranslation()
+                                                .getDistance(odomNow.getTranslation());
+                                SmartDashboard.putNumber("/Vision/CorrectionMagnitude", correctionMag);
+                                SmartDashboard.putNumber("/Vision/XYStddev", 0.1 / sample.weight());
+                                SmartDashboard.putNumber("/Vision/ThetaStddev", thetaStddev);
+                        }
                 }
 
                 Pose2d visionPose = null;
