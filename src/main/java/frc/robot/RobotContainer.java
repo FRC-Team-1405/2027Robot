@@ -124,15 +124,15 @@ public class RobotContainer {
                 // System.out.println("vision sample count: " + visionSamples.size());
                 for (var sample : visionSamples) {
 
-                        double thetaStddev = 99999.0;
-                        if (true /* STRICT_VISION_ORIENTATION_WEIGHTING */) {
-                                // if sample weight isn't essentially perfect, don't trust orientation, sample
-                                // weighting is perfect when disabled
-                                thetaStddev = sample.weight() > 0.9 ? 10.0 : 99999.0;
+                        // P1: Smooth theta stddev — use a LerpTable curve instead of binary threshold.
+                        // OFF (2026 behavior): weight > 0.9 → 10.0 rad, else 99999.0 (binary jump).
+                        // ON: smooth monotonically decreasing curve from 99999 → 5 as weight → 1.
+                        double thetaStddev;
+                        if (FeatureSwitches.VISION_SMOOTH_THETA_STDDEV) {
+                                thetaStddev = VisionConstants.Filtering.THETA_STDDEV_WEIGHT_COEFFICIENT.lerp(sample.weight());
                         } else {
-                                // You will need to TUNE this scalar. A higher value (e.g., 5.0) means less
-                                // trust.
-                                thetaStddev = 1.0 / sample.weight();
+                                // 2026 baseline: binary threshold
+                                thetaStddev = sample.weight() > 0.9 ? 10.0 : 99999.0;
                         }
 
                         drivetrain.addVisionMeasurement(

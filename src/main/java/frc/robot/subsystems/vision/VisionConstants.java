@@ -84,6 +84,24 @@ public class VisionConstants {
                                 new LerpTable.LerpTableEntry(7.0, 0.65),
                                 new LerpTable.LerpTableEntry(12.0, 0.0));
 
+                /**
+                 * P1: Smooth theta (heading) stddev as a function of vision weight.
+                 * Replaces the 2026 binary threshold (weight > 0.9 → 10.0 rad, else 99999.0).
+                 *
+                 * Maps weight [0..1] → theta stddev (radians).
+                 * High weight (close, centered tag) → lower stddev (more trust in heading).
+                 * Low weight (far, edge-of-frame) → high stddev (essentially ignore heading).
+                 *
+                 * TODO: Tune these breakpoints on the 2027 robot during pre-season testing.
+                 * See docs/vision-testing-protocol.md Experiment 2.
+                 */
+                public static final LerpTable THETA_STDDEV_WEIGHT_COEFFICIENT = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 99999.0),
+                                new LerpTable.LerpTableEntry(0.5,   200.0),
+                                new LerpTable.LerpTableEntry(0.75,   20.0),
+                                new LerpTable.LerpTableEntry(0.9,    10.0),
+                                new LerpTable.LerpTableEntry(1.0,     5.0));
+
                 // TODO(2027): Update TAG_RANKINGS for 2027 game structure.
                 // 2026 values: reef tags (6-11, 17-22) = 1.0 (trust), all others = 0.0 (reject).
                 // This map is used by the TAG_RANKINGS feature switch (disabled by default).
