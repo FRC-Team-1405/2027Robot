@@ -13,6 +13,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Robot;
+import frc.robot.constants.FeatureSwitches;
 import frc.robot.lib.AprilTags;
 import frc.robot.subsystems.vision.Vision.VisionUpdate;
 import frc.robot.subsystems.vision.VisionConstants.Filtering;
@@ -72,6 +73,10 @@ public class Camera {
   private ArrayList<Integer> seenTags = new ArrayList<>();
   private ArrayList<VisionUpdate> updates = new ArrayList<>();
 
+  // Rejection counters — reset on each flushUpdates() call
+  private int rejectionCountVelocity = 0;
+  private int rejectionCountBoundary = 0;
+
   public Camera(String name, double trustScalar, Transform3d cameraTransform, CameraIntrinsics intrinsics) {
     this.camera = new PhotonCamera(name);
     this.robotToCamera = cameraTransform;
@@ -116,6 +121,24 @@ public class Camera {
 
     double trust = trustScalar;
 
+    // P1: Field boundary rejection — discard estimates outside plausible field space.
+    // Prevents corrupted Kalman filter state from tags detected through walls or
+    // misidentified at long range. Gated by FeatureSwitch for A/B testing.
+    // TODO(2027): Update FIELD_LENGTH and FIELD_WIDTH once 2027 field layout is published.
+    if (FeatureSwitches.VISION_FIELD_BOUNDARY_REJECTION) {
+      final double MARGIN = 0.5;       // meters of tolerance outside field edge
+      final double FIELD_LENGTH = 17.548; // 2026 Reefscape field length (meters)
+      final double FIELD_WIDTH  =  8.052; // 2026 Reefscape field width (meters)
+      final double MAX_Z        =  0.75;  // max plausible robot Z height (meters)
+      var p3d = estRoboPose.estimatedPose;
+      if (p3d.getX() < -MARGIN || p3d.getX() > FIELD_LENGTH + MARGIN
+          || p3d.getY() < -MARGIN || p3d.getY() > FIELD_WIDTH + MARGIN
+          || Math.abs(p3d.getZ()) > MAX_Z) {
+        rejectionCountBoundary++;
+        return Optional.empty();
+      }
+    }
+
     Pose2d pose = estRoboPose.estimatedPose.toPose2d();
 
     double sumArea = estRoboPose.targetsUsed.stream()
@@ -139,13 +162,21 @@ public class Camera {
       double timeSinceLastUpdate = estRoboPose.timestampSeconds - previousUpdate.get().timestamp();
       double distanceFromLastUpdate = pose.getTranslation().getDistance(previousUpdate.get().pose().getTranslation());
       if (distanceFromLastUpdate > timeSinceLastUpdate * 5.0) {
+        rejectionCountVelocity++;
         return Optional.empty();
       }
     }
 
+    // P2: TAG_RANKINGS — zero-weight non-scoring tags for a local estimator effect.
+    // TODO(2027): Update TAG_RANKINGS values for 2027 game structure.
     // for (int tagId : seenTags) {
-    // trust *= Filtering.TAG_RANKINGS.getOrDefault(tagId, 0.0);
+    //     trust *= Filtering.TAG_RANKINGS.getOrDefault(tagId, 0.0);
     // }
+    if (FeatureSwitches.VISION_TAG_RANKINGS_FILTER) {
+      for (int tagId : seenTags) {
+        trust *= Filtering.TAG_RANKINGS.getOrDefault(tagId, 0.0);
+      }
+    }
 
     trust *= Filtering.AREA_WEIGHT_COEFFICIENT.lerp(sumArea);
     trust *= Filtering.PIXEL_OFFSET_WEIGHT_COEFFICIENT.lerp(avgNormalizedPixelsFromCenter);
@@ -168,7 +199,17 @@ public class Camera {
   public List<VisionUpdate> flushUpdates() {
     var u = updates;
     updates = new ArrayList<>();
+    rejectionCountVelocity = 0;
+    rejectionCountBoundary = 0;
     return u;
+  }
+
+  public int getRejectionCountVelocity() {
+    return rejectionCountVelocity;
+  }
+
+  public int getRejectionCountBoundary() {
+    return rejectionCountBoundary;
   }
 
   public List<Integer> getSeenTags() {
@@ -196,6 +237,14 @@ public class Camera {
       for (var result : results) {
         if (result.hasTargets()) {
           result = pruneTags(result);
+          // P3: Ambiguity threshold — reject single-tag estimates with high pose ambiguity.
+          // Ambiguity >= 0.2 means the solver can't reliably distinguish the correct orientation.
+          // Multi-tag results are always accepted (they don't have meaningful ambiguity scores).
+          if (FeatureSwitches.VISION_AMBIGUITY_THRESHOLD
+              && result.targets.size() == 1
+              && result.targets.get(0).getPoseAmbiguity() >= 0.2) {
+            continue;
+          }
           Optional<EstimatedRobotPose> estRoboPose = poseEstimator.update(result, cachedCameraMatrix,
               cachedDistortionMatrix, Optional.empty());
           if (estRoboPose.isPresent()) {
