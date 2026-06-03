@@ -1,0 +1,216 @@
+{
+  "Device": [
+    {
+      "name": "Motor Output",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "Inverted",
+          "summary": "Invert state of the device as seen from the front of the motor.",
+          "ordinal": 0,
+          "type": "InvertedValue",
+          "description": "",
+          "units": "",
+          "min_value": -1.7976931348623157E+308,
+          "max_value": 1.7976931348623157E+308,
+          "signal_id": 1901,
+          "signal_name": "Config_Inverted",
+          "default_value": 0,
+          "value": 1,
+          "param_value": "Clockwise_Positive",
+          "enum_values": [
+            {
+              "name": "CounterClockwise_Positive",
+              "comment": "Positive motor output results in counter-clockwise motion.",
+              "value": 0
+            },
+            {
+              "name": "Clockwise_Positive",
+              "comment": "Positive motor output results in clockwise motion.",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Current Limits",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "Stator Current Limit",
+          "summary": "The amount of current allowed in the motor (motoring and regen current).  Note this requires StatorCurrentLimitEnable to be true.\n\nFor torque current control, this is applied in addition to the PeakForwardTorqueCurrent and PeakReverseTorqueCurrent in TorqueCurrentConfigs.\n\nStator current is directly proportional to torque, so this limit can be used to restrict the torque output of the motor, such as preventing wheel slip for a drivetrain.  Additionally, stator current limits can prevent brownouts during acceleration; supply current will never exceed the stator current limit and is often significantly lower than stator current.\n\nA reasonable starting point for a stator current limit is 120 A, with values commonly ranging from 80-160 A. Mechanisms with a hard stop may need a smaller limit to reduce the torque applied when running into the hard stop.",
+          "ordinal": 0,
+          "type": "double",
+          "description": "",
+          "units": "A",
+          "min_value": 0,
+          "max_value": 800,
+          "signal_id": 1906,
+          "signal_name": "Config_StatorCurrentLimit",
+          "default_value": 120,
+          "value": 15,
+          "param_value": 15,
+          "enum_values": []
+        },
+        {
+          "name": "Supply Current Limit",
+          "summary": "The absolute maximum amount of supply current allowed.  Note this requires SupplyCurrentLimitEnable to be true.  Use SupplyCurrentLowerLimit and SupplyCurrentLowerTime to reduce the supply current limit after the time threshold is exceeded.\n\nSupply current is the current drawn from the battery, so this limit can be used to prevent breaker trips and improve battery longevity.  Additionally, in scenarios where the robot experiences brownouts despite configuring stator current limits, a supply current limit can further help avoid brownouts. However, it is important to note that such brownouts may be caused by a bad battery or poor power wiring.\n\nA reasonable starting point for a supply current limit is 70 A with a lower limit of 40 A after 1.0 second. Supply current limits commonly range from 20-80 A depending on the breaker used.",
+          "ordinal": 0,
+          "type": "double",
+          "description": "",
+          "units": "A",
+          "min_value": 0,
+          "max_value": 800,
+          "signal_id": 1908,
+          "signal_name": "Config_SupplyCurrentLimit",
+          "default_value": 70,
+          "value": 10,
+          "param_value": 10,
+          "enum_values": []
+        }
+      ]
+    },
+    {
+      "name": "Slot 0",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "kP",
+          "summary": "Proportional gain.",
+          "ordinal": 0,
+          "type": "double",
+          "description": "The units for this gain is dependent on the control mode. Since this gain is multiplied by error in the input, the units should be defined as units of output per unit of input error. For example, when controlling velocity using a duty cycle closed loop, the units for the proportional gain will be duty cycle per rps of error, or 1/rps.",
+          "units": "",
+          "min_value": 0,
+          "max_value": 3.4E+38,
+          "signal_id": 1877,
+          "signal_name": "Slot0_kP",
+          "default_value": 0,
+          "value": 0.4000000059604645,
+          "param_value": 0.4000000059604645,
+          "enum_values": []
+        }
+      ]
+    },
+    {
+      "name": "Software Limit Switch",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "Forward Soft Limit Threshold",
+          "summary": "Position threshold for forward soft limit features. ForwardSoftLimitEnable must be enabled for this to take effect.",
+          "ordinal": 0,
+          "type": "double",
+          "description": "",
+          "units": "rotations",
+          "min_value": -3.4E+38,
+          "max_value": 3.4E+38,
+          "signal_id": 1942,
+          "signal_name": "Config_ForwardSoftLimitThreshold",
+          "default_value": 0,
+          "value": 50,
+          "param_value": 50,
+          "enum_values": []
+        },
+        {
+          "name": "Reverse Soft Limit Threshold",
+          "summary": "Position threshold for reverse soft limit features. ReverseSoftLimitEnable must be enabled for this to take effect.",
+          "ordinal": 0,
+          "type": "double",
+          "description": "",
+          "units": "rotations",
+          "min_value": -3.4E+38,
+          "max_value": 3.4E+38,
+          "signal_id": 1943,
+          "signal_name": "Config_ReverseSoftLimitThreshold",
+          "default_value": 0,
+          "value": 10,
+          "param_value": 10,
+          "enum_values": []
+        }
+      ]
+    },
+    {
+      "name": "Motion Magic",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "Motion Magic Cruise Velocity",
+          "summary": "This is the maximum velocity Motion Magic\u00AE based control modes are allowed to use.  Motion Magic\u00AE Velocity control modes do not use this config.\n\nWhen using Motion Magic\u00AE Expo control modes, setting this to 0 will allow the profile to run to the max possible velocity based on Expo_kV.",
+          "ordinal": -5,
+          "type": "double",
+          "description": "",
+          "units": "rot per sec",
+          "min_value": 0,
+          "max_value": 9999,
+          "signal_id": 1944,
+          "signal_name": "Config_MotionMagicCruiseVelocity",
+          "default_value": 0,
+          "value": 80,
+          "param_value": 80,
+          "enum_values": []
+        },
+        {
+          "name": "Motion Magic Acceleration",
+          "summary": "This is the target acceleration Motion Magic\u00AE based control modes are allowed to use.  Motion Magic\u00AE Expo control modes do not use this config.",
+          "ordinal": -4,
+          "type": "double",
+          "description": "",
+          "units": "rot per sec\u00B2",
+          "min_value": 0,
+          "max_value": 9999,
+          "signal_id": 1945,
+          "signal_name": "Config_MotionMagicAcceleration",
+          "default_value": 0,
+          "value": 40,
+          "param_value": 40,
+          "enum_values": []
+        },
+        {
+          "name": "Motion Magic Expo_kV",
+          "summary": "This is the target kV used only by Motion Magic\u00AE Expo control modes. Unlike the kV slot gain, this is always in units of V/rps.\n\nThis represents the amount of voltage necessary to hold a velocity. In terms of the Motion Magic\u00AE Expo profile, a higher kV results in a slower maximum velocity.",
+          "ordinal": -2,
+          "type": "double",
+          "description": "",
+          "units": "V/rps",
+          "min_value": 0.001,
+          "max_value": 100,
+          "signal_id": 1947,
+          "signal_name": "Config_MotionMagicExpo_kV",
+          "default_value": 0.12,
+          "value": 0.11999999731779099,
+          "param_value": 0.11999999731779099,
+          "enum_values": []
+        },
+        {
+          "name": "Motion Magic Expo_kA",
+          "summary": "This is the target kA used only by Motion Magic\u00AE Expo control modes. Unlike the kA slot gain, this is always in units of V/rps\u00B2.\n\nThis represents the amount of voltage necessary to achieve an acceleration. In terms of the Motion Magic\u00AE Expo profile, a higher kA results in a slower acceleration.",
+          "ordinal": -1,
+          "type": "double",
+          "description": "",
+          "units": "V/rps\u00B2",
+          "min_value": 1E-05,
+          "max_value": 100,
+          "signal_id": 1948,
+          "signal_name": "Config_MotionMagicExpo_kA",
+          "default_value": 0.1,
+          "value": 0.10000000149011612,
+          "param_value": 0.10000000149011612,
+          "enum_values": []
+        }
+      ]
+    }
+  ],
+  "JsonVersion": 2
+}

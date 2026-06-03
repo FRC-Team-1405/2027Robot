@@ -1,0 +1,160 @@
+{
+  "Device": [
+    {
+      "name": "Motor Output",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "Neutral Mode",
+          "summary": "The state of the motor controller bridge when output is neutral or disabled.",
+          "ordinal": 0,
+          "type": "NeutralModeValue",
+          "description": "",
+          "units": "",
+          "min_value": -1.7976931348623157E+308,
+          "max_value": 1.7976931348623157E+308,
+          "signal_id": 1904,
+          "signal_name": "Config_NeutralMode",
+          "default_value": 0,
+          "value": 1,
+          "param_value": "Brake",
+          "enum_values": [
+            {
+              "name": "Coast",
+              "comment": "",
+              "value": 0
+            },
+            {
+              "name": "Brake",
+              "comment": "",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Slot 0",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "kP",
+          "summary": "Proportional gain.",
+          "ordinal": 0,
+          "type": "double",
+          "description": "The units for this gain is dependent on the control mode. Since this gain is multiplied by error in the input, the units should be defined as units of output per unit of input error. For example, when controlling velocity using a duty cycle closed loop, the units for the proportional gain will be duty cycle per rps of error, or 1/rps.",
+          "units": "",
+          "min_value": 0,
+          "max_value": 3.4E+38,
+          "signal_id": 1877,
+          "signal_name": "Slot0_kP",
+          "default_value": 0,
+          "value": 0.009999999776482582,
+          "param_value": 0.009999999776482582,
+          "enum_values": []
+        },
+        {
+          "name": "kV",
+          "summary": "Velocity feedforward gain.",
+          "ordinal": 4,
+          "type": "double",
+          "description": "The units for this gain is dependent on the control mode. Since this gain is multiplied by the requested velocity, the units should be defined as units of output per unit of requested input velocity. For example, when controlling velocity using a duty cycle closed loop, the units for the velocity feedfoward gain will be duty cycle per requested rps, or 1/rps.",
+          "units": "",
+          "min_value": 0,
+          "max_value": 3.4E+38,
+          "signal_id": 1881,
+          "signal_name": "Slot0_kV",
+          "default_value": 0,
+          "value": 0.12399999797344208,
+          "param_value": 0.12399999797344208,
+          "enum_values": []
+        }
+      ]
+    },
+    {
+      "name": "Motion Magic",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "Motion Magic Expo_kV",
+          "summary": "This is the target kV used only by Motion Magic\u00AE Expo control modes. Unlike the kV slot gain, this is always in units of V/rps.\n\nThis represents the amount of voltage necessary to hold a velocity. In terms of the Motion Magic\u00AE Expo profile, a higher kV results in a slower maximum velocity.",
+          "ordinal": -2,
+          "type": "double",
+          "description": "",
+          "units": "V/rps",
+          "min_value": 0.001,
+          "max_value": 100,
+          "signal_id": 1947,
+          "signal_name": "Config_MotionMagicExpo_kV",
+          "default_value": 0.12,
+          "value": 0.11999999731779099,
+          "param_value": 0.11999999731779099,
+          "enum_values": []
+        },
+        {
+          "name": "Motion Magic Expo_kA",
+          "summary": "This is the target kA used only by Motion Magic\u00AE Expo control modes. Unlike the kA slot gain, this is always in units of V/rps\u00B2.\n\nThis represents the amount of voltage necessary to achieve an acceleration. In terms of the Motion Magic\u00AE Expo profile, a higher kA results in a slower acceleration.",
+          "ordinal": -1,
+          "type": "double",
+          "description": "",
+          "units": "V/rps\u00B2",
+          "min_value": 1E-05,
+          "max_value": 100,
+          "signal_id": 1948,
+          "signal_name": "Config_MotionMagicExpo_kA",
+          "default_value": 0.1,
+          "value": 0.10000000149011612,
+          "param_value": 0.10000000149011612,
+          "enum_values": []
+        }
+      ]
+    },
+    {
+      "name": "Torque Current",
+      "summary": "",
+      "description": "",
+      "ordinal": 0,
+      "configs": [
+        {
+          "name": "Peak Forward Torque Current",
+          "summary": "Maximum (forward) output during torque current based control modes.",
+          "ordinal": 0,
+          "type": "double",
+          "description": "",
+          "units": "A",
+          "min_value": -800,
+          "max_value": 800,
+          "signal_id": 1914,
+          "signal_name": "Config_PeakForTorqCurr",
+          "default_value": 800,
+          "value": 120,
+          "param_value": 120,
+          "enum_values": []
+        },
+        {
+          "name": "Peak Reverse Torque Current",
+          "summary": "Minimum (reverse) output during torque current based control modes.",
+          "ordinal": 0,
+          "type": "double",
+          "description": "",
+          "units": "A",
+          "min_value": -800,
+          "max_value": 800,
+          "signal_id": 1915,
+          "signal_name": "Config_PeakRevTorqCurr",
+          "default_value": -800,
+          "value": -120,
+          "param_value": -120,
+          "enum_values": []
+        }
+      ]
+    }
+  ],
+  "JsonVersion": 2
+}
