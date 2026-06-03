@@ -196,6 +196,19 @@ public class Camera {
     var u = new VisionUpdate(pose, estRoboPose.timestampSeconds, trust, avgDistanceMeters);
     previousUpdate = Optional.of(u);
 
+    // NT logging of per-estimate filter internals for AdvantageScope analysis.
+    // Logged after all multipliers so TrustPost reflects exactly what goes into VisionUpdate.
+    if (FeatureSwitches.VISION_EXTENDED_NT_LOGGING) {
+      String pfx = "/Vision/" + getName() + "/";
+      SmartDashboard.putNumber(pfx + "TagCount",          estRoboPose.targetsUsed.size());
+      SmartDashboard.putNumber(pfx + "TagArea",           sumArea);
+      SmartDashboard.putNumber(pfx + "PixelOffset",       avgNormalizedPixelsFromCenter);
+      SmartDashboard.putNumber(pfx + "AspectRatio",       avgDimensionProportion);
+      SmartDashboard.putNumber(pfx + "AvgDistanceMeters", avgDistanceMeters);
+      SmartDashboard.putNumber(pfx + "TrustPre",          trustScalar);
+      SmartDashboard.putNumber(pfx + "TrustPost",         trust);
+    }
+
     return previousUpdate;
   }
 

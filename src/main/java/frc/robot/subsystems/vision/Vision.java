@@ -158,6 +158,16 @@ public class Vision extends SubsystemBase {
       Tracer.endTrace();
     }
 
+    // Log velocity-based weight components so AdvantageScope can correlate
+    // motion blur artifacts with filter weight drops.
+    if (FeatureSwitches.VISION_EXTENDED_NT_LOGGING) {
+      double linearSpeed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
+      SmartDashboard.putNumber("/Vision/LinearVelocityWeight",
+          Filtering.LINEAR_VELOCITY_WEIGHT_COEFFICIENT.lerp(linearSpeed));
+      SmartDashboard.putNumber("/Vision/AngularVelocityWeight",
+          Filtering.ANGULAR_VELOCITY_WEIGHT_COEFFICIENT.lerp(Math.abs(speeds.omegaRadiansPerSecond)));
+    }
+
     Pose2d[] tagLoc = seenTags.stream()
         .map(i -> AprilTags.getAprilTagFieldLayout().getTagPose(i))
         .filter(Optional::isPresent)

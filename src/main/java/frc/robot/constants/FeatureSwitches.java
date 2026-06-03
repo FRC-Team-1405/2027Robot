@@ -36,9 +36,12 @@ public class FeatureSwitches {
     public static final boolean VISION_SMOOTH_THETA_STDDEV = false;
 
     /** P2: Publish per-filter NT topics for every vision sample (tag count, area,
-     *  pixel offset, trust pre/post, rejection counters, correction magnitude).
+     *  pixel offset, aspect ratio, trust pre/post, avg distance, velocity weights,
+     *  rejection counters, correction magnitude, XY/theta stddevs).
+     *  ON by default - logging does not affect robot behavior, and the data is
+     *  needed to scientifically A/B test the other vision switches.
      *  OFF = 2026 minimal logging. ON = full debug logging. */
-    public static final boolean VISION_EXTENDED_NT_LOGGING = false;
+    public static final boolean VISION_EXTENDED_NT_LOGGING = true;
 
     /** P2: Use TAG_RANKINGS to zero-weight non-scoring tags (local estimator mode).
      *  OFF = 2026 behavior (all tags contribute). ON = only scoring-zone tags trusted. */
