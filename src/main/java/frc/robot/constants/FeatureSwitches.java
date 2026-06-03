@@ -20,4 +20,35 @@ public class FeatureSwitches {
 
     // Drive base
     public static final boolean PUBLISH_INDIVIDUAL_DRIVE_CURRENTS = false;
+
+    // -------------------------------------------------------------------------
+    // Vision A/B Test Switches (all OFF by default — baseline is 2026 behavior)
+    // -------------------------------------------------------------------------
+    // Enable/disable individual filters independently so each can be measured
+    // against the baseline in AdvantageScope. See docs/vision-testing-protocol.md.
+
+    /** P1: Reject vision estimates whose 3D pose falls outside field boundaries.
+     *  OFF = 2026 behavior (no boundary check). ON = reject out-of-bounds poses. */
+    public static final boolean VISION_FIELD_BOUNDARY_REJECTION = false;
+
+    /** P1: Use a smooth LerpTable for theta stddev instead of the binary weight>0.9 threshold.
+     *  OFF = 2026 behavior (binary: >0.9 → 10.0 rad, else 99999.0). ON = smooth curve. */
+    public static final boolean VISION_SMOOTH_THETA_STDDEV = false;
+
+    /** P2: Publish per-filter NT topics for every vision sample (tag count, area,
+     *  pixel offset, trust pre/post, rejection counters, correction magnitude).
+     *  OFF = 2026 minimal logging. ON = full debug logging. */
+    public static final boolean VISION_EXTENDED_NT_LOGGING = false;
+
+    /** P2: Use TAG_RANKINGS to zero-weight non-scoring tags (local estimator mode).
+     *  OFF = 2026 behavior (all tags contribute). ON = only scoring-zone tags trusted. */
+    public static final boolean VISION_TAG_RANKINGS_FILTER = false;
+
+    /** P2: Use distance-based stddev (meters from tag) instead of area-proxy.
+     *  OFF = 2026 area-based weight. ON = distance LerpTable for XY stddev. */
+    public static final boolean VISION_DISTANCE_BASED_STDDEV = false;
+
+    /** P3: Reject single-tag estimates with ambiguity score >= 0.2.
+     *  OFF = 2026 behavior (no ambiguity threshold). ON = ambiguity filter active. */
+    public static final boolean VISION_AMBIGUITY_THRESHOLD = false;
 }
