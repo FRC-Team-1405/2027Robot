@@ -44,6 +44,7 @@ import frc.robot.commands.RumbleJoystick;
 import frc.robot.constants.FeatureSwitches;
 import frc.robot.lib.FinneyLogger;
 import frc.robot.lib.MotorSim.MotorSim_Mech;
+import org.littletonrobotics.junction.AutoLogOutput;
 
 public class Shooter extends SubsystemBase {
   private final FinneyLogger fLogger = new FinneyLogger(this.getClass().getSimpleName(),
@@ -76,13 +77,17 @@ public class Shooter extends SubsystemBase {
   private double lowError = 0.0;
 
   private int settleCount = 0;
+  @AutoLogOutput(key = "Shooter/ShotCount")
   private int shotCount = 0;
 
+  @AutoLogOutput(key = "Shooter/TargetRPS")
   private double shooterTarget = 0.0;
   private double shooterStartTimestamp = 0.0;
   private double timeToLockSeconds = 0.0;
 
+  @AutoLogOutput(key = "Shooter/Locked")
   private boolean locked = false;
+  @AutoLogOutput(key = "Shooter/WasLocked")
   private boolean wasLocked = false;
 
   private CommandXboxController operatorJoystick;

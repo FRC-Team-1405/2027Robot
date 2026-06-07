@@ -12,7 +12,6 @@ import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -21,24 +20,53 @@ import frc.robot.lib.MotorSim.PhysicsSim;
 import frc.robot.sim.sjc.PhysicsSim_SJC;
 import frc.robot.util.GamePeriod;
 
-public class Robot extends TimedRobot {
+import org.littletonrobotics.junction.LogFileUtil;
+import org.littletonrobotics.junction.LoggedRobot;
+import org.littletonrobotics.junction.Logger;
+import org.littletonrobotics.junction.networktables.NT4Publisher;
+import org.littletonrobotics.junction.wpilog.WPILOGReader;
+import org.littletonrobotics.junction.wpilog.WPILOGWriter;
+
+public class Robot extends LoggedRobot {
     private Command m_autonomousCommand;
 
     private final RobotContainer m_robotContainer;
 
-    /* log and replay timestamp and joystick data */
-    private final HootAutoReplay m_timeAndJoystickReplay = new HootAutoReplay()
-            .withTimestampReplay()
-            .withJoystickReplay();
+    /* log and replay timestamp and joystick data — initialized after Logger.start() */
+    private HootAutoReplay m_timeAndJoystickReplay;
 
     // TODO(2027): Verify autonomous duration for 2027 game rules (was 20.0s in 2026).
     private static final double AUTO_DURATION = 20.0; // seconds
     private static Timer autoTimer = new Timer();
 
     public Robot() {
-        if (RobotBase.isReal()){
-            // Start WPILib data logging to /home/lvuser/logs so .wpilog files are created
-            // for every match. Also mirror NetworkTables entries into the log file.
+        // ── AdvantageKit setup — must run before any other initialization ──────
+        Logger.recordMetadata("ProjectName", "2027Robot");
+        Logger.recordMetadata("RuntimeType", getRuntimeType().toString());
+
+        if (isReal()) {
+            // On the real robot: write an AKit log to the roboRIO and publish to NT.
+            Logger.addDataReceiver(new WPILOGWriter("/home/lvuser/logs"));
+            Logger.addDataReceiver(new NT4Publisher());
+        } else {
+            // replay Akit log in simulator
+            setUseTiming(false); // run as fast as possible during replay
+            String logPath = LogFileUtil.findReplayLog();
+            Logger.setReplaySource(new WPILOGReader(logPath));
+            Logger.addDataReceiver(
+                new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
+        }
+
+        Logger.start(); // no more receivers or metadata may be added after this
+
+        // CTRE Hoot replay — initialized after Logger.start() per AKit guidance
+        m_timeAndJoystickReplay = new HootAutoReplay()
+                .withTimestampReplay()
+                .withJoystickReplay();
+
+        if (RobotBase.isReal()) {
+            // WPILib DataLogManager runs alongside AKit for CTRE Hoot compatibility.
+            // Both write separate .wpilog files to /home/lvuser/logs.
             DataLogManager.start("/home/lvuser/logs");
             DriverStation.startDataLog(DataLogManager.getLog());
         }

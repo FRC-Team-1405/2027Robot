@@ -25,6 +25,7 @@ import frc.robot.constants.FeatureSwitches;
 import frc.robot.lib.FinneyLogger;
 import frc.robot.sim.sjc.MotorSim_Mech_SJC;
 import frc.robot.sim.sjc.PhysicsSim_SJC;
+import org.littletonrobotics.junction.AutoLogOutput;
 
 public class Indexer extends SubsystemBase {
     private final FinneyLogger fLogger = new FinneyLogger(this.getClass().getSimpleName());
@@ -36,6 +37,7 @@ public class Indexer extends SubsystemBase {
     private final MotionMagicVelocityVoltage velocityVoltage = new MotionMagicVelocityVoltage(0);
     private final NeutralOut m_Brake = new NeutralOut();
 
+    @AutoLogOutput(key = "Indexer/Active")
     private boolean isIndexerActive = false;
 
     public Indexer() {
