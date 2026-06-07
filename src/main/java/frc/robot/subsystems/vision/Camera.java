@@ -77,6 +77,11 @@ public class Camera {
   private int rejectionCountVelocity = 0;
   private int rejectionCountBoundary = 0;
 
+  // Rolling FPS tracker: count results processed each second
+  private int fpsResultCount = 0;
+  private double fpsWindowStart = 0.0;
+  private double currentFps = 0.0;
+
   public Camera(String name, double trustScalar, Transform3d cameraTransform, CameraIntrinsics intrinsics) {
     this.camera = new PhotonCamera(name);
     this.robotToCamera = cameraTransform;
@@ -277,6 +282,18 @@ public class Camera {
       }
 
       SmartDashboard.putBoolean("/Vision/" + getName() + "/isConnected", camera.isConnected());
+
+      // Update rolling FPS counter from the results we just processed
+      fpsResultCount += results.size();
+      double now = Timer.getFPGATimestamp();
+      if (fpsWindowStart == 0.0) fpsWindowStart = now;
+      double elapsed = now - fpsWindowStart;
+      if (elapsed >= 1.0) {
+        currentFps = fpsResultCount / elapsed;
+        fpsResultCount = 0;
+        fpsWindowStart = now;
+        SmartDashboard.putNumber("/Vision/" + getName() + "/FPS", currentFps);
+      }
     }
   }
 }

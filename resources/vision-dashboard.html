@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team 1405 — Vision Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  #30363d;
+      --text:    #e6edf3;
+      --muted:   #7d8590;
+      --accent:  #58a6ff;
+      --green:   #3fb950;
+      --yellow:  #d29922;
+      --red:     #f85149;
+      --radius:  10px;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding: 1rem;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+    h1 { font-size: 1.3rem; font-weight: 700; }
+    .host-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .host-row input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.82rem;
+      padding: 0.25rem 0.5rem;
+      width: 180px;
+    }
+    .host-row button {
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      padding: 0.25rem 0.6rem;
+      cursor: pointer;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 20px;
+      border: 1px solid;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-on  { color: var(--green);  border-color: var(--green);  background: rgba(63,185,80,.1); }
+    .badge-off { color: var(--red);    border-color: var(--red);    background: rgba(248,81,73,.1); }
+    .badge-wait{ color: var(--muted);  border-color: var(--border); background: transparent; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+    .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .card-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .card-value {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--text);
+    }
+    .card-unit  { font-size: 0.78rem; color: var(--muted); margin-top: 0.05rem; }
+    .card-sub   { font-size: 0.75rem; color: var(--muted); }
+    .v-good { color: var(--green); }
+    .v-ok   { color: var(--yellow); }
+    .v-bad  { color: var(--red); }
+    .v-na   { color: var(--muted); }
+
+    .bar-wrap { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 0.2rem; }
+    .bar { height: 100%; border-radius: 3px; background: var(--accent); transition: width .5s ease; }
+    .bar.warn { background: var(--yellow); }
+    .bar.crit { background: var(--red); }
+
+    section { margin-bottom: 1.25rem; }
+    section h2 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.65rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .footer {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .stale { opacity: 0.4; }
+    .opi-offline {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+      <h1>Team 1405 Vision</h1>
+      <span id="conn-badge" class="badge badge-wait"><span class="dot"></span>Connecting</span>
+    </div>
+    <div class="host-row">
+      <label for="host-input">roboRIO</label>
+      <input id="host-input" type="text" value="10.14.5.2" />
+      <button id="connect-btn">Connect</button>
+    </div>
+  </header>
+
+  <!-- Camera FPS -->
+  <section>
+    <h2>Camera FPS <span id="cam-badge" class="badge badge-wait"><span class="dot"></span>Waiting</span></h2>
+    <div class="grid" id="camera-grid">
+      <div class="card"><div class="card-title">Left</div><div class="card-value v-na" id="fps-Left">—</div><div class="card-unit">FPS</div></div>
+      <div class="card"><div class="card-title">Right</div><div class="card-value v-na" id="fps-Right">—</div><div class="card-unit">FPS</div></div>
+    </div>
+  </section>
+
+  <!-- Orange Pi system -->
+  <section>
+    <h2>
+      Orange Pi System
+      <span id="opi-badge" class="badge badge-wait"><span class="dot"></span>Waiting</span>
+    </h2>
+    <div class="grid" id="opi-grid">
+      <div class="card">
+        <div class="card-title">CPU</div>
+        <div class="card-value" id="opi-cpu">—</div>
+        <div class="card-unit">%</div>
+        <div class="bar-wrap"><div class="bar" id="bar-cpu" style="width:0%"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">RAM</div>
+        <div class="card-value" id="opi-ram">—</div>
+        <div class="card-unit">%</div>
+        <div class="card-sub" id="opi-ram-sub">— / — MB</div>
+        <div class="bar-wrap"><div class="bar" id="bar-ram" style="width:0%"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Disk</div>
+        <div class="card-value" id="opi-disk">—</div>
+        <div class="card-unit">%</div>
+        <div class="card-sub" id="opi-disk-sub">— / — GB</div>
+        <div class="bar-wrap"><div class="bar" id="bar-disk" style="width:0%"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Temp</div>
+        <div class="card-value" id="opi-temp">—</div>
+        <div class="card-unit">°C</div>
+      </div>
+    </div>
+    <p class="opi-offline" id="opi-offline-msg" style="display:none;margin-top:0.5rem">
+      Orange Pi metrics not yet in NT — is <code>orangepi-nt-publisher.py</code> running on the co-processor?
+    </p>
+  </section>
+
+  <div class="footer">
+    <span>NT topics: <code>/Vision/*/FPS</code> · <code>/Vision/*/isConnected</code> · <code>/OrangePi/*</code></span>
+    <span id="last-updated">Never updated</span>
+  </div>
+
+<script>
+// ─── Minimal MessagePack decoder ─────────────────────────────────────────────
+// Handles only the types NT4 uses: fixint, int8–64, uint8–64, float64,
+// fixstr/str8/16/32, bool, null, fixarray/array16/32, fixmap.
+function decodeMsgpack(buffer) {
+  const b = new Uint8Array(buffer);
+  let p = 0;
+
+  function u8()  { return b[p++]; }
+  function u16() { return (b[p++]<<8)|b[p++]; }
+  function u32() { const v=(b[p]<<24)|(b[p+1]<<16)|(b[p+2]<<8)|b[p+3]; p+=4; return v>>>0; }
+  function i8()  { const v=u8();  return v>0x7f?v-0x100:v; }
+  function i16() { const v=u16(); return v>0x7fff?v-0x10000:v; }
+  function i32() { const v=u32(); return v>0x7fffffff?v-0x100000000:v; }
+  function f32() { const dv=new DataView(b.buffer,p,4); p+=4; return dv.getFloat32(0,false); }
+  function f64() { const dv=new DataView(b.buffer,p,8); p+=8; return dv.getFloat64(0,false); }
+  function str(n) { const s=new TextDecoder().decode(b.subarray(p,p+n)); p+=n; return s; }
+  function arr(n) { return Array.from({length:n},decode); }
+  function map(n) { const m={}; for(let i=0;i<n;i++){const k=decode();m[k]=decode();} return m; }
+  function skip(n){ p+=n; return null; }
+
+  function decode() {
+    const byte = u8();
+    if (byte <= 0x7f) return byte;                      // positive fixint
+    if (byte >= 0xe0) return byte - 0x100;              // negative fixint
+    if ((byte & 0xe0) === 0xa0) return str(byte & 0x1f); // fixstr
+    if ((byte & 0xf0) === 0x90) return arr(byte & 0x0f); // fixarray
+    if ((byte & 0xf0) === 0x80) return map(byte & 0x0f); // fixmap
+    switch (byte) {
+      case 0xc0: return null;
+      case 0xc2: return false;
+      case 0xc3: return true;
+      case 0xc4: return skip(u8());      // bin8
+      case 0xc5: return skip(u16());     // bin16
+      case 0xc6: return skip(u32());     // bin32
+      case 0xca: return f32();
+      case 0xcb: return f64();
+      case 0xcc: return u8();
+      case 0xcd: return u16();
+      case 0xce: return u32();
+      case 0xcf: { const hi=u32(),lo=u32(); return hi*0x100000000+lo; } // uint64
+      case 0xd0: return i8();
+      case 0xd1: return i16();
+      case 0xd2: return i32();
+      case 0xd3: { const hi=i32(),lo=u32(); return hi*0x100000000+lo; } // int64
+      case 0xd9: return str(u8());       // str8
+      case 0xda: return str(u16());      // str16
+      case 0xdb: return str(u32());      // str32
+      case 0xdc: return arr(u16());      // array16
+      case 0xdd: return arr(u32());      // array32
+      case 0xde: return map(u16());      // map16
+      case 0xdf: return map(u32());      // map32
+      // ext types: skip
+      case 0xd4: return skip(1+1);
+      case 0xd5: return skip(1+2);
+      case 0xd6: return skip(1+4);
+      case 0xd7: return skip(1+8);
+      case 0xd8: return skip(1+16);
+      case 0xc7: { const n=u8();  p++; return skip(n); } // ext8
+      case 0xc8: { const n=u16(); p++; return skip(n); } // ext16
+      case 0xc9: { const n=u32(); p++; return skip(n); } // ext32
+      default: return null;
+    }
+  }
+
+  // NT4 sends one or more top-level msgpack values per binary frame
+  const results = [];
+  while (p < b.length) results.push(decode());
+  return results;
+}
+
+// ─── NT4 WebSocket client ─────────────────────────────────────────────────────
+class NT4 {
+  constructor(onValue, onConnect, onDisconnect) {
+    this.onValue = onValue;
+    this.onConnect = onConnect;
+    this.onDisconnect = onDisconnect;
+    this.ws = null;
+    this.topicById = new Map();  // id -> {name, type}
+    this.host = '10.14.5.2';
+    this._subUID = 0;
+    this._reconnectTimer = null;
+  }
+
+  connect(host) {
+    this.host = host;
+    this._clearReconnect();
+    if (this.ws) { try { this.ws.close(); } catch {} }
+    const url = `ws://${host}:5810/nt/VisionDashboard`;
+    const ws = new WebSocket(url, 'v4.1.networktables.first.wpi.edu');
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => {
+      // Subscribe to all /Vision/ and /OrangePi/ topics by prefix
+      const uid = ++this._subUID;
+      ws.send(JSON.stringify([{
+        method: 'subscribe',
+        params: {
+          topics: ['/Vision/', '/OrangePi/'],
+          subuid: uid,
+          options: { prefix: true, periodic: 0.2 }
+        }
+      }]));
+      this.onConnect && this.onConnect();
+    };
+    ws.onclose = () => {
+      this.topicById.clear();
+      this.onDisconnect && this.onDisconnect();
+      this._scheduleReconnect();
+    };
+    ws.onerror = () => {};
+    ws.onmessage = (e) => {
+      if (typeof e.data === 'string') {
+        // JSON control frames
+        let msgs;
+        try { msgs = JSON.parse(e.data); } catch { return; }
+        for (const m of msgs) {
+          if (m.method === 'announce') {
+            this.topicById.set(m.params.id, { name: m.params.name, type: m.params.type });
+          }
+        }
+      } else {
+        // Binary msgpack data frames — each NT4 value is [topicId, ts, typeEnum, value]
+        const frames = decodeMsgpack(e.data);
+        for (const frame of frames) {
+          if (!Array.isArray(frame) || frame.length < 4) continue;
+          const topic = this.topicById.get(frame[0]);
+          if (topic) this.onValue(topic.name, frame[3]);
+        }
+      }
+    };
+    this.ws = ws;
+  }
+
+  _scheduleReconnect() {
+    this._clearReconnect();
+    this._reconnectTimer = setTimeout(() => this.connect(this.host), 3000);
+  }
+  _clearReconnect() {
+    if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
+  }
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function setBar(id, pct) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.width = Math.min(100, pct) + '%';
+  el.className = 'bar' + (pct >= 90 ? ' crit' : pct >= 70 ? ' warn' : '');
+}
+
+function fpsClass(v) {
+  if (v == null) return 'v-na';
+  return v >= 24 ? 'v-good' : v >= 12 ? 'v-ok' : 'v-bad';
+}
+
+function tempClass(v) {
+  return v >= 80 ? 'v-bad' : v >= 65 ? 'v-ok' : 'v-good';
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+const opiValues = {};   // topic suffix -> value
+const camValues = {};   // topic suffix -> value
+let opiSeen = false;
+let lastUpdate = null;
+let connectedState = false;
+
+function updateTimestamp() {
+  lastUpdate = new Date();
+  document.getElementById('last-updated').textContent =
+    'Updated ' + lastUpdate.toLocaleTimeString();
+}
+
+function renderCameras() {
+  // Left and Right are the configured cameras
+  ['Left', 'Right'].forEach(name => {
+    const fps = camValues[`${name}/FPS`];
+    const el = document.getElementById(`fps-${name}`);
+    if (!el) return;
+    if (fps != null) {
+      el.textContent = parseFloat(fps).toFixed(1);
+      el.className = 'card-value ' + fpsClass(fps);
+    }
+  });
+
+  // Check if any camera is reporting; update cam section badge
+  const anyData = ['Left','Right'].some(n => camValues[`${n}/FPS`] != null);
+  const camBadge = document.getElementById('cam-badge');
+  if (anyData) {
+    camBadge.className = 'badge badge-on';
+    camBadge.innerHTML = '<span class="dot"></span>Live';
+  } else if (connectedState) {
+    camBadge.className = 'badge badge-wait';
+    camBadge.innerHTML = '<span class="dot"></span>Waiting';
+  }
+}
+
+function renderOrangePi() {
+  const cpu  = opiValues['CPU_Pct'];
+  const ramP = opiValues['RAM_Pct'];
+  const ramU = opiValues['RAM_Used_MB'];
+  const ramT = opiValues['RAM_Total_MB'];
+  const dskP = opiValues['Disk_Pct'];
+  const dskU = opiValues['Disk_Used_GB'];
+  const dskT = opiValues['Disk_Total_GB'];
+  const temp = opiValues['Temp_C'];
+
+  const msg = document.getElementById('opi-offline-msg');
+
+  if (!opiSeen) {
+    msg.style.display = connectedState ? '' : 'none';
+    return;
+  }
+  msg.style.display = 'none';
+
+  if (cpu != null) {
+    document.getElementById('opi-cpu').textContent = parseFloat(cpu).toFixed(1);
+    setBar('bar-cpu', cpu);
+  }
+  if (ramP != null) {
+    document.getElementById('opi-ram').textContent = parseFloat(ramP).toFixed(1);
+    setBar('bar-ram', ramP);
+    if (ramU != null && ramT != null)
+      document.getElementById('opi-ram-sub').textContent =
+        `${Math.round(ramU)} / ${Math.round(ramT)} MB`;
+  }
+  if (dskP != null) {
+    document.getElementById('opi-disk').textContent = parseFloat(dskP).toFixed(1);
+    setBar('bar-disk', dskP);
+    if (dskU != null && dskT != null)
+      document.getElementById('opi-disk-sub').textContent =
+        `${parseFloat(dskU).toFixed(1)} / ${parseFloat(dskT).toFixed(1)} GB`;
+  }
+  if (temp != null) {
+    const tempEl = document.getElementById('opi-temp');
+    tempEl.textContent = parseFloat(temp).toFixed(1);
+    tempEl.className = 'card-value ' + tempClass(temp);
+  }
+
+  const opiBadge = document.getElementById('opi-badge');
+  opiBadge.className = 'badge badge-on';
+  opiBadge.innerHTML = '<span class="dot"></span>Live';
+}
+
+// ─── NT value handler ─────────────────────────────────────────────────────────
+function onValue(topicName, value) {
+  updateTimestamp();
+
+  if (topicName.startsWith('/Vision/')) {
+    const suffix = topicName.slice('/Vision/'.length);
+    camValues[suffix] = value;
+    renderCameras();
+  } else if (topicName.startsWith('/OrangePi/')) {
+    const suffix = topicName.slice('/OrangePi/'.length);
+    opiValues[suffix] = value;
+    opiSeen = true;
+    renderOrangePi();
+  }
+}
+
+// ─── NT connection callbacks ──────────────────────────────────────────────────
+const nt = new NT4(
+  onValue,
+  () => {
+    connectedState = true;
+    const badge = document.getElementById('conn-badge');
+    badge.className = 'badge badge-on';
+    badge.innerHTML = '<span class="dot"></span>Connected';
+  },
+  () => {
+    connectedState = false;
+    const badge = document.getElementById('conn-badge');
+    badge.className = 'badge badge-off';
+    badge.innerHTML = '<span class="dot"></span>Disconnected';
+    document.getElementById('cam-badge').className = 'badge badge-wait';
+    document.getElementById('cam-badge').innerHTML = '<span class="dot"></span>Waiting';
+    document.getElementById('opi-badge').className = 'badge badge-wait';
+    document.getElementById('opi-badge').innerHTML = '<span class="dot"></span>Waiting';
+    document.getElementById('opi-offline-msg').style.display = 'none';
+  }
+);
+
+// ─── Connect button ───────────────────────────────────────────────────────────
+document.getElementById('connect-btn').addEventListener('click', () => {
+  const host = document.getElementById('host-input').value.trim() || '10.14.5.2';
+  nt.connect(host);
+});
+
+// Connect immediately on load
+nt.connect(document.getElementById('host-input').value.trim());
+</script>
+</body>
+</html>
