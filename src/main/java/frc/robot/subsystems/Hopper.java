@@ -1,146 +1,77 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
 package frc.robot.subsystems;
 
-import com.ctre.phoenix6.StatusCode;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
-import com.ctre.phoenix6.controls.NeutralOut;
-import com.ctre.phoenix6.hardware.TalonFX;
-import com.ctre.phoenix6.signals.InvertedValue;
-
 import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
-import frc.robot.constants.FeatureSwitches;
-import frc.robot.lib.FinneyLogger;
-import frc.robot.sim.sjc.MotorSim_Mech_SJC;
-import frc.robot.sim.sjc.PhysicsSim_SJC;
+import org.littletonrobotics.junction.AutoLogOutput;
+import org.littletonrobotics.junction.Logger;
 
 public class Hopper extends SubsystemBase {
-  private final FinneyLogger fLogger = new FinneyLogger(this.getClass().getSimpleName());
+    private final HopperIO io;
+    private final HopperIOInputsAutoLogged inputs = new HopperIOInputsAutoLogged();
 
-  private final TalonFX motor = new TalonFX(Constants.CANBus.HOPPER_MOTOR);
+    @AutoLogOutput(key = "Hopper/Active")
+    private boolean isHopperActive = false;
 
-  private final MotorSim_Mech_SJC hopper_motorSimMech = new MotorSim_Mech_SJC("Hopper/Mech");
-
-  private final MotionMagicVelocityVoltage speed = new MotionMagicVelocityVoltage(0);
-  private final NeutralOut stop = new NeutralOut();
-
-  public Hopper() {
-    setupMotors();
-    simulationInit();
-  }
-
-  // ── Motor Configuration ──────────────────────────────────────────────────
-
-  private void setupMotors() {
-    TalonFXConfiguration configs = new TalonFXConfiguration();
-
-    configs.Slot0.kS = Constants.HopperPreferences.KS;
-    configs.Slot0.kV = Constants.HopperPreferences.KV;
-    configs.Slot0.kP = Constants.HopperPreferences.KP;
-    configs.Slot0.kI = Constants.HopperPreferences.KI;
-    configs.Slot0.kD = Constants.HopperPreferences.KD;
-
-    configs.Voltage.PeakForwardVoltage = Constants.HopperPreferences.PEAK_FORWARD_VOLTAGE;
-    configs.Voltage.PeakReverseVoltage = Constants.HopperPreferences.PEAK_REVERSE_VOLTAGE;
-
-    configs.MotionMagic.MotionMagicCruiseVelocity = Constants.HopperPreferences.CRUISE_VELOCITY;
-    configs.MotionMagic.MotionMagicAcceleration = Constants.HopperPreferences.ACCELERATION;
-
-    // configs.CurrentLimits.StatorCurrentLimit =
-    // Constants.HopperPreferences.STATOR_CURRENT_LIMIT;
-    // configs.CurrentLimits.SupplyCurrentLimit =
-    // Constants.HopperPreferences.SUPPLY_CURRENT_LIMIT;
-
-    configs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
-
-    StatusCode status = StatusCode.StatusCodeNotInitialized;
-    for (int i = 0; i < 5; ++i) {
-      status = motor.getConfigurator().apply(configs);
-      if (status.isOK())
-        break;
-    }
-    if (!status.isOK()) {
-      System.out.println("Could not configure hopper motor. Error: " + status.toString());
-    }
-    fLogger.log("Hopper motor configured");
-  }
-
-  // ── Periodic ─────────────────────────────────────────────────────────────
-
-  @Override
-  public void periodic() {
-    if (FeatureSwitches.ENABLE_SUBSYSTEM_NT_LOGGING) {
-      SmartDashboard.putNumber("Hopper/StatorCurrent", motor.getStatorCurrent().getValueAsDouble());
-      SmartDashboard.putNumber("Hopper/Velocity", motor.getVelocity().getValueAsDouble());
-      SmartDashboard.putNumber("Hopper/PIDError", motor.getClosedLoopError().getValueAsDouble());
+    public Hopper(HopperIO io) {
+        this.io = io;
     }
 
-    hopper_motorSimMech.update(motor.getPosition(), motor.getVelocity());
-  }
+    @Override
+    public void periodic() {
+        io.updateInputs(inputs);
+        Logger.processInputs("Hopper", inputs);
+    }
 
-  // ── Simulation ───────────────────────────────────────────────────────────
+    // ── Motor Actions ────────────────────────────────────────────────────────
 
-  public void simulationInit() {
-    // Hopper roller: low inertia, light load, direct drive
-    PhysicsSim_SJC.getInstance().addTalonFX(motor,
-        /* rotorInertia= */0.001, /* loadMassKg= */0.05, /* armMeters= */0.05,
-        /* viscousCoeff= */0.01, /* numberOfMotors= */1, /* gearRatio= */1.0);
-  }
+    private void forwardHopper() {
+        isHopperActive = true;
+        io.setVelocity(Constants.HopperPreferences.HOPPER_FORWARD_SPEED.baseUnitMagnitude());
+    }
 
-  @Override
-  public void simulationPeriodic() {
-    PhysicsSim_SJC.getInstance().run();
-  }
+    private void reverseHopper() {
+        isHopperActive = true;
+        io.setVelocity(Constants.HopperPreferences.HOPPER_REVERSE_SPEED.baseUnitMagnitude());
+    }
 
-  // ── Motor Actions ────────────────────────────────────────────────────────
+    private void stopHopper() {
+        isHopperActive = false;
+        io.stop();
+    }
 
-  public void setSpeed(AngularVelocity velocity) {
-    motor.setControl(speed.withVelocity(velocity));
-  }
+    public void setSpeed(AngularVelocity velocity) {
+        isHopperActive = true;
+        io.setVelocity(velocity.baseUnitMagnitude());
+    }
 
-  private void forwardHopper() {
-    setSpeed(Constants.HopperPreferences.HOPPER_FORWARD_SPEED);
-    fLogger.log("Forward Hopper");
-  }
+    /** Start feeding balls forward. For use by external commands. */
+    public void startFeeding() {
+        forwardHopper();
+    }
 
-  private void reverseHopper() {
-    setSpeed(Constants.HopperPreferences.HOPPER_REVERSE_SPEED);
-    fLogger.log("Reverse Hopper");
-  }
+    /** Stop feeding balls. For use by external commands. */
+    public void stopFeeding() {
+        stopHopper();
+    }
 
-  private void stopHopper() {
-    motor.setControl(stop);
-    fLogger.log("Stop Hopper");
-  }
+    @AutoLogOutput(key = "Hopper/VelocityRPS")
+    public double getVelocityRPS() {
+        return inputs.velocityRPS;
+    }
 
-  /** Start feeding balls forward. For use by external commands. */
-  public void startFeeding() {
-    forwardHopper();
-  }
+    // ── Public Commands ──────────────────────────────────────────────────────
 
-  /** Stop feeding balls. For use by external commands. */
-  public void stopFeeding() {
-    stopHopper();
-  }
+    public Command runForwardHopper() {
+        return runOnce(() -> forwardHopper()).withName("Run Forward Hopper");
+    }
 
-  // ── Public Commands ──────────────────────────────────────────────────────
+    public Command runReverseHopper() {
+        return startEnd(() -> reverseHopper(), () -> stopHopper()).withName("Run Reverse Hopper");
+    }
 
-  public Command runForwardHopper() {
-    return runOnce(() -> forwardHopper()).withName("Run Forward Hopper");
-  }
-
-  public Command runReverseHopper() {
-    return startEnd(() -> reverseHopper(), () -> stopHopper()).withName("Run Reverse Hopper");
-  }
-
-  public Command runStopHopper() {
-    return runOnce(() -> stopHopper()).withName("Run Stop Hopper");
-  }
+    public Command runStopHopper() {
+        return runOnce(() -> stopHopper()).withName("Run Stop Hopper");
+    }
 }

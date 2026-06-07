@@ -1,186 +1,138 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
 package frc.robot.subsystems;
 
-import com.ctre.phoenix6.controls.MotionMagicVoltage;
-import com.ctre.phoenix6.controls.NeutralOut;
-import com.ctre.phoenix6.hardware.TalonFX;
-
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
-import frc.robot.lib.FinneyLogger;
-import frc.robot.sim.SimProfiles;
+import org.littletonrobotics.junction.AutoLogOutput;
+import org.littletonrobotics.junction.Logger;
 
 public class Climber extends SubsystemBase {
-  private final FinneyLogger fLogger = new FinneyLogger(this.getClass().getSimpleName());
-  /** Creates a new Climber. */
-  private TalonFX motor = new TalonFX(Constants.CANBus.CLIMBER_MOTOR);
-  private final MotionMagicVoltage motorPosition = new MotionMagicVoltage(0);
-  private final NeutralOut stop = new NeutralOut();
-  private TalonFX grabber = new TalonFX(Constants.CANBus.CLIMBER_GRABBER);
-  private final MotionMagicVoltage grabberPosition = new MotionMagicVoltage(0);
+    private final ClimberIO io;
+    private final ClimberIOInputsAutoLogged inputs = new ClimberIOInputsAutoLogged();
 
-  private int climberSettleCount = 0;
-  private double climberPositionTarget = 0;
-  private int grabberSettleCount = 0;
-  private double grabberPositionTarget = 0;
+    @AutoLogOutput(key = "Climber/ArmPositionTarget")
+    private double climberPositionTarget = 0;
 
-  private static final double CLIMBER_CURRENT_LIMIT = 40.0;
+    @AutoLogOutput(key = "Climber/GrabberPositionTarget")
+    private double grabberPositionTarget = 0;
 
-  @Override
-  public void periodic() {
-    if (Math.abs(climberPositionTarget
-        - motor.getClosedLoopReference().getValueAsDouble()) < Constants.ClimberPreferences.POSITION_TOLERANCE) {
-      if (Math.abs(motor.getClosedLoopError().getValueAsDouble()) < Constants.ClimberPreferences.POSITION_TOLERANCE) {
-        climberSettleCount += 1;
-      } else {
-        climberSettleCount = 0;
-      }
-    } else {
-      climberSettleCount = 0;
+    private int climberSettleCount = 0;
+    private int grabberSettleCount = 0;
+
+    public Climber(ClimberIO io) {
+        this.io = io;
     }
 
-    if (Math.abs(grabberPositionTarget
-        - grabber.getClosedLoopReference().getValueAsDouble()) < Constants.ClimberPreferences.POSITION_TOLERANCE) {
-      if (Math.abs(grabber.getClosedLoopError().getValueAsDouble()) < Constants.ClimberPreferences.POSITION_TOLERANCE) {
-        grabberSettleCount += 1;
-      } else {
-        grabberSettleCount = 0;
-      }
-    } else {
-      grabberSettleCount = 0;
+    @Override
+    public void periodic() {
+        io.updateInputs(inputs);
+        Logger.processInputs("Climber", inputs);
+
+        // Climber settle tracking
+        if (Math.abs(climberPositionTarget - inputs.climberClosedLoopReference)
+                < Constants.ClimberPreferences.POSITION_TOLERANCE
+                && Math.abs(inputs.climberClosedLoopError) < Constants.ClimberPreferences.POSITION_TOLERANCE) {
+            climberSettleCount++;
+        } else {
+            climberSettleCount = 0;
+        }
+
+        // Grabber settle tracking
+        if (Math.abs(grabberPositionTarget - inputs.grabberClosedLoopReference)
+                < Constants.ClimberPreferences.POSITION_TOLERANCE
+                && Math.abs(inputs.grabberClosedLoopError) < Constants.ClimberPreferences.POSITION_TOLERANCE) {
+            grabberSettleCount++;
+        } else {
+            grabberSettleCount = 0;
+        }
     }
-  }
 
-  private boolean isClimberAtTarget() {
-    return (climberSettleCount >= Constants.ClimberPreferences.SETTLE_MAX);
-  }
+    @AutoLogOutput(key = "Climber/ArmAtTarget")
+    private boolean isClimberAtTarget() {
+        return climberSettleCount >= Constants.ClimberPreferences.SETTLE_MAX;
+    }
 
-  private boolean isGrabberAtTarget() {
-    return (grabberSettleCount >= Constants.ClimberPreferences.SETTLE_MAX);
-  }
+    @AutoLogOutput(key = "Climber/GrabberAtTarget")
+    private boolean isGrabberAtTarget() {
+        return grabberSettleCount >= Constants.ClimberPreferences.SETTLE_MAX;
+    }
 
-  public void move(double position) {
-    motor.setControl(motorPosition.withPosition(position));
-    climberPositionTarget = position;
-  }
+    public void move(double position) {
+        io.setClimberPosition(position);
+        climberPositionTarget = position;
+    }
 
-  public void moveGrabber(double position) {
-    grabber.setControl(grabberPosition.withPosition(position));
-    grabberPositionTarget = position;
-  }
+    public void moveGrabber(double position) {
+        io.setGrabberPosition(position);
+        grabberPositionTarget = position;
+    }
 
-  public Climber() {
-    SimProfiles.initClimber(motor);
-    SimProfiles.initGrabber(grabber);
-  }
+    private void climbUp() {
+        move(Constants.ClimberPreferences.CLIMBER_EXTEND_POSITION);
+    }
 
-  // function to climb up - motor forward direction
-  private void climbUp() {
-    move(Constants.ClimberPreferences.CLIMBER_EXTEND_POSITION);
-    fLogger.log("Climb up ");
-  }
+    private void climbDown() {
+        move(Constants.ClimberPreferences.CLIMBER_RETRACT_POSITION);
+    }
 
-  // function to climb down -- motor backwards direction
-  private void climbDown() {
-    move(Constants.ClimberPreferences.CLIMBER_RETRACT_POSITION);
-    fLogger.log("Climb down ");
-  }
+    private void stop() {
+        io.stopClimber();
+    }
 
-  private void stop() {
-    motor.setControl(stop);
-    fLogger.log("Stop ");
-  }
+    public Command runClimbUp() {
+        return runOnce(() -> climbUp())
+                .andThen(Commands.waitUntil(() -> isClimberAtTarget()))
+                .withName("Climb Up");
+    }
 
-  /**
-   * This command runs the climb up action
-   * by extending the climber arm.
-   * 
-   * @return Command
-   */
-  public Command runClimbUp() {
-    return runOnce(() -> climbUp()).andThen(Commands.waitUntil(() -> isClimberAtTarget())).withName("Climb Up");
-  }
+    public Command runClimbDown() {
+        return runOnce(() -> climbDown())
+                .andThen(Commands.waitUntil(() -> isClimberAtTarget()))
+                .withName("Climb Down");
+    }
 
-  /**
-   * This command runs the climb down action
-   * by retracting the climber arm.
-   * 
-   * @return Command
-   */
-  public Command runClimbDown() {
-    return runOnce(() -> climbDown()).andThen(Commands.waitUntil(() -> isClimberAtTarget())).withName("Climb Down");
-  }
+    public Command runStop() {
+        return runOnce(() -> stop())
+                .andThen(Commands.waitUntil(() -> isClimberAtTarget()))
+                .withName("Climb Stop");
+    }
 
-  /**
-   * This command runs the stop action.
-   * 
-   * @return Command
-   */
-  public Command runStop() {
-    return runOnce(() -> stop()).andThen(Commands.waitUntil(() -> isClimberAtTarget())).withName("Climb Stop");
+    private void openClaw() {
+        moveGrabber(Constants.ClimberPreferences.GRABBER_OPEN_POSITION);
+    }
 
-  }
+    private void closeClaw() {
+        moveGrabber(Constants.ClimberPreferences.GRABBER_CLOSED_POSITION);
+    }
 
-  // grabber motors
+    private void stopClaw() {
+        io.stopGrabber();
+    }
 
-  private void openClaw() {
-    moveGrabber(Constants.ClimberPreferences.GRABBER_OPEN_POSITION);
-    fLogger.log("Open Claw ");
-  }
+    public Command runOpenClaw() {
+        return runOnce(() -> openClaw())
+                .andThen(Commands.waitUntil(() -> isGrabberAtTarget()))
+                .withName("Open Claw");
+    }
 
-  private void closeClaw() {
-    moveGrabber(Constants.ClimberPreferences.GRABBER_CLOSED_POSITION);
-    fLogger.log("Close Claw ");
-  }
+    public Command runCloseClaw() {
+        return runOnce(() -> closeClaw())
+                .andThen(Commands.waitUntil(() -> isGrabberAtTarget()))
+                .withName("Close Claw");
+    }
 
-  private void stopClaw() {
-    grabber.setControl(stop);
-    fLogger.log("Stop Claw ");
-  }
+    public Command runStopClaw() {
+        return runOnce(() -> stopClaw())
+                .andThen(Commands.waitUntil(() -> isClimberAtTarget()))
+                .withName("Stop Claw");
+    }
 
-  /**
-   * This command runs the open claw action.
-   * 
-   * @return Command
-   */
-  public Command runOpenClaw() {
-    return runOnce(() -> openClaw()).andThen(Commands.waitUntil(() -> isGrabberAtTarget())).withName("Open Claw");
-  }
+    public Command runExtendClimber() {
+        return runClimbUp().andThen(runOpenClaw()).withName("Extend Climber");
+    }
 
-  /**
-   * This command runs the close claw action.
-   * 
-   * @return Command
-   */
-  public Command runCloseClaw() {
-    return runOnce(() -> closeClaw()).andThen(Commands.waitUntil(() -> isGrabberAtTarget())).withName("Close Claw");
-  }
-
-  /**
-   * This command runs the stop claw action.
-   * 
-   * @return Command
-   */
-  public Command runStopClaw() {
-    return runOnce(() -> stopClaw()).andThen(Commands.waitUntil(() -> isClimberAtTarget())).withName("Stop Claw");
-  }
-
-  /**
-   * This command will extend the climber and then open the claw.
-   * 
-   * @return
-   */
-  public Command runExtendClimber() {
-    return runClimbUp().andThen(runOpenClaw()).withName("Extend Climber");
-  }
-
-  public Command runRetractClimber() {
-    return runCloseClaw().andThen(runClimbDown()).withName("Retract Climber");
-  }
+    public Command runRetractClimber() {
+        return runCloseClaw().andThen(runClimbDown()).withName("Retract Climber");
+    }
 }

@@ -4,20 +4,14 @@
 
 package frc.robot;
 
-import java.sql.Driver;
-
 import com.ctre.phoenix6.HootAutoReplay;
 
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.constants.FieldConstants;
-import frc.robot.lib.MotorSim.PhysicsSim;
-import frc.robot.sim.sjc.PhysicsSim_SJC;
 import frc.robot.util.GamePeriod;
 
 import org.littletonrobotics.junction.LogFileUtil;
@@ -32,11 +26,10 @@ public class Robot extends LoggedRobot {
 
     private final RobotContainer m_robotContainer;
 
-    /* log and replay timestamp and joystick data — initialized after Logger.start() */
     private HootAutoReplay m_timeAndJoystickReplay;
 
     // TODO(2027): Verify autonomous duration for 2027 game rules (was 20.0s in 2026).
-    private static final double AUTO_DURATION = 20.0; // seconds
+    private static final double AUTO_DURATION = 20.0;
     private static Timer autoTimer = new Timer();
 
     public Robot() {
@@ -45,19 +38,21 @@ public class Robot extends LoggedRobot {
         Logger.recordMetadata("RuntimeType", getRuntimeType().toString());
 
         if (isReal()) {
-            // On the real robot: write an AKit log to the roboRIO and publish to NT.
             Logger.addDataReceiver(new WPILOGWriter("/home/lvuser/logs"));
             Logger.addDataReceiver(new NT4Publisher());
         } else {
-            // replay Akit log in simulator
-            setUseTiming(false); // run as fast as possible during replay
+            // In sim: if a replay log is available replay it; otherwise run live with NT.
             String logPath = LogFileUtil.findReplayLog();
-            Logger.setReplaySource(new WPILOGReader(logPath));
-            Logger.addDataReceiver(
-                new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
+            if (logPath != null) {
+                setUseTiming(false);
+                Logger.setReplaySource(new WPILOGReader(logPath));
+                Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
+            } else {
+                Logger.addDataReceiver(new NT4Publisher());
+            }
         }
 
-        Logger.start(); // no more receivers or metadata may be added after this
+        Logger.start();
 
         // CTRE Hoot replay — initialized after Logger.start() per AKit guidance
         m_timeAndJoystickReplay = new HootAutoReplay()
@@ -65,8 +60,6 @@ public class Robot extends LoggedRobot {
                 .withJoystickReplay();
 
         if (RobotBase.isReal()) {
-            // WPILib DataLogManager runs alongside AKit for CTRE Hoot compatibility.
-            // Both write separate .wpilog files to /home/lvuser/logs.
             DataLogManager.start("/home/lvuser/logs");
             DriverStation.startDataLog(DataLogManager.getLog());
         }
@@ -77,7 +70,6 @@ public class Robot extends LoggedRobot {
     }
 
     private void resetSubsystems_init() {
-        // Reset subsystems — schedule stop commands so their initialize() logic runs
         CommandScheduler.getInstance().schedule(m_robotContainer.indexer.runStopIndexer());
         CommandScheduler.getInstance().schedule(m_robotContainer.hopper.runStopHopper());
     }
@@ -104,21 +96,17 @@ public class Robot extends LoggedRobot {
 
     @Override
     public void disabledInit() {
-        // Flush the data log so all buffered entries are written to disk at end of match
-        DataLogManager.getLog().flush();
-        // Resetting subsystems here doesn't work
+        if (RobotBase.isReal()) {
+            DataLogManager.getLog().flush();
+        }
         resetSubsystems_disable();
     }
 
     @Override
-    public void disabledPeriodic() {
-
-    }
+    public void disabledPeriodic() {}
 
     @Override
-    public void disabledExit() {
-
-    }
+    public void disabledExit() {}
 
     @Override
     public void autonomousInit() {
@@ -126,7 +114,6 @@ public class Robot extends LoggedRobot {
         startAutoTimer();
 
         m_autonomousCommand = m_robotContainer.getAutonomousCommand();
-
         if (m_autonomousCommand != null) {
             CommandScheduler.getInstance().schedule(m_autonomousCommand);
         }
@@ -134,22 +121,18 @@ public class Robot extends LoggedRobot {
 
     @Override
     public void autonomousPeriodic() {
-        PhysicsSim.getInstance().run();
         m_robotContainer.drivetrain.publishDrivePidErrors();
         m_robotContainer.drivetrain.publishDistanceToHub();
     }
 
     @Override
-    public void autonomousExit() {
-
-    }
+    public void autonomousExit() {}
 
     @Override
     public void teleopInit() {
         if (m_autonomousCommand != null) {
             CommandScheduler.getInstance().cancel(m_autonomousCommand);
         }
-
         GamePeriod.elasticTeleopInit();
         resetSubsystems_init();
     }
@@ -164,9 +147,7 @@ public class Robot extends LoggedRobot {
     }
 
     @Override
-    public void teleopExit() {
-
-    }
+    public void teleopExit() {}
 
     @Override
     public void testInit() {
@@ -174,32 +155,19 @@ public class Robot extends LoggedRobot {
     }
 
     @Override
-    public void testPeriodic() {
-    }
+    public void testPeriodic() {}
 
     @Override
-    public void testExit() {
-    }
+    public void testExit() {}
 
     @Override
     public void simulationPeriodic() {
-        PhysicsSim.getInstance().run();
-        PhysicsSim_SJC.getInstance().run();
+        // IO sim classes manage their own physics — no global sim runner needed.
     }
 
     public static double getAutonomousTimeLeft() {
         double fmsTime = Timer.getMatchTime();
-
-        // If FMS is giving real match time, use it
-        if (fmsTime >= 0) {
-            return fmsTime;
-        }
-
-        // Otherwise fall back to our own timer
-        double elapsed = autoTimer.get();
-        double remaining = AUTO_DURATION - elapsed;
-
-        return Math.max(remaining, 0); // never go negative
+        if (fmsTime >= 0) return fmsTime;
+        return Math.max(AUTO_DURATION - autoTimer.get(), 0);
     }
-
 }

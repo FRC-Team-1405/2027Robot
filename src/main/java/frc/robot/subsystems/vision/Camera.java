@@ -241,6 +241,18 @@ public class Camera {
     return seenTags;
   }
 
+  public int[] getSeenTagIds() {
+    return seenTags.stream().mapToInt(Integer::intValue).toArray();
+  }
+
+  public boolean isConnected() {
+    return camera.isConnected();
+  }
+
+  public double getCurrentFps() {
+    return currentFps;
+  }
+
   private PhotonPipelineResult pruneTags(PhotonPipelineResult result) {
     ArrayList<PhotonTrackedTarget> newTargets = new ArrayList<>();
     for (var target : result.targets) {
