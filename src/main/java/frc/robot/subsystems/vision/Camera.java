@@ -3,20 +3,15 @@ package frc.robot.subsystems.vision;
 import edu.wpi.first.math.MatBuilder;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.numbers.N8;
-import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Robot;
-import frc.robot.constants.FeatureSwitches;
 import frc.robot.lib.AprilTags;
-import frc.robot.subsystems.vision.Vision.VisionUpdate;
-import frc.robot.subsystems.vision.VisionConstants.Filtering;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -28,284 +23,216 @@ import org.photonvision.estimation.TargetModel;
 import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
-/** An abstraction for a photon camera. */
+/**
+ * Thin wrapper around PhotonCamera + PhotonPoseEstimator. Extracts raw pose estimates and
+ * per-target geometry data without applying any rejection filters. All filtering (ambiguity
+ * threshold, boundary rejection, velocity rejection, trust LerpTables) is performed in
+ * Vision.periodic() after Logger.processInputs() so it is replayable.
+ */
 public class Camera {
-  public record CameraIntrinsics(
-      double width,
-      double height,
-      double fx,
-      double fy,
-      double cx,
-      double cy,
-      double[] distortion) {
+    public record CameraIntrinsics(
+            double width,
+            double height,
+            double fx,
+            double fy,
+            double cx,
+            double cy,
+            double[] distortion) {
 
-    public Matrix<N8, N1> distortionMatrix() {
-      return MatBuilder.fill(Nat.N8(), Nat.N1(), distortion);
-    }
-
-    public Matrix<N3, N3> cameraMatrix() {
-      return MatBuilder.fill(Nat.N3(), Nat.N3(), new double[] { fx, 0, cx, 0, fy, cy, 0, 0, 1 });
-    }
-
-    public double horizontalFOV() {
-      return 2.0 * Math.atan2(width, 2.0 * fx);
-    }
-
-    public double verticalFOV() {
-      return 2.0 * Math.atan2(height, 2.0 * fy);
-    }
-
-    public double diagonalFOV() {
-      return 2.0 * Math.atan2(Math.hypot(width, height) / 2.0, fx);
-    }
-  }
-
-  protected final PhotonCamera camera;
-  protected final Transform3d robotToCamera, cameraToRobot;
-  private final PhotonPoseEstimator poseEstimator;
-  private final double trustScalar;
-
-  private final CameraIntrinsics intrinsics;
-  private final Optional<Matrix<N8, N1>> cachedDistortionMatrix;
-  private final Optional<Matrix<N3, N3>> cachedCameraMatrix;
-
-  private Optional<VisionUpdate> previousUpdate = Optional.empty();
-  private ArrayList<Integer> seenTags = new ArrayList<>();
-  private ArrayList<VisionUpdate> updates = new ArrayList<>();
-
-  // Rejection counters - reset on each flushUpdates() call
-  private int rejectionCountVelocity = 0;
-  private int rejectionCountBoundary = 0;
-
-  // Rolling FPS tracker: count results processed each second
-  private int fpsResultCount = 0;
-  private double fpsWindowStart = 0.0;
-  private double currentFps = 0.0;
-
-  public Camera(String name, double trustScalar, Transform3d cameraTransform, CameraIntrinsics intrinsics) {
-    this.camera = new PhotonCamera(name);
-    this.robotToCamera = cameraTransform;
-    this.cameraToRobot = robotToCamera.inverse();
-    this.trustScalar = trustScalar;
-    this.intrinsics = intrinsics;
-    this.cachedDistortionMatrix = Optional.of(intrinsics.distortionMatrix());
-    this.cachedCameraMatrix = Optional.of(intrinsics.cameraMatrix());
-
-    poseEstimator = new PhotonPoseEstimator(
-        AprilTags.getAprilTagFieldLayout(), PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, this.robotToCamera);
-    poseEstimator.setTagModel(TargetModel.kAprilTag36h11);
-    poseEstimator.setMultiTagFallbackStrategy(PoseStrategy.LOWEST_AMBIGUITY);
-
-  }
-
-  private double normalizedDistanceFromCenter(PhotonTrackedTarget target) {
-    final double HEIGHT = intrinsics.height;
-    final double WIDTH = intrinsics.width;
-    double sumX = 0.0;
-    double sumY = 0.0;
-    for (var corner : target.minAreaRectCorners) {
-      sumX += corner.x - WIDTH / 2.0;
-      sumY += corner.y - HEIGHT / 2.0;
-    }
-    double avgX = sumX / target.minAreaRectCorners.size();
-    double avgY = sumY / target.minAreaRectCorners.size();
-    return Math.hypot(avgX, avgY) / Math.hypot(WIDTH / 2.0, HEIGHT / 2.0);
-  }
-
-  private double dimensionProportionDifference(PhotonTrackedTarget target) {
-    final var corners = target.getDetectedCorners();
-    double height = Math.abs(corners.get(0).y - corners.get(3).y);
-    double width = Math.abs(corners.get(1).x - corners.get(0).x);
-    return Math.min(height, width) / Math.max(height, width);
-  }
-
-  private Optional<VisionUpdate> update(EstimatedRobotPose estRoboPose) {
-    for (PhotonTrackedTarget target : estRoboPose.targetsUsed) {
-      seenTags.add(target.fiducialId);
-    }
-
-    double trust = trustScalar;
-
-    // P1: Field boundary rejection - discard estimates outside plausible field space.
-    // Prevents corrupted Kalman filter state from tags detected through walls or
-    // misidentified at long range. Gated by FeatureSwitch for A/B testing.
-    // TODO(2027): Update FIELD_LENGTH and FIELD_WIDTH once 2027 field layout is published.
-    if (FeatureSwitches.VISION_FIELD_BOUNDARY_REJECTION) {
-      final double MARGIN = 0.5;       // meters of tolerance outside field edge
-      final double FIELD_LENGTH = 17.548; // 2026 Reefscape field length (meters)
-      final double FIELD_WIDTH  =  8.052; // 2026 Reefscape field width (meters)
-      final double MAX_Z        =  0.75;  // max plausible robot Z height (meters)
-      var p3d = estRoboPose.estimatedPose;
-      if (p3d.getX() < -MARGIN || p3d.getX() > FIELD_LENGTH + MARGIN
-          || p3d.getY() < -MARGIN || p3d.getY() > FIELD_WIDTH + MARGIN
-          || Math.abs(p3d.getZ()) > MAX_Z) {
-        rejectionCountBoundary++;
-        return Optional.empty();
-      }
-    }
-
-    Pose2d pose = estRoboPose.estimatedPose.toPose2d();
-
-    double sumArea = estRoboPose.targetsUsed.stream()
-        .map(PhotonTrackedTarget::getArea)
-        .mapToDouble(Double::doubleValue)
-        .sum();
-
-    // Compute average camera-to-tag distance for distance-based stddev (P2).
-    double avgDistanceMeters = estRoboPose.targetsUsed.stream()
-        .map(t -> t.getBestCameraToTarget().getTranslation().getNorm())
-        .mapToDouble(Double::doubleValue)
-        .average()
-        .orElse(0.0);
-
-    double avgNormalizedPixelsFromCenter = estRoboPose.targetsUsed.stream()
-        .map(this::normalizedDistanceFromCenter)
-        .mapToDouble(Double::doubleValue)
-        .average()
-        .orElseGet(() -> 0.0);
-
-    double avgDimensionProportion = estRoboPose.targetsUsed.stream()
-        .map(this::dimensionProportionDifference)
-        .mapToDouble(Double::doubleValue)
-        .average()
-        .orElseGet(() -> 0.0);
-
-    if (previousUpdate.isPresent()) {
-      double timeSinceLastUpdate = estRoboPose.timestampSeconds - previousUpdate.get().timestamp();
-      double distanceFromLastUpdate = pose.getTranslation().getDistance(previousUpdate.get().pose().getTranslation());
-      if (distanceFromLastUpdate > timeSinceLastUpdate * 5.0) {
-        rejectionCountVelocity++;
-        return Optional.empty();
-      }
-    }
-
-    // P2: TAG_RANKINGS - zero-weight non-scoring tags for a local estimator effect.
-    // TODO(2027): Update TAG_RANKINGS values for 2027 game structure.
-    // for (int tagId : seenTags) {
-    //     trust *= Filtering.TAG_RANKINGS.getOrDefault(tagId, 0.0);
-    // }
-    if (FeatureSwitches.VISION_TAG_RANKINGS_FILTER) {
-      for (int tagId : seenTags) {
-        trust *= Filtering.TAG_RANKINGS.getOrDefault(tagId, 0.0);
-      }
-    }
-
-    trust *= Filtering.AREA_WEIGHT_COEFFICIENT.lerp(sumArea);
-    trust *= Filtering.PIXEL_OFFSET_WEIGHT_COEFFICIENT.lerp(avgNormalizedPixelsFromCenter);
-    trust *= Filtering.HEIGHT_WIDTH_PROPORTION_WEIGHT_COEFFICIENT.lerp(avgDimensionProportion);
-
-    if (DriverStation.isDisabled()) {
-      trust = 1.0;
-    }
-
-    var u = new VisionUpdate(pose, estRoboPose.timestampSeconds, trust, avgDistanceMeters);
-    previousUpdate = Optional.of(u);
-
-    // NT logging of per-estimate filter internals for AdvantageScope analysis.
-    // Logged after all multipliers so TrustPost reflects exactly what goes into VisionUpdate.
-    if (FeatureSwitches.VISION_EXTENDED_NT_LOGGING) {
-      String pfx = "/Vision/" + getName() + "/";
-      SmartDashboard.putNumber(pfx + "TagCount",          estRoboPose.targetsUsed.size());
-      SmartDashboard.putNumber(pfx + "TagArea",           sumArea);
-      SmartDashboard.putNumber(pfx + "PixelOffset",       avgNormalizedPixelsFromCenter);
-      SmartDashboard.putNumber(pfx + "AspectRatio",       avgDimensionProportion);
-      SmartDashboard.putNumber(pfx + "AvgDistanceMeters", avgDistanceMeters);
-      SmartDashboard.putNumber(pfx + "TrustPre",          trustScalar);
-      SmartDashboard.putNumber(pfx + "TrustPost",         trust);
-    }
-
-    return previousUpdate;
-  }
-
-  public String getName() {
-    return camera.getName();
-  }
-
-  public List<VisionUpdate> flushUpdates() {
-    var u = updates;
-    updates = new ArrayList<>();
-    rejectionCountVelocity = 0;
-    rejectionCountBoundary = 0;
-    return u;
-  }
-
-  public int getRejectionCountVelocity() {
-    return rejectionCountVelocity;
-  }
-
-  public int getRejectionCountBoundary() {
-    return rejectionCountBoundary;
-  }
-
-  public List<Integer> getSeenTags() {
-    return seenTags;
-  }
-
-  public int[] getSeenTagIds() {
-    return seenTags.stream().mapToInt(Integer::intValue).toArray();
-  }
-
-  public boolean isConnected() {
-    return camera.isConnected();
-  }
-
-  public double getCurrentFps() {
-    return currentFps;
-  }
-
-  private PhotonPipelineResult pruneTags(PhotonPipelineResult result) {
-    ArrayList<PhotonTrackedTarget> newTargets = new ArrayList<>();
-    for (var target : result.targets) {
-      if (AprilTags.observableTag(target.fiducialId)) {
-        newTargets.add(target);
-      }
-    }
-    result.targets = newTargets;
-    return result;
-  }
-
-  public void periodic() {
-    if (Robot.isReal()) {
-      // poseEstimator.addHeadingData(Timer.getFPGATimestamp(), Rotation2d.kZero);
-      // TODO determine if this had any effect on vision. i think it might only be
-      // used in PNP_DISTANCE_TRIG_SOLVE PoseStrategy
-      seenTags.clear();
-      final var results = camera.getAllUnreadResults();
-      for (var result : results) {
-        if (result.hasTargets()) {
-          result = pruneTags(result);
-          // P3: Ambiguity threshold - reject single-tag estimates with high pose ambiguity.
-          // Ambiguity >= 0.2 means the solver can't reliably distinguish the correct orientation.
-          // Multi-tag results are always accepted (they don't have meaningful ambiguity scores).
-          if (FeatureSwitches.VISION_AMBIGUITY_THRESHOLD
-              && result.targets.size() == 1
-              && result.targets.get(0).getPoseAmbiguity() >= 0.2) {
-            continue;
-          }
-          Optional<EstimatedRobotPose> estRoboPose = poseEstimator.update(result, cachedCameraMatrix,
-              cachedDistortionMatrix, Optional.empty());
-          if (estRoboPose.isPresent()) {
-            Optional<VisionUpdate> u = update(estRoboPose.get());
-            if (u.isPresent()) {
-              updates.add(u.get());
-            }
-          }
+        public Matrix<N8, N1> distortionMatrix() {
+            return MatBuilder.fill(Nat.N8(), Nat.N1(), distortion);
         }
-      }
 
-      SmartDashboard.putBoolean("/Vision/" + getName() + "/isConnected", camera.isConnected());
+        public Matrix<N3, N3> cameraMatrix() {
+            return MatBuilder.fill(Nat.N3(), Nat.N3(), new double[]{ fx, 0, cx, 0, fy, cy, 0, 0, 1 });
+        }
 
-      // Update rolling FPS counter from the results we just processed
-      fpsResultCount += results.size();
-      double now = Timer.getFPGATimestamp();
-      if (fpsWindowStart == 0.0) fpsWindowStart = now;
-      double elapsed = now - fpsWindowStart;
-      if (elapsed >= 1.0) {
-        currentFps = fpsResultCount / elapsed;
-        fpsResultCount = 0;
-        fpsWindowStart = now;
-        SmartDashboard.putNumber("/Vision/" + getName() + "/FPS", currentFps);
-      }
+        public double horizontalFOV() {
+            return 2.0 * Math.atan2(width, 2.0 * fx);
+        }
+
+        public double verticalFOV() {
+            return 2.0 * Math.atan2(height, 2.0 * fy);
+        }
+
+        public double diagonalFOV() {
+            return 2.0 * Math.atan2(Math.hypot(width, height) / 2.0, fx);
+        }
     }
-  }
+
+    /**
+     * Raw data extracted from one PhotonPipelineResult, before any robot-side filtering.
+     * Vision.periodic() reads these fields from VisionIOInputs and applies all rejection logic.
+     */
+    public record RawVisionData(
+            edu.wpi.first.math.geometry.Pose3d pose3d,
+            double timestampSec,
+            // -1.0 for multi-tag results; [0,1] for single-tag (ambiguity score from PnP)
+            double ambiguity,
+            int[] tagIds,
+            double avgDistanceMeters,
+            double sumTagArea,
+            double avgNormalizedPixelOffset,
+            double avgAspectRatioDev) {}
+
+    protected final PhotonCamera camera;
+    protected final Transform3d robotToCamera, cameraToRobot;
+    private final PhotonPoseEstimator poseEstimator;
+    private final double trustScalar;
+
+    private final CameraIntrinsics intrinsics;
+    private final Optional<Matrix<N8, N1>> cachedDistortionMatrix;
+    private final Optional<Matrix<N3, N3>> cachedCameraMatrix;
+
+    private ArrayList<Integer> seenTags = new ArrayList<>();
+    private ArrayList<RawVisionData> rawData = new ArrayList<>();
+
+    private int fpsResultCount = 0;
+    private double fpsWindowStart = 0.0;
+    private double currentFps = 0.0;
+
+    public Camera(String name, double trustScalar, Transform3d cameraTransform, CameraIntrinsics intrinsics) {
+        this.camera = new PhotonCamera(name);
+        this.robotToCamera = cameraTransform;
+        this.cameraToRobot = robotToCamera.inverse();
+        this.trustScalar = trustScalar;
+        this.intrinsics = intrinsics;
+        this.cachedDistortionMatrix = Optional.of(intrinsics.distortionMatrix());
+        this.cachedCameraMatrix = Optional.of(intrinsics.cameraMatrix());
+
+        poseEstimator = new PhotonPoseEstimator(
+                AprilTags.getAprilTagFieldLayout(), PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, this.robotToCamera);
+        poseEstimator.setTagModel(TargetModel.kAprilTag36h11);
+        poseEstimator.setMultiTagFallbackStrategy(PoseStrategy.LOWEST_AMBIGUITY);
+    }
+
+    private double normalizedDistanceFromCenter(PhotonTrackedTarget target) {
+        final double HEIGHT = intrinsics.height;
+        final double WIDTH = intrinsics.width;
+        double sumX = 0.0;
+        double sumY = 0.0;
+        for (var corner : target.minAreaRectCorners) {
+            sumX += corner.x - WIDTH / 2.0;
+            sumY += corner.y - HEIGHT / 2.0;
+        }
+        double avgX = sumX / target.minAreaRectCorners.size();
+        double avgY = sumY / target.minAreaRectCorners.size();
+        return Math.hypot(avgX, avgY) / Math.hypot(WIDTH / 2.0, HEIGHT / 2.0);
+    }
+
+    private double dimensionProportionDifference(PhotonTrackedTarget target) {
+        final var corners = target.getDetectedCorners();
+        double height = Math.abs(corners.get(0).y - corners.get(3).y);
+        double width = Math.abs(corners.get(1).x - corners.get(0).x);
+        return Math.min(height, width) / Math.max(height, width);
+    }
+
+    private RawVisionData extractRawData(EstimatedRobotPose estRoboPose, PhotonPipelineResult result) {
+        int[] tagIds = estRoboPose.targetsUsed.stream()
+                .mapToInt(t -> t.fiducialId)
+                .toArray();
+        for (int id : tagIds) seenTags.add(id);
+
+        double ambiguity = result.targets.size() == 1
+                ? result.targets.get(0).getPoseAmbiguity()
+                : -1.0;
+
+        double sumArea = estRoboPose.targetsUsed.stream()
+                .mapToDouble(PhotonTrackedTarget::getArea)
+                .sum();
+
+        double avgDistanceMeters = estRoboPose.targetsUsed.stream()
+                .mapToDouble(t -> t.getBestCameraToTarget().getTranslation().getNorm())
+                .average()
+                .orElse(0.0);
+
+        double avgNormalizedPixelOffset = estRoboPose.targetsUsed.stream()
+                .mapToDouble(this::normalizedDistanceFromCenter)
+                .average()
+                .orElse(0.0);
+
+        double avgAspectRatioDev = estRoboPose.targetsUsed.stream()
+                .mapToDouble(this::dimensionProportionDifference)
+                .average()
+                .orElse(0.0);
+
+        return new RawVisionData(
+                estRoboPose.estimatedPose,
+                estRoboPose.timestampSeconds,
+                ambiguity,
+                tagIds,
+                avgDistanceMeters,
+                sumArea,
+                avgNormalizedPixelOffset,
+                avgAspectRatioDev);
+    }
+
+    public String getName() {
+        return camera.getName();
+    }
+
+    public double getTrustScalar() {
+        return trustScalar;
+    }
+
+    /** Returns and clears the raw data accumulated since the last call. */
+    public List<RawVisionData> flushRawData() {
+        var out = rawData;
+        rawData = new ArrayList<>();
+        seenTags.clear();
+        return out;
+    }
+
+    public int[] getSeenTagIds() {
+        return seenTags.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    public boolean isConnected() {
+        return camera.isConnected();
+    }
+
+    public double getCurrentFps() {
+        return currentFps;
+    }
+
+    private PhotonPipelineResult pruneTags(PhotonPipelineResult result) {
+        ArrayList<PhotonTrackedTarget> newTargets = new ArrayList<>();
+        for (var target : result.targets) {
+            if (AprilTags.observableTag(target.fiducialId)) {
+                newTargets.add(target);
+            }
+        }
+        result.targets = newTargets;
+        return result;
+    }
+
+    public void periodic() {
+        if (Robot.isReal()) {
+            seenTags.clear();
+            final var results = camera.getAllUnreadResults();
+            for (var result : results) {
+                if (result.hasTargets()) {
+                    result = pruneTags(result);
+                    Optional<EstimatedRobotPose> estRoboPose = poseEstimator.update(
+                            result, cachedCameraMatrix, cachedDistortionMatrix, Optional.empty());
+                    if (estRoboPose.isPresent()) {
+                        rawData.add(extractRawData(estRoboPose.get(), result));
+                    }
+                }
+            }
+
+            SmartDashboard.putBoolean("/Vision/" + getName() + "/isConnected", camera.isConnected());
+
+            fpsResultCount += results.size();
+            double now = Timer.getFPGATimestamp();
+            if (fpsWindowStart == 0.0) fpsWindowStart = now;
+            double elapsed = now - fpsWindowStart;
+            if (elapsed >= 1.0) {
+                currentFps = fpsResultCount / elapsed;
+                fpsResultCount = 0;
+                fpsWindowStart = now;
+                SmartDashboard.putNumber("/Vision/" + getName() + "/FPS", currentFps);
+            }
+        }
+    }
 }
