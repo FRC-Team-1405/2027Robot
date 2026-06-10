@@ -94,12 +94,12 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
         bitfield = raw[pos]
         pos += 1
 
-        # Decode field widths
-        # bits 1:0 → entry_id size  (0→1B, 1→2B, 2→4B)
-        # bits 3:2 → payload size   (0→1B, 1→2B, 2→4B)
+        # Decode field widths  (WPILib DataLog spec)
+        # bits 3:2 → entry_id size  (0→1B, 1→2B, 2→4B)
+        # bits 7:6 → payload size   (0→1B, 1→2B, 2→4B)
         # bits 5:4 → timestamp size (0→4B, 1→5B, 2→6B, 3→8B)
-        eid_sz   = (1, 2, 4, 4)[ bitfield       & 0x3]
-        psz_sz   = (1, 2, 4, 4)[(bitfield >> 2) & 0x3]
+        eid_sz   = (1, 2, 4, 4)[(bitfield >> 2) & 0x3]
+        psz_sz   = (1, 2, 4, 4)[(bitfield >> 6) & 0x3]
         tsz      = (4, 5, 6, 8)[(bitfield >> 4) & 0x3]
 
         needed = eid_sz + psz_sz + tsz
