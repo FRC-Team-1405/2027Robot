@@ -74,13 +74,13 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
     pos = 0
 
     # ── Header ──────────────────────────────────────────────────────────────
-    if len(raw) < 13 or raw[0:6] != b'WPILOG':
+    # Format: "WPILOG" (6B) + version uint16 LE (2B) + extra_header_size uint32 LE (4B)
+    # raw[6:8]  = version (e.g. 0x0100 = v1.0, stored as bytes 0x00 0x01)
+    # raw[8:12] = extra_header_size
+    if len(raw) < 12 or raw[0:6] != b'WPILOG':
         raise ValueError(f"Not a WPILog file (bad magic): {path}")
-    # raw[6]   = 0x00 null
-    # raw[7:9] = version (uint16 LE)
-    # raw[9:13]= extra_header_size (uint32 LE)
-    extra_len = struct.unpack_from('<I', raw, 9)[0]
-    pos = 13 + extra_len
+    extra_len = struct.unpack_from('<I', raw, 8)[0]
+    pos = 12 + extra_len
 
     # ── Entry registry: id → {name, type} ───────────────────────────────────
     entries: Dict[int, Dict[str, str]] = {}
@@ -95,12 +95,13 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
         pos += 1
 
         # Decode field widths  (WPILib DataLog spec)
-        # bits 3:2 → entry_id size  (0→1B, 1→2B, 2→4B)
-        # bits 7:6 → payload size   (0→1B, 1→2B, 2→4B)
-        # bits 5:4 → timestamp size (0→4B, 1→5B, 2→6B, 3→8B)
-        eid_sz   = (1, 2, 4, 4)[(bitfield >> 2) & 0x3]
-        psz_sz   = (1, 2, 4, 4)[(bitfield >> 6) & 0x3]
-        tsz      = (4, 5, 6, 8)[(bitfield >> 4) & 0x3]
+        # bitfield = ((timestampLen-1) << 4) | ((payloadLen-1) << 2) | (entryLen-1)
+        # bits 1:0 → entry_id size   (value+1 bytes)
+        # bits 3:2 → payload size    (value+1 bytes)
+        # bits 7:4 → timestamp size  (value+1 bytes)
+        eid_sz   = (bitfield & 0x3) + 1
+        psz_sz   = ((bitfield >> 2) & 0x3) + 1
+        tsz      = ((bitfield >> 4) & 0xF) + 1
 
         needed = eid_sz + psz_sz + tsz
         if pos + needed > len(raw):
