@@ -32,6 +32,22 @@ public class AutoPoses {
                                                                                                              // 5.5,
                                                                                                              // Rotation2d.fromDegrees(180)
 
+        // region Test Poses
+
+        // Define your adjustable distance in meters (7 feet = 2.1336 meters)
+        public static final double CIRCLE_DIST = 1.5;
+
+        public static Supplier<Pose2d> circleBottom = () -> new Pose2d(4.546 - CIRCLE_DIST, 4.035,
+                        Rotation2d.fromDegrees(0));
+        public static Supplier<Pose2d> circleRight = () -> new Pose2d(4.546, 4.035 - CIRCLE_DIST,
+                        Rotation2d.fromDegrees(90));
+        public static Supplier<Pose2d> circleTop = () -> new Pose2d(4.546 + CIRCLE_DIST, 4.035,
+                        Rotation2d.fromDegrees(180));
+        public static Supplier<Pose2d> circleLeft = () -> new Pose2d(4.546, 4.035 + CIRCLE_DIST,
+                        Rotation2d.fromDegrees(270));
+
+        // endregion Test Poses
+
         // #region START Poses
         public static Supplier<Pose2d> startRightFaceIn = () -> new Pose2d(BUMP_X_ALLIANCE_SIDE, 5,
                         Rotation2d.fromDegrees(0)); // was 3.55,

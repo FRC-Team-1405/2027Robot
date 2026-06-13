@@ -62,6 +62,10 @@ import frc.robot.subsystems.SwerveFeatures;
  * </pre>
  */
 public class AutoPilotV2Command extends FinneyCommand {
+    /**
+     * TODO:
+     * - currently if your heading kP is set too low when you enter BeeLine radius it will still slowly rotate to the position and the wheels freak out in the meantime. correct behavior would be to have a second heading kP for when we are in beeline radius.
+     */
     private final FinneyLogger fLogger = new FinneyLogger(this.getClass().getSimpleName());
 
     public static final double DEFAULT_XY_THRESHOLD = 4.0;

@@ -4,7 +4,9 @@ import java.util.function.Supplier;
 
 import com.therekrab.autopilot.APConstraints;
 
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.units.Units;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -59,6 +61,7 @@ public class CommandsForAutos {
 
         private static final TrapezoidProfile.Constraints centerHarvestConstraint = new TrapezoidProfile.Constraints(
                         0.5, 0.5);
+
         // .withJerk(67.0);
         // #endregion
         CommandSwerveDrivetrain drivetrain;
@@ -88,6 +91,51 @@ public class CommandsForAutos {
                 this.hood = hood;
 
         }
+
+        // region Test Commands
+
+        //
+        // Circle
+        //
+        private static final APConstraints circleDrivingConstraints = new APConstraints()
+                        .withAcceleration(6.0) // TUNE THIS TO YOUR ROBOT!
+                        .withVelocity(2.0)
+                        .withJerk(5); // jerk=5 -> 25s; jerk=50 -> 24s 
+        
+        private static final double circle_headingKp = 0.8;
+        Supplier<Command> MoveTo_circleBottom = () -> new AutoPilotV2Command.Builder(
+                        circleBottom, drivetrain, "MoveTo_circleBottom")
+                        .withFlipPoseForAlliance(true)
+                        .withConstraints(circleDrivingConstraints)
+                        .withHeadingPID(circle_headingKp, 0)
+                        .withEntryAngle(Rotation2d.fromDegrees(-45))
+                        .build();
+
+        Supplier<Command> MoveTo_circleRight = () -> new AutoPilotV2Command.Builder(
+                        circleRight, drivetrain, "MoveTo_circleRight")
+                        .withFlipPoseForAlliance(true)
+                        .withConstraints(circleDrivingConstraints)
+                        .withHeadingPID(circle_headingKp, 0)
+                        .withEntryAngle(Rotation2d.fromDegrees(-45))
+                        .build();
+
+        Supplier<Command> MoveTo_circleTop = () -> new AutoPilotV2Command.Builder(
+                        circleTop, drivetrain, "MoveTo_circleTop")
+                        .withFlipPoseForAlliance(true)
+                        .withConstraints(circleDrivingConstraints)
+                        .withHeadingPID(circle_headingKp, 0)
+                        .withEntryAngle(Rotation2d.fromDegrees(-45))
+                        .build();
+
+        Supplier<Command> MoveTo_circleLeft = () -> new AutoPilotV2Command.Builder(
+                        circleLeft, drivetrain, "MoveTo_circleLeft")
+                        .withFlipPoseForAlliance(true)
+                        .withConstraints(circleDrivingConstraints)
+                        .withHeadingPID(circle_headingKp, 0)
+                        .withEntryAngle(Rotation2d.fromDegrees(-45))
+                        .build();
+
+        // endregion Test Commands
 
         /* Commands */
         // Uses command suppliers instead of commands so that we can reuse the same
