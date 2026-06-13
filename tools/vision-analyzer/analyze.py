@@ -146,7 +146,7 @@ def _handle_control(payload: bytes, entries: Dict) -> None:
     pos += 4
     name,     pos = _lp_str(payload, pos)
     type_str, pos = _lp_str(payload, pos)
-    entries[new_id] = {'name': name, 'type': type_str}
+    entries[new_id] = {'name': name.lstrip('/'), 'type': type_str}
 
 
 def _lp_str(data: bytes, pos: int) -> Tuple[str, int]:
@@ -223,7 +223,7 @@ def discover_cameras(signals: Dict) -> List[str]:
     cameras = []
     for key in signals:
         parts = key.split('/')
-        if len(parts) >= 3 and parts[0] == 'Vision' and parts[2] == 'connected':
+        if len(parts) >= 3 and parts[0] == 'Vision' and parts[2].lower() == 'connected':
             cam = parts[1]
             if cam not in cameras:
                 cameras.append(cam)
@@ -322,7 +322,12 @@ def compute_camera_metrics(
     prefix = f'Vision/{camera}/'
 
     def sig(name):
-        return signals.get(prefix + name, [])
+        result = signals.get(prefix + name)
+        if result is None and name:
+            # AdvantageKit logs use PascalCase; try capitalizing first letter
+            pascal = name[0].upper() + name[1:]
+            result = signals.get(prefix + pascal, [])
+        return result if result is not None else []
 
     m = {'camera': camera, 'format': fmt}
 

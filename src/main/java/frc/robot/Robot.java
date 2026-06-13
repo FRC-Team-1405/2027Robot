@@ -92,6 +92,11 @@ public class Robot extends LoggedRobot {
         CommandScheduler.getInstance().run();
         RobotContainer.updateNT();
         RobotContainer.publishRobotData();
+        m_robotContainer.drivetrain.publishDriveOutputVoltage();
+        m_robotContainer.drivetrain.publishMotorCurrent();
+        m_robotContainer.drivetrain.publishDrivePidErrors();
+        m_robotContainer.drivetrain.publishDistanceToHub();
+        m_robotContainer.intake.publishMotorCurrents();
     }
 
     @Override
@@ -121,8 +126,6 @@ public class Robot extends LoggedRobot {
 
     @Override
     public void autonomousPeriodic() {
-        m_robotContainer.drivetrain.publishDrivePidErrors();
-        m_robotContainer.drivetrain.publishDistanceToHub();
     }
 
     @Override
@@ -140,10 +143,6 @@ public class Robot extends LoggedRobot {
     @Override
     public void teleopPeriodic() {
         GamePeriod.elasticPeriodic();
-        m_robotContainer.drivetrain.publishDriveOutputVoltage();
-        m_robotContainer.drivetrain.publishMotorCurrent();
-        m_robotContainer.intake.publishMotorCurrents();
-        m_robotContainer.drivetrain.publishDistanceToHub();
     }
 
     @Override
