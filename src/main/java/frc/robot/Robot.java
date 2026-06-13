@@ -14,11 +14,9 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.util.GamePeriod;
 
-import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.NT4Publisher;
-import org.littletonrobotics.junction.wpilog.WPILOGReader;
 import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 
 public class Robot extends LoggedRobot {
@@ -41,15 +39,9 @@ public class Robot extends LoggedRobot {
             Logger.addDataReceiver(new WPILOGWriter("/home/lvuser/logs"));
             Logger.addDataReceiver(new NT4Publisher());
         } else {
-            // In sim: if a replay log is available replay it; otherwise run live with NT.
-            String logPath = LogFileUtil.findReplayLog();
-            if (logPath != null) {
-                setUseTiming(false);
-                Logger.setReplaySource(new WPILOGReader(logPath));
-                Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
-            } else {
-                Logger.addDataReceiver(new NT4Publisher());
-            }
+            // Live sim: always publish to NT so AdvantageScope/Shuffleboard see real-time data.
+            // For log replay use ./gradlew replayWatch (or set AKIT_LOG_PATH env var).
+            Logger.addDataReceiver(new NT4Publisher());
         }
 
         Logger.start();
