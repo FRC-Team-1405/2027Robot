@@ -40,7 +40,7 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
     pos = 12 + extra_len
 
     entries: Dict[int, Dict[str, str]] = {}
-    signals: Dict[str, List[Tuple[float, Any]]] = defaultdict(list)
+    raw_signals: Dict[str, List[Tuple[float, Any]]] = defaultdict(list)
 
     while pos < len(raw):
         bitfield = raw[pos]; pos += 1
@@ -65,9 +65,23 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
                 continue
             value = _decode(payload, entry['type'])
             if value is not None:
-                signals[entry['name']].append((ts_sec, value))
+                raw_signals[entry['name']].append((ts_sec, value))
 
-    return dict(signals)
+    # AdvantageKit stores Logger.recordOutput under "RealOutputs/" and
+    # Logger.processInputs under "RealInputs/". Strip those prefixes so all
+    # lookup keys in the rest of the script work without modification.
+    signals: Dict[str, List[Tuple[float, Any]]] = {}
+    for k, v in raw_signals.items():
+        for prefix in ('RealOutputs/', 'RealInputs/'):
+            if k.startswith(prefix):
+                k = k[len(prefix):]
+                break
+        if k not in signals:
+            signals[k] = v
+        else:
+            signals[k] = sorted(signals[k] + v, key=lambda x: x[0])
+
+    return signals
 
 
 def _handle_control(payload: bytes, entries: Dict) -> None:

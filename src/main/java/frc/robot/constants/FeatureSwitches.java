@@ -29,11 +29,11 @@ public class FeatureSwitches {
 
     /** P1: Reject vision estimates whose 3D pose falls outside field boundaries.
      *  OFF = 2026 behavior (no boundary check). ON = reject out-of-bounds poses. */
-    public static final boolean VISION_FIELD_BOUNDARY_REJECTION = false;
+    public static final boolean VISION_FIELD_BOUNDARY_REJECTION = true;
 
     /** P1: Use a smooth LerpTable for theta stddev instead of the binary weight>0.9 threshold.
      *  OFF = 2026 behavior (binary: >0.9 -> 10.0 rad, else 99999.0). ON = smooth curve. */
-    public static final boolean VISION_SMOOTH_THETA_STDDEV = false;
+    public static final boolean VISION_SMOOTH_THETA_STDDEV = true;
 
     /** P2: Publish per-filter NT topics for every vision sample (tag count, area,
      *  pixel offset, aspect ratio, trust pre/post, avg distance, velocity weights,
@@ -45,13 +45,13 @@ public class FeatureSwitches {
 
     /** P2: Use TAG_RANKINGS to zero-weight non-scoring tags (local estimator mode).
      *  OFF = 2026 behavior (all tags contribute). ON = only scoring-zone tags trusted. */
-    public static final boolean VISION_TAG_RANKINGS_FILTER = false;
+    public static final boolean VISION_TAG_RANKINGS_FILTER = false; // TODO do more research on this before using
 
     /** P2: Use distance-based stddev (meters from tag) instead of area-proxy.
      *  OFF = 2026 area-based weight. ON = distance LerpTable for XY stddev. */
-    public static final boolean VISION_DISTANCE_BASED_STDDEV = false;
+    public static final boolean VISION_DISTANCE_BASED_STDDEV = true;
 
     /** P3: Reject single-tag estimates with ambiguity score >= 0.2.
      *  OFF = 2026 behavior (no ambiguity threshold). ON = ambiguity filter active. */
-    public static final boolean VISION_AMBIGUITY_THRESHOLD = false;
+    public static final boolean VISION_AMBIGUITY_THRESHOLD = true;
 }

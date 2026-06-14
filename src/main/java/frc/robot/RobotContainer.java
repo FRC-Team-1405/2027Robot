@@ -17,6 +17,7 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import org.littletonrobotics.junction.Logger;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -205,9 +206,13 @@ public class RobotContainer {
                                 Pose2d odomNow = drivetrain.getState().Pose;
                                 double correctionMag = sample.pose().getTranslation()
                                                 .getDistance(odomNow.getTranslation());
-                                SmartDashboard.putNumber("/Vision/CorrectionMagnitude", correctionMag);
-                                SmartDashboard.putNumber("/Vision/XYStddev", xyStddev);
-                                SmartDashboard.putNumber("/Vision/ThetaStddev", thetaStddev);
+                                // Logger.recordOutput writes into the AKit WPILog so replay
+                                // diffs for SMOOTH_THETA_STDDEV and DISTANCE_BASED_STDDEV
+                                // are captured.  SmartDashboard.putNumber() only goes to NT
+                                // and is invisible in replay logs.
+                                Logger.recordOutput("Vision/CorrectionMagnitude", correctionMag); // TODO determine if this also logs to NT and if it doesn't we need a generic solution to this problem
+                                Logger.recordOutput("Vision/XYStddev", xyStddev);
+                                Logger.recordOutput("Vision/ThetaStddev", thetaStddev);
                         }
                 }
 
