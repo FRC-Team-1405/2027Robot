@@ -1,0 +1,39 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "replayLog",
+            "detail": "One-shot replay of a specific log. Runs once and exits.",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": [
+                "simulateJava",
+                "-x",
+                "test"
+            ],
+            "options": {
+                "env": {
+                    "AKIT_LOG_PATH": "logs\\offseason\\6-13-26\\akit_26-06-13_17-05-06.wpilog"
+                }
+            }
+        },
+        {
+            "label": "replayLogWatch",
+            "detail": "Continuous replay: re-runs automatically on every src/ file save. Stop with Ctrl+C.",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": [
+                "replayWatch"
+            ],
+            "options": {
+                "env": {
+                    "AKIT_LOG_PATH": "logs\\offseason\\6-13-26\\akit_26-06-13_17-05-06.wpilog"
+                }
+            },
+            "isBackground": true,
+            "problemMatcher": []
+        }
+    ]
+}

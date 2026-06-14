@@ -198,6 +198,17 @@ public class Vision extends SubsystemBase {
             Logger.recordOutput("Vision/" + name + "/RejectedVelocity", rejVelocity);
             Logger.recordOutput("Vision/" + name + "/RejectedAmbiguity", rejAmbiguity);
 
+            // Derived metrics — viewable natively in AdvantageScope Line Graph / Statistics
+            int rawCount = inputs[i].rawEstimatedPoses.length;
+            Logger.recordOutput("Vision/" + name + "/ResultsPerLoop", (double) rawCount);
+            Logger.recordOutput("Vision/" + name + "/AcceptanceRatePercent",
+                    rawCount > 0 ? 100.0 * acceptedPoses.size() / rawCount : 0.0);
+            double latencyMs = inputs[i].rawTimestampsSec.length > 0
+                    ? (Timer.getFPGATimestamp()
+                       - inputs[i].rawTimestampsSec[inputs[i].rawTimestampsSec.length - 1]) * 1000.0
+                    : 0.0;
+            Logger.recordOutput("Vision/" + name + "/LatencyMsLatest", latencyMs);
+
             // Log visible tag positions on the field for AdvantageScope odometry view
             for (int tagId : inputs[i].visibleTagIds) {
                 AprilTags.getAprilTagFieldLayout().getTagPose(tagId)

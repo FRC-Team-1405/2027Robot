@@ -41,8 +41,13 @@ public class Robot extends LoggedRobot {
             Logger.addDataReceiver(new WPILOGWriter("/home/lvuser/logs"));
             Logger.addDataReceiver(new NT4Publisher());
         } else {
-            // In sim: if a replay log is available replay it; otherwise run live with NT.
-            String logPath = LogFileUtil.findReplayLog();
+            // Check only the explicit AKIT_LOG_PATH env var — NOT the AdvantageScope temp file.
+            // findReplayLog() checks both, which caused any open AS log to silently hijack
+            // simulateJava into replay mode (no NT4Publisher → no NT entries). Now:
+            //   • simulateJava with no env var  → live sim + NT (normal dev workflow)
+            //   • ./gradlew replayWatch         → sets AKIT_LOG_PATH before calling simulateJava
+            //   • AKIT_LOG_PATH=path simulateJava → explicit one-shot replay
+            String logPath = System.getenv("AKIT_LOG_PATH");
             if (logPath != null) {
                 setUseTiming(false);
                 Logger.setReplaySource(new WPILOGReader(logPath));
