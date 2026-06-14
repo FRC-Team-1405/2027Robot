@@ -14,9 +14,11 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.util.GamePeriod;
 
+import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.NT4Publisher;
+import org.littletonrobotics.junction.wpilog.WPILOGReader;
 import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 
 public class Robot extends LoggedRobot {
@@ -39,9 +41,20 @@ public class Robot extends LoggedRobot {
             Logger.addDataReceiver(new WPILOGWriter("/home/lvuser/logs"));
             Logger.addDataReceiver(new NT4Publisher());
         } else {
-            // Live sim: always publish to NT so AdvantageScope/Shuffleboard see real-time data.
-            // For log replay use ./gradlew replayWatch (or set AKIT_LOG_PATH env var).
-            Logger.addDataReceiver(new NT4Publisher());
+            // Check only the explicit AKIT_LOG_PATH env var — NOT the AdvantageScope temp file.
+            // findReplayLog() checks both, which caused any open AS log to silently hijack
+            // simulateJava into replay mode (no NT4Publisher → no NT entries). Now:
+            //   • simulateJava with no env var  → live sim + NT (normal dev workflow)
+            //   • ./gradlew replayWatch         → sets AKIT_LOG_PATH before calling simulateJava
+            //   • AKIT_LOG_PATH=path simulateJava → explicit one-shot replay
+            String logPath = System.getenv("AKIT_LOG_PATH");
+            if (logPath != null) {
+                setUseTiming(false);
+                Logger.setReplaySource(new WPILOGReader(logPath));
+                Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
+            } else {
+                Logger.addDataReceiver(new NT4Publisher());
+            }
         }
 
         Logger.start();

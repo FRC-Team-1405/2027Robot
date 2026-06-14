@@ -93,37 +93,28 @@ Replay lets you run the current code against a real match log without the
 robot. The hardware inputs are fed from the log; all subsystem logic
 re-executes on your machine.
 
-### Prerequisites
+See **`docs/replay-workflow.md`** for the full step-by-step guide.
 
-- Gradle build environment (Windows/Mac dev laptop, not the Pi)
-- The `.wpilog` file from the match you want to replay
+### Quick reference
 
-### Setup
-
-1. Place the `.wpilog` file somewhere accessible (project root, `logs/`, etc.)
-
-2. Set the `AKIT_LOG_PATH` environment variable **or** let `LogFileUtil`
-   find it automatically (it searches common locations):
+1. Set `AKIT_LOG_PATH` to the log you want to replay and run `replayWatch`:
 
    ```bash
-   export AKIT_LOG_PATH=/path/to/FRC_20260315_123456.wpilog
+   # Terminal
+   AKIT_LOG_PATH=logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog ./gradlew replayWatch
+
+   # VS Code
+   Ctrl+Shift+P → Tasks: Run Task → replayLog
    ```
 
-   Alternatively, configure `LogFileUtil.findReplayLog()` in `Robot.java`
-   with a hard-coded path for one-off replays.
+2. A `*_sim.wpilog` is written alongside the source log when replay finishes.
 
-3. Run the Gradle simulation target:
+3. Open the `_sim.wpilog` in AdvantageScope alongside the original to compare.
 
-   ```bash
-   ./gradlew simulateJava
-   # or in VS Code: WPILib: Simulate Robot Code
-   ```
-
-   The robot will start, detect the replay source, and run through the
-   entire match as fast as the CPU allows (`setUseTiming(false)` is already
-   set in `Robot.java`).
-
-4. A new `*_sim.wpilog` file is written alongside the original log.
+> **Important**: `Robot.java` only checks the `AKIT_LOG_PATH` **environment
+> variable** to detect replay — it does NOT read the file AdvantageScope writes
+> to the system temp directory. This means having a log open in AdvantageScope
+> will never accidentally put `simulateJava` into replay mode.
 
 ### Comparing original vs. replay in AdvantageScope
 
@@ -216,11 +207,11 @@ is timestamped to the current loop and written to the `.wpilog`.
 
 ## Troubleshooting
 
-### "No replay log found" crash in simulation
-`LogFileUtil.findReplayLog()` returns `null` when no log is present. `Robot.java`
-handles this by falling back to `NT4Publisher` for live sim. If you want
-replay, make sure `AKIT_LOG_PATH` is set or the log is in a location
-`LogFileUtil` searches.
+### "No replay log found" / live sim shows no NT entries
+`Robot.java` only enters replay mode when `AKIT_LOG_PATH` is set in the
+environment. Without it, `simulateJava` runs live sim with `NT4Publisher`.
+If NT entries are missing during `simulateJava`, confirm `AKIT_LOG_PATH` is
+not set in your current shell (`echo $AKIT_LOG_PATH` / `$env:AKIT_LOG_PATH`).
 
 ### Inputs are all zero during replay
 The Logger key passed to `processInputs` must exactly match the key used

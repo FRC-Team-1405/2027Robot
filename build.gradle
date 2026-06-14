@@ -91,8 +91,14 @@ test {
 }
 
 // Simulation configuration (e.g. environment variables).
-wpi.sim.addGui().defaultEnabled = true
-wpi.sim.addDriverstation()
+// AKit replay requires all HAL sim extensions to be absent — the runtime throws
+// a hard error if the GUI or DriverStation extension is loaded during replay.
+// Skip them when AKIT_LOG_PATH is set (i.e. when simulateJava is being called
+// by replayWatch or directly for one-shot replay).
+if (System.getenv("AKIT_LOG_PATH") == null) {
+    wpi.sim.addGui().defaultEnabled = true
+    wpi.sim.addDriverstation()
+}
 
 // Setting up my Jar File. In this case, adding all libraries into the main jar ('fat jar')
 // in order to make them all available at runtime. Also adding the manifest so WPILib

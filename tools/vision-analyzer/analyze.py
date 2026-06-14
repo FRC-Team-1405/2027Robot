@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """
-Vision Log Analyzer — generate an interactive HTML dashboard from a WPILib .wpilog file.
+Vision Log Analyzer — interactive Streamlit dashboard from a WPILib .wpilog file.
 
-Zero external dependencies: uses Python standard library only.
-Charts are rendered by Plotly.js loaded from CDN (internet required to open the HTML).
+Dependencies: streamlit plotly   (pip install streamlit plotly)
 
 Usage:
-    python3 analyze.py path/to/FRC_20260609_123456.wpilog
-    python3 analyze.py logs/off-season/               # all .wpilog files in directory
-    python3 analyze.py log1.wpilog log2.wpilog --output /tmp/reports
-    python3 analyze.py --probe path/to/log.wpilog     # dump all signal names/types, exit
+    streamlit run analyze.py                    # browser opens; pick log in sidebar
+    python analyze.py --probe path/to/log.wpilog  # dump all signal names/types, exit
+    python analyze.py path/to/log.wpilog          # (legacy) write _vision_dashboard.html
 """
 
 import argparse
-import json
+import bisect
 import math
 import pathlib
 import struct
@@ -42,10 +40,8 @@ APRILTAG_POSITIONS: Dict[int, Tuple[float, float]] = {
     31: (0.008,  3.746),   32: (0.008,  4.178),
 }
 
-# Tags in the reef scoring zone (trust = 1.0 in TAG_RANKINGS)
 REEF_TAG_IDS = frozenset({6, 7, 8, 9, 10, 11, 17, 18, 19, 20, 21, 22})
 
-# Struct sizes (bytes) — WPILib standard, stable across seasons
 POSE2D_SIZE = 24   # double x, double y, double rotation_radians
 POSE3D_SIZE = 56   # double x,y,z, double qw,qx,qy,qz
 
@@ -56,36 +52,29 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
     """
     Parse a WPILib DataLog (.wpilog) file.
 
-    Returns a dict mapping signal name → list of (timestamp_seconds, value) tuples.
+    Returns a dict mapping signal name -> list of (timestamp_seconds, value) tuples.
     Values are decoded based on the type string registered in the log:
-      boolean        → bool
-      int64          → int
-      double         → float
-      double[]       → list[float]
-      int64[]        → list[int]
-      boolean[]      → list[bool]
-      struct:Pose2d  → list[dict] with keys x, y, rot
-      struct[]:Pose2d → list[dict] with keys x, y, rot   (0 or more per record)
-      struct:Pose3d  → list[dict] with keys x, y, z, qw, qx, qy, qz
-      struct[]:Pose3d → list[dict] (0 or more per record)
+      boolean        -> bool
+      int64          -> int
+      double         -> float
+      double[]       -> list[float]
+      int64[]        -> list[int]
+      boolean[]      -> list[bool]
+      struct:Pose2d  -> list[dict] with keys x, y, rot
+      struct[]:Pose2d -> list[dict] with keys x, y, rot   (0 or more per record)
+      struct:Pose3d  -> list[dict] with keys x, y, z, qw, qx, qy, qz
+      struct[]:Pose3d -> list[dict] (0 or more per record)
     Unknown types are silently skipped.
     """
     raw = pathlib.Path(path).read_bytes()
     pos = 0
 
-    # ── Header ──────────────────────────────────────────────────────────────
-    # Format: "WPILOG" (6B) + version uint16 LE (2B) + extra_header_size uint32 LE (4B)
-    # raw[6:8]  = version (e.g. 0x0100 = v1.0, stored as bytes 0x00 0x01)
-    # raw[8:12] = extra_header_size
     if len(raw) < 12 or raw[0:6] != b'WPILOG':
         raise ValueError(f"Not a WPILog file (bad magic): {path}")
     extra_len = struct.unpack_from('<I', raw, 8)[0]
     pos = 12 + extra_len
 
-    # ── Entry registry: id → {name, type} ───────────────────────────────────
     entries: Dict[int, Dict[str, str]] = {}
-
-    # ── Result accumulator ───────────────────────────────────────────────────
     signals: Dict[str, List[Tuple[float, Any]]] = defaultdict(list)
 
     while pos < len(raw):
@@ -94,11 +83,6 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
         bitfield = raw[pos]
         pos += 1
 
-        # Decode field widths  (WPILib DataLog spec)
-        # bitfield = ((timestampLen-1) << 4) | ((payloadLen-1) << 2) | (entryLen-1)
-        # bits 1:0 → entry_id size   (value+1 bytes)
-        # bits 3:2 → payload size    (value+1 bytes)
-        # bits 7:4 → timestamp size  (value+1 bytes)
         eid_sz   = (bitfield & 0x3) + 1
         psz_sz   = ((bitfield >> 2) & 0x3) + 1
         tsz      = ((bitfield >> 4) & 0xF) + 1
@@ -137,7 +121,7 @@ def _handle_control(payload: bytes, entries: Dict) -> None:
     if not payload:
         return
     ctrl = payload[0]
-    if ctrl != 0:          # only handle kStart; ignore kFinish, kSetMetadata
+    if ctrl != 0:
         return
     pos = 1
     if pos + 4 > len(payload):
@@ -150,7 +134,6 @@ def _handle_control(payload: bytes, entries: Dict) -> None:
 
 
 def _lp_str(data: bytes, pos: int) -> Tuple[str, int]:
-    """Read a length-prefixed UTF-8 string."""
     if pos + 4 > len(data):
         return '', pos
     length = struct.unpack_from('<I', data, pos)[0]
@@ -160,7 +143,6 @@ def _lp_str(data: bytes, pos: int) -> Tuple[str, int]:
 
 
 def _decode(payload: bytes, typ: str) -> Any:
-    """Decode a DataLog payload given its type string."""
     try:
         t = typ.lower()
 
@@ -219,7 +201,6 @@ def _decode(payload: bytes, typ: str) -> Any:
 # ─── Signal Discovery ─────────────────────────────────────────────────────────
 
 def discover_cameras(signals: Dict) -> List[str]:
-    """Return camera names by scanning for Vision/<name>/connected signals."""
     cameras = []
     for key in signals:
         parts = key.split('/')
@@ -231,15 +212,15 @@ def discover_cameras(signals: Dict) -> List[str]:
 
 
 def detect_format(signals: Dict, camera: str) -> str:
-    """Return 'new' if rawEstimatedPoses is present, else 'old'."""
-    return 'new' if f'Vision/{camera}/rawEstimatedPoses' in signals else 'old'
+    prefix = f'Vision/{camera}/'
+    return 'new' if (
+        f'{prefix}rawEstimatedPoses' in signals
+        or f'{prefix}RawEstimatedPoses' in signals
+        or f'RealOutputs/{prefix}RawEstimatedPoses' in signals
+    ) else 'old'
 
 
 def find_drivetrain_speeds(signals: Dict) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Try several known signal paths for chassis linear and angular speed.
-    Returns (linear_key, angular_key) or (None, None) if not found.
-    """
     candidates_linear = [
         'Drivetrain/Speeds/vxMetersPerSecond',
         'Drive/ChassisSpeeds/vx',
@@ -252,19 +233,18 @@ def find_drivetrain_speeds(signals: Dict) -> Tuple[Optional[str], Optional[str]]
         'SwerveDrivetrain/ChassisSpeeds/omega',
         'Swerve/Speeds/omega',
     ]
-    # Also do a fuzzy search for keys containing these substrings
-    def fuzzy(candidates, signals):
+
+    def fuzzy(candidates):
         for c in candidates:
             if c in signals:
                 return c
-        # Fuzzy fallback
         for key in signals:
             kl = key.lower()
             if 'vxmeters' in kl or ('speed' in kl and 'vx' in kl):
                 return key
         return None
 
-    linear_key = fuzzy(candidates_linear, signals)
+    linear_key = fuzzy(candidates_linear)
 
     omega_key = None
     for c in candidates_angular:
@@ -283,27 +263,64 @@ def find_drivetrain_speeds(signals: Dict) -> Tuple[Optional[str], Optional[str]]
 
 # ─── Metric Computation ───────────────────────────────────────────────────────
 
-def ts_list(signal: List[Tuple[float, Any]]) -> List[float]:
-    return [t for t, _ in signal]
-
-def val_list(signal: List[Tuple[float, Any]]) -> List[Any]:
-    return [v for _, v in signal]
-
-
 def build_timeline(signal: List[Tuple[float, Any]], start_t: float) -> Tuple[List[float], List[Any]]:
     ts = [t - start_t for t, _ in signal]
     vs = [v for _, v in signal]
     return ts, vs
 
 
-def nearest_value(signal: List[Tuple[float, Any]], target_t: float) -> Optional[Any]:
-    """Return the value at the timestamp closest to target_t."""
+def nearest_value(signal: List[Tuple[float, Any]], target_t: float,
+                  _ts_cache: Dict = {}) -> Optional[Any]:
+    """Return value at the timestamp closest to target_t. O(log n) via bisect with cache."""
     if not signal:
         return None
-    best = min(signal, key=lambda r: abs(r[0] - target_t))
-    if abs(best[0] - target_t) > 1.0:   # more than 1 s away — no valid sample
+    key = id(signal)
+    if key not in _ts_cache:
+        _ts_cache[key] = [r[0] for r in signal]
+    ts = _ts_cache[key]
+    idx = bisect.bisect_left(ts, target_t)
+    if idx == 0:
+        best = signal[0]
+    elif idx >= len(signal):
+        best = signal[-1]
+    else:
+        lo, hi = signal[idx - 1], signal[idx]
+        best = lo if abs(lo[0] - target_t) <= abs(hi[0] - target_t) else hi
+    if abs(best[0] - target_t) > 1.0:
         return None
     return best[1]
+
+
+def _histogram_data(values: List[float], nbins: int = 30) -> Tuple[List[float], List[int]]:
+    if not values:
+        return [], []
+    lo, hi = min(values), max(values)
+    if lo == hi:
+        return [lo], [len(values)]
+    step = (hi - lo) / nbins
+    counts = [0] * nbins
+    centers = [lo + step * (i + 0.5) for i in range(nbins)]
+    for v in values:
+        idx = min(int((v - lo) / step), nbins - 1)
+        counts[idx] += 1
+    return centers, counts
+
+
+def _rolling_mean(ts: List[float], vs: List[float], window: float = 2.0) -> Tuple[List[float], List[float]]:
+    """O(n) rolling mean using a two-pointer sliding window."""
+    if not ts:
+        return [], []
+    out_ts, out_vs = [], []
+    running_sum = 0.0
+    lo = 0
+    for hi in range(len(ts)):
+        running_sum += vs[hi]
+        while ts[hi] - ts[lo] > window:
+            running_sum -= vs[lo]
+            lo += 1
+        out_ts.append(ts[hi])
+        out_vs.append(running_sum / (hi - lo + 1))
+    return out_ts, out_vs
 
 
 def compute_camera_metrics(
@@ -316,7 +333,7 @@ def compute_camera_metrics(
     omega_sig: Optional[List],
 ) -> Dict:
     """
-    Compute all per-camera metrics. Returns a dict ready for JSON serialisation.
+    Compute all per-camera metrics. Returns a dict ready for the dashboard.
     Works with both old (pre-refactoring) and new (post-refactoring) signal formats.
     """
     prefix = f'Vision/{camera}/'
@@ -324,14 +341,19 @@ def compute_camera_metrics(
     def sig(name):
         result = signals.get(prefix + name)
         if result is None and name:
-            # AdvantageKit logs use PascalCase; try capitalizing first letter
             pascal = name[0].upper() + name[1:]
-            result = signals.get(prefix + pascal, [])
+            result = signals.get(prefix + pascal)
+        if result is None and name:
+            # AdvantageKit @AutoLogOutput fields land under RealOutputs/
+            result = signals.get('RealOutputs/' + prefix + name)
+        if result is None and name:
+            pascal = name[0].upper() + name[1:]
+            result = signals.get('RealOutputs/' + prefix + pascal)
         return result if result is not None else []
 
-    m = {'camera': camera, 'format': fmt}
+    m: Dict[str, Any] = {'camera': camera, 'format': fmt}
 
-    # ── FPS timeline ────────────────────────────────────────────────────────
+    # FPS timeline
     fps_sig = sig('currentFps')
     if fps_sig:
         ts, vs = build_timeline(fps_sig, start_t)
@@ -343,7 +365,7 @@ def compute_camera_metrics(
         m['fps_ts'] = m['fps_values'] = []
         m['fps_mean'] = m['fps_min'] = 0.0
 
-    # ── Connection timeline ──────────────────────────────────────────────────
+    # Connection timeline
     conn_sig = sig('connected')
     if conn_sig:
         conn_ts, conn_vs = build_timeline(conn_sig, start_t)
@@ -355,7 +377,6 @@ def compute_camera_metrics(
         m['conn_ts'] = m['conn_values'] = []
         m['conn_uptime_pct'] = 0.0
 
-    # ── Old-format signals ───────────────────────────────────────────────────
     if fmt == 'old':
         rej_vel_sig  = sig('rejectionCountVelocity')
         rej_bnd_sig  = sig('rejectionCountBoundary')
@@ -365,14 +386,11 @@ def compute_camera_metrics(
         ts_est_sig   = sig('estimateTimestampsSec')
         tags_sig     = sig('visibleTagIds')
 
-        # Per-loop acceptance and rejection
         acc_ts, acc_counts, rej_v_counts, rej_b_counts = [], [], [], []
         all_distances, all_weights = [], []
         tag_freq: Dict[int, int] = defaultdict(int)
         path_x, path_y = [], []
 
-        # Interleave timestamps from pose signal and rejection signals
-        # Build a merged timeline at each pose-signal sample
         for t, poses in poses_sig:
             accepted = len(poses)
             rej_v = nearest_value(rej_vel_sig, t) or 0
@@ -381,9 +399,7 @@ def compute_camera_metrics(
             acc_counts.append(accepted)
             rej_v_counts.append(rej_v)
             rej_b_counts.append(rej_b)
-
             if accepted > 0:
-                # Average pose for this loop as robot path point
                 avg_x = sum(p['x'] for p in poses) / accepted
                 avg_y = sum(p['y'] for p in poses) / accepted
                 path_x.append(avg_x)
@@ -391,10 +407,8 @@ def compute_camera_metrics(
 
         for _, dists in dists_sig:
             all_distances.extend(dists)
-
         for _, wts in weights_sig:
             all_weights.extend(wts)
-
         for _, tags in tags_sig:
             for tag_id in tags:
                 tag_freq[tag_id] += 1
@@ -403,46 +417,37 @@ def compute_camera_metrics(
         total_rejected = sum(rej_v_counts) + sum(rej_b_counts)
         total_results  = total_accepted + total_rejected
 
-        m['acc_ts']        = acc_ts
-        m['acc_counts']    = acc_counts
-        m['rej_v_counts']  = rej_v_counts
-        m['rej_b_counts']  = rej_b_counts
-        m['total_accepted'] = total_accepted
-        m['total_rejected'] = total_rejected
-        m['total_results']  = total_results
-        m['acceptance_rate'] = (
-            100.0 * total_accepted / total_results if total_results else 0.0
-        )
-        m['rej_velocity_pct'] = (
-            100.0 * sum(rej_v_counts) / total_rejected if total_rejected else 0.0
-        )
-        m['rej_boundary_pct'] = (
-            100.0 * sum(rej_b_counts) / total_rejected if total_rejected else 0.0
-        )
+        m['acc_ts']          = acc_ts
+        m['acc_counts']      = acc_counts
+        m['rej_v_counts']    = rej_v_counts
+        m['rej_b_counts']    = rej_b_counts
+        m['total_accepted']  = total_accepted
+        m['total_rejected']  = total_rejected
+        m['total_results']   = total_results
+        m['acceptance_rate'] = 100.0 * total_accepted / total_results if total_results else 0.0
+        m['rej_velocity_pct'] = 100.0 * sum(rej_v_counts) / total_results if total_results else 0.0
+        m['rej_boundary_pct'] = 100.0 * sum(rej_b_counts) / total_results if total_results else 0.0
         m['distances']  = all_distances
         m['weights']    = all_weights
         m['tag_freq']   = {int(k): v for k, v in tag_freq.items()}
         m['path_x']     = path_x
         m['path_y']     = path_y
 
-        # Result latency (robot-loop ts minus coprocessor ts)
         latencies = []
         for (ts_loop, poses), (_, ts_est) in zip(poses_sig, ts_est_sig):
-            for j, est_ts in enumerate(ts_est):
+            for est_ts in ts_est:
                 lat = ts_loop - est_ts
                 if 0.0 < lat < 2.0:
-                    latencies.append(lat * 1000.0)   # ms
-        m['latencies_ms'] = latencies
+                    latencies.append(lat * 1000.0)
+        m['latencies_ms']    = latencies
         m['latency_mean_ms'] = sum(latencies) / len(latencies) if latencies else 0.0
 
-    # ── New-format signals ────────────────────────────────────────────────────
     else:  # fmt == 'new'
         raw_poses_sig = sig('rawEstimatedPoses')
         amb_sig       = sig('rawAmbiguities')
         area_sig      = sig('rawSumTagAreas')
         px_sig        = sig('rawAvgNormalizedPixelOffsets')
         ar_sig        = sig('rawAvgAspectRatioDevs')
-        cnt_sig       = sig('rawTagCountsPerResult')
         tags_sig      = sig('visibleTagIds')
         rej_bnd_sig   = sig('RejectedBoundary')
         rej_vel_sig   = sig('RejectedVelocity')
@@ -455,14 +460,14 @@ def compute_camera_metrics(
         raw_counts = []
         z_heights, ambiguities, all_distances = [], [], []
         areas, px_offsets, aspect_ratios = [], [], []
-        tag_freq: Dict[int, int] = defaultdict(int)
+        tag_freq = defaultdict(int)
         path_x, path_y = [], []
         latencies = []
 
         for t, raw_poses in raw_poses_sig:
-            rej_b = nearest_value(rej_bnd_sig, t) or 0
-            rej_v = nearest_value(rej_vel_sig, t) or 0
-            rej_a = nearest_value(rej_amb_sig, t) or 0
+            rej_b     = nearest_value(rej_bnd_sig,   t) or 0
+            rej_v     = nearest_value(rej_vel_sig,   t) or 0
+            rej_a     = nearest_value(rej_amb_sig,   t) or 0
             acc_poses = nearest_value(acc_poses_sig, t) or []
             accepted  = len(acc_poses)
 
@@ -482,28 +487,29 @@ def compute_camera_metrics(
                 path_x.append(avg_x)
                 path_y.append(avg_y)
 
-            # Raw timestamps for latency
             raw_ts = nearest_value(raw_ts_sig, t) or []
             for est_ts in raw_ts:
                 lat = t - est_ts
                 if 0.0 < lat < 2.0:
                     latencies.append(lat * 1000.0)
 
+        multi_tag_count  = 0
+        single_tag_count = 0
         for _, ambs in amb_sig:
-            ambiguities.extend(a for a in ambs if a >= 0)  # skip -1 (multi-tag)
-
+            for a in ambs:
+                if a < 0:
+                    multi_tag_count += 1
+                else:
+                    single_tag_count += 1
+                    ambiguities.append(a)
         for _, dists in dists_sig:
             all_distances.extend(dists)
-
         for _, ars in area_sig:
             areas.extend(ars)
-
         for _, pxs in px_sig:
             px_offsets.extend(pxs)
-
         for _, ars in ar_sig:
             aspect_ratios.extend(ars)
-
         for _, tags in tags_sig:
             for tag_id in tags:
                 tag_freq[tag_id] += 1
@@ -512,564 +518,804 @@ def compute_camera_metrics(
         total_raw      = sum(raw_counts)
         total_rejected = sum(rej_v_counts) + sum(rej_b_counts) + sum(rej_a_counts)
 
-        m['acc_ts']        = acc_ts
-        m['acc_counts']    = acc_counts
-        m['rej_v_counts']  = rej_v_counts
-        m['rej_b_counts']  = rej_b_counts
-        m['rej_a_counts']  = rej_a_counts
-        m['raw_counts']    = raw_counts
-        m['total_accepted'] = total_accepted
-        m['total_raw']      = total_raw
-        m['total_results']  = total_raw
-        m['acceptance_rate'] = (
-            100.0 * total_accepted / total_raw if total_raw else 0.0
-        )
-        m['rej_velocity_pct'] = (
-            100.0 * sum(rej_v_counts) / total_rejected if total_rejected else 0.0
-        )
-        m['rej_boundary_pct'] = (
-            100.0 * sum(rej_b_counts) / total_rejected if total_rejected else 0.0
-        )
-        m['rej_ambiguity_pct'] = (
-            100.0 * sum(rej_a_counts) / total_rejected if total_rejected else 0.0
-        )
-        m['z_heights']     = z_heights
-        m['ambiguities']   = ambiguities
-        m['distances']     = all_distances
-        m['areas']         = areas
-        m['px_offsets']    = px_offsets
-        m['aspect_ratios'] = aspect_ratios
-        m['tag_freq']      = {int(k): v for k, v in tag_freq.items()}
-        m['path_x']        = path_x
-        m['path_y']        = path_y
-        m['latencies_ms']  = latencies
-        m['latency_mean_ms'] = sum(latencies) / len(latencies) if latencies else 0.0
+        m['acc_ts']            = acc_ts
+        m['acc_counts']        = acc_counts
+        m['rej_v_counts']      = rej_v_counts
+        m['rej_b_counts']      = rej_b_counts
+        m['rej_a_counts']      = rej_a_counts
+        m['raw_counts']        = raw_counts
+        m['total_accepted']    = total_accepted
+        m['total_raw']         = total_raw
+        m['total_results']     = total_raw
+        m['acceptance_rate']    = 100.0 * total_accepted / total_raw if total_raw else 0.0
+        m['rej_velocity_pct']  = 100.0 * sum(rej_v_counts) / total_raw if total_raw else 0.0
+        m['rej_boundary_pct']  = 100.0 * sum(rej_b_counts) / total_raw if total_raw else 0.0
+        m['rej_ambiguity_pct'] = 100.0 * sum(rej_a_counts) / total_raw if total_raw else 0.0
+        m['multi_tag_count']   = multi_tag_count
+        m['single_tag_count']  = single_tag_count
+        m['z_heights']         = z_heights
+        m['ambiguities']       = ambiguities
+        m['distances']         = all_distances
+        m['areas']             = areas
+        m['px_offsets']        = px_offsets
+        m['aspect_ratios']     = aspect_ratios
+        m['tag_freq']          = {int(k): v for k, v in tag_freq.items()}
+        m['path_x']            = path_x
+        m['path_y']            = path_y
+        m['latencies_ms']      = latencies
+        m['latency_mean_ms']   = sum(latencies) / len(latencies) if latencies else 0.0
 
-    # ── Velocity-correlated quality (requires drivetrain speed signals) ───────
+    # Velocity-correlated quality
     if linear_sig and omega_sig and acc_ts:
-        buckets = {'stationary': [], 'slow': [], 'rotating': [], 'fast': []}
-
+        buckets: Dict[str, List[float]] = {'stationary': [], 'slow': [], 'rotating': [], 'fast': []}
         for i, t_rel in enumerate(acc_ts):
-            t_abs = t_rel + start_t
-            lin_v   = nearest_value(linear_sig, t_abs)
-            omega_v = nearest_value(omega_sig, t_abs)
+            t_abs     = t_rel + start_t
+            lin_v     = nearest_value(linear_sig, t_abs)
+            omega_v   = nearest_value(omega_sig,  t_abs)
             if lin_v is None or omega_v is None:
                 continue
-
             lin_abs   = abs(lin_v)
             omega_abs = abs(omega_v)
-            raw_n = m.get('raw_counts', [m.get('acc_counts', [0])[i] +
-                           m.get('rej_v_counts', [0])[i] + m.get('rej_b_counts', [0])[i]])[i]
-            accepted_n = acc_counts[i]
-
-            if lin_abs < 0.20 and omega_abs < 0.30:
-                bucket = 'stationary'
-            elif omega_abs >= 1.50:
-                bucket = 'rotating'
-            elif lin_abs > 2.00 or omega_abs > 4.00:
-                bucket = 'fast'
-            else:
-                bucket = 'slow'
-
+            raw_n = m.get('raw_counts', [
+                m.get('acc_counts', [0])[i]
+                + m.get('rej_v_counts', [0])[i]
+                + m.get('rej_b_counts', [0])[i]
+            ])[i]
             if raw_n > 0:
+                accepted_n = acc_counts[i]
+                if lin_abs < 0.20 and omega_abs < 0.30:
+                    bucket = 'stationary'
+                elif omega_abs >= 1.50:
+                    bucket = 'rotating'
+                elif lin_abs > 2.00 or omega_abs > 4.00:
+                    bucket = 'fast'
+                else:
+                    bucket = 'slow'
                 buckets[bucket].append(accepted_n / raw_n)
 
         m['velocity_buckets'] = {
-            k: {
-                'count': len(v),
-                'acceptance_rate': 100.0 * sum(v) / len(v) if v else 0.0,
-            }
+            k: {'count': len(v), 'acceptance_rate': 100.0 * sum(v) / len(v) if v else 0.0}
             for k, v in buckets.items()
         }
         m['stationary_quality'] = m['velocity_buckets']['stationary']['acceptance_rate']
     else:
-        m['velocity_buckets'] = {}
+        m['velocity_buckets']   = {}
         m['stationary_quality'] = None
 
     return m
 
 
-# ─── HTML / Plotly Generation ─────────────────────────────────────────────────
+# ─── Dashboard Helpers ────────────────────────────────────────────────────────
 
 _COLORS = {
     'Left':  {'primary': '#4FC3F7', 'secondary': '#0288D1'},
     'Right': {'primary': '#AED581', 'secondary': '#558B2F'},
 }
+_DEFAULT_COLOR = {'primary': '#FFB74D', 'secondary': '#E65100'}
+
 
 def _cam_color(camera: str, role: str = 'primary') -> str:
-    return _COLORS.get(camera, {'primary': '#FFB74D', 'secondary': '#E65100'})[role]
+    return _COLORS.get(camera, _DEFAULT_COLOR)[role]
 
 
-def _histogram_data(values: List[float], nbins: int = 30) -> Tuple[List[float], List[int]]:
-    """Simple histogram — returns (bin_centers, counts)."""
-    if not values:
-        return [], []
-    lo, hi = min(values), max(values)
-    if lo == hi:
-        return [lo], [len(values)]
-    step = (hi - lo) / nbins
-    counts = [0] * nbins
-    centers = [lo + step * (i + 0.5) for i in range(nbins)]
-    for v in values:
-        idx = min(int((v - lo) / step), nbins - 1)
-        counts[idx] += 1
-    return centers, counts
+def _downsample(ts: List, vs: List, max_pts: int = 2000) -> Tuple[List, List]:
+    if len(ts) <= max_pts:
+        return ts, vs
+    stride = max(1, len(ts) // max_pts)
+    return ts[::stride], vs[::stride]
 
 
-def _rolling_mean(ts: List[float], vs: List[float], window: float = 2.0) -> Tuple[List[float], List[float]]:
-    """1D rolling mean over a time window (seconds)."""
-    out_ts, out_vs = [], []
-    for i, (t, v) in enumerate(zip(ts, vs)):
-        window_vals = [vj for tj, vj in zip(ts, vs) if t - window <= tj <= t]
-        if window_vals:
-            out_ts.append(t)
-            out_vs.append(sum(window_vals) / len(window_vals))
-    return out_ts, out_vs
+def _field_fig(metrics: List[Dict]) -> Any:
+    """Build the field coverage Plotly figure (no Streamlit dependency)."""
+    import plotly.graph_objects as go
 
-
-def _j(v) -> str:
-    """Compact JSON serialisation."""
-    return json.dumps(v, separators=(',', ':'))
-
-
-def generate_html(
-    all_metrics: List[Dict],
-    log_name: str,
-    duration_sec: float,
-    metadata: Dict,
-) -> str:
-    cameras = [m['camera'] for m in all_metrics]
-    fmt = all_metrics[0]['format'] if all_metrics else 'old'
-
-    # ── Acceptance-rate-over-time chart ─────────────────────────────────────
-    acc_rate_traces = []
-    for m in all_metrics:
-        cam = m['camera']
-        ts  = m['acc_ts']
-        # Rolling acceptance rate per second
-        has_raw = 'raw_counts' in m
-        totals = m['raw_counts'] if has_raw else [
-            a + b + c
-            for a, b, c in zip(
-                m['acc_counts'],
-                m['rej_v_counts'],
-                m.get('rej_b_counts', [0] * len(m['acc_counts'])),
-            )
-        ]
-        rates = [
-            100.0 * a / t if t > 0 else 0.0
-            for a, t in zip(m['acc_counts'], totals)
-        ]
-        rts, rvs = _rolling_mean(ts, rates, window=3.0)
-        acc_rate_traces.append({
-            'x': rts, 'y': rvs,
-            'name': cam, 'type': 'scatter', 'mode': 'lines',
-            'line': {'color': _cam_color(cam), 'width': 2},
-        })
-
-    # ── FPS chart ─────────────────────────────────────────────────────────
-    fps_traces = []
-    for m in all_metrics:
-        cam = m['camera']
-        fps_traces.append({
-            'x': m['fps_ts'], 'y': m['fps_values'],
-            'name': cam, 'type': 'scatter', 'mode': 'lines',
-            'line': {'color': _cam_color(cam), 'width': 1.5},
-        })
-
-    # ── Field coverage map ─────────────────────────────────────────────────
-    # Aggregate tag detections across all cameras
     combined_tag_freq: Dict[int, int] = defaultdict(int)
-    for m in all_metrics:
+    for m in metrics:
         for tag_id, cnt in m['tag_freq'].items():
             combined_tag_freq[tag_id] += cnt
-    max_freq = max(combined_tag_freq.values()) if combined_tag_freq else 1
 
-    tag_x  = [APRILTAG_POSITIONS[t][0] for t in APRILTAG_POSITIONS]
-    tag_y  = [APRILTAG_POSITIONS[t][1] for t in APRILTAG_POSITIONS]
-    tag_ids = list(APRILTAG_POSITIONS.keys())
-    tag_color = [
-        combined_tag_freq.get(tid, 0) / max_freq for tid in tag_ids
-    ]
-    tag_text  = [
-        f'Tag {tid}<br>Seen {combined_tag_freq.get(tid, 0)}×'
-        + ('<br>REEF' if tid in REEF_TAG_IDS else '')
-        for tid in tag_ids
-    ]
+    tag_ids    = list(APRILTAG_POSITIONS.keys())
+    seen_ids   = [t for t in tag_ids if combined_tag_freq.get(t, 0) > 0]
+    unseen_ids = [t for t in tag_ids if combined_tag_freq.get(t, 0) == 0]
+    max_freq   = max((combined_tag_freq[t] for t in seen_ids), default=1)
 
-    field_traces = [
-        # Field boundary
-        {
-            'x': [0, FIELD_LENGTH, FIELD_LENGTH, 0, 0],
-            'y': [0, 0, FIELD_WIDTH, FIELD_WIDTH, 0],
-            'type': 'scatter', 'mode': 'lines',
-            'line': {'color': '#555', 'width': 1},
-            'showlegend': False, 'hoverinfo': 'skip',
-        },
-        # AprilTags — color by detection frequency
-        {
-            'x': tag_x, 'y': tag_y, 'text': tag_text,
-            'type': 'scatter', 'mode': 'markers+text',
-            'textposition': 'top center',
-            'textfont': {'size': 8, 'color': '#aaa'},
-            'marker': {
-                'size': 14,
-                'color': tag_color,
-                'colorscale': [[0, '#c0392b'], [0.4, '#f39c12'], [1.0, '#27ae60']],
-                'cmin': 0, 'cmax': 1,
-                'colorbar': {
-                    'title': 'Detection rate', 'len': 0.4,
-                    'tickvals': [0, 0.5, 1.0],
-                    'ticktext': ['never', '50%', 'always'],
-                },
-                'line': {'color': '#fff', 'width': 1},
-            },
-            'name': 'AprilTags', 'hovertemplate': '%{text}<extra></extra>',
-        },
-    ]
-    # Robot paths
-    for m in all_metrics:
+    def log_norm(count: int) -> float:
+        return math.log1p(count) / math.log1p(max_freq) if max_freq > 0 else 0.0
+
+    fig = go.Figure()
+
+    # Field boundary
+    fig.add_trace(go.Scatter(
+        x=[0, FIELD_LENGTH, FIELD_LENGTH, 0, 0],
+        y=[0, 0, FIELD_WIDTH, FIELD_WIDTH, 0],
+        mode='lines', line=dict(color='#555', width=1),
+        showlegend=False, hoverinfo='skip',
+    ))
+
+    # Never-seen tags (fixed red)
+    if unseen_ids:
+        fig.add_trace(go.Scatter(
+            x=[APRILTAG_POSITIONS[t][0] for t in unseen_ids],
+            y=[APRILTAG_POSITIONS[t][1] for t in unseen_ids],
+            text=[
+                f'Tag {t}<br>Never seen' + ('<br>REEF' if t in REEF_TAG_IDS else '')
+                for t in unseen_ids
+            ],
+            mode='markers+text', textposition='top center',
+            textfont=dict(size=8),
+            marker=dict(size=14, color='#c0392b', line=dict(color='white', width=1)),
+            name='Never seen',
+            hovertemplate='%{text}<extra></extra>',
+        ))
+
+    # Seen tags — log-normalized orange->green gradient
+    if seen_ids:
+        fig.add_trace(go.Scatter(
+            x=[APRILTAG_POSITIONS[t][0] for t in seen_ids],
+            y=[APRILTAG_POSITIONS[t][1] for t in seen_ids],
+            text=[
+                f'Tag {t}<br>Seen {combined_tag_freq[t]}x'
+                + ('<br>REEF' if t in REEF_TAG_IDS else '')
+                for t in seen_ids
+            ],
+            mode='markers+text', textposition='top center',
+            textfont=dict(size=8),
+            marker=dict(
+                size=14,
+                color=[log_norm(combined_tag_freq[t]) for t in seen_ids],
+                colorscale=[[0, '#f39c12'], [1.0, '#27ae60']],
+                cmin=0, cmax=1,
+                colorbar=dict(
+                    title='Relative freq<br>(log scale)', len=0.4,
+                    tickvals=[0, 0.5, 1.0], ticktext=['rarely', '~mid', 'most'],
+                ),
+                line=dict(color='white', width=1),
+            ),
+            name='AprilTags',
+            hovertemplate='%{text}<extra></extra>',
+        ))
+
+    # Robot paths per camera
+    for m in metrics:
         cam = m['camera']
         if m['path_x']:
-            field_traces.append({
-                'x': m['path_x'], 'y': m['path_y'],
-                'name': f'{cam} path', 'type': 'scatter', 'mode': 'markers',
-                'marker': {'size': 3, 'color': _cam_color(cam), 'opacity': 0.4},
-            })
+            fig.add_trace(go.Scatter(
+                x=m['path_x'], y=m['path_y'],
+                name=f'{cam} path', mode='markers',
+                marker=dict(size=3, color=_cam_color(cam), opacity=0.4),
+            ))
 
-    # ── Rejection breakdown bars ────────────────────────────────────────────
-    rej_bars = []
-    labels_vel, labels_bnd, labels_amb = [], [], []
-    for m in all_metrics:
-        cam = m['camera']
-        labels_vel.append(m.get('rej_velocity_pct', 0))
-        labels_bnd.append(m.get('rej_boundary_pct', 0))
-        labels_amb.append(m.get('rej_ambiguity_pct', 0))
-    rej_bars = [
-        {'x': cameras, 'y': labels_vel, 'name': 'Velocity', 'type': 'bar',
-         'marker': {'color': '#E74C3C'}},
-        {'x': cameras, 'y': labels_bnd, 'name': 'Boundary', 'type': 'bar',
-         'marker': {'color': '#F39C12'}},
-    ]
-    if fmt == 'new':
-        rej_bars.append(
-            {'x': cameras, 'y': labels_amb, 'name': 'Ambiguity', 'type': 'bar',
-             'marker': {'color': '#9B59B6'}}
-        )
-
-    # ── Distance histograms ─────────────────────────────────────────────────
-    dist_traces = []
-    for m in all_metrics:
-        cam = m['camera']
-        centers, counts = _histogram_data(m['distances'])
-        dist_traces.append({
-            'x': centers, 'y': counts, 'name': cam,
-            'type': 'bar', 'opacity': 0.7,
-            'marker': {'color': _cam_color(cam)},
-        })
-
-    # ── Weight histograms (old format only) ─────────────────────────────────
-    weight_traces = []
-    if fmt == 'old':
-        for m in all_metrics:
-            cam = m['camera']
-            centers, counts = _histogram_data(m.get('weights', []))
-            weight_traces.append({
-                'x': centers, 'y': counts, 'name': cam,
-                'type': 'bar', 'opacity': 0.7,
-                'marker': {'color': _cam_color(cam)},
-            })
-
-    # ── Z-height histograms (new format only) ───────────────────────────────
-    z_traces = []
-    if fmt == 'new':
-        for m in all_metrics:
-            cam = m['camera']
-            centers, counts = _histogram_data(m.get('z_heights', []), nbins=40)
-            z_traces.append({
-                'x': centers, 'y': counts, 'name': cam,
-                'type': 'bar', 'opacity': 0.7,
-                'marker': {'color': _cam_color(cam)},
-            })
-
-    # ── Ambiguity histograms (new format only) ──────────────────────────────
-    amb_traces = []
-    if fmt == 'new':
-        for m in all_metrics:
-            cam = m['camera']
-            centers, counts = _histogram_data(m.get('ambiguities', []), nbins=20)
-            amb_traces.append({
-                'x': centers, 'y': counts, 'name': cam,
-                'type': 'bar', 'opacity': 0.7,
-                'marker': {'color': _cam_color(cam)},
-            })
-
-    # ── Velocity bucket bars (if available) ─────────────────────────────────
-    vel_traces = []
-    if any(m.get('velocity_buckets') for m in all_metrics):
-        bucket_names = ['stationary', 'slow', 'rotating', 'fast']
-        bucket_labels = ['Stationary', 'Slow translate', 'Rotating', 'Full speed']
-        for m in all_metrics:
-            cam = m['camera']
-            bkts = m.get('velocity_buckets', {})
-            vel_traces.append({
-                'x': bucket_labels,
-                'y': [bkts.get(b, {}).get('acceptance_rate', 0) for b in bucket_names],
-                'name': cam, 'type': 'bar', 'opacity': 0.85,
-                'marker': {'color': _cam_color(cam)},
-            })
-
-    # ── Summary table rows ───────────────────────────────────────────────────
-    def pct(v):
-        return f'{v:.1f}%' if v is not None else '—'
-    def ms(v):
-        return f'{v:.0f} ms' if v else '—'
-
-    table_header = ['Metric'] + cameras
-    table_rows = [
-        ['Acceptance rate'] + [pct(m['acceptance_rate']) for m in all_metrics],
-        ['FPS (mean)'] + [f'{m["fps_mean"]:.1f}' for m in all_metrics],
-        ['FPS (min)'] + [f'{m["fps_min"]:.1f}' for m in all_metrics],
-        ['Connection uptime'] + [pct(m['conn_uptime_pct']) for m in all_metrics],
-        ['Mean result latency'] + [ms(m['latency_mean_ms']) for m in all_metrics],
-        ['Rejected (velocity)'] + [pct(m.get('rej_velocity_pct')) for m in all_metrics],
-        ['Rejected (boundary)'] + [pct(m.get('rej_boundary_pct')) for m in all_metrics],
-    ]
-    if fmt == 'new':
-        table_rows.append(
-            ['Rejected (ambiguity)'] + [pct(m.get('rej_ambiguity_pct')) for m in all_metrics]
-        )
-    if any(m.get('stationary_quality') is not None for m in all_metrics):
-        table_rows.append(
-            ['Stationary quality score'] + [
-                pct(m.get('stationary_quality')) for m in all_metrics
-            ]
-        )
-
-    # ── Build the HTML ────────────────────────────────────────────────────────
-    def chart_div(div_id: str, traces: list, layout_extra: dict = None, height: int = 340) -> str:
-        layout = {
-            'paper_bgcolor': '#1a1a2e', 'plot_bgcolor': '#16213e',
-            'font': {'color': '#e0e0e0', 'size': 11},
-            'legend': {'bgcolor': 'rgba(0,0,0,0)', 'font': {'size': 10}},
-            'margin': {'l': 50, 'r': 20, 't': 30, 'b': 40},
-            'height': height,
-        }
-        if layout_extra:
-            layout.update(layout_extra)
-        return f'''
-<div id="{div_id}" style="width:100%;height:{height}px;"></div>
-<script>
-Plotly.newPlot({_j(div_id)},{_j(traces)},{_j(layout)},{{responsive:true,displayModeBar:false}});
-</script>'''
-
-    def section(title: str, content: str) -> str:
-        return f'<section class="card"><h2>{title}</h2>{content}</section>'
-
-    def two_col(*divs) -> str:
-        return '<div class="two-col">' + ''.join(
-            f'<div class="col">{d}</div>' for d in divs
-        ) + '</div>'
-
-    grid_layout = {'xaxis': {'gridcolor': '#2a2a4a'}, 'yaxis': {'gridcolor': '#2a2a4a'}}
-
-    # Build table HTML
-    thead = '<tr>' + ''.join(f'<th>{h}</th>' for h in table_header) + '</tr>'
-    tbody = ''.join(
-        '<tr>' + ''.join(f'<td>{c}</td>' for c in row) + '</tr>'
-        for row in table_rows
+    fig.update_layout(
+        template='plotly_dark',
+        xaxis=dict(title='X (m)', range=[0, FIELD_LENGTH]),
+        yaxis=dict(title='Y (m)', range=[0, FIELD_WIDTH]),
+        height=460,
+        margin=dict(l=40, r=20, t=20, b=40),
     )
+    return fig
 
-    # Stationary quality score callout
-    sq_callout = ''
-    if any(m.get('stationary_quality') is not None for m in all_metrics):
-        sq_items = ''.join(
-            f'<div class="sq-item"><div class="sq-label">{m["camera"]}</div>'
-            f'<div class="sq-val {"sq-good" if (m.get("stationary_quality") or 0) > 70 else "sq-bad"}">'
-            f'{pct(m.get("stationary_quality"))}</div></div>'
-            for m in all_metrics
+
+# ─── Streamlit Dashboard ──────────────────────────────────────────────────────
+
+def _filter_signals_by_time(signals: Dict, t_lo: float, t_hi: float) -> Dict:
+    """Return signals containing only samples within [t_lo, t_hi]."""
+    return {
+        name: [(t, v) for t, v in samples if t_lo <= t <= t_hi]
+        for name, samples in signals.items()
+    }
+
+
+def _compute_mode_spans(
+    signals: Dict, start_t: float
+) -> List[Tuple[float, float, str]]:
+    """
+    Return [(rel_start, rel_end, mode), ...] where mode is 'disabled', 'auto', or 'teleop'.
+    Times are seconds relative to start_t.
+    """
+    enabled_sig = signals.get('DriverStation/Enabled', [])
+    auto_sig    = signals.get('DriverStation/Autonomous', [])
+
+    if not enabled_sig:
+        return []
+
+    auto_by_time   = {t: v for t, v in auto_sig}
+    auto_ts_sorted = sorted(auto_by_time.keys())
+
+    def get_auto(t: float) -> bool:
+        if not auto_ts_sorted:
+            return False
+        idx = bisect.bisect_right(auto_ts_sorted, t) - 1
+        return bool(auto_by_time[auto_ts_sorted[max(0, idx)]])
+
+    spans: List[Tuple[float, float, str]] = []
+    current_mode: Optional[str] = None
+    span_start:   Optional[float] = None
+
+    for t, enabled in enabled_sig:
+        auto = get_auto(t)
+        if enabled and auto:
+            mode = 'auto'
+        elif enabled:
+            mode = 'teleop'
+        else:
+            mode = 'disabled'
+
+        if mode != current_mode:
+            if current_mode is not None and span_start is not None:
+                spans.append((span_start - start_t, t - start_t, current_mode))
+            current_mode = mode
+            span_start   = t
+
+    if current_mode is not None and span_start is not None:
+        spans.append((span_start - start_t, enabled_sig[-1][0] - start_t, current_mode))
+
+    return spans
+
+
+def _mode_timeline_fig(
+    mode_spans: List[Tuple[float, float, str]],
+    duration:   float,
+    sel_lo:     float,
+    sel_hi:     float,
+) -> Any:
+    """Compact Plotly timeline: robot mode color bands + selected window overlay."""
+    import plotly.graph_objects as go
+
+    MODE_COLORS = {
+        'auto':     'rgba(39, 174, 96, 0.62)',
+        'teleop':   'rgba(41, 128, 185, 0.62)',
+        'disabled': 'rgba(110, 110, 110, 0.50)',
+    }
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=[0, duration], y=[0.5, 0.5],
+        mode='markers', marker=dict(opacity=0),
+        showlegend=False, hoverinfo='skip',
+    ))
+
+    for span_start, span_end, mode in mode_spans:
+        fig.add_shape(
+            type='rect',
+            x0=span_start, x1=span_end,
+            y0=0, y1=1, yref='paper',
+            fillcolor=MODE_COLORS.get(mode, 'rgba(80,80,80,0.3)'),
+            line_width=0,
         )
-        sq_callout = f'<div class="sq-row">{sq_items}</div>'
-
-    # New-format extra sections
-    new_fmt_sections = ''
-    if fmt == 'new' and z_traces:
-        new_fmt_sections += section('Z-Height Distribution (Calibration)',
-            two_col(
-                chart_div('ch_z', z_traces, {
-                    **grid_layout,
-                    'barmode': 'overlay',
-                    'xaxis': {'title': 'Z height (m)', 'gridcolor': '#2a2a4a'},
-                    'yaxis': {'title': 'Samples', 'gridcolor': '#2a2a4a'},
-                    'shapes': [{'type': 'line', 'x0': 0, 'x1': 0, 'y0': 0, 'y1': 1,
-                                'yref': 'paper', 'line': {'color': '#fff', 'dash': 'dot', 'width': 1}}],
-                }),
-                chart_div('ch_amb', amb_traces, {
-                    **grid_layout,
-                    'barmode': 'overlay',
-                    'xaxis': {'title': 'Ambiguity (single-tag)', 'gridcolor': '#2a2a4a'},
-                    'yaxis': {'title': 'Samples', 'gridcolor': '#2a2a4a'},
-                    'shapes': [{'type': 'line', 'x0': 0.2, 'x1': 0.2, 'y0': 0, 'y1': 1,
-                                'yref': 'paper',
-                                'line': {'color': '#F39C12', 'dash': 'dash', 'width': 1}}],
-                }),
+        span_dur = span_end - span_start
+        if span_dur > max(duration * 0.06, 3):
+            fig.add_annotation(
+                x=(span_start + span_end) / 2, y=0.5, yref='paper',
+                text=mode.capitalize(), showarrow=False,
+                font=dict(color='white', size=10), opacity=0.9,
             )
-        )
 
-    vel_section = ''
-    if vel_traces:
-        vel_section = section('Acceptance Rate by Robot Motion State',
-            '<p class="note">Stationary quality score is the key metric: removes motion as a confounder. '
-            'Low score here points to a camera-intrinsic problem.</p>' +
-            chart_div('ch_vel', vel_traces, {
-                **grid_layout,
-                'barmode': 'group',
-                'yaxis': {'title': 'Acceptance rate (%)', 'range': [0, 105], 'gridcolor': '#2a2a4a'},
-                'shapes': [{'type': 'line', 'x0': -0.5, 'x1': 3.5, 'y0': 80, 'y1': 80,
-                            'line': {'color': '#27ae60', 'dash': 'dot', 'width': 1}}],
-            }, height=300)
-        )
-
-    html = f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vision Dashboard — {log_name}</title>
-<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ background: #0f0f1a; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 16px; }}
-  h1 {{ font-size: 1.3rem; font-weight: 600; color: #90caf9; margin-bottom: 4px; }}
-  .subtitle {{ font-size: 0.82rem; color: #888; margin-bottom: 16px; }}
-  h2 {{ font-size: 0.95rem; font-weight: 600; color: #b0bec5; margin-bottom: 10px; }}
-  .card {{ background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 8px; padding: 16px; margin-bottom: 16px; }}
-  .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
-  .col {{ min-width: 0; }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 0.82rem; }}
-  th {{ background: #16213e; color: #90caf9; padding: 6px 10px; text-align: left; border-bottom: 1px solid #2a2a4a; }}
-  td {{ padding: 5px 10px; border-bottom: 1px solid #1e1e3a; }}
-  tr:hover td {{ background: #16213e; }}
-  .note {{ font-size: 0.78rem; color: #888; margin-bottom: 10px; font-style: italic; }}
-  .sq-row {{ display: flex; gap: 20px; margin-bottom: 14px; }}
-  .sq-item {{ text-align: center; }}
-  .sq-label {{ font-size: 0.78rem; color: #888; margin-bottom: 4px; }}
-  .sq-val {{ font-size: 1.6rem; font-weight: 700; }}
-  .sq-good {{ color: #27ae60; }}
-  .sq-bad  {{ color: #e74c3c; }}
-  @media (max-width: 700px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
-</style>
-</head>
-<body>
-<h1>Vision Log Dashboard</h1>
-<div class="subtitle">
-  {log_name} &nbsp;·&nbsp; {duration_sec:.0f}s &nbsp;·&nbsp;
-  Cameras: {", ".join(cameras)} &nbsp;·&nbsp;
-  Format: {"new (raw pre-filter)" if fmt == "new" else "old (post-filter)"}
-  {("&nbsp;·&nbsp;" + metadata.get("ProjectName", "") + " @ " + metadata.get("GitHash", "")[:7])
-   if metadata.get("ProjectName") else ""}
-</div>
-
-{section("Camera Summary",
-    sq_callout +
-    f'<table><thead>{thead}</thead><tbody>{tbody}</tbody></table>'
-)}
-
-{section("Acceptance Rate Over Time (3 s rolling)",
-    '<p class="note">Per-loop acceptance rate smoothed over a 3-second window. Drops indicate '
-    'the filter is rejecting more estimates — check if correlated with robot motion below.</p>' +
-    chart_div('ch_acc', acc_rate_traces, {
-        **grid_layout,
-        'yaxis': {'title': 'Acceptance rate (%)', 'range': [0, 105], 'gridcolor': '#2a2a4a'},
-        'xaxis': {'title': 'Time (s)', 'gridcolor': '#2a2a4a'},
-    })
-)}
-
-{section("FPS Timeline",
-    chart_div('ch_fps', fps_traces, {
-        **grid_layout,
-        'yaxis': {'title': 'Frames per second', 'gridcolor': '#2a2a4a'},
-        'xaxis': {'title': 'Time (s)', 'gridcolor': '#2a2a4a'},
-    }, height=260)
-)}
-
-{section("Rejection Breakdown (% of rejected results)",
-    '<p class="note">Velocity rejections are expected during fast motion. Boundary rejections '
-    'at low velocity suggest calibration issues. Ambiguity rejections indicate single-tag '
-    'observations with uncertain orientation.</p>' +
-    chart_div('ch_rej', rej_bars, {
-        **grid_layout,
-        'barmode': 'stack',
-        'yaxis': {'title': '% of rejected', 'gridcolor': '#2a2a4a'},
-    }, height=280)
-)}
-
-{section("Field Coverage Map",
-    '<p class="note">Tags colored by detection frequency (green=often, red=rarely/never). '
-    'Dots show robot positions where vision accepted an estimate.</p>' +
-    chart_div('ch_field', field_traces, {
-        'paper_bgcolor': '#1a1a2e', 'plot_bgcolor': '#101020',
-        'xaxis': {'title': 'X (m)', 'scaleanchor': 'y', 'scaleratio': 1, 'gridcolor': '#2a2a4a'},
-        'yaxis': {'title': 'Y (m)', 'gridcolor': '#2a2a4a'},
-        'showlegend': True,
-        'margin': {'l': 50, 'r': 20, 't': 30, 'b': 40},
-    }, height=420)
-)}
-
-{two_col(
-    section("Distance Distribution (m)",
-        '<p class="note">Accepted estimates only. Close range = high quality.</p>' +
-        chart_div('ch_dist', dist_traces, {
-            **grid_layout,
-            'barmode': 'overlay',
-            'xaxis': {'title': 'Avg distance (m)', 'gridcolor': '#2a2a4a'},
-            'yaxis': {'title': 'Samples', 'gridcolor': '#2a2a4a'},
-        }, height=280)
-    ),
-    section("Weight / Trust Distribution" if fmt == "old" else "Mean Tag Area Distribution",
-        ('<p class="note">Higher weight = more influence on pose estimator.</p>' +
-         chart_div('ch_wt', weight_traces, {
-             **grid_layout,
-             'barmode': 'overlay',
-             'xaxis': {'title': 'Weight scalar', 'range': [0, 1.05], 'gridcolor': '#2a2a4a'},
-             'yaxis': {'title': 'Samples', 'gridcolor': '#2a2a4a'},
-         }, height=280)
-        ) if fmt == 'old' else
-        ('<p class="note">Higher area = larger/closer tags, more reliable.</p>' +
-         chart_div('ch_area', [{
-             'x': _histogram_data(m.get("areas",[]))[0],
-             'y': _histogram_data(m.get("areas",[]))[1],
-             'name': m["camera"], 'type': 'bar', 'opacity': 0.7,
-             'marker': {'color': _cam_color(m["camera"])},
-         } for m in all_metrics], {
-             **grid_layout,
-             'barmode': 'overlay',
-             'xaxis': {'title': 'Sum tag area', 'gridcolor': '#2a2a4a'},
-             'yaxis': {'title': 'Samples', 'gridcolor': '#2a2a4a'},
-         }, height=280)
-        ) if fmt == 'new' else ''
+    # Selected window overlay
+    fig.add_shape(
+        type='rect',
+        x0=sel_lo, x1=sel_hi,
+        y0=0, y1=1, yref='paper',
+        fillcolor='rgba(255, 255, 255, 0.10)',
+        line=dict(color='rgba(255,255,255,0.80)', width=1.5, dash='dot'),
     )
-)}
 
-{vel_section}
+    fig.update_layout(
+        template='plotly_dark',
+        height=88,
+        showlegend=False,
+        xaxis=dict(range=[0, duration], title='Time (s from log start)',
+                   showgrid=False, zeroline=False),
+        yaxis=dict(visible=False, range=[0, 1]),
+        margin=dict(l=40, r=10, t=4, b=30),
+        plot_bgcolor='#111827',
+        paper_bgcolor='#111827',
+    )
+    return fig
 
-{new_fmt_sections}
 
-</body>
-</html>'''
+def _running_under_streamlit() -> bool:
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        return get_script_run_ctx() is not None
+    except Exception:
+        return False
 
-    return html
+
+def _load_log(path: str) -> Tuple[List[Dict], float, Dict, List[str]]:
+    """Parse a wpilog and compute metrics for all cameras. Returns (metrics, duration, meta, cameras)."""
+    signals = parse_wpilog(path)
+    cameras = discover_cameras(signals)
+    all_ts  = [t for sig in signals.values() for t, _ in sig]
+    start_t = min(all_ts) if all_ts else 0.0
+    end_t   = max(all_ts) if all_ts else 0.0
+
+    meta: Dict[str, str] = {}
+    for key in ('RealMetadata/ProjectName', 'RealMetadata/GitHash', 'RealMetadata/RuntimeType'):
+        if key in signals and signals[key]:
+            meta[key.split('/')[-1]] = str(signals[key][-1][1])
+
+    lin_key, omega_key = find_drivetrain_speeds(signals)
+    linear_sig = signals[lin_key] if lin_key else None
+    omega_sig  = signals[omega_key] if omega_key else None
+
+    all_metrics = []
+    for cam in cameras:
+        fmt = detect_format(signals, cam)
+        m = compute_camera_metrics(signals, cam, fmt, start_t, end_t, linear_sig, omega_sig)
+        all_metrics.append(m)
+
+    return all_metrics, end_t - start_t, meta, cameras
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+def _streamlit_app() -> None:
+    import plotly.graph_objects as go
+    import streamlit as st
+
+    st.set_page_config(
+        page_title='Vision Dashboard',
+        page_icon='📡',
+        layout='wide',
+        initial_sidebar_state='expanded',
+    )
+    st.title('Vision Log Dashboard')
+
+    with st.sidebar:
+        st.header('Log File')
+        log_path = st.text_input(
+            'Path to .wpilog',
+            placeholder='logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog',
+        )
+
+    if not log_path:
+        st.info('Enter a path to a `.wpilog` file in the sidebar to begin.')
+        return
+
+    p = pathlib.Path(log_path)
+    if not p.exists():
+        st.error(f'File not found: `{log_path}`')
+        return
+
+    # ── Stage 1: parse signals (cached by path + mtime) ──────────────────────
+    @st.cache_data(show_spinner='Scanning log...')
+    def _scan_signals(path: str, mtime: float) -> Dict:
+        return parse_wpilog(path)
+
+    try:
+        signals = _scan_signals(str(p), p.stat().st_mtime)
+    except Exception as exc:
+        st.error(f'Failed to parse log: {exc}')
+        st.exception(exc)
+        return
+
+    all_ts   = [t for sig in signals.values() for t, _ in sig]
+    start_t  = min(all_ts) if all_ts else 0.0
+    duration = (max(all_ts) if all_ts else 0.0) - start_t
+
+    # Reset session state when the log file changes
+    if st.session_state.get('_log_path') != str(p):
+        st.session_state['_log_path']        = str(p)
+        st.session_state['_range']           = (0.0, float(duration))
+        st.session_state['_range_committed'] = None
+
+    # ── Time range selector ───────────────────────────────────────────────────
+    mode_spans = _compute_mode_spans(signals, start_t)
+
+    committed = st.session_state.get('_range_committed')
+    with st.expander('**Time Range**', expanded=(committed is None)):
+        st.caption(
+            ':gray[■ Disabled]   '
+            ':blue[■ Teleop]   '
+            ':green[■ Autonomous]'
+        )
+
+        sel: Tuple[float, float] = st.slider(
+            'Select window (seconds from log start)',
+            min_value=0.0,
+            max_value=float(duration),
+            value=st.session_state['_range'],
+            step=0.5,
+            key='_time_slider',
+        )
+        st.session_state['_range'] = sel
+
+        st.plotly_chart(
+            _mode_timeline_fig(mode_spans, duration, sel[0], sel[1]),
+            use_container_width=True,
+            config={'displayModeBar': False},
+            key='_mode_fig',
+        )
+
+        col_info, col_btn = st.columns([5, 1])
+        with col_info:
+            st.caption(
+                f'Selected: **{sel[0]:.1f} s** to **{sel[1]:.1f} s** '
+                f'({sel[1] - sel[0]:.1f} s of {duration:.1f} s total)'
+            )
+        with col_btn:
+            if st.button('Analyze', type='primary', use_container_width=True):
+                st.session_state['_range_committed'] = sel
+                committed = sel
+
+    if committed is None:
+        st.info('Adjust the time range above and click **Analyze** to load the dashboard.')
+        return
+
+    t_lo = start_t + committed[0]
+    t_hi = start_t + committed[1]
+
+    # ── Stage 2: compute metrics for the committed window (cached) ────────────
+    @st.cache_data(show_spinner='Analyzing...')
+    def _compute_metrics(path: str, mtime: float, t_lo_k: float, t_hi_k: float):
+        sig      = _scan_signals(path, mtime)          # instant — already cached
+        filtered = _filter_signals_by_time(sig, t_lo_k, t_hi_k)
+        cameras  = discover_cameras(filtered)
+
+        ft_list  = [t for s in filtered.values() for t, _ in s]
+        f_start  = min(ft_list) if ft_list else t_lo_k
+        f_end    = max(ft_list) if ft_list else t_hi_k
+
+        meta: Dict[str, str] = {}
+        for key in ('RealMetadata/ProjectName', 'RealMetadata/GitHash', 'RealMetadata/RuntimeType'):
+            if key in filtered and filtered[key]:
+                meta[key.split('/')[-1]] = str(filtered[key][-1][1])
+
+        lin_key, omega_key = find_drivetrain_speeds(filtered)
+        linear_sig = filtered[lin_key]   if lin_key   else None
+        omega_sig  = filtered[omega_key] if omega_key else None
+
+        all_m = []
+        for cam in cameras:
+            fmt = detect_format(filtered, cam)
+            m   = compute_camera_metrics(filtered, cam, fmt, f_start, f_end, linear_sig, omega_sig)
+            all_m.append(m)
+
+        return all_m, meta, cameras
+
+    try:
+        all_metrics, meta, cameras = _compute_metrics(
+            str(p), p.stat().st_mtime,
+            round(t_lo, 1), round(t_hi, 1),
+        )
+    except Exception as exc:
+        st.error(f'Failed to compute metrics: {exc}')
+        st.exception(exc)
+        return
+
+    if not all_metrics:
+        st.warning('No vision cameras found in this log (no `Vision/<name>/connected` signal).')
+        return
+
+    fmt = all_metrics[0]['format']
+
+    # Camera filter + info in sidebar
+    with st.sidebar:
+        selected = st.multiselect('Cameras', cameras, default=cameras)
+        st.caption(f'Window: {committed[0]:.0f} s – {committed[1]:.0f} s '
+                   f'({committed[1] - committed[0]:.0f} s)')
+        st.caption(f'Format: {"new (raw pre-filter)" if fmt == "new" else "old (post-filter)"}')
+        if meta.get('ProjectName'):
+            st.caption(f'{meta["ProjectName"]} @ {meta.get("GitHash", "")[:7]}')
+
+    metrics = [m for m in all_metrics if m['camera'] in selected]
+    if not metrics:
+        st.warning('No cameras selected.')
+        return
+
+    st.caption(
+        f'`{p.name}`  ·  '
+        f'{committed[0]:.0f} s – {committed[1]:.0f} s  ·  '
+        f'cameras: {", ".join(cameras)}'
+    )
+
+    def pct(v: Optional[float]) -> str:
+        return f'{v:.1f}%' if v is not None else '-'
+
+    def ms_fmt(v: float) -> str:
+        return f'{v:.0f} ms' if v else '-'
+
+    # Tab layout
+    tabs = st.tabs(['Summary', 'Health', 'Acceptance', 'Geometry', 'Field', 'Motion'])
+    t_sum, t_health, t_accept, t_geo, t_field, t_motion = tabs
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    with t_sum:
+        sq_vals = [m.get('stationary_quality') for m in metrics]
+        if any(v is not None for v in sq_vals):
+            cols = st.columns(len(metrics))
+            for col, m, sq in zip(cols, metrics, sq_vals):
+                if sq is not None:
+                    col.metric(
+                        f'{m["camera"]} stationary quality', pct(sq),
+                        delta='good' if sq > 70 else 'low',
+                        delta_color='normal' if sq > 70 else 'inverse',
+                    )
+
+        rows: Dict[str, List[str]] = {
+            'Acceptance rate':     [pct(m['acceptance_rate']) for m in metrics],
+            'FPS (mean)':          [f'{m["fps_mean"]:.1f}' for m in metrics],
+            'FPS (min)':           [f'{m["fps_min"]:.1f}' for m in metrics],
+            'Connection uptime':   [pct(m['conn_uptime_pct']) for m in metrics],
+            'Mean result latency': [ms_fmt(m['latency_mean_ms']) for m in metrics],
+            'Rejected (velocity)': [pct(m.get('rej_velocity_pct')) for m in metrics],
+            'Rejected (boundary)': [pct(m.get('rej_boundary_pct')) for m in metrics],
+        }
+        if fmt == 'new':
+            rows['Rejected (ambiguity)'] = [pct(m.get('rej_ambiguity_pct')) for m in metrics]
+        if any(v is not None for v in sq_vals):
+            rows['Stationary quality'] = [pct(m.get('stationary_quality')) for m in metrics]
+
+        table_data: Dict[str, List] = {'Metric': list(rows.keys())}
+        for cam_idx, m in enumerate(metrics):
+            table_data[m['camera']] = [rows[metric][cam_idx] for metric in rows]
+        st.table(table_data)
+
+    # ── Health ────────────────────────────────────────────────────────────────
+    with t_health:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader('FPS Over Time')
+            fig = go.Figure()
+            for m in metrics:
+                ts, vs = _downsample(m['fps_ts'], m['fps_values'])
+                fig.add_trace(go.Scatter(x=ts, y=vs, name=m['camera'], mode='lines',
+                                          line=dict(color=_cam_color(m['camera']), width=1.5)))
+            fig.update_layout(template='plotly_dark', height=280,
+                               xaxis_title='Time (s)', yaxis_title='FPS',
+                               margin=dict(l=40, r=10, t=20, b=40))
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            st.subheader('Connection Status')
+            fig = go.Figure()
+            for m in metrics:
+                ts, vs = _downsample(m['conn_ts'], m['conn_values'])
+                fig.add_trace(go.Scatter(x=ts, y=vs, name=m['camera'], mode='lines',
+                                          line=dict(color=_cam_color(m['camera']), width=1.5,
+                                                    shape='hv')))
+            fig.update_layout(template='plotly_dark', height=280,
+                               xaxis_title='Time (s)',
+                               yaxis=dict(title='Connected', tickvals=[0, 1],
+                                          ticktext=['No', 'Yes'], range=[-0.1, 1.4]),
+                               margin=dict(l=40, r=10, t=20, b=40))
+            st.plotly_chart(fig, use_container_width=True)
+
+        if any(m['latencies_ms'] for m in metrics):
+            st.subheader('Result Latency Distribution')
+            fig = go.Figure()
+            for m in metrics:
+                if m['latencies_ms']:
+                    centers, counts = _histogram_data(m['latencies_ms'])
+                    fig.add_trace(go.Bar(x=centers, y=counts, name=m['camera'], opacity=0.7,
+                                          marker_color=_cam_color(m['camera'])))
+            fig.update_layout(template='plotly_dark', barmode='overlay', height=260,
+                               xaxis_title='Latency (ms)', yaxis_title='Samples',
+                               margin=dict(l=40, r=10, t=20, b=40))
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ── Acceptance ────────────────────────────────────────────────────────────
+    with t_accept:
+        st.subheader('Acceptance Rate Over Time (3 s rolling)')
+        st.caption('Per-loop acceptance rate smoothed over a 3-second window. '
+                   'Drops indicate the filter rejecting more estimates.')
+        fig = go.Figure()
+        for m in metrics:
+            ts = m['acc_ts']
+            has_raw = 'raw_counts' in m
+            totals = m['raw_counts'] if has_raw else [
+                a + b + c for a, b, c in zip(
+                    m['acc_counts'], m['rej_v_counts'],
+                    m.get('rej_b_counts', [0] * len(m['acc_counts'])),
+                )
+            ]
+            rates = [100.0 * a / t if t > 0 else 0.0 for a, t in zip(m['acc_counts'], totals)]
+            rts, rvs = _rolling_mean(ts, rates, window=3.0)
+            rts, rvs = _downsample(rts, rvs)
+            fig.add_trace(go.Scatter(x=rts, y=rvs, name=m['camera'], mode='lines',
+                                      line=dict(color=_cam_color(m['camera']), width=2)))
+        fig.update_layout(template='plotly_dark', height=320,
+                           xaxis_title='Time (s)',
+                           yaxis=dict(title='Acceptance rate (%)', range=[0, 105]),
+                           margin=dict(l=40, r=10, t=20, b=40))
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader('Rejection Breakdown (% of all raw results)')
+        st.caption('Each bar shows what fraction of ALL raw results were rejected for that reason. '
+                   'Velocity rejections at low speed or boundary rejections at rest indicate '
+                   'calibration issues. Ambiguity rejections = single-tag near threshold (0.2).')
+        fig = go.Figure()
+        cam_names = [m['camera'] for m in metrics]
+        fig.add_trace(go.Bar(x=cam_names, y=[m.get('rej_velocity_pct', 0) for m in metrics],
+                              name='Velocity', marker_color='#E74C3C'))
+        fig.add_trace(go.Bar(x=cam_names, y=[m.get('rej_boundary_pct', 0) for m in metrics],
+                              name='Boundary', marker_color='#F39C12'))
+        if fmt == 'new':
+            fig.add_trace(go.Bar(x=cam_names, y=[m.get('rej_ambiguity_pct', 0) for m in metrics],
+                                  name='Ambiguity', marker_color='#9B59B6'))
+        fig.update_layout(template='plotly_dark', barmode='stack', height=280,
+                           yaxis_title='% of all raw results',
+                           margin=dict(l=40, r=10, t=20, b=40))
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── Geometry ──────────────────────────────────────────────────────────────
+    with t_geo:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader('Distance Distribution')
+            label = 'All raw estimates (pre-filter)' if fmt == 'new' else 'Accepted estimates only'
+            st.caption(f'{label}. Close range = higher quality estimates.')
+            fig = go.Figure()
+            for m in metrics:
+                centers, counts = _histogram_data(m['distances'])
+                if centers:
+                    fig.add_trace(go.Bar(x=centers, y=counts, name=m['camera'], opacity=0.7,
+                                          marker_color=_cam_color(m['camera'])))
+            fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
+                               xaxis_title='Avg distance (m)', yaxis_title='Samples',
+                               margin=dict(l=40, r=10, t=20, b=40))
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            if fmt == 'new':
+                st.subheader('Tag Area Distribution')
+                st.caption('Higher area = larger/closer tags, more reliable.')
+                fig = go.Figure()
+                for m in metrics:
+                    centers, counts = _histogram_data(m.get('areas', []))
+                    if centers:
+                        fig.add_trace(go.Bar(x=centers, y=counts, name=m['camera'], opacity=0.7,
+                                              marker_color=_cam_color(m['camera'])))
+                fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
+                                   xaxis_title='Sum tag area', yaxis_title='Samples',
+                                   margin=dict(l=40, r=10, t=20, b=40))
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.subheader('Weight / Trust Distribution')
+                st.caption('Higher weight = more influence on pose estimator.')
+                fig = go.Figure()
+                for m in metrics:
+                    centers, counts = _histogram_data(m.get('weights', []))
+                    if centers:
+                        fig.add_trace(go.Bar(x=centers, y=counts, name=m['camera'], opacity=0.7,
+                                              marker_color=_cam_color(m['camera'])))
+                fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
+                                   xaxis=dict(title='Weight scalar', range=[0, 1.05]),
+                                   yaxis_title='Samples',
+                                   margin=dict(l=40, r=10, t=20, b=40))
+                st.plotly_chart(fig, use_container_width=True)
+
+        if fmt == 'new':
+            col3, col4 = st.columns(2)
+
+            with col3:
+                st.subheader('Z-Height Distribution')
+                st.caption('Should peak at 0. Non-zero mean indicates a calibration error '
+                            '(height or pitch angle wrong in VisionConstants).')
+                fig = go.Figure()
+                for m in metrics:
+                    centers, counts = _histogram_data(m.get('z_heights', []), nbins=40)
+                    if centers:
+                        fig.add_trace(go.Bar(x=centers, y=counts, name=m['camera'], opacity=0.7,
+                                              marker_color=_cam_color(m['camera'])))
+                fig.add_vline(x=0, line_dash='dot', line_color='white', line_width=1)
+                fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
+                                   xaxis_title='Z height (m)', yaxis_title='Samples',
+                                   margin=dict(l=40, r=10, t=20, b=40))
+                st.plotly_chart(fig, use_container_width=True)
+
+            with col4:
+                st.subheader('Ambiguity Distribution (Single-Tag Only)')
+                st.caption('Multi-tag results are excluded (they report -1 and have no ambiguity). '
+                            'Rejection threshold at 0.2 — mass near there = operating near limit.')
+                fig = go.Figure()
+                for m in metrics:
+                    centers, counts = _histogram_data(m.get('ambiguities', []), nbins=20)
+                    if centers:
+                        fig.add_trace(go.Bar(x=centers, y=counts, name=m['camera'], opacity=0.7,
+                                              marker_color=_cam_color(m['camera'])))
+                fig.add_vline(x=0.2, line_dash='dash', line_color='#F39C12', line_width=1,
+                               annotation_text='reject', annotation_position='top right')
+                fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
+                                   xaxis_title='Ambiguity', yaxis_title='Samples',
+                                   margin=dict(l=40, r=10, t=20, b=40))
+                st.plotly_chart(fig, use_container_width=True)
+
+            # Single-tag vs multi-tag breakdown
+            has_tag_type_data = any(
+                m.get('multi_tag_count', 0) + m.get('single_tag_count', 0) > 0
+                for m in metrics
+            )
+            if has_tag_type_data:
+                st.subheader('Single-Tag vs Multi-Tag Results')
+                st.caption(
+                    'Multi-tag (2+ AprilTags in one estimate) is more reliable: no pose ambiguity, '
+                    'better geometry. A high single-tag fraction at short range suggests tags are '
+                    'being partially occluded or the camera FOV only sees one tag at a time.'
+                )
+                col5, col6 = st.columns(2)
+
+                with col5:
+                    fig = go.Figure()
+                    cam_names = [m['camera'] for m in metrics]
+                    fig.add_trace(go.Bar(
+                        x=cam_names,
+                        y=[m.get('multi_tag_count', 0) for m in metrics],
+                        name='Multi-tag', marker_color='#27ae60',
+                    ))
+                    fig.add_trace(go.Bar(
+                        x=cam_names,
+                        y=[m.get('single_tag_count', 0) for m in metrics],
+                        name='Single-tag', marker_color='#3498db',
+                    ))
+                    fig.update_layout(
+                        template='plotly_dark', barmode='stack', height=280,
+                        yaxis_title='Result count',
+                        margin=dict(l=40, r=10, t=20, b=40),
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                with col6:
+                    # Multi-tag rate as a percentage
+                    fig = go.Figure()
+                    for m in metrics:
+                        total = m.get('multi_tag_count', 0) + m.get('single_tag_count', 0)
+                        multi_pct = 100.0 * m.get('multi_tag_count', 0) / total if total else 0.0
+                        fig.add_trace(go.Bar(
+                            x=[m['camera']], y=[multi_pct],
+                            name=m['camera'], marker_color=_cam_color(m['camera']),
+                        ))
+                    fig.add_hline(y=50, line_dash='dot', line_color='white', line_width=1,
+                                   annotation_text='50%', annotation_position='top right')
+                    fig.update_layout(
+                        template='plotly_dark', height=280,
+                        yaxis=dict(title='Multi-tag rate (%)', range=[0, 105]),
+                        margin=dict(l=40, r=10, t=20, b=40),
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+    # ── Field ─────────────────────────────────────────────────────────────────
+    with t_field:
+        st.caption('Tags: red = never seen, orange -> green = detection frequency (log scale). '
+                   'Dots = robot positions where vision accepted an estimate.')
+        st.plotly_chart(_field_fig(metrics), use_container_width=True)
+
+    # ── Motion ────────────────────────────────────────────────────────────────
+    with t_motion:
+        if any(m.get('velocity_buckets') for m in metrics):
+            st.subheader('Acceptance Rate by Robot Motion State')
+            st.caption('Stationary quality removes motion as a confounder. '
+                       'Low stationary score points to a camera-intrinsic problem.')
+            bucket_names  = ['stationary', 'slow', 'rotating', 'fast']
+            bucket_labels = ['Stationary', 'Slow translate', 'Rotating', 'Full speed']
+            fig = go.Figure()
+            for m in metrics:
+                bkts = m.get('velocity_buckets', {})
+                fig.add_trace(go.Bar(
+                    x=bucket_labels,
+                    y=[bkts.get(b, {}).get('acceptance_rate', 0) for b in bucket_names],
+                    name=m['camera'], opacity=0.85,
+                    marker_color=_cam_color(m['camera']),
+                ))
+            fig.add_hline(y=80, line_dash='dot', line_color='#27ae60', line_width=1,
+                           annotation_text='80% target', annotation_position='top right')
+            fig.update_layout(template='plotly_dark', barmode='group', height=320,
+                               yaxis=dict(title='Acceptance rate (%)', range=[0, 105]),
+                               margin=dict(l=40, r=10, t=20, b=40))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info('Drivetrain speed signals not found in this log — '
+                    'motion bucketing unavailable.')
+
+
+# ─── CLI (legacy / probe mode) ────────────────────────────────────────────────
 
 def probe_signals(path: str) -> None:
-    """Print all signal names and types in the log, then exit."""
     signals = parse_wpilog(path)
-    print(f"\n{'─' * 60}")
+    print(f"\n{'-' * 60}")
     print(f"Signals in {pathlib.Path(path).name}  ({len(signals)} entries)")
-    print('─' * 60)
-    # Group by top-level namespace
+    print('-' * 60)
     by_ns: Dict[str, list] = defaultdict(list)
     for name in sorted(signals):
         ns = name.split('/')[0] if '/' in name else '(root)'
@@ -1084,74 +1330,22 @@ def probe_signals(path: str) -> None:
     print()
 
 
-def process_log(log_path: str, output_dir: Optional[str]) -> None:
-    print(f"Reading {log_path} …", end=' ', flush=True)
-    signals = parse_wpilog(log_path)
-    print(f"{len(signals)} signals found.")
-
-    cameras = discover_cameras(signals)
-    if not cameras:
-        print("  No vision cameras found in this log (no Vision/<name>/connected signal). Skipping.")
-        return
-
-    print(f"  Cameras: {cameras}")
-
-    # Log time range from any signal present
-    all_ts = [t for sig in signals.values() for t, _ in sig]
-    start_t  = min(all_ts) if all_ts else 0.0
-    end_t    = max(all_ts) if all_ts else 0.0
-    duration = end_t - start_t
-
-    # Metadata
-    meta: Dict[str, str] = {}
-    for key in ('RealMetadata/ProjectName', 'RealMetadata/GitHash', 'RealMetadata/RuntimeType'):
-        if key in signals and signals[key]:
-            meta[key.split('/')[-1]] = str(signals[key][-1][1])
-
-    # Drivetrain speeds
-    lin_key, omega_key = find_drivetrain_speeds(signals)
-    linear_sig = signals[lin_key] if lin_key else None
-    omega_sig  = signals[omega_key] if omega_key else None
-    if lin_key:
-        print(f"  Drivetrain: {lin_key} / {omega_key}")
-    else:
-        print("  Drivetrain speed signals not found — velocity correlation skipped.")
-
-    all_metrics = []
-    for cam in cameras:
-        fmt = detect_format(signals, cam)
-        print(f"  {cam}: {fmt} format", end=' … ', flush=True)
-        m = compute_camera_metrics(
-            signals, cam, fmt, start_t, end_t, linear_sig, omega_sig
-        )
-        all_metrics.append(m)
-        sq = m.get('stationary_quality')
-        sq_str = f'{sq:.0f}%' if sq is not None else 'n/a'
-        print(f"acceptance={m['acceptance_rate']:.0f}%  stationary_quality={sq_str}")
-
-    log_name = pathlib.Path(log_path).name
-    html = generate_html(all_metrics, log_name, duration, meta)
-
-    # Output path
-    out_dir = pathlib.Path(output_dir) if output_dir else pathlib.Path(log_path).parent
-    out_dir.mkdir(parents=True, exist_ok=True)
-    stem = pathlib.Path(log_path).stem
-    out_path = out_dir / f'{stem}_vision_dashboard.html'
-    out_path.write_text(html, encoding='utf-8')
-    print(f"  → {out_path}")
-
-
-def main() -> None:
+def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description='Vision Log Analyzer — generate an HTML dashboard from a .wpilog file.',
+        description='Vision Log Analyzer. Run with `streamlit run analyze.py` for the dashboard.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('paths', nargs='+', help='.wpilog file(s) or a directory containing them')
+    parser.add_argument('paths', nargs='*', help='.wpilog file(s) or a directory')
     parser.add_argument('--output', '-o', metavar='DIR',
-                        help='Directory to write HTML reports (default: same as log file)')
+                        help='Output directory for HTML reports (legacy mode)')
     parser.add_argument('--probe', action='store_true',
-                        help='Dump all signal names and types, then exit (no dashboard generated)')
+                        help='Dump all signal names and types, then exit')
     args = parser.parse_args()
+
+    if not args.paths:
+        print('Usage: streamlit run analyze.py   (dashboard)')
+        print('       python analyze.py --probe log.wpilog  (signal dump)')
+        sys.exit(0)
 
     log_files: List[str] = []
     for p in args.paths:
@@ -1161,10 +1355,11 @@ def main() -> None:
         elif pp.suffix == '.wpilog':
             log_files.append(str(pp))
         else:
-            print(f"Warning: {p} is not a .wpilog file or directory, skipping.", file=sys.stderr)
+            print(f'Warning: {p} is not a .wpilog file or directory, skipping.',
+                  file=sys.stderr)
 
     if not log_files:
-        print("No .wpilog files found.", file=sys.stderr)
+        print('No .wpilog files found.', file=sys.stderr)
         sys.exit(1)
 
     if args.probe:
@@ -1172,13 +1367,94 @@ def main() -> None:
             probe_signals(lf)
         return
 
+    # Legacy: write an HTML dashboard for backward compatibility
     for lf in log_files:
         try:
-            process_log(lf, args.output)
+            print(f'Reading {lf} ...', end=' ', flush=True)
+            all_metrics, duration, meta, cameras = _load_log(lf)
+            print(f'{len(cameras)} cameras.')
+            if not all_metrics:
+                print('  No vision cameras found. Skipping.')
+                continue
+            for m in all_metrics:
+                sq = m.get('stationary_quality')
+                sq_str = f'{sq:.0f}%' if sq is not None else 'n/a'
+                print(f'  {m["camera"]}: format={m["format"]}  '
+                      f'acceptance={m["acceptance_rate"]:.0f}%  '
+                      f'stationary_quality={sq_str}')
+            # Generate a minimal HTML placeholder pointing to the Streamlit app
+            out_dir  = pathlib.Path(args.output) if args.output else pathlib.Path(lf).parent
+            out_dir.mkdir(parents=True, exist_ok=True)
+            stem     = pathlib.Path(lf).stem
+            out_path = out_dir / f'{stem}_vision_dashboard.html'
+            _write_legacy_html(all_metrics, duration, meta, pathlib.Path(lf).name, out_path)
+            print(f'  -> {out_path}')
         except Exception as e:
-            print(f"Error processing {lf}: {e}", file=sys.stderr)
+            print(f'Error processing {lf}: {e}', file=sys.stderr)
             import traceback; traceback.print_exc()
 
 
-if __name__ == '__main__':
-    main()
+def _write_legacy_html(
+    all_metrics: List[Dict],
+    duration: float,
+    meta: Dict,
+    log_name: str,
+    out_path: pathlib.Path,
+) -> None:
+    """Write a lightweight HTML that embeds the summary table and links to streamlit."""
+    import json as _json
+
+    cameras = [m['camera'] for m in all_metrics]
+    fmt = all_metrics[0]['format'] if all_metrics else 'old'
+
+    def pct(v):
+        return f'{v:.1f}%' if v is not None else '-'
+
+    rows = [
+        ('Acceptance rate',     [pct(m['acceptance_rate']) for m in all_metrics]),
+        ('FPS (mean)',          [f'{m["fps_mean"]:.1f}' for m in all_metrics]),
+        ('Connection uptime',   [pct(m['conn_uptime_pct']) for m in all_metrics]),
+        ('Mean result latency', [f'{m["latency_mean_ms"]:.0f} ms' if m["latency_mean_ms"] else '-'
+                                 for m in all_metrics]),
+        ('Rejected (velocity)', [pct(m.get('rej_velocity_pct')) for m in all_metrics]),
+        ('Rejected (boundary)', [pct(m.get('rej_boundary_pct')) for m in all_metrics]),
+    ]
+    if fmt == 'new':
+        rows.append(('Rejected (ambiguity)', [pct(m.get('rej_ambiguity_pct')) for m in all_metrics]))
+
+    thead = '<tr><th>Metric</th>' + ''.join(f'<th>{c}</th>' for c in cameras) + '</tr>'
+    tbody = ''.join(
+        '<tr><td>' + row[0] + '</td>' + ''.join(f'<td>{v}</td>' for v in row[1]) + '</tr>'
+        for row in rows
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Vision Dashboard - {log_name}</title>
+<style>
+body{{background:#0f0f1a;color:#e0e0e0;font-family:system-ui,sans-serif;padding:20px}}
+h1{{color:#90caf9}}
+.note{{color:#aaa;font-size:0.9em;margin:10px 0 20px}}
+table{{border-collapse:collapse;width:100%}}
+th{{background:#16213e;color:#90caf9;padding:8px 12px;text-align:left}}
+td{{padding:6px 12px;border-bottom:1px solid #2a2a4a}}
+</style></head>
+<body>
+<h1>Vision Dashboard - {log_name}</h1>
+<p class="note">{duration:.0f} s &nbsp;|&nbsp; cameras: {', '.join(cameras)}
+&nbsp;|&nbsp; format: {'new (raw pre-filter)' if fmt == 'new' else 'old (post-filter)'}
+{'&nbsp;|&nbsp;' + meta.get('ProjectName','') + ' @ ' + meta.get('GitHash','')[:7]
+ if meta.get('ProjectName') else ''}</p>
+<p class="note">For the full interactive dashboard run:
+<code>streamlit run tools/vision-analyzer/analyze.py</code></p>
+<table><thead>{thead}</thead><tbody>{tbody}</tbody></table>
+</body></html>"""
+    out_path.write_text(html, encoding='utf-8')
+
+
+# ─── Entry point ──────────────────────────────────────────────────────────────
+
+if _running_under_streamlit():
+    _streamlit_app()
+elif __name__ == '__main__':
+    _cli_main()
