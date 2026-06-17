@@ -189,3 +189,4 @@ compile_commands.json
 .factorypath
 
 **/__pycache__
+.claude/
