@@ -216,9 +216,16 @@ def _streamlit_app() -> None:
     start_t  = min(all_ts) if all_ts else 0.0
     duration = (max(all_ts) if all_ts else 0.0) - start_t
 
-    # Reset session state when the log file changes
+    # Reset session state when the log file changes.
+    # Also re-init if `_time_slider` isn't a valid (lo, hi) tuple even when the
+    # filename is unchanged: dropping a file, removing it, then re-dropping it
+    # skips this widget's render on the "removed" run (we return early above
+    # that point), so Streamlit prunes its widget state. Since file_key still
+    # matches, the change check alone wouldn't catch it — st.slider would then
+    # silently fall back to single-value mode and return a bare float.
     file_key = display_name if isinstance(source, bytes) else str(pathlib.Path(log_path))
-    if st.session_state.get('_log_path') != file_key:
+    stale_slider = not isinstance(st.session_state.get('_time_slider'), tuple)
+    if st.session_state.get('_log_path') != file_key or stale_slider:
         st.session_state['_log_path']        = file_key
         st.session_state['_time_slider']     = (0.0, float(duration))
         st.session_state['_ni_lo']           = 0.0
@@ -423,12 +430,14 @@ def _streamlit_app() -> None:
 
     # Build the context dict passed to each tab's render()
     ctx = {
-        'metrics':   metrics,
-        'signals':   signals,
-        'fmt':       fmt,
-        'cameras':   cameras,
-        'committed': committed,
-        'duration':  duration,
+        'metrics':      metrics,
+        'signals':      signals,
+        'fmt':          fmt,
+        'cameras':      cameras,
+        'committed':    committed,
+        'duration':     duration,
+        'meta':         meta,
+        'display_name': display_name,
     }
 
     for tab_widget, tab_module in zip(tab_widgets, TABS):

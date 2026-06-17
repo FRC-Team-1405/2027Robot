@@ -14,6 +14,7 @@ from .metrics import (
     find_drivetrain_speeds,
     compute_camera_metrics,
 )
+from .exporter import build_export_rows, rows_to_csv, rows_to_markdown
 
 
 def probe_signals(path: str) -> None:
@@ -176,6 +177,19 @@ def _cli_main() -> None:
             out_path = out_dir / f'{stem}_vision_dashboard.html'
             _write_legacy_html(all_metrics, duration, meta, pathlib.Path(lf).name, out_path)
             print(f'  -> {out_path}')
+
+            cameras = [m['camera'] for m in all_metrics]
+            fmt     = all_metrics[0]['format']
+            rows    = build_export_rows(all_metrics, fmt)
+            csv_path = out_dir / f'{stem}_vision_summary.csv'
+            md_path  = out_dir / f'{stem}_vision_summary.md'
+            csv_path.write_text(rows_to_csv(rows), encoding='utf-8')
+            md_path.write_text(
+                rows_to_markdown(rows, cameras, pathlib.Path(lf).name, fmt, duration, meta),
+                encoding='utf-8',
+            )
+            print(f'  -> {csv_path}')
+            print(f'  -> {md_path}')
         except Exception as e:
             print(f'Error processing {lf}: {e}', file=sys.stderr)
             import traceback; traceback.print_exc()
