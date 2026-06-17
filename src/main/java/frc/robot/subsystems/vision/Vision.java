@@ -1,7 +1,10 @@
 package frc.robot.subsystems.vision;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,6 +34,20 @@ public class Vision extends SubsystemBase {
     private final Pose2d[] lastAcceptedPose;
     private final double[] lastAcceptedTimestamp;
 
+    // Rolling window of accepted poses per camera, used to compute a pose
+    // stability metric — mirrors PhotonVision's dashboard "multi-tag pose
+    // standard deviation over the last 100 samples" panel.
+    private static final int POSE_STDDEV_WINDOW = 100;
+    private final List<Deque<Pose2d>> recentAcceptedPoses;
+
+    // Second window, time-bounded instead of count-bounded — reacts faster to
+    // motion transitions than the 100-sample window above and is kept side by
+    // side with it so the two can be sanity-checked against each other.
+    private static final double POSE_STDDEV_TIME_WINDOW_SEC = 1.0;
+    private final List<Deque<TimestampedPose>> recentAcceptedPosesTimed;
+
+    private record TimestampedPose(double timestamp, Pose2d pose) {}
+
     private final Timer timerSinceLastSample = new Timer();
     private final ChassisSpeeds speeds = new ChassisSpeeds();
     private final ArrayList<VisionSample> samples = new ArrayList<>();
@@ -54,10 +71,14 @@ public class Vision extends SubsystemBase {
         this.inputs = new VisionIOInputsAutoLogged[ios.length];
         this.lastAcceptedPose = new Pose2d[ios.length];
         this.lastAcceptedTimestamp = new double[ios.length];
+        this.recentAcceptedPoses = new ArrayList<>(ios.length);
+        this.recentAcceptedPosesTimed = new ArrayList<>(ios.length);
         for (int i = 0; i < ios.length; i++) {
             inputs[i] = new VisionIOInputsAutoLogged();
             lastAcceptedPose[i] = Pose2d.kZero;
             lastAcceptedTimestamp[i] = 0.0;
+            recentAcceptedPoses.add(new ArrayDeque<>(POSE_STDDEV_WINDOW));
+            recentAcceptedPosesTimed.add(new ArrayDeque<>());
         }
     }
 
@@ -87,6 +108,42 @@ public class Vision extends SubsystemBase {
         return out;
     }
 
+    /**
+     * Translation stddev (meters) and circular rotation stddev (degrees) over the given
+     * pose window. Rotation uses circular statistics (mean resultant length) so it
+     * doesn't break down near the 0/360 wrap boundary. Returns zeros if fewer than 2 samples.
+     */
+    private static double[] computePoseStdDev(Collection<Pose2d> poses) {
+        int n = poses.size();
+        if (n < 2) return new double[] {0.0, 0.0, 0.0};
+
+        double sumX = 0.0, sumY = 0.0;
+        double sumCos = 0.0, sumSin = 0.0;
+        for (Pose2d p : poses) {
+            sumX += p.getX();
+            sumY += p.getY();
+            sumCos += p.getRotation().getCos();
+            sumSin += p.getRotation().getSin();
+        }
+        double meanX = sumX / n;
+        double meanY = sumY / n;
+
+        double varX = 0.0, varY = 0.0;
+        for (Pose2d p : poses) {
+            varX += Math.pow(p.getX() - meanX, 2);
+            varY += Math.pow(p.getY() - meanY, 2);
+        }
+        varX /= n;
+        varY /= n;
+
+        double resultantLength = Math.hypot(sumCos, sumSin) / n;
+        double thetaStdDevDeg = resultantLength > 0.0
+                ? Math.toDegrees(Math.sqrt(-2.0 * Math.log(resultantLength)))
+                : 0.0;
+
+        return new double[] {Math.sqrt(varX), Math.sqrt(varY), thetaStdDevDeg};
+    }
+
     @Override
     public void periodic() {
         Tracer.startTrace("VisionPeriodic");
@@ -114,6 +171,7 @@ public class Vision extends SubsystemBase {
             int rejAmbiguity = 0;
             int tagIdOffset = 0;
             ArrayList<Pose2d> acceptedPoses = new ArrayList<>();
+            ArrayList<Double> acceptedTimestamps = new ArrayList<>();
             ArrayList<Pose2d> rejectedBoundaryPoses = new ArrayList<>();
             ArrayList<Pose2d> rejectedVelocityPoses = new ArrayList<>();
             ArrayList<Pose2d> rejectedAmbiguityPoses = new ArrayList<>();
@@ -194,6 +252,7 @@ public class Vision extends SubsystemBase {
                     timerSinceLastSample.restart();
                     samples.add(sample);
                     acceptedPoses.add(sample.pose());
+                    acceptedTimestamps.add(ts);
                     GlobalField.setObject(name + "Camera", sample.pose());
                 });
             }
@@ -209,6 +268,41 @@ public class Vision extends SubsystemBase {
                     rejectedVelocityPoses.toArray(new Pose2d[0]));
             Logger.recordOutput("Vision/" + name + "/RejectedAmbiguityPoses",
                     rejectedAmbiguityPoses.toArray(new Pose2d[0]));
+
+            // Pose stability — rolling stddev of the last N accepted poses.
+            Deque<Pose2d> window = recentAcceptedPoses.get(i);
+            for (Pose2d p : acceptedPoses) {
+                window.addLast(p);
+                if (window.size() > POSE_STDDEV_WINDOW) {
+                    window.pollFirst();
+                }
+            }
+            double[] poseStdDev = computePoseStdDev(window);
+            Logger.recordOutput("Vision/" + name + "/PoseStdDevXMeters", poseStdDev[0]);
+            Logger.recordOutput("Vision/" + name + "/PoseStdDevYMeters", poseStdDev[1]);
+            Logger.recordOutput("Vision/" + name + "/PoseStdDevThetaDegrees", poseStdDev[2]);
+            Logger.recordOutput("Vision/" + name + "/PoseStdDevSampleCount", window.size());
+
+            // Pose stability — same idea, but bounded by time (last 1s) instead of sample
+            // count, so it reacts to motion transitions independent of FPS. Kept alongside
+            // the 100-sample window above for sanity-checking against PhotonVision's panel.
+            Deque<TimestampedPose> timedWindow = recentAcceptedPosesTimed.get(i);
+            for (int k = 0; k < acceptedPoses.size(); k++) {
+                timedWindow.addLast(new TimestampedPose(acceptedTimestamps.get(k), acceptedPoses.get(k)));
+            }
+            if (!timedWindow.isEmpty()) {
+                double latestTs = timedWindow.peekLast().timestamp();
+                while (timedWindow.peekFirst().timestamp() < latestTs - POSE_STDDEV_TIME_WINDOW_SEC) {
+                    timedWindow.pollFirst();
+                }
+            }
+            List<Pose2d> timedPoses = new ArrayList<>(timedWindow.size());
+            for (TimestampedPose tp : timedWindow) timedPoses.add(tp.pose());
+            double[] poseStdDev1s = computePoseStdDev(timedPoses);
+            Logger.recordOutput("Vision/" + name + "/PoseStdDevXMeters1s", poseStdDev1s[0]);
+            Logger.recordOutput("Vision/" + name + "/PoseStdDevYMeters1s", poseStdDev1s[1]);
+            Logger.recordOutput("Vision/" + name + "/PoseStdDevThetaDegrees1s", poseStdDev1s[2]);
+            Logger.recordOutput("Vision/" + name + "/PoseStdDevSampleCount1s", timedWindow.size());
 
             // Derived metrics — viewable natively in AdvantageScope Line Graph / Statistics
             int rawCount = inputs[i].rawEstimatedPoses.length;

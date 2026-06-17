@@ -211,6 +211,34 @@ def compute_camera_metrics(
         m['fps_ts'] = m['fps_values'] = []
         m['fps_mean'] = m['fps_min'] = 0.0
 
+    # Pose stability — rolling stddev of the last N accepted poses (mirrors
+    # PhotonVision's "multi-tag pose standard deviation" dashboard panel).
+    stddev_x_sig = sig('PoseStdDevXMeters')
+    if stddev_x_sig:
+        ts, vs_x = build_timeline(stddev_x_sig, start_t)
+        _,  vs_y = build_timeline(sig('PoseStdDevYMeters'), start_t)
+        _,  vs_t = build_timeline(sig('PoseStdDevThetaDegrees'), start_t)
+        m['stddev_ts']        = ts
+        m['stddev_x_m']       = vs_x
+        m['stddev_y_m']       = vs_y
+        m['stddev_theta_deg'] = vs_t
+    else:
+        m['stddev_ts'] = m['stddev_x_m'] = m['stddev_y_m'] = m['stddev_theta_deg'] = []
+
+    # Same metric, time-bounded (last 1s) instead of count-bounded — reacts faster
+    # to motion transitions; kept alongside the 100-sample one for comparison.
+    stddev_x_1s_sig = sig('PoseStdDevXMeters1s')
+    if stddev_x_1s_sig:
+        ts, vs_x = build_timeline(stddev_x_1s_sig, start_t)
+        _,  vs_y = build_timeline(sig('PoseStdDevYMeters1s'), start_t)
+        _,  vs_t = build_timeline(sig('PoseStdDevThetaDegrees1s'), start_t)
+        m['stddev_1s_ts']        = ts
+        m['stddev_1s_x_m']       = vs_x
+        m['stddev_1s_y_m']       = vs_y
+        m['stddev_1s_theta_deg'] = vs_t
+    else:
+        m['stddev_1s_ts'] = m['stddev_1s_x_m'] = m['stddev_1s_y_m'] = m['stddev_1s_theta_deg'] = []
+
     # Connection timeline
     conn_sig = sig('connected')
     if conn_sig:

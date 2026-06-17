@@ -63,6 +63,20 @@ def build_export_rows(metrics: List[Dict], fmt: str) -> List[Row]:
 
         # ── Health tab ────────────────────────────────────────────────────
         rows.append(('Health', 'Latency sample count', cam, len(m.get('latencies_ms', []))))
+        if m.get('stddev_x_m'):
+            _stat_rows(rows, 'Health', 'Pose stddev X, 100-sample window (mm)', cam,
+                       [v * 1000.0 for v in m['stddev_x_m']])
+            _stat_rows(rows, 'Health', 'Pose stddev Y, 100-sample window (mm)', cam,
+                       [v * 1000.0 for v in m['stddev_y_m']])
+            _stat_rows(rows, 'Health', 'Pose stddev theta, 100-sample window (deg)', cam,
+                       m['stddev_theta_deg'], decimals=4)
+        if m.get('stddev_1s_x_m'):
+            _stat_rows(rows, 'Health', 'Pose stddev X, 1s window (mm)', cam,
+                       [v * 1000.0 for v in m['stddev_1s_x_m']])
+            _stat_rows(rows, 'Health', 'Pose stddev Y, 1s window (mm)', cam,
+                       [v * 1000.0 for v in m['stddev_1s_y_m']])
+            _stat_rows(rows, 'Health', 'Pose stddev theta, 1s window (deg)', cam,
+                       m['stddev_1s_theta_deg'], decimals=4)
 
         # ── Motion tab ───────────────────────────────────────────────────
         for bkey, blabel in _MOTION_BUCKETS:
