@@ -82,10 +82,12 @@ For the full interactive dashboard, use `streamlit run` instead.
 - identify how to compare non-identical runs (same auto routine but vastly different behavior because of PID/Vision changes). filter out noise and focus in on camera/vision differences.
 - accepted poses over time chart, with average accepted poses per second (do we already have this metric?). what is a useful bucket? 1s?
 - It would be potentially insightful to show velocity rejected poses on the field tab so i can consider if our velocity threshold is too conservativve.
-- It would be helpful to add a table to ambigous and out of bounds estimates that were rejected. shown on a field (not the same field or able to toggle off) can help me better understand why they were rejected.
+- It would be helpful to add a table to view ambigous and out of bounds estimates that were rejected. shown on a field (not the same field or able to toggle off) can help me better understand why they were rejected.
 - Left camera is out of focus likely. right camera is sharper.
 - figure out what this is exactly: Multi-tag pose standard deviation over the last 100/100 samples
 ![alt text](image.png)
 - would it be useful to give a left and right camera "trust" or weight output over time? would it be useful to graph the standard deviations over time?
 - can we output the robot's velocity? is there a bug with that? i find it odd that none of my AKit logs had robot velocity.
 - Can i get the swerve drive in Akit logs easily? if not can i get velocity from the cameras?
+- add a button to download the latest log from the robot into the /logs folder of the repo, it should have a suffix text box where i can add a note that gets appended like "_my_note". normal char's and spaces only. it should then auto load that file after downloading it. proper error handling if the robot can't be reached.
+- improve the time selection mechanism. add a text box to allow manually typing in the exact time to slice on either side. add callouts at the mode transitions so i can immediately tell what those times are. even better if i can click something at the transition to perfectly start/end the slice there.

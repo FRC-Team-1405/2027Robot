@@ -48,9 +48,9 @@ POSE3D_SIZE = 56   # double x,y,z, double qw,qx,qy,qz
 
 # ─── WPILog Binary Parser ─────────────────────────────────────────────────────
 
-def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
+def _parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
     """
-    Parse a WPILib DataLog (.wpilog) file.
+    Parse raw WPILog bytes.
 
     Returns a dict mapping signal name -> list of (timestamp_seconds, value) tuples.
     Values are decoded based on the type string registered in the log:
@@ -66,11 +66,8 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
       struct[]:Pose3d -> list[dict] (0 or more per record)
     Unknown types are silently skipped.
     """
-    raw = pathlib.Path(path).read_bytes()
-    pos = 0
-
     if len(raw) < 12 or raw[0:6] != b'WPILOG':
-        raise ValueError(f"Not a WPILog file (bad magic): {path}")
+        raise ValueError("Not a WPILog file (bad magic bytes)")
     extra_len = struct.unpack_from('<I', raw, 8)[0]
     pos = 12 + extra_len
 
@@ -115,6 +112,15 @@ def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
                 signals[entry['name']].append((ts_sec, value))
 
     return dict(signals)
+
+
+def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
+    """Parse a WPILib DataLog (.wpilog) file by path."""
+    raw = pathlib.Path(path).read_bytes()
+    try:
+        return _parse_wpilog_bytes(raw)
+    except ValueError as exc:
+        raise ValueError(f"{exc}: {path}") from exc
 
 
 def _handle_control(payload: bytes, entries: Dict) -> None:
@@ -862,27 +868,44 @@ def _streamlit_app() -> None:
 
     with st.sidebar:
         st.header('Log File')
-        log_path = st.text_input(
+        uploaded = st.file_uploader(
+            'Drop or browse a .wpilog file',
+            type=['wpilog'],
+            help='Drag and drop a log file here, or click to browse.',
+        )
+        st.caption('— or enter a path —')
+        log_path_raw = st.text_input(
             'Path to .wpilog',
             placeholder='logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog',
         )
+        log_path = log_path_raw.strip().strip('"')
 
-    if not log_path:
-        st.info('Enter a path to a `.wpilog` file in the sidebar to begin.')
+    # Determine source: uploaded file takes priority over typed path
+    if uploaded is not None:
+        source       = uploaded.getvalue()
+        display_name = uploaded.name
+        mtime_key    = 0.0
+    elif log_path:
+        p = pathlib.Path(log_path)
+        if not p.exists():
+            st.error(f'File not found: `{log_path}`')
+            return
+        source       = str(p)
+        display_name = p.name
+        mtime_key    = p.stat().st_mtime
+    else:
+        st.info('Drop a `.wpilog` file in the sidebar or enter a path to begin.')
         return
 
-    p = pathlib.Path(log_path)
-    if not p.exists():
-        st.error(f'File not found: `{log_path}`')
-        return
-
-    # ── Stage 1: parse signals (cached by path + mtime) ──────────────────────
+    # ── Stage 1: parse signals (cached by source + mtime) ────────────────────
     @st.cache_data(show_spinner='Scanning log...')
-    def _scan_signals(path: str, mtime: float) -> Dict:
-        return parse_wpilog(path)
+    def _scan_signals(src, mtime: float) -> Dict:
+        if isinstance(src, bytes):
+            return _parse_wpilog_bytes(src)
+        return parse_wpilog(src)
 
     try:
-        signals = _scan_signals(str(p), p.stat().st_mtime)
+        signals = _scan_signals(source, mtime_key)
     except Exception as exc:
         st.error(f'Failed to parse log: {exc}')
         st.exception(exc)
@@ -893,8 +916,9 @@ def _streamlit_app() -> None:
     duration = (max(all_ts) if all_ts else 0.0) - start_t
 
     # Reset session state when the log file changes
-    if st.session_state.get('_log_path') != str(p):
-        st.session_state['_log_path']        = str(p)
+    file_key = display_name if isinstance(source, bytes) else str(pathlib.Path(log_path))
+    if st.session_state.get('_log_path') != file_key:
+        st.session_state['_log_path']        = file_key
         st.session_state['_range']           = (0.0, float(duration))
         st.session_state['_range_committed'] = None
 
@@ -946,8 +970,8 @@ def _streamlit_app() -> None:
 
     # ── Stage 2: compute metrics for the committed window (cached) ────────────
     @st.cache_data(show_spinner='Analyzing...')
-    def _compute_metrics(path: str, mtime: float, t_lo_k: float, t_hi_k: float):
-        sig      = _scan_signals(path, mtime)          # instant — already cached
+    def _compute_metrics(src, mtime: float, t_lo_k: float, t_hi_k: float):
+        sig      = _scan_signals(src, mtime)           # instant — already cached
         filtered = _filter_signals_by_time(sig, t_lo_k, t_hi_k)
         cameras  = discover_cameras(filtered)
 
@@ -974,7 +998,7 @@ def _streamlit_app() -> None:
 
     try:
         all_metrics, meta, cameras = _compute_metrics(
-            str(p), p.stat().st_mtime,
+            source, mtime_key,
             round(t_lo, 1), round(t_hi, 1),
         )
     except Exception as exc:
@@ -1003,7 +1027,7 @@ def _streamlit_app() -> None:
         return
 
     st.caption(
-        f'`{p.name}`  ·  '
+        f'`{display_name}`  ·  '
         f'{committed[0]:.0f} s – {committed[1]:.0f} s  ·  '
         f'cameras: {", ".join(cameras)}'
     )
