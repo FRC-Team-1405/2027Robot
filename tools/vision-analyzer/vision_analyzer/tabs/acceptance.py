@@ -7,11 +7,26 @@ def render(ctx: dict) -> None:
     import plotly.graph_objects as go
     import streamlit as st
 
-    from ..metrics import _rolling_mean, _downsample
+    from ..metrics import _rolling_mean, _downsample, _bucket_sum
     from ..constants import _cam_color
 
     metrics = ctx['metrics']
     fmt     = ctx['fmt']
+
+    st.subheader('Accepted Poses Per Second (1 s buckets)')
+    st.caption('Accepted pose count per camera, summed into 1-second buckets — '
+               'i.e. accepted poses/sec. Useful for comparing which camera contributes '
+               'more accepted measurements over the course of a match.')
+    fig = go.Figure()
+    for m in metrics:
+        bts, bvs = _bucket_sum(m['acc_ts'], m['acc_counts'], bucket=1.0)
+        fig.add_trace(go.Scatter(x=bts, y=bvs, name=m['camera'], mode='lines',
+                                  line=dict(color=_cam_color(m['camera']), width=2)))
+    fig.update_layout(template='plotly_dark', height=320,
+                       xaxis_title='Time (s)',
+                       yaxis=dict(title='Accepted poses / sec'),
+                       margin=dict(l=40, r=10, t=20, b=40))
+    st.plotly_chart(fig, width='stretch')
 
     st.subheader('Acceptance Rate Over Time (3 s rolling)')
     st.caption('Per-loop acceptance rate smoothed over a 3-second window. '

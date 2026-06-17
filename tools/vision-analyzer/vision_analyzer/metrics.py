@@ -145,6 +145,21 @@ def _rolling_mean(ts: List[float], vs: List[float], window: float = 2.0) -> Tupl
     return out_ts, out_vs
 
 
+def _bucket_sum(ts: List[float], counts: List[float], bucket: float = 1.0) -> Tuple[List[float], List[float]]:
+    """Sum counts into fixed-width time buckets. With bucket=1.0 the result is a
+    poses-per-second rate, since each bucket spans exactly one second."""
+    if not ts:
+        return [], []
+    end = ts[-1]
+    n_buckets = int(end // bucket) + 1
+    sums = [0.0] * n_buckets
+    for t, c in zip(ts, counts):
+        idx = min(int(t // bucket), n_buckets - 1)
+        sums[idx] += c
+    bucket_ts = [i * bucket for i in range(n_buckets)]
+    return bucket_ts, sums
+
+
 def _downsample(ts: List, vs: List, max_pts: int = 2000) -> Tuple[List, List]:
     if len(ts) <= max_pts:
         return ts, vs
@@ -284,6 +299,9 @@ def compute_camera_metrics(
         rej_vel_sig   = sig('RejectedVelocity')
         rej_amb_sig   = sig('RejectedAmbiguity')
         acc_poses_sig = sig('AcceptedPoses')
+        rej_bnd_poses_sig = sig('RejectedBoundaryPoses')
+        rej_vel_poses_sig = sig('RejectedVelocityPoses')
+        rej_amb_poses_sig = sig('RejectedAmbiguityPoses')
         dists_sig     = sig('rawAvgDistancesMeters')
         raw_ts_sig    = sig('rawTimestampsSec')
 
@@ -293,7 +311,20 @@ def compute_camera_metrics(
         areas, px_offsets, aspect_ratios = [], [], []
         tag_freq = defaultdict(int)
         path_x, path_y = [], []
+        rej_boundary_path_x, rej_boundary_path_y = [], []
+        rej_velocity_path_x, rej_velocity_path_y = [], []
+        rej_ambiguity_path_x, rej_ambiguity_path_y = [], []
         latencies = []
+
+        for _, rej_poses in rej_bnd_poses_sig:
+            rej_boundary_path_x.extend(p['x'] for p in rej_poses)
+            rej_boundary_path_y.extend(p['y'] for p in rej_poses)
+        for _, rej_poses in rej_vel_poses_sig:
+            rej_velocity_path_x.extend(p['x'] for p in rej_poses)
+            rej_velocity_path_y.extend(p['y'] for p in rej_poses)
+        for _, rej_poses in rej_amb_poses_sig:
+            rej_ambiguity_path_x.extend(p['x'] for p in rej_poses)
+            rej_ambiguity_path_y.extend(p['y'] for p in rej_poses)
 
         for t, raw_poses in raw_poses_sig:
             rej_b     = nearest_value(rej_bnd_sig,   t) or 0
@@ -373,6 +404,12 @@ def compute_camera_metrics(
         m['tag_freq']          = {int(k): v for k, v in tag_freq.items()}
         m['path_x']            = path_x
         m['path_y']            = path_y
+        m['rej_boundary_path_x']  = rej_boundary_path_x
+        m['rej_boundary_path_y']  = rej_boundary_path_y
+        m['rej_velocity_path_x']  = rej_velocity_path_x
+        m['rej_velocity_path_y']  = rej_velocity_path_y
+        m['rej_ambiguity_path_x'] = rej_ambiguity_path_x
+        m['rej_ambiguity_path_y'] = rej_ambiguity_path_y
         m['latencies_ms']      = latencies
         m['latency_mean_ms']   = sum(latencies) / len(latencies) if latencies else 0.0
 
@@ -547,14 +584,33 @@ def _field_fig(metrics: List[Dict]) -> Any:
             hovertemplate='%{text}<extra></extra>',
         ))
 
-    # Robot paths per camera
+    # Robot paths per camera — accepted poses, plus rejected poses by reason
+    # (different marker symbol per reason so they stand out from accepted dots).
     for m in metrics:
         cam = m['camera']
         if m['path_x']:
             fig.add_trace(go.Scatter(
                 x=m['path_x'], y=m['path_y'],
-                name=f'{cam} path', mode='markers',
-                marker=dict(size=3, color=_cam_color(cam), opacity=0.4),
+                name=f'{cam} accepted', mode='markers',
+                marker=dict(size=3, color=_cam_color(cam), opacity=0.4, symbol='circle'),
+            ))
+        if m.get('rej_boundary_path_x'):
+            fig.add_trace(go.Scatter(
+                x=m['rej_boundary_path_x'], y=m['rej_boundary_path_y'],
+                name=f'{cam} rejected (boundary)', mode='markers',
+                marker=dict(size=7, color='#F39C12', opacity=0.7, symbol='x'),
+            ))
+        if m.get('rej_velocity_path_x'):
+            fig.add_trace(go.Scatter(
+                x=m['rej_velocity_path_x'], y=m['rej_velocity_path_y'],
+                name=f'{cam} rejected (velocity)', mode='markers',
+                marker=dict(size=7, color='#E74C3C', opacity=0.7, symbol='triangle-up'),
+            ))
+        if m.get('rej_ambiguity_path_x'):
+            fig.add_trace(go.Scatter(
+                x=m['rej_ambiguity_path_x'], y=m['rej_ambiguity_path_y'],
+                name=f'{cam} rejected (ambiguity)', mode='markers',
+                marker=dict(size=7, color='#9B59B6', opacity=0.7, symbol='diamond'),
             ))
 
     fig.update_layout(

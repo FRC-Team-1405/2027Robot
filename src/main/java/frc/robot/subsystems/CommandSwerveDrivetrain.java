@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
+import org.littletonrobotics.junction.Logger;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
@@ -284,6 +285,14 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         // Update swerve features (handles aim visualization auto-clearing)
         m_swerveFeatures.periodic();
         checkForSetPose();
+
+        // Log kinematics-derived chassis speeds to AKit wpilog so the vision
+        // analyzer can use them for motion-bucketed acceptance analysis.
+        // getState().Speeds is wheel-encoder-based (250 Hz odometry thread),
+        // the right source for instantaneous velocity — not the fused pose.
+        ChassisSpeeds speeds = getState().Speeds;
+        Logger.recordOutput("Drivetrain/Speeds/vxMetersPerSecond",    speeds.vxMetersPerSecond);
+        Logger.recordOutput("Drivetrain/Speeds/omegaRadiansPerSecond", speeds.omegaRadiansPerSecond);
     }
 
     /**

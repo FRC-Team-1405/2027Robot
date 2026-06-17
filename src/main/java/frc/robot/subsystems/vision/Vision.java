@@ -114,6 +114,9 @@ public class Vision extends SubsystemBase {
             int rejAmbiguity = 0;
             int tagIdOffset = 0;
             ArrayList<Pose2d> acceptedPoses = new ArrayList<>();
+            ArrayList<Pose2d> rejectedBoundaryPoses = new ArrayList<>();
+            ArrayList<Pose2d> rejectedVelocityPoses = new ArrayList<>();
+            ArrayList<Pose2d> rejectedAmbiguityPoses = new ArrayList<>();
 
             for (int j = 0; j < inputs[i].rawEstimatedPoses.length; j++) {
                 Pose3d pose3d = inputs[i].rawEstimatedPoses[j];
@@ -134,6 +137,7 @@ public class Vision extends SubsystemBase {
                 if (FeatureSwitches.VISION_AMBIGUITY_THRESHOLD
                         && tagCount == 1 && ambiguity >= 0.2) {
                     rejAmbiguity++;
+                    rejectedAmbiguityPoses.add(pose3d.toPose2d());
                     continue;
                 }
 
@@ -148,6 +152,7 @@ public class Vision extends SubsystemBase {
                             || pose3d.getY() < -MARGIN || pose3d.getY() > FIELD_WIDTH + MARGIN
                             || Math.abs(pose3d.getZ()) > MAX_Z) {
                         rejBoundary++;
+                        rejectedBoundaryPoses.add(pose3d.toPose2d());
                         continue;
                     }
                 }
@@ -160,6 +165,7 @@ public class Vision extends SubsystemBase {
                     double dist = pose2d.getTranslation().getDistance(lastAcceptedPose[i].getTranslation());
                     if (dist > dt * 5.0) {
                         rejVelocity++;
+                        rejectedVelocityPoses.add(pose2d);
                         continue;
                     }
                 }
@@ -197,6 +203,12 @@ public class Vision extends SubsystemBase {
             Logger.recordOutput("Vision/" + name + "/RejectedBoundary", rejBoundary);
             Logger.recordOutput("Vision/" + name + "/RejectedVelocity", rejVelocity);
             Logger.recordOutput("Vision/" + name + "/RejectedAmbiguity", rejAmbiguity);
+            Logger.recordOutput("Vision/" + name + "/RejectedBoundaryPoses",
+                    rejectedBoundaryPoses.toArray(new Pose2d[0]));
+            Logger.recordOutput("Vision/" + name + "/RejectedVelocityPoses",
+                    rejectedVelocityPoses.toArray(new Pose2d[0]));
+            Logger.recordOutput("Vision/" + name + "/RejectedAmbiguityPoses",
+                    rejectedAmbiguityPoses.toArray(new Pose2d[0]));
 
             // Derived metrics — viewable natively in AdvantageScope Line Graph / Statistics
             int rawCount = inputs[i].rawEstimatedPoses.length;

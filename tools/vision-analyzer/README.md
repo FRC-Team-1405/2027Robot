@@ -111,5 +111,3 @@ Or use the **Download from Robot** button in the sidebar (requires `paramiko`).
 - Left camera is out of focus likely. right camera is sharper.
 - figure out what this is exactly: Multi-tag pose standard deviation over the last 100/100 samples
 - would it be useful to give a left and right camera "trust" or weight output over time? would it be useful to graph the standard deviations over time?
-- can we output the robot's velocity? is there a bug with that? i find it odd that none of my AKit logs had robot velocity.
-- Can i get the swerve drive in Akit logs easily? if not can i get velocity from the cameras?

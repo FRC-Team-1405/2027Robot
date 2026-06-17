@@ -11,5 +11,8 @@ def render(ctx: dict) -> None:
     metrics = ctx['metrics']
 
     st.caption('Tags: red = never seen, orange -> green = detection frequency (log scale). '
-               'Dots = robot positions where vision accepted an estimate.')
+               'Small dots = accepted pose estimates. Rejected estimates are also plotted, '
+               'shape-coded by rejection reason: X = boundary, triangle = velocity, '
+               'diamond = ambiguity. Click any legend entry to toggle that pose type on/off '
+               '(double-click to isolate it).')
     st.plotly_chart(_field_fig(metrics), width='stretch')
