@@ -797,6 +797,24 @@ def _mode_timeline_fig(
                 font=dict(color='white', size=10), opacity=0.9,
             )
 
+    # Transition callouts — dotted line + time badge at each mode boundary
+    for i, (span_start, _span_end, _mode) in enumerate(mode_spans):
+        if i == 0 and span_start < 0.5:
+            continue  # skip the implicit start-of-log boundary
+        fig.add_shape(
+            type='line',
+            x0=span_start, x1=span_start,
+            y0=0, y1=1, yref='paper',
+            line=dict(color='rgba(255,255,255,0.55)', width=1, dash='dot'),
+        )
+        fig.add_annotation(
+            x=span_start, y=1.0, yref='paper',
+            text=f'<b>{span_start:.1f}s</b>',
+            showarrow=False, xanchor='left', yanchor='top',
+            font=dict(color='rgba(255,255,255,0.90)', size=9),
+            bgcolor='rgba(20,20,40,0.80)', borderpad=2,
+        )
+
     # Selected window overlay
     fig.add_shape(
         type='rect',
@@ -808,12 +826,12 @@ def _mode_timeline_fig(
 
     fig.update_layout(
         template='plotly_dark',
-        height=88,
+        height=108,
         showlegend=False,
         xaxis=dict(range=[0, duration], title='Time (s from log start)',
                    showgrid=False, zeroline=False),
         yaxis=dict(visible=False, range=[0, 1]),
-        margin=dict(l=40, r=10, t=4, b=30),
+        margin=dict(l=40, r=10, t=18, b=30),
         plot_bgcolor='#111827',
         paper_bgcolor='#111827',
     )
@@ -919,11 +937,44 @@ def _streamlit_app() -> None:
     file_key = display_name if isinstance(source, bytes) else str(pathlib.Path(log_path))
     if st.session_state.get('_log_path') != file_key:
         st.session_state['_log_path']        = file_key
-        st.session_state['_range']           = (0.0, float(duration))
+        st.session_state['_time_slider']     = (0.0, float(duration))
+        st.session_state['_ni_lo']           = 0.0
+        st.session_state['_ni_hi']           = float(duration)
+        st.session_state.pop('_pending_range', None)
         st.session_state['_range_committed'] = None
+
+    # ── Pending-range gate ────────────────────────────────────────────────────
+    # Streamlit forbids writing a widget's session-state key after that widget
+    # has rendered in the current run.  Snap buttons and on_change callbacks
+    # store their desired range in _pending_range (a plain, non-widget key).
+    # We apply it here — before the slider widget is instantiated — so the
+    # slider reflects the change without triggering the policy violation.
+    _pending = st.session_state.pop('_pending_range', None)
+    if _pending is not None:
+        lo_p, hi_p = _pending
+        lo_p = max(0.0, min(float(lo_p), float(duration)))
+        hi_p = max(lo_p, min(float(hi_p), float(duration)))
+        st.session_state['_time_slider'] = (lo_p, hi_p)
+        # Pre-load number-input keys so they reflect the snap immediately
+        st.session_state['_ni_lo'] = lo_p
+        st.session_state['_ni_hi'] = hi_p
 
     # ── Time range selector ───────────────────────────────────────────────────
     mode_spans = _compute_mode_spans(signals, start_t)
+
+    # on_change callbacks write _pending_range; the gate above applies it
+    # on the next rerun before the slider renders.
+    def _apply_lo() -> None:
+        lo = float(st.session_state.get('_ni_lo', 0.0))
+        hi = float(st.session_state.get('_time_slider', (0.0, duration))[1])
+        lo = max(0.0, min(lo, float(duration)))
+        st.session_state['_pending_range'] = (lo, max(lo, hi))
+
+    def _apply_hi() -> None:
+        hi = float(st.session_state.get('_ni_hi', duration))
+        lo = float(st.session_state.get('_time_slider', (0.0, duration))[0])
+        hi = max(0.0, min(hi, float(duration)))
+        st.session_state['_pending_range'] = (min(lo, hi), hi)
 
     committed = st.session_state.get('_range_committed')
     with st.expander('**Time Range**', expanded=(committed is None)):
@@ -933,22 +984,74 @@ def _streamlit_app() -> None:
             ':green[■ Autonomous]'
         )
 
+        # _time_slider is always pre-initialised above, so no value= param
+        # (passing value= when the key exists triggers a Streamlit warning).
         sel: Tuple[float, float] = st.slider(
             'Select window (seconds from log start)',
             min_value=0.0,
             max_value=float(duration),
-            value=st.session_state['_range'],
             step=0.5,
             key='_time_slider',
         )
-        st.session_state['_range'] = sel
+
+        # Mirror slider position into number-input keys before they render.
+        # Setting a widget key before the widget is instantiated is allowed.
+        st.session_state['_ni_lo'] = sel[0]
+        st.session_state['_ni_hi'] = sel[1]
+
+        c_lo, c_hi = st.columns(2)
+        with c_lo:
+            st.number_input(
+                'Start (s)', min_value=0.0, max_value=float(duration),
+                step=0.5, format='%.1f', key='_ni_lo', on_change=_apply_lo,
+                help='Type an exact start time and press Enter',
+            )
+        with c_hi:
+            st.number_input(
+                'End (s)', min_value=0.0, max_value=float(duration),
+                step=0.5, format='%.1f', key='_ni_hi', on_change=_apply_hi,
+                help='Type an exact end time and press Enter',
+            )
 
         st.plotly_chart(
             _mode_timeline_fig(mode_spans, duration, sel[0], sel[1]),
-            use_container_width=True,
+            width='stretch',
             config={'displayModeBar': False},
             key='_mode_fig',
         )
+
+        # Snap buttons — write _pending_range + rerun; the gate picks it up
+        # before the slider renders in the next run, avoiding the post-render
+        # session-state mutation error.
+        _MODE_LABEL = {'auto': 'Auto', 'teleop': 'Teleop', 'disabled': 'Disabled'}
+        transitions = [(s[0], s[2]) for s in mode_spans if s[0] > 0.5]
+        if transitions:
+            st.caption('**Snap to transition:**')
+            snap_cols = st.columns(len(transitions))
+            for snap_col, (t, mode) in zip(snap_cols, transitions):
+                with snap_col:
+                    st.caption(f'**{t:.1f} s** → {_MODE_LABEL.get(mode, mode)}')
+                    b_lo, b_hi = st.columns(2)
+                    with b_lo:
+                        if st.button(
+                            '▷ Start', key=f'_snap_lo_{t:.1f}',
+                            use_container_width=True, help=f'Set start to {t:.1f} s',
+                        ):
+                            cur = st.session_state['_time_slider']
+                            st.session_state['_pending_range'] = (
+                                max(0.0, min(t, cur[1])), cur[1],
+                            )
+                            st.rerun()
+                    with b_hi:
+                        if st.button(
+                            'End ◁', key=f'_snap_hi_{t:.1f}',
+                            use_container_width=True, help=f'Set end to {t:.1f} s',
+                        ):
+                            cur = st.session_state['_time_slider']
+                            st.session_state['_pending_range'] = (
+                                cur[0], min(float(duration), max(t, cur[0])),
+                            )
+                            st.rerun()
 
         col_info, col_btn = st.columns([5, 1])
         with col_info:
@@ -1088,7 +1191,7 @@ def _streamlit_app() -> None:
             fig.update_layout(template='plotly_dark', height=280,
                                xaxis_title='Time (s)', yaxis_title='FPS',
                                margin=dict(l=40, r=10, t=20, b=40))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         with col2:
             st.subheader('Connection Status')
@@ -1103,7 +1206,7 @@ def _streamlit_app() -> None:
                                yaxis=dict(title='Connected', tickvals=[0, 1],
                                           ticktext=['No', 'Yes'], range=[-0.1, 1.4]),
                                margin=dict(l=40, r=10, t=20, b=40))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         if any(m['latencies_ms'] for m in metrics):
             st.subheader('Result Latency Distribution')
@@ -1116,7 +1219,7 @@ def _streamlit_app() -> None:
             fig.update_layout(template='plotly_dark', barmode='overlay', height=260,
                                xaxis_title='Latency (ms)', yaxis_title='Samples',
                                margin=dict(l=40, r=10, t=20, b=40))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     # ── Acceptance ────────────────────────────────────────────────────────────
     with t_accept:
@@ -1142,7 +1245,7 @@ def _streamlit_app() -> None:
                            xaxis_title='Time (s)',
                            yaxis=dict(title='Acceptance rate (%)', range=[0, 105]),
                            margin=dict(l=40, r=10, t=20, b=40))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         st.subheader('Rejection Breakdown (% of all raw results)')
         st.caption('Each bar shows what fraction of ALL raw results were rejected for that reason. '
@@ -1160,7 +1263,7 @@ def _streamlit_app() -> None:
         fig.update_layout(template='plotly_dark', barmode='stack', height=280,
                            yaxis_title='% of all raw results',
                            margin=dict(l=40, r=10, t=20, b=40))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # ── Geometry ──────────────────────────────────────────────────────────────
     with t_geo:
@@ -1179,7 +1282,7 @@ def _streamlit_app() -> None:
             fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
                                xaxis_title='Avg distance (m)', yaxis_title='Samples',
                                margin=dict(l=40, r=10, t=20, b=40))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         with col2:
             if fmt == 'new':
@@ -1194,7 +1297,7 @@ def _streamlit_app() -> None:
                 fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
                                    xaxis_title='Sum tag area', yaxis_title='Samples',
                                    margin=dict(l=40, r=10, t=20, b=40))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             else:
                 st.subheader('Weight / Trust Distribution')
                 st.caption('Higher weight = more influence on pose estimator.')
@@ -1208,7 +1311,7 @@ def _streamlit_app() -> None:
                                    xaxis=dict(title='Weight scalar', range=[0, 1.05]),
                                    yaxis_title='Samples',
                                    margin=dict(l=40, r=10, t=20, b=40))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
         if fmt == 'new':
             col3, col4 = st.columns(2)
@@ -1227,7 +1330,7 @@ def _streamlit_app() -> None:
                 fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
                                    xaxis_title='Z height (m)', yaxis_title='Samples',
                                    margin=dict(l=40, r=10, t=20, b=40))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             with col4:
                 st.subheader('Ambiguity Distribution (Single-Tag Only)')
@@ -1244,7 +1347,7 @@ def _streamlit_app() -> None:
                 fig.update_layout(template='plotly_dark', barmode='overlay', height=280,
                                    xaxis_title='Ambiguity', yaxis_title='Samples',
                                    margin=dict(l=40, r=10, t=20, b=40))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             # Single-tag vs multi-tag breakdown
             has_tag_type_data = any(
@@ -1278,7 +1381,7 @@ def _streamlit_app() -> None:
                         yaxis_title='Result count',
                         margin=dict(l=40, r=10, t=20, b=40),
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
                 with col6:
                     # Multi-tag rate as a percentage
@@ -1297,13 +1400,13 @@ def _streamlit_app() -> None:
                         yaxis=dict(title='Multi-tag rate (%)', range=[0, 105]),
                         margin=dict(l=40, r=10, t=20, b=40),
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
     # ── Field ─────────────────────────────────────────────────────────────────
     with t_field:
         st.caption('Tags: red = never seen, orange -> green = detection frequency (log scale). '
                    'Dots = robot positions where vision accepted an estimate.')
-        st.plotly_chart(_field_fig(metrics), use_container_width=True)
+        st.plotly_chart(_field_fig(metrics), width='stretch')
 
     # ── Motion ────────────────────────────────────────────────────────────────
     with t_motion:
@@ -1327,7 +1430,7 @@ def _streamlit_app() -> None:
             fig.update_layout(template='plotly_dark', barmode='group', height=320,
                                yaxis=dict(title='Acceptance rate (%)', range=[0, 105]),
                                margin=dict(l=40, r=10, t=20, b=40))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info('Drivetrain speed signals not found in this log — '
                     'motion bucketing unavailable.')
