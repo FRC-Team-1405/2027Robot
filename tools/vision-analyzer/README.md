@@ -4,6 +4,8 @@ Interactive Streamlit dashboard for analyzing WPILib `.wpilog` files from the vi
 
 ## Setup (one time)
 
+Install Python 3: https://www.python.org/downloads/
+
 ```
 python -m pip install streamlit plotly
 ```
@@ -73,3 +75,15 @@ python tools/vision-analyzer/analyze.py path/to/log.wpilog
 
 Prints a summary to stdout and writes a lightweight HTML file (summary table only).
 For the full interactive dashboard, use `streamlit run` instead.
+
+
+# TODO
+- export high level vision analysis data to .csv and .md files for quick analysis and visual comparison.
+- identify how to compare non-identical runs (same auto routine but vastly different behavior because of PID/Vision changes). filter out noise and focus in on camera/vision differences.
+- accepted poses over time chart, with average accepted poses per second (do we already have this metric?). what is a useful bucket? 1s?
+- It would be potentially insightful to show velocity rejected poses on the field tab so i can consider if our velocity threshold is too conservativve.
+- It would be helpful to add a table to ambigous and out of bounds estimates that were rejected. shown on a field (not the same field or able to toggle off) can help me better understand why they were rejected.
+- Left camera is out of focus likely. right camera is sharper.
+- figure out what this is exactly: Multi-tag pose standard deviation over the last 100/100 samples
+![alt text](image.png)
+- would it be useful to give a left and right camera "trust" or weight output over time? would it be useful to graph the standard deviations over time?
