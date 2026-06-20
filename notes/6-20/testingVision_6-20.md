@@ -25,3 +25,7 @@ Traceback (most recent call last):
     table_a[m['camera']] = [rows_a[mn][i] for i, mn in enumerate(metric_names)]
                             ~~~~~~~~~~^^^
 IndexError: list index out of range
+
+
+## Phton vision redo decimate
+moving decimate from 3 to 1 caused significant reduction in vision performance. I moved it back to 3 and will analyze the difference between camera config changes without the decimate change.
