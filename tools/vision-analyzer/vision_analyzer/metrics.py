@@ -274,11 +274,21 @@ def compute_camera_metrics(
     end_t: float,
     linear_sig: Optional[List],
     omega_sig: Optional[List],
+    chart_origin: Optional[float] = None,
 ) -> Dict:
     """
     Compute all per-camera metrics. Returns a dict ready for the dashboard.
     Works with both old (pre-refactoring) and new (post-refactoring) signal formats.
+
+    `chart_origin`, if given, is used instead of `start_t` to relativize every
+    chart timeline (fps_ts, stddev_ts, acc_ts, conn_ts, ...) — this lets two
+    compared logs share a single "0s" reference point (e.g. Log A's window
+    start) even though each log's own `start_t` differs. `start_t` itself stays
+    the log's own filtered-window start and continues to drive the
+    velocity-correlation timestamp lookup below, which must stay keyed to this
+    log's own absolute timeline regardless of the chart origin.
     """
+    origin = chart_origin if chart_origin is not None else start_t
     prefix = f'Vision/{camera}/'
 
     def sig(name):
@@ -299,7 +309,7 @@ def compute_camera_metrics(
     # FPS timeline
     fps_sig = sig('currentFps')
     if fps_sig:
-        ts, vs = build_timeline(fps_sig, start_t)
+        ts, vs = build_timeline(fps_sig, origin)
         m['fps_ts']     = ts
         m['fps_values'] = vs
         m['fps_mean']   = sum(vs) / len(vs)
@@ -312,9 +322,9 @@ def compute_camera_metrics(
     # PhotonVision's "multi-tag pose standard deviation" dashboard panel).
     stddev_x_sig = sig('PoseStdDevXMeters')
     if stddev_x_sig:
-        ts, vs_x = build_timeline(stddev_x_sig, start_t)
-        _,  vs_y = build_timeline(sig('PoseStdDevYMeters'), start_t)
-        _,  vs_t = build_timeline(sig('PoseStdDevThetaDegrees'), start_t)
+        ts, vs_x = build_timeline(stddev_x_sig, origin)
+        _,  vs_y = build_timeline(sig('PoseStdDevYMeters'), origin)
+        _,  vs_t = build_timeline(sig('PoseStdDevThetaDegrees'), origin)
         m['stddev_ts']        = ts
         m['stddev_x_m']       = vs_x
         m['stddev_y_m']       = vs_y
@@ -326,9 +336,9 @@ def compute_camera_metrics(
     # to motion transitions; kept alongside the 100-sample one for comparison.
     stddev_x_1s_sig = sig('PoseStdDevXMeters1s')
     if stddev_x_1s_sig:
-        ts, vs_x = build_timeline(stddev_x_1s_sig, start_t)
-        _,  vs_y = build_timeline(sig('PoseStdDevYMeters1s'), start_t)
-        _,  vs_t = build_timeline(sig('PoseStdDevThetaDegrees1s'), start_t)
+        ts, vs_x = build_timeline(stddev_x_1s_sig, origin)
+        _,  vs_y = build_timeline(sig('PoseStdDevYMeters1s'), origin)
+        _,  vs_t = build_timeline(sig('PoseStdDevThetaDegrees1s'), origin)
         m['stddev_1s_ts']        = ts
         m['stddev_1s_x_m']       = vs_x
         m['stddev_1s_y_m']       = vs_y
@@ -339,7 +349,7 @@ def compute_camera_metrics(
     # Connection timeline
     conn_sig = sig('connected')
     if conn_sig:
-        conn_ts, conn_vs = build_timeline(conn_sig, start_t)
+        conn_ts, conn_vs = build_timeline(conn_sig, origin)
         m['conn_ts']     = conn_ts
         m['conn_values'] = [1 if v else 0 for v in conn_vs]
         total = len(conn_vs)
@@ -366,7 +376,7 @@ def compute_camera_metrics(
             accepted = len(poses)
             rej_v = nearest_value(rej_vel_sig, t) or 0
             rej_b = nearest_value(rej_bnd_sig, t) or 0
-            acc_ts.append(t - start_t)
+            acc_ts.append(t - origin)
             acc_counts.append(accepted)
             rej_v_counts.append(rej_v)
             rej_b_counts.append(rej_b)
@@ -458,7 +468,7 @@ def compute_camera_metrics(
             acc_poses = nearest_value(acc_poses_sig, t) or []
             accepted  = len(acc_poses)
 
-            acc_ts.append(t - start_t)
+            acc_ts.append(t - origin)
             acc_counts.append(accepted)
             rej_v_counts.append(rej_v)
             rej_b_counts.append(rej_b)
@@ -557,7 +567,7 @@ def compute_camera_metrics(
         vel_accepted: Dict[int, int] = defaultdict(int)
         vel_total: Dict[int, int] = defaultdict(int)
         for i, t_rel in enumerate(acc_ts):
-            t_abs     = t_rel + start_t
+            t_abs     = t_rel + origin
             lin_v     = nearest_value(linear_sig, t_abs)
             omega_v   = nearest_value(omega_sig,  t_abs)
             if lin_v is None or omega_v is None:

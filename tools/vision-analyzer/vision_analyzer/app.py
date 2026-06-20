@@ -455,7 +455,10 @@ def _streamlit_app() -> None:
 
     # ── Stage 2: compute metrics for the committed window (cached) ────────────
     @st.cache_data(show_spinner='Analyzing...')
-    def _compute_metrics(src, mtime: float, t_lo_k: float, t_hi_k: float):
+    def _compute_metrics(
+        src, mtime: float, t_lo_k: float, t_hi_k: float,
+        chart_origin_k: Optional[float] = None,
+    ):
         sig      = _scan_signals(src, mtime)           # instant — already cached
         filtered = _filter_signals_by_time(sig, t_lo_k, t_hi_k)
         cameras  = discover_cameras(filtered)
@@ -476,7 +479,10 @@ def _streamlit_app() -> None:
         all_m = []
         for cam in cameras:
             fmt = detect_format(filtered, cam)
-            m   = compute_camera_metrics(filtered, cam, fmt, f_start, f_end, linear_sig, omega_sig)
+            m   = compute_camera_metrics(
+                filtered, cam, fmt, f_start, f_end, linear_sig, omega_sig,
+                chart_origin=chart_origin_k,
+            )
             all_m.append(m)
 
         return all_m, meta, cameras
@@ -484,7 +490,7 @@ def _streamlit_app() -> None:
     try:
         all_metrics, meta, cameras = _compute_metrics(
             source, mtime_key,
-            round(t_lo, 1), round(t_hi, 1),
+            t_lo, t_hi,
         )
         log.info(
             'Log A metrics computed: %d camera(s) in window %.1f–%.1f s',
@@ -517,7 +523,8 @@ def _streamlit_app() -> None:
         try:
             all_metrics_b, meta_b, cameras_b = _compute_metrics(
                 source_b, mtime_key_b,
-                round(t_lo_b, 1), round(t_hi_b, 1),
+                t_lo_b, t_hi_b,
+                chart_origin_k=t_lo,
             )
             if all_metrics_b:
                 fmt_b = all_metrics_b[0]['format']
