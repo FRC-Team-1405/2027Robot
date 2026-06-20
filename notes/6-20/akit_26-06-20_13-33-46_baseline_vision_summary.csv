@@ -1,0 +1,119 @@
+section,metric,camera,value
+Summary,Acceptance rate (%),Left,99.35
+Summary,FPS mean,Left,70.85
+Summary,FPS min,Left,0.0
+Summary,Connection uptime (%),Left,100.0
+Summary,Mean result latency (ms),Left,29.3
+Summary,Rejected velocity (%),Left,7.26
+Summary,Rejected boundary (%),Left,0.0
+Summary,Rejected ambiguity (%),Left,0.0
+Summary,Stationary quality (%),Left,100.0
+Acceptance,Total accepted poses,Left,3337
+Acceptance,Total raw results,Left,3359
+Acceptance,Accepted poses per second (avg),Left,69.435
+Health,Latency sample count,Left,3335
+Health,"Pose stddev X, 100-sample window (mm) mean",Left,61.463
+Health,"Pose stddev X, 100-sample window (mm) min",Left,0.901
+Health,"Pose stddev X, 100-sample window (mm) max",Left,637.677
+Health,"Pose stddev Y, 100-sample window (mm) mean",Left,67.555
+Health,"Pose stddev Y, 100-sample window (mm) min",Left,1.257
+Health,"Pose stddev Y, 100-sample window (mm) max",Left,640.367
+Health,"Pose stddev theta, 100-sample window (deg) mean",Left,3.0835
+Health,"Pose stddev theta, 100-sample window (deg) min",Left,0.0401
+Health,"Pose stddev theta, 100-sample window (deg) max",Left,18.5948
+Health,"Pose stddev X, 1s window (mm) mean",Left,41.285
+Health,"Pose stddev X, 1s window (mm) min",Left,0.875
+Health,"Pose stddev X, 1s window (mm) max",Left,553.405
+Health,"Pose stddev Y, 1s window (mm) mean",Left,45.665
+Health,"Pose stddev Y, 1s window (mm) min",Left,1.199
+Health,"Pose stddev Y, 1s window (mm) max",Left,514.214
+Health,"Pose stddev theta, 1s window (deg) mean",Left,2.2153
+Health,"Pose stddev theta, 1s window (deg) min",Left,0.0399
+Health,"Pose stddev theta, 1s window (deg) max",Left,16.3141
+Motion,Stationary acceptance rate (%),Left,100.0
+Motion,Stationary sample count,Left,348
+Motion,Slow translate acceptance rate (%),Left,97.06
+Motion,Slow translate sample count,Left,384
+Motion,Rotating acceptance rate (%),Left,0.0
+Motion,Rotating sample count,Left,0
+Motion,Full speed acceptance rate (%),Left,0.0
+Motion,Full speed sample count,Left,0
+Geometry,Distance (m) mean,Left,1.066
+Geometry,Distance (m) min,Left,0.883
+Geometry,Distance (m) max,Left,1.776
+Geometry,Tag area (sum) mean,Left,4.409
+Geometry,Tag area (sum) min,Left,0.596
+Geometry,Tag area (sum) max,Left,6.992
+Geometry,Z height (m) mean,Left,-0.041
+Geometry,Z height (m) min,Left,-0.152
+Geometry,Z height (m) max,Left,0.03
+Geometry,Ambiguity (single-tag) mean,Left,0.011
+Geometry,Ambiguity (single-tag) min,Left,0.0
+Geometry,Ambiguity (single-tag) max,Left,0.037
+Geometry,Multi-tag count,Left,2153
+Geometry,Single-tag count,Left,189
+Geometry,Multi-tag rate (%),Left,91.93
+Field,Unique tags seen,Left,8
+Field,Total tag detections,Left,4442
+Field,Rejected boundary poses (count),Left,0
+Field,Rejected velocity poses (count),Left,27
+Field,Rejected ambiguity poses (count),Left,0
+Summary,Acceptance rate (%),Right,99.65
+Summary,FPS mean,Right,60.63
+Summary,FPS min,Right,0.0
+Summary,Connection uptime (%),Right,100.0
+Summary,Mean result latency (ms),Right,26.5
+Summary,Rejected velocity (%),Right,6.35
+Summary,Rejected boundary (%),Right,0.0
+Summary,Rejected ambiguity (%),Right,0.0
+Summary,Stationary quality (%),Right,99.71
+Acceptance,Total accepted poses,Right,2873
+Acceptance,Total raw results,Right,2883
+Acceptance,Accepted poses per second (avg),Right,59.808
+Health,Latency sample count,Right,2815
+Health,"Pose stddev X, 100-sample window (mm) mean",Right,79.257
+Health,"Pose stddev X, 100-sample window (mm) min",Right,0.419
+Health,"Pose stddev X, 100-sample window (mm) max",Right,653.002
+Health,"Pose stddev Y, 100-sample window (mm) mean",Right,84.491
+Health,"Pose stddev Y, 100-sample window (mm) min",Right,0.579
+Health,"Pose stddev Y, 100-sample window (mm) max",Right,668.994
+Health,"Pose stddev theta, 100-sample window (deg) mean",Right,4.031
+Health,"Pose stddev theta, 100-sample window (deg) min",Right,0.0157
+Health,"Pose stddev theta, 100-sample window (deg) max",Right,22.8247
+Health,"Pose stddev X, 1s window (mm) mean",Right,44.591
+Health,"Pose stddev X, 1s window (mm) min",Right,0.371
+Health,"Pose stddev X, 1s window (mm) max",Right,493.669
+Health,"Pose stddev Y, 1s window (mm) mean",Right,52.328
+Health,"Pose stddev Y, 1s window (mm) min",Right,0.516
+Health,"Pose stddev Y, 1s window (mm) max",Right,457.476
+Health,"Pose stddev theta, 1s window (deg) mean",Right,2.2272
+Health,"Pose stddev theta, 1s window (deg) min",Right,0.0138
+Health,"Pose stddev theta, 1s window (deg) max",Right,16.1611
+Motion,Stationary acceptance rate (%),Right,99.71
+Motion,Stationary sample count,Right,348
+Motion,Slow translate acceptance rate (%),Right,98.87
+Motion,Slow translate sample count,Right,381
+Motion,Rotating acceptance rate (%),Right,0.0
+Motion,Rotating sample count,Right,0
+Motion,Full speed acceptance rate (%),Right,0.0
+Motion,Full speed sample count,Right,0
+Geometry,Distance (m) mean,Right,1.061
+Geometry,Distance (m) min,Right,0.946
+Geometry,Distance (m) max,Right,1.636
+Geometry,Tag area (sum) mean,Right,4.219
+Geometry,Tag area (sum) min,Right,0.493
+Geometry,Tag area (sum) max,Right,5.142
+Geometry,Z height (m) mean,Right,-0.05
+Geometry,Z height (m) min,Right,-0.146
+Geometry,Z height (m) max,Right,0.031
+Geometry,Ambiguity (single-tag) mean,Right,0.004
+Geometry,Ambiguity (single-tag) min,Right,0.0
+Geometry,Ambiguity (single-tag) max,Right,0.022
+Geometry,Multi-tag count,Right,1773
+Geometry,Single-tag count,Right,246
+Geometry,Multi-tag rate (%),Right,87.82
+Field,Unique tags seen,Right,8
+Field,Total tag detections,Right,3708
+Field,Rejected boundary poses (count),Right,0
+Field,Rejected velocity poses (count),Right,11
+Field,Rejected ambiguity poses (count),Right,0
