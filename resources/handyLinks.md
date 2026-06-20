@@ -15,6 +15,10 @@
 
 http://photonvision.local:5800/
 
+## SSH into PhotonVision
+ssh pi@photonvision.local
+User/Pass - pi:raspberry
+
 # RobotRio URL
 http://roborio-1405-frc.local/
 

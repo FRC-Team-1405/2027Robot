@@ -1,0 +1,488 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\FinneyRobotics> cd '.\VS Code\2027Robot\'
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> python -m streamlit run .\tools\vision-analyzer\analyze.py
+2026-06-20 10:57:36.608 Uvicorn server started on 0.0.0.0:8501
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://10.10.0.40:8501
+
+2026-06-20 11:02:20.001 Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Users\FinneyRobotics\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\streamlit\runtime\scriptrunner\exec_code.py", line 129, in exec_func_with_error_handling
+    result = func()
+  File "C:\Users\FinneyRobotics\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 789, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\FinneyRobotics\VS Code\2027Robot\tools\vision-analyzer\analyze.py", line 11, in <module>
+    _streamlit_app()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\FinneyRobotics\VS Code\2027Robot\tools\vision-analyzer\vision_analyzer\app.py", line 564, in _streamlit_app
+    tab_module.render(ctx)
+    ~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\FinneyRobotics\VS Code\2027Robot\tools\vision-analyzer\vision_analyzer\tabs\summary.py", line 145, in render
+    table_a[m['camera']] = [rows_a[mn][i] for i, mn in enumerate(metric_names)]
+                            ~~~~~~~~~~^^^
+IndexError: list index out of range
+  Stopping...
+  Stopping...
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> ^C
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> python -m streamlit run .\tools\vision-analyzer\analyze.py
+2026-06-20 11:14:53.904 Uvicorn server started on 0.0.0.0:8501
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://10.10.0.40:8501
+
+  Stopping...
+PS C:\Users\FinneyRobotics\VS Code\2027Robot>
+
+
+
+
+
+
+
+
+
+
+
+
+                                              ssh admin@10.14.05.2
+NI Linux Real-Time (run mode)
+
+Log in with your NI-Auth credentials.
+
+admin@roboRIO-1405-FRC:~# apt update
+-bash: apt: command not found
+admin@roboRIO-1405-FRC:~# apt-get
+-bash: apt-get: command not found
+admin@roboRIO-1405-FRC:~# pip
+-bash: pip: command not found
+admin@roboRIO-1405-FRC:~# python
+-bash: python: command not found
+admin@roboRIO-1405-FRC:~# systemctl
+-bash: systemctl: command not found
+admin@roboRIO-1405-FRC:~# exit
+logout
+Connection to 10.14.5.2 closed.
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> ssh photonvision@10.14.5.11
+ssh: connect to host 10.14.5.11 port 22: Connection timed out
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> ssh photonvision@photonvision.local
+The authenticity of host 'photonvision.local (10.14.5.202)' can't be established.
+ED25519 key fingerprint is SHA256:UECr6G7Dpi9k9hxwYZgqskyCDGSaBrG+D9HpglTFCw8.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added 'photonvision.local' (ED25519) to the list of known hosts.
+
+              #######                   PhotonVision is the free, fast, and
+           #############                easy-to-use computer vision solution
+         #################              for the FIRST Robotics Competition.
+       ######        ######   :::
+      #####            ##*::::::::::    To configure PhotonVision, open:
+     #####     :::::::::::::::::::
+     #### :::::::::::    ###            http://photonvision.local:5800
+     ####                ####
+    ####                 ####           using a computer on the same network
+    #### ::              ###            as this device.
+     #### :::::::       ####
+     ####     ::::::::  ####            Documentation is available at:
+     #####         ::::::::    :
+      ######        ####:::::::::       https://docs.photonvision.org/
+       ##################    ::::::
+         ##############
+           #########
+photonvision@photonvision.local's password:
+Permission denied, please try again.
+photonvision@photonvision.local's password:
+Permission denied, please try again.
+photonvision@photonvision.local's password:
+photonvision@photonvision.local: Permission denied (publickey,password).
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> ssh photonvision@photonvision.local
+
+              #######                   PhotonVision is the free, fast, and
+           #############                easy-to-use computer vision solution
+         #################              for the FIRST Robotics Competition.
+       ######        ######   :::
+      #####            ##*::::::::::    To configure PhotonVision, open:
+     #####     :::::::::::::::::::
+     #### :::::::::::    ###            http://photonvision.local:5800
+     ####                ####
+    ####                 ####           using a computer on the same network
+    #### ::              ###            as this device.
+     #### :::::::       ####
+     ####     ::::::::  ####            Documentation is available at:
+     #####         ::::::::    :
+      ######        ####:::::::::       https://docs.photonvision.org/
+       ##################    ::::::
+         ##############
+           #########
+photonvision@photonvision.local's password:
+Permission denied, please try again.
+photonvision@photonvision.local's password:
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> ssh photon@photonvision.local
+
+              #######                   PhotonVision is the free, fast, and
+           #############                easy-to-use computer vision solution
+         #################              for the FIRST Robotics Competition.
+       ######        ######   :::
+      #####            ##*::::::::::    To configure PhotonVision, open:
+     #####     :::::::::::::::::::
+     #### :::::::::::    ###            http://photonvision.local:5800
+     ####                ####
+    ####                 ####           using a computer on the same network
+    #### ::              ###            as this device.
+     #### :::::::       ####
+     ####     ::::::::  ####            Documentation is available at:
+     #####         ::::::::    :
+      ######        ####:::::::::       https://docs.photonvision.org/
+       ##################    ::::::
+         ##############
+           #########
+photon@photonvision.local's password:
+Permission denied, please try again.
+photon@photonvision.local's password:
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> ^C
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> ^C
+PS C:\Users\FinneyRobotics\VS Code\2027Robot> ssh pi@photonvision.local
+
+              #######                   PhotonVision is the free, fast, and
+           #############                easy-to-use computer vision solution
+         #################              for the FIRST Robotics Competition.
+       ######        ######   :::
+      #####            ##*::::::::::    To configure PhotonVision, open:
+     #####     :::::::::::::::::::
+     #### :::::::::::    ###            http://photonvision.local:5800
+     ####                ####
+    ####                 ####           using a computer on the same network
+    #### ::              ###            as this device.
+     #### :::::::       ####
+     ####     ::::::::  ####            Documentation is available at:
+     #####         ::::::::    :
+      ######        ####:::::::::       https://docs.photonvision.org/
+       ##################    ::::::
+         ##############
+           #########
+pi@photonvision.local's password:
+Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.1.0-1025-rockchip aarch64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Mon Nov  4 12:21:32 UTC 2024
+
+  System load:  4.01               Temperature:           87.7 C
+  Usage of /:   19.7% of 14.50GB   Processes:             207
+  Memory usage: 6%                 Users logged in:       0
+  Swap usage:   0%                 IPv4 address for end1: 10.14.5.202
+
+Expanded Security Maintenance for Applications is not enabled.
+
+73 updates can be applied immediately.
+28 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+
+The programs included with the Ubuntu system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+applicable law.
+
+To run a command as administrator (user "root"), use "sudo <command>".
+See "man sudo_root" for details.
+
+pi@photonvision:~$ sudo su
+root@photonvision:/home/pi# python -v
+Command 'python' not found, did you mean:
+  command 'python3' from deb python3
+  command 'python' from deb python-is-python3
+root@photonvision:/home/pi# python --version
+Command 'python' not found, did you mean:
+  command 'python3' from deb python3
+  command 'python' from deb python-is-python3
+root@photonvision:/home/pi# python3
+Python 3.12.3 (main, Sep 11 2024, 14:17:37) [GCC 13.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> exit
+Use exit() or Ctrl-D (i.e. EOF) to exit
+>>> exit()
+root@photonvision:/home/pi# ls /home/
+pi  ubuntu
+root@photonvision:/home/pi# ls /home/pi
+root@photonvision:/home/pi# ls -la
+total 24
+drwxr-x--- 3 pi   pi   4096 Nov  4 12:21 .
+drwxr-xr-x 4 root root 4096 Oct 22 20:56 ..
+-rw-r--r-- 1 pi   pi    220 Mar 31  2024 .bash_logout
+-rw-r--r-- 1 pi   pi   3771 Mar 31  2024 .bashrc
+drwx------ 2 pi   pi   4096 Nov  4 12:21 .cache
+-rw-r--r-- 1 pi   pi    807 Mar 31  2024 .profile
+-rw-r--r-- 1 pi   pi      0 Nov  4 12:21 .sudo_as_admin_successful
+root@photonvision:/home/pi# exit
+exit
+pi@photonvision:~$ ls -la
+total 24
+drwxr-x--- 3 pi   pi   4096 Nov  4 12:21 .
+drwxr-xr-x 4 root root 4096 Oct 22 20:56 ..
+-rw-r--r-- 1 pi   pi    220 Mar 31  2024 .bash_logout
+-rw-r--r-- 1 pi   pi   3771 Mar 31  2024 .bashrc
+drwx------ 2 pi   pi   4096 Nov  4 12:21 .cache
+-rw-r--r-- 1 pi   pi    807 Mar 31  2024 .profile
+-rw-r--r-- 1 pi   pi      0 Nov  4 12:21 .sudo_as_admin_successful
+pi@photonvision:~$ pwd
+/home/pi
+pi@photonvision:~$ nano orangepi-nt-publisher.py
+pi@photonvision:~$ ls /etc/systemd/system/
+ap6275p-bluetooth.service                   iscsi.service
+apparmor.service                            mdmonitor.service.wants
+cloud-config.service.d                      multi-user.target.wants
+cloud-config.target.wants                   open-vm-tools.service.requires
+cloud-init.target.wants                     paths.target.wants
+dbus-fi.w1.wpa_supplicant1.service          photonvision.service
+dbus-org.freedesktop.Avahi.service          shutdown.target.wants
+dbus-org.freedesktop.ModemManager1.service  sockets.target.wants
+dbus-org.freedesktop.nm-dispatcher.service  ssh.service.requires
+dbus-org.freedesktop.resolve1.service       sysinit.target.wants
+dbus-org.freedesktop.timesync1.service      syslog.service
+default.target.wants                        sysstat.service.wants
+getty.target.wants                          timers.target.wants
+graphical.target.wants                      vmtoolsd.service
+pi@photonvision:~$ sudo nano /etc/systemd/system/orangepi-metrics.service
+pi@photonvision:~$ sudo systemctl enable orangepi-metrics.service
+Created symlink /etc/systemd/system/multi-user.target.wants/orangepi-metrics.service → /etc/systemd/system/orangepi-metrics.service.
+pi@photonvision:~$ sudo systemctl start orangepi-metrics.service
+pi@photonvision:~$ sudo systemctl status orangepi-metrics.service
+● orangepi-metrics.service - Orange Pi NT4 metrics publisher
+     Loaded: loaded (/etc/systemd/system/orangepi-metrics.service; enabled; pr>
+     Active: activating (auto-restart) (Result: exit-code) since Mon 2024-11-0>
+    Process: 12559 ExecStart=/usr/bin/python3 /home/pi/orangepi-nt-publisher.p>
+   Main PID: 12559 (code=exited, status=1/FAILURE)
+        CPU: 60ms
+pi@photonvision:~$ sudo journalctl -u orangepi-metrics.service -f
+Nov 04 12:26:27 photonvision systemd[1]: orangepi-metrics.service: Scheduled restart job, restart counter is at 3.
+Nov 04 12:26:27 photonvision systemd[1]: Started orangepi-metrics.service - Orange Pi NT4 metrics publisher.
+Nov 04 12:26:27 photonvision python3[12583]: Traceback (most recent call last):
+Nov 04 12:26:27 photonvision python3[12583]:   File "/home/pi/orangepi-nt-publisher.py", line 118, in <module>
+Nov 04 12:26:27 photonvision python3[12583]:     main()
+Nov 04 12:26:27 photonvision python3[12583]:   File "/home/pi/orangepi-nt-publisher.py", line 75, in main
+Nov 04 12:26:27 photonvision python3[12583]:     import ntcore
+Nov 04 12:26:27 photonvision python3[12583]: ModuleNotFoundError: No module named 'ntcore'
+Nov 04 12:26:27 photonvision systemd[1]: orangepi-metrics.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 12:26:27 photonvision systemd[1]: orangepi-metrics.service: Failed with result 'exit-code'.
+Nov 04 12:26:32 photonvision systemd[1]: orangepi-metrics.service: Scheduled restart job, restart counter is at 4.
+Nov 04 12:26:32 photonvision systemd[1]: Started orangepi-metrics.service - Orange Pi NT4 metrics publisher.
+Nov 04 12:26:32 photonvision python3[12595]: Traceback (most recent call last):
+Nov 04 12:26:32 photonvision python3[12595]:   File "/home/pi/orangepi-nt-publisher.py", line 118, in <module>
+Nov 04 12:26:32 photonvision python3[12595]:     main()
+Nov 04 12:26:32 photonvision python3[12595]:   File "/home/pi/orangepi-nt-publisher.py", line 75, in main
+Nov 04 12:26:32 photonvision python3[12595]:     import ntcore
+Nov 04 12:26:32 photonvision python3[12595]: ModuleNotFoundError: No module named 'ntcore'
+Nov 04 12:26:32 photonvision systemd[1]: orangepi-metrics.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 12:26:32 photonvision systemd[1]: orangepi-metrics.service: Failed with result 'exit-code'.
+Nov 04 12:26:38 photonvision systemd[1]: orangepi-metrics.service: Scheduled restart job, restart counter is at 5.
+Nov 04 12:26:38 photonvision systemd[1]: Started orangepi-metrics.service - Orange Pi NT4 metrics publisher.
+Nov 04 12:26:38 photonvision python3[12604]: Traceback (most recent call last):
+Nov 04 12:26:38 photonvision python3[12604]:   File "/home/pi/orangepi-nt-publisher.py", line 118, in <module>
+Nov 04 12:26:38 photonvision python3[12604]:     main()
+Nov 04 12:26:38 photonvision python3[12604]:   File "/home/pi/orangepi-nt-publisher.py", line 75, in main
+Nov 04 12:26:38 photonvision python3[12604]:     import ntcore
+Nov 04 12:26:38 photonvision python3[12604]: ModuleNotFoundError: No module named 'ntcore'
+Nov 04 12:26:38 photonvision systemd[1]: orangepi-metrics.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 12:26:38 photonvision systemd[1]: orangepi-metrics.service: Failed with result 'exit-code'.
+^C
+pi@photonvision:~$ sudo nano /etc/systemd/system/orangepi-metrics.service^C
+pi@photonvision:~$ sudo systemctl daemon-reload
+pi@photonvision:~$ sudo pip3 install robotpy-ntcore
+sudo: pip3: command not found
+pi@photonvision:~$ pip
+Command 'pip' not found, but can be installed with:
+sudo apt install python3-pip
+pi@photonvision:~$ pip3
+Command 'pip3' not found, but can be installed with:
+sudo apt install python3-pip
+pi@photonvision:~$ python3 -m pip install robotpy-ntcore
+/usr/bin/python3: No module named pip
+pi@photonvision:~$ sudo apt update
+Ign:1 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:2 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:3 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:4 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:5 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Ign:1 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:2 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:3 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:4 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:5 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Ign:1 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:2 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:3 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:4 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:5 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Err:2 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:1 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpadcontent.net'
+Err:3 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpad.net'
+Err:4 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:5 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpad.net'
+Err:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+All packages are up to date.
+W: Failed to fetch http://ppa.launchpad.net/jjriek/rockchip/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpad.net'
+W: Failed to fetch http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpad.net'
+W: Failed to fetch https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpadcontent.net'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-backports/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+pi@photonvision:~$ sudo apt install python3-ntcore -y
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+E: Unable to locate package python3-ntcore
+pi@photonvision:~$ sudo apt install python3-ntcore
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+E: Unable to locate package python3-ntcore
+pi@photonvision:~$ sudo apt update
+Ign:1 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:3 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:4 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:5 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Ign:1 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:3 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:4 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:5 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Ign:1 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:3 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:4 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:5 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Err:1 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpad.net'
+Err:3 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpadcontent.net'
+Err:5 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:4 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpad.net'
+Err:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+All packages are up to date.
+W: Failed to fetch http://ppa.launchpad.net/jjriek/rockchip/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpad.net'
+W: Failed to fetch http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpad.net'
+W: Failed to fetch https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpadcontent.net'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-backports/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+pi@photonvision:~$ sudo apt upgrade
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Calculating upgrade... Done
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+pi@photonvision:~$ sudo apt update --allow-releaseinfo-change
+Ign:1 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:3 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:4 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:5 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Ign:1 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:3 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:4 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:5 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Ign:1 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:3 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:4 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:5 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Err:1 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpad.net'
+Err:3 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpadcontent.net'
+Err:4 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpad.net'
+Err:5 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+All packages are up to date.
+W: Failed to fetch http://ppa.launchpad.net/jjriek/rockchip/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpad.net'
+W: Failed to fetch http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpad.net'
+W: Failed to fetch https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpadcontent.net'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-backports/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+pi@photonvision:~$ sudo apt install python3-pip python3-dev -y
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Package python3-dev is not available, but is referred to by another package.
+This may mean that the package is missing, has been obsoleted, or
+is only available from another source
+
+E: Unable to locate package python3-pip
+E: Package 'python3-dev' has no installation candidate
+pi@photonvision:~$

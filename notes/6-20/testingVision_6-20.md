@@ -41,3 +41,13 @@ Log:
 2026-06-20 11:21:10  DEBUG     vision_analyzer.robot  Opening SFTP channel
 2026-06-20 11:21:11  DEBUG     vision_analyzer.robot  Found 442 total entries in /home/lvuser/logs, 220 are .wpilog files
 2026-06-20 11:21:11  INFO      vision_analyzer.robot  Downloading /home/lvuser/logs/FRC_20260620_152018.wpilog (remote mtime=1781968871) -> C:\Users\FinneyRobotics\VS Code\2027Robot\logs\FRC_20260620_152018.wpilog
+
+
+## adjusting brightness and camera gain
+Right Camera:
+ - brightness: 41 -> 0
+ - Camera gain: 76 -> 25
+Left Camera:
+ no change, seems like ideal settings at the moment
+ - brightness: 41
+ - Camera gain: 76

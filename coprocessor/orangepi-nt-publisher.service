@@ -4,7 +4,7 @@ After=network.target photonvision.service
 Wants=photonvision.service
 
 [Service]
-ExecStart=/usr/bin/python3 /home/lvuser/orangepi-nt-publisher.py
+ExecStart=/usr/bin/python3 /home/pi/orangepi-nt-publisher.py
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
