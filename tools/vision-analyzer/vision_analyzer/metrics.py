@@ -3,6 +3,7 @@ Metric computation: signal discovery, per-camera metrics, and chart helpers.
 No Streamlit dependency; Plotly imports stay inside functions that need them.
 """
 import bisect
+import logging
 import math
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
@@ -14,6 +15,8 @@ from .constants import (
     REEF_TAG_IDS,
     _cam_color,
 )
+
+log = logging.getLogger(__name__)
 
 # Module-level cache for nearest_value — must NOT be a default argument
 _ts_cache: Dict = {}
@@ -29,16 +32,27 @@ def discover_cameras(signals: Dict) -> List[str]:
             cam = parts[1]
             if cam not in cameras:
                 cameras.append(cam)
-    return sorted(cameras)
+    result = sorted(cameras)
+    if result:
+        log.info('Discovered %d camera(s): %s', len(result), ', '.join(result))
+    else:
+        log.warning(
+            'No vision cameras found — no Vision/<name>/connected signal in log. '
+            'Check that Vision subsystem is logging correctly.'
+        )
+    return result
 
 
 def detect_format(signals: Dict, camera: str) -> str:
     prefix = f'Vision/{camera}/'
-    return 'new' if (
+    is_new = (
         f'{prefix}rawEstimatedPoses' in signals
         or f'{prefix}RawEstimatedPoses' in signals
         or f'RealOutputs/{prefix}RawEstimatedPoses' in signals
-    ) else 'old'
+    )
+    fmt = 'new' if is_new else 'old'
+    log.debug('Camera %r: log format detected as %r', camera, fmt)
+    return fmt
 
 
 def find_drivetrain_speeds(signals: Dict) -> Tuple[Optional[str], Optional[str]]:
@@ -508,6 +522,18 @@ def compute_camera_metrics(
         m['rej_ambiguity_path_y'] = rej_ambiguity_path_y
         m['latencies_ms']      = latencies
         m['latency_mean_ms']   = sum(latencies) / len(latencies) if latencies else 0.0
+
+    log.info(
+        'Camera %r (%s): %d accepted / %d total  acceptance=%.1f%%  latency_mean=%.0f ms',
+        camera, fmt,
+        m.get('total_accepted', 0), m.get('total_results', 0),
+        m.get('acceptance_rate', 0.0), m.get('latency_mean_ms', 0.0),
+    )
+    if not m.get('acc_ts'):
+        log.warning(
+            'Camera %r: no accepted-pose timestamps found — acceptance/rejection '
+            'metrics will be empty. Signal prefix: Vision/%s/', camera, camera,
+        )
 
     # Velocity-correlated quality
     if linear_sig and omega_sig and acc_ts:
