@@ -29,3 +29,15 @@ IndexError: list index out of range
 
 ## Phton vision redo decimate
 moving decimate from 3 to 1 caused significant reduction in vision performance. I moved it back to 3 and will analyze the difference between camera config changes without the decimate change.
+
+
+## latest robot log download hanging
+it doesn't ever complete the download, no errors, no indication of progress (if any)
+
+Log:
+2026-06-20 11:21:08  INFO      vision_analyzer.robot  Starting robot log download — suffix=''  dest=C:\Users\FinneyRobotics\VS Code\2027Robot\logs
+2026-06-20 11:21:08  DEBUG     vision_analyzer.robot  Attempting SSH connection to roborio-1405-frc.local (user=lvuser)
+2026-06-20 11:21:10  INFO      vision_analyzer.robot  SSH connected to roboRIO at roborio-1405-frc.local
+2026-06-20 11:21:10  DEBUG     vision_analyzer.robot  Opening SFTP channel
+2026-06-20 11:21:11  DEBUG     vision_analyzer.robot  Found 442 total entries in /home/lvuser/logs, 220 are .wpilog files
+2026-06-20 11:21:11  INFO      vision_analyzer.robot  Downloading /home/lvuser/logs/FRC_20260620_152018.wpilog (remote mtime=1781968871) -> C:\Users\FinneyRobotics\VS Code\2027Robot\logs\FRC_20260620_152018.wpilog
