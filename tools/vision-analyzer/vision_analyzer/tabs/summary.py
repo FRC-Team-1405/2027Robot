@@ -141,8 +141,8 @@ def render(ctx: dict) -> None:
     with col_a:
         st.subheader('Log A')
         table_a = {'Metric': metric_names}
-        for m in metrics:
-            table_a[m['camera']] = [rows_a[mn][i] for i, mn in enumerate(metric_names)]
+        for cam_idx, m in enumerate(metrics):
+            table_a[m['camera']] = [rows_a[mn][cam_idx] for mn in metric_names]
         st.table(table_a)
 
     with col_b:
