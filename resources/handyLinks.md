@@ -15,6 +15,9 @@
 
 http://photonvision.local:5800/
 
+# RobotRio URL
+http://roborio-1405-frc.local/
+
 # DS Log Folder
 Stored on the driverstation computer, not the Rio!
 

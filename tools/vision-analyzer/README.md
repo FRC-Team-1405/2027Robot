@@ -10,8 +10,11 @@ pip install -r requirements.txt
 
 ## Run
 
+Run from: `2027Robot>`
 ```bash
 streamlit run analyze.py
+OR
+python -m streamlit run .\tools\vision-analyzer\analyze.py
 ```
 
 A browser window opens. Drop a `.wpilog` file in the sidebar or enter a path, select a time range, and click **Analyze**.
