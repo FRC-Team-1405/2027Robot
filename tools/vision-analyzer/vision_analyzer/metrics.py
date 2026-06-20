@@ -444,6 +444,9 @@ def compute_camera_metrics(
     # Velocity-correlated quality
     if linear_sig and omega_sig and acc_ts:
         buckets: Dict[str, List[float]] = {'stationary': [], 'slow': [], 'rotating': [], 'fast': []}
+        VEL_BIN_SIZE = 0.25  # m/s
+        vel_accepted: Dict[int, int] = defaultdict(int)
+        vel_total: Dict[int, int] = defaultdict(int)
         for i, t_rel in enumerate(acc_ts):
             t_abs     = t_rel + start_t
             lin_v     = nearest_value(linear_sig, t_abs)
@@ -468,15 +471,33 @@ def compute_camera_metrics(
                 else:
                     bucket = 'slow'
                 buckets[bucket].append(accepted_n / raw_n)
+                bin_idx = int(lin_abs / VEL_BIN_SIZE)
+                vel_accepted[bin_idx] += accepted_n
+                vel_total[bin_idx] += raw_n
 
         m['velocity_buckets'] = {
             k: {'count': len(v), 'acceptance_rate': 100.0 * sum(v) / len(v) if v else 0.0}
             for k, v in buckets.items()
         }
         m['stationary_quality'] = m['velocity_buckets']['stationary']['acceptance_rate']
+
+        if vel_total:
+            max_bin = max(vel_total.keys())
+            m['velocity_curve'] = {
+                'velocities':       [(i + 0.5) * VEL_BIN_SIZE for i in range(max_bin + 1)],
+                'acceptance_rates': [
+                    100.0 * vel_accepted[i] / vel_total[i] if vel_total.get(i, 0) > 0 else None
+                    for i in range(max_bin + 1)
+                ],
+                'accepted_counts':  [vel_accepted.get(i, 0) for i in range(max_bin + 1)],
+                'raw_counts':       [vel_total.get(i, 0) for i in range(max_bin + 1)],
+            }
+        else:
+            m['velocity_curve'] = {}
     else:
         m['velocity_buckets']   = {}
         m['stationary_quality'] = None
+        m['velocity_curve']     = {}
 
     return m
 
