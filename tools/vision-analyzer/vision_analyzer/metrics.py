@@ -167,6 +167,74 @@ def _downsample(ts: List, vs: List, max_pts: int = 2000) -> Tuple[List, List]:
     return ts[::stride], vs[::stride]
 
 
+def _bucket_mean(ts: List[float], vs: List[float], bucket: float = 1.0) -> Tuple[List[float], List[float]]:
+    """Average values into fixed-width time buckets. Returns (bucket_ts, bucket_means)."""
+    if not ts:
+        return [], []
+    n_buckets = int(ts[-1] / bucket) + 1
+    totals = [0.0] * n_buckets
+    counts = [0] * n_buckets
+    for t, v in zip(ts, vs):
+        if v is not None:
+            idx = min(int(t / bucket), n_buckets - 1)
+            totals[idx] += v
+            counts[idx] += 1
+    result_ts, result_vs = [], []
+    for i in range(n_buckets):
+        if counts[i] > 0:
+            result_ts.append(float(i) * bucket)
+            result_vs.append(totals[i] / counts[i])
+    return result_ts, result_vs
+
+
+def _delta_series(
+    ts_a: List[float], vs_a: List[float],
+    ts_b: List[float], vs_b: List[float],
+    bucket: float = 1.0,
+) -> Tuple[List[float], List[float]]:
+    """Compute bucketed delta (B − A) on an aligned 1-s time grid."""
+    bts_a, bvs_a = _bucket_mean(ts_a, vs_a, bucket)
+    bts_b, bvs_b = _bucket_mean(ts_b, vs_b, bucket)
+    a_dict = dict(zip(bts_a, bvs_a))
+    b_dict = dict(zip(bts_b, bvs_b))
+    common = sorted(set(bts_a) & set(bts_b))
+    if not common:
+        return [], []
+    return common, [b_dict[t] - a_dict[t] for t in common]
+
+
+def _histogram_data_aligned(
+    values_a: List[float],
+    values_b: List[float],
+    nbins: int = 30,
+) -> Tuple[List[float], List[float], List[float]]:
+    """Aligned histograms with shared bin edges normalized to %.
+    Returns (centers, pct_a, pct_b)."""
+    all_vals = list(values_a) + list(values_b)
+    if not all_vals:
+        return [], [], []
+    lo, hi = min(all_vals), max(all_vals)
+    if lo == hi:
+        pa = 100.0 if values_a else 0.0
+        pb = 100.0 if values_b else 0.0
+        return [lo], [pa], [pb]
+    step = (hi - lo) / nbins
+    counts_a = [0] * nbins
+    counts_b = [0] * nbins
+    for v in values_a:
+        idx = min(int((v - lo) / step), nbins - 1)
+        counts_a[idx] += 1
+    for v in values_b:
+        idx = min(int((v - lo) / step), nbins - 1)
+        counts_b[idx] += 1
+    centers = [lo + step * (i + 0.5) for i in range(nbins)]
+    total_a = sum(counts_a) or 1
+    total_b = sum(counts_b) or 1
+    pct_a = [100.0 * c / total_a for c in counts_a]
+    pct_b = [100.0 * c / total_b for c in counts_b]
+    return centers, pct_a, pct_b
+
+
 # ─── Metric Computation ────────────────────────────────────────────────────────
 
 def compute_camera_metrics(

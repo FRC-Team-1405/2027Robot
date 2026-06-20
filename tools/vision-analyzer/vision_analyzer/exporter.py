@@ -117,12 +117,64 @@ def build_export_rows(metrics: List[Dict], fmt: str) -> List[Row]:
     return rows
 
 
-def rows_to_csv(rows: List[Row]) -> str:
+def build_delta_rows(
+    metrics_a: List[Dict],
+    metrics_b: List[Dict],
+    fmt: str,
+) -> List[Row]:
+    """Compute Δ (B − A) for every scalar export metric where both logs have data."""
+    rows_a = build_export_rows(metrics_a, fmt)
+    rows_b = build_export_rows(metrics_b, fmt)
+
+    # Index B rows for fast lookup: (section, metric, camera) → value
+    b_index: Dict[Tuple[str, str, str], Any] = {
+        (s, m, c): v for s, m, c, v in rows_b
+    }
+
+    delta_rows: List[Row] = []
+    for section, metric, cam, val_a in rows_a:
+        val_b = b_index.get((section, metric, cam))
+        if val_a is None or val_b is None:
+            delta_rows.append((section, metric, cam, None))
+        elif isinstance(val_a, (int, float)) and isinstance(val_b, (int, float)):
+            delta = round(float(val_b) - float(val_a), 4)
+            delta_rows.append((section, metric, cam, delta))
+        else:
+            delta_rows.append((section, metric, cam, None))
+
+    return delta_rows
+
+
+def rows_to_csv(rows: List[Row], log_label: str = '') -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(['section', 'metric', 'camera', 'value'])
-    for section, metric, cam, value in rows:
-        writer.writerow([section, metric, cam, '' if value is None else value])
+    if log_label:
+        writer.writerow(['log', 'section', 'metric', 'camera', 'value'])
+        for section, metric, cam, value in rows:
+            writer.writerow([log_label, section, metric, cam, '' if value is None else value])
+    else:
+        writer.writerow(['section', 'metric', 'camera', 'value'])
+        for section, metric, cam, value in rows:
+            writer.writerow([section, metric, cam, '' if value is None else value])
+    return buf.getvalue()
+
+
+def rows_to_csv_comparison(
+    rows_a: List[Row],
+    rows_b: List[Row],
+    delta_rows: List[Row],
+) -> str:
+    """Three-section CSV: Log A / Log B / Δ (B−A) stacked with a 'log' column."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['log', 'section', 'metric', 'camera', 'value'])
+    for section, metric, cam, value in rows_a:
+        writer.writerow(['A', section, metric, cam, '' if value is None else value])
+    for section, metric, cam, value in rows_b:
+        writer.writerow(['B', section, metric, cam, '' if value is None else value])
+    for section, metric, cam, value in delta_rows:
+        writer.writerow(['delta_B_minus_A', section, metric, cam,
+                          '' if value is None else value])
     return buf.getvalue()
 
 
@@ -131,6 +183,14 @@ def _fmt_md_val(v: Any) -> str:
         return '-'
     if isinstance(v, float):
         return f'{v:g}'
+    return str(v)
+
+
+def _fmt_md_delta(v: Any) -> str:
+    if v is None:
+        return '-'
+    if isinstance(v, float):
+        return f'{v:+g}'
     return str(v)
 
 
@@ -174,6 +234,104 @@ def rows_to_markdown(
             lines.append(
                 f'| {metric} | ' + ' | '.join(_fmt_md_val(cam_values.get(c)) for c in cameras) + ' |'
             )
+        lines.append('')
+
+    return '\n'.join(lines)
+
+
+def rows_to_markdown_comparison(
+    rows_a: List[Row],
+    rows_b: List[Row],
+    delta_rows: List[Row],
+    cameras_a: List[str],
+    cameras_b: List[str],
+    log_name_a: str,
+    log_name_b: str,
+    fmt_a: str,
+    fmt_b: str,
+    duration_a: float,
+    duration_b: float,
+    committed_a: Optional[Tuple[float, float]] = None,
+    committed_b: Optional[Tuple[float, float]] = None,
+    meta_a: Optional[Dict[str, str]] = None,
+    meta_b: Optional[Dict[str, str]] = None,
+) -> str:
+    """Full comparison markdown: Log A table, Log B table, Δ table per section."""
+    meta_a = meta_a or {}
+    meta_b = meta_b or {}
+
+    def _index(rows: List[Row]) -> "OrderedDict":
+        out: "OrderedDict[str, OrderedDict[str, Dict[str, Any]]]" = OrderedDict()
+        for section, metric, cam, value in rows:
+            out.setdefault(section, OrderedDict())
+            out[section].setdefault(metric, {})[cam] = value
+        return out
+
+    idx_a = _index(rows_a)
+    idx_b = _index(rows_b)
+    idx_d = _index(delta_rows)
+
+    lines: List[str] = ['# Vision Comparison Summary', '']
+    lines.append(f'## Log A — {log_name_a}')
+    if committed_a is not None:
+        lines.append(
+            f'- Window: {committed_a[0]:.1f}s – {committed_a[1]:.1f}s '
+            f'({committed_a[1] - committed_a[0]:.1f}s of {duration_a:.1f}s total)'
+        )
+    lines.append(f'- Format: {"new" if fmt_a == "new" else "old"}, '
+                 f'Cameras: {", ".join(cameras_a)}')
+    if meta_a.get('ProjectName'):
+        lines.append(f'- {meta_a["ProjectName"]} @ {meta_a.get("GitHash", "")[:7]}')
+    lines.append('')
+
+    lines.append(f'## Log B — {log_name_b}')
+    if committed_b is not None:
+        lines.append(
+            f'- Window: {committed_b[0]:.1f}s – {committed_b[1]:.1f}s '
+            f'({committed_b[1] - committed_b[0]:.1f}s of {duration_b:.1f}s total)'
+        )
+    lines.append(f'- Format: {"new" if fmt_b == "new" else "old"}, '
+                 f'Cameras: {", ".join(cameras_b)}')
+    if meta_b.get('ProjectName'):
+        lines.append(f'- {meta_b["ProjectName"]} @ {meta_b.get("GitHash", "")[:7]}')
+    lines.append('')
+
+    all_sections = list(dict.fromkeys(
+        list(idx_a.keys()) + list(idx_b.keys()) + list(idx_d.keys())
+    ))
+    # Use union of cameras that appear in both
+    cameras_common = [c for c in cameras_a if c in cameras_b]
+    cameras_display = cameras_common if cameras_common else cameras_a
+
+    for section in all_sections:
+        lines.append(f'## {section}')
+        lines.append('')
+
+        all_metrics = list(dict.fromkeys(
+            list(idx_a.get(section, {}).keys())
+            + list(idx_b.get(section, {}).keys())
+        ))
+        if not all_metrics:
+            continue
+
+        header = '| Metric | ' + ' | '.join(
+            f'{c} A | {c} B | Δ {c}' for c in cameras_display
+        ) + ' |'
+        sep_count = 1 + len(cameras_display) * 3
+        lines.append(header)
+        lines.append('|---' * sep_count + '|')
+
+        for metric in all_metrics:
+            row_parts = [f'| {metric}']
+            for cam in cameras_display:
+                val_a = idx_a.get(section, {}).get(metric, {}).get(cam)
+                val_b = idx_b.get(section, {}).get(metric, {}).get(cam)
+                val_d = idx_d.get(section, {}).get(metric, {}).get(cam)
+                row_parts.append(
+                    f'{_fmt_md_val(val_a)} | {_fmt_md_val(val_b)} | {_fmt_md_delta(val_d)}'
+                )
+            lines.append(' | '.join(row_parts) + ' |')
+
         lines.append('')
 
     return '\n'.join(lines)

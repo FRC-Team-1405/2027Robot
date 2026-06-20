@@ -32,13 +32,24 @@ _ROBORIO_USER   = 'lvuser'
 _ROBORIO_PASS   = ''
 _ROBOT_LOG_DIR  = '/home/lvuser/logs'
 
-# Camera colors
+# Camera colors — Log A (cool palette)
 _COLORS = {
     'Left':  {'primary': '#4FC3F7', 'secondary': '#0288D1'},
     'Right': {'primary': '#AED581', 'secondary': '#558B2F'},
 }
 _DEFAULT_COLOR = {'primary': '#FFB74D', 'secondary': '#E65100'}
 
+# Camera colors — Log B (warm palette for visual contrast)
+_COLORS_B = {
+    'Left':  '#FF8F00',   # warm amber
+    'Right': '#AB47BC',   # medium purple
+}
+_DEFAULT_COLOR_B = '#F4511E'  # deep orange
+
 
 def _cam_color(camera: str, role: str = 'primary') -> str:
     return _COLORS.get(camera, _DEFAULT_COLOR)[role]
+
+
+def _cam_color_b(camera: str) -> str:
+    return _COLORS_B.get(camera, _DEFAULT_COLOR_B)
