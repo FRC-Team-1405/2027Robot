@@ -9,12 +9,14 @@ from collections import defaultdict
 from typing import Dict, List
 
 from .logger import get_log_file
-from .parser import parse_wpilog
+from .parser import parse_wpilog, trim_wpilog_bytes
 from .metrics import (
     discover_cameras,
     detect_format,
     find_drivetrain_speeds,
     compute_camera_metrics,
+    _compute_mode_spans,
+    _auto_trim_window,
 )
 from .exporter import build_export_rows, rows_to_csv, rows_to_markdown
 
@@ -80,6 +82,41 @@ def _load_log(path: str):
         all_metrics.append(m)
 
     return all_metrics, duration, meta, cameras
+
+
+def export_trimmed(path: str, out_dir: pathlib.Path) -> pathlib.Path:
+    """
+    Write a copy of the log at `path` with leading/trailing disabled periods
+    removed, to `out_dir / {stem}_trimmed.wpilog`. Returns the output path.
+    """
+    p   = pathlib.Path(path)
+    raw = p.read_bytes()
+
+    signals  = parse_wpilog(path)
+    all_ts   = [t for sig in signals.values() for t, _ in sig]
+    start_t  = min(all_ts) if all_ts else 0.0
+    end_t    = max(all_ts) if all_ts else 0.0
+    duration = end_t - start_t
+
+    mode_spans = _compute_mode_spans(signals, start_t, end_t)
+    lo, hi     = _auto_trim_window(mode_spans, duration)
+
+    trimmed = trim_wpilog_bytes(raw, start_t + lo, start_t + hi)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f'{p.stem}_trimmed.wpilog'
+    out_path.write_bytes(trimmed)
+
+    orig_kb = len(raw) / 1024
+    trim_kb = len(trimmed) / 1024
+    pct = 100.0 * (1 - len(trimmed) / len(raw)) if raw else 0.0
+    log.info(
+        'Trimmed %s: kept [%.1f, %.1f] s of %.1f s — %.1f KB -> %.1f KB (%.0f%% smaller) -> %s',
+        p.name, lo, hi, duration, orig_kb, trim_kb, pct, out_path,
+    )
+    print(f'  {p.name}: {orig_kb:.0f} KB -> {trim_kb:.0f} KB ({pct:.0f}% smaller)')
+    print(f'  -> {out_path}')
+    return out_path
 
 
 def _write_legacy_html(
@@ -148,6 +185,9 @@ def _cli_main() -> None:
                         help='Output directory for HTML reports (legacy mode)')
     parser.add_argument('--probe', action='store_true',
                         help='Dump all signal names and types, then exit')
+    parser.add_argument('--trim', action='store_true',
+                        help='Export a copy of each log with leading/trailing disabled '
+                             'periods removed, then exit')
     args = parser.parse_args()
 
     log_file = get_log_file()
@@ -181,6 +221,16 @@ def _cli_main() -> None:
     if args.probe:
         for lf in log_files:
             probe_signals(lf)
+        return
+
+    if args.trim:
+        for lf in log_files:
+            out_dir = pathlib.Path(args.output) if args.output else pathlib.Path(lf).parent
+            try:
+                export_trimmed(lf, out_dir)
+            except Exception as e:
+                log.exception('Error trimming %s: %s', lf, e)
+                print(f'Error trimming {lf}: {e}', file=sys.stderr)
         return
 
     # Legacy: write an HTML dashboard for backward compatibility

@@ -4,6 +4,58 @@ import pathlib
 LABEL = "Export"
 
 
+def _render_trim_section(ctx: dict) -> None:
+    """Trim leading/trailing disabled periods and offer the raw .wpilog for download."""
+    import streamlit as st
+
+    from ..metrics import _auto_trim_window
+    from ..parser import trim_wpilog_bytes
+
+    st.divider()
+    st.subheader('Trim & Export Raw Log')
+    st.caption(
+        'Drops the leading and trailing disabled periods from the raw .wpilog '
+        '(almost always extraneous pre/post-match data) and re-packages the rest '
+        'byte-for-byte — no re-encoding, so the result is a fully valid .wpilog.'
+    )
+
+    mode_spans = ctx.get('mode_spans') or []
+    duration   = ctx.get('duration', 0.0)
+    start_t    = ctx.get('start_t', 0.0)
+    source     = ctx.get('source')
+    log_name   = ctx.get('display_name', 'log')
+
+    if not mode_spans or source is None:
+        st.info('No `DriverStation/Enabled` signal found in this log — nothing to trim.')
+        return
+
+    lo, hi = _auto_trim_window(mode_spans, duration)
+    if lo <= 0.0 and hi >= duration:
+        st.caption('No leading/trailing disabled period detected — nothing to trim.')
+        return
+
+    st.caption(
+        f'Auto-detected keep window: **{lo:.1f} s** to **{hi:.1f} s** '
+        f'(cuts {lo:.1f} s from the start and {duration - hi:.1f} s from the end).'
+    )
+
+    raw = source if isinstance(source, bytes) else pathlib.Path(source).read_bytes()
+    trimmed = trim_wpilog_bytes(raw, start_t + lo, start_t + hi)
+
+    orig_mb = len(raw) / (1024 * 1024)
+    trim_mb = len(trimmed) / (1024 * 1024)
+    pct = 100.0 * (1 - len(trimmed) / len(raw)) if raw else 0.0
+    st.caption(f'Original: **{orig_mb:.1f} MB** → Trimmed: **{trim_mb:.1f} MB** ({pct:.0f}% smaller)')
+
+    stem = pathlib.Path(log_name).stem
+    st.download_button(
+        'Download trimmed .wpilog',
+        data=trimmed,
+        file_name=f'{stem}_trimmed.wpilog',
+        mime='application/octet-stream',
+    )
+
+
 def render(ctx: dict) -> None:
     import streamlit as st
 
@@ -58,6 +110,8 @@ def render(ctx: dict) -> None:
 
         st.subheader('CSV Preview')
         st.code(csv_str, language='csv')
+
+        _render_trim_section(ctx)
         return
 
     # ── Comparison export (Log A / Log B / Δ) ─────────────────────────────────

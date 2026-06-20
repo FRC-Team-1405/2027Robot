@@ -411,10 +411,11 @@ def _streamlit_app() -> None:
 
     all_ts   = [t for sig in signals.values() for t, _ in sig]
     start_t  = min(all_ts) if all_ts else 0.0
-    duration = (max(all_ts) if all_ts else 0.0) - start_t
+    end_t    = max(all_ts) if all_ts else 0.0
+    duration = end_t - start_t
 
     # ── Log A time range selector ─────────────────────────────────────────────
-    mode_spans = _compute_mode_spans(signals, start_t)
+    mode_spans = _compute_mode_spans(signals, start_t, end_t)
     sel, committed = _time_range_ui('a', mode_spans, duration, file_key,
                                     label='Log A — Time Range')
 
@@ -434,9 +435,10 @@ def _streamlit_app() -> None:
     if signals_b is not None:
         all_ts_b  = [t for sig in signals_b.values() for t, _ in sig]
         start_t_b = min(all_ts_b) if all_ts_b else 0.0
-        duration_b = (max(all_ts_b) if all_ts_b else 0.0) - start_t_b
+        end_t_b   = max(all_ts_b) if all_ts_b else 0.0
+        duration_b = end_t_b - start_t_b
 
-        mode_spans_b = _compute_mode_spans(signals_b, start_t_b)
+        mode_spans_b = _compute_mode_spans(signals_b, start_t_b, end_t_b)
         _, committed_b = _time_range_ui('b', mode_spans_b, duration_b, file_key_b,
                                         label='Log B — Time Range')
 
@@ -579,6 +581,9 @@ def _streamlit_app() -> None:
         'duration':       duration,
         'meta':           meta,
         'display_name':   display_name,
+        'source':         source,
+        'start_t':        start_t,
+        'mode_spans':     mode_spans,
         # Comparison
         'has_compare':    has_compare,
         'metrics_b':      metrics_b if has_compare else None,

@@ -4,6 +4,7 @@ roboRIO SSH download. Requires paramiko.
 import logging
 import pathlib
 import socket
+import time
 from typing import Optional
 
 from .constants import (
@@ -14,6 +15,15 @@ from .constants import (
 )
 
 log = logging.getLogger(__name__)
+
+# Hard cap on a single SFTP read/write stall (socket-level), in seconds.
+# Without this, paramiko's channel reads block indefinitely if the
+# connection goes quiet (e.g. flaky robot radio), which previously caused
+# the download to hang forever with no error and no log output.
+_SFTP_SOCKET_TIMEOUT = 30.0
+
+# Minimum interval between progress log lines during a download.
+_PROGRESS_LOG_INTERVAL = 2.0
 
 try:
     import paramiko as _paramiko
@@ -56,6 +66,12 @@ def _fetch_latest_robot_log(suffix: str, logs_dir: pathlib.Path) -> pathlib.Path
             )
             connected_host = host
             log.info('SSH connected to roboRIO at %s', host)
+            transport = ssh.get_transport()
+            if transport is not None:
+                transport.set_keepalive(10)
+                sock = transport.sock
+                if sock is not None:
+                    sock.settimeout(_SFTP_SOCKET_TIMEOUT)
             break
         except (socket.timeout, socket.gaierror, OSError) as exc:
             log.debug('Connection to %s failed (network/timeout): %s', host, exc)
@@ -105,12 +121,41 @@ def _fetch_latest_robot_log(suffix: str, logs_dir: pathlib.Path) -> pathlib.Path
         tag        = ('_' + suffix.replace(' ', '_')) if suffix else ''
         local_path = logs_dir / f'{stem}{tag}.wpilog'
 
+        remote_size_kb = latest.st_size / 1024 if latest.st_size is not None else None
         log.info(
-            'Downloading %s (remote mtime=%s) -> %s',
-            remote_path, latest.st_mtime, local_path,
+            'Downloading %s (remote mtime=%s, size=%s) -> %s',
+            remote_path, latest.st_mtime,
+            f'{remote_size_kb:.1f} KB' if remote_size_kb is not None else 'unknown',
+            local_path,
         )
-        sftp.get(remote_path, str(local_path))
-        sftp.close()
+
+        last_log_time = time.monotonic()
+
+        def _progress(transferred: int, total: int) -> None:
+            nonlocal last_log_time
+            now = time.monotonic()
+            if now - last_log_time < _PROGRESS_LOG_INTERVAL and transferred < total:
+                return
+            last_log_time = now
+            pct = (transferred / total * 100) if total else 0.0
+            log.debug(
+                'Download progress: %.1f KB / %.1f KB (%.0f%%)',
+                transferred / 1024, total / 1024, pct,
+            )
+
+        try:
+            sftp.get(remote_path, str(local_path), callback=_progress)
+        except socket.timeout as exc:
+            log.error(
+                'Download stalled for >%.0fs with no data transferred — '
+                'aborting (%s)', _SFTP_SOCKET_TIMEOUT, exc,
+            )
+            raise ConnectionError(
+                f'Download of {latest.filename} stalled (no data for '
+                f'{_SFTP_SOCKET_TIMEOUT:.0f}s) — robot connection likely dropped.'
+            ) from exc
+        finally:
+            sftp.close()
 
         size_kb = local_path.stat().st_size / 1024
         log.info('Download complete: %s (%.1f KB)', local_path.name, size_kb)

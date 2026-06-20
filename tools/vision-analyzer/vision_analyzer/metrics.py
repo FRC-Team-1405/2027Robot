@@ -73,9 +73,19 @@ def find_drivetrain_speeds(signals: Dict) -> Tuple[Optional[str], Optional[str]]
         for c in candidates:
             if c in signals:
                 return c
+        for c in candidates:
+            # AdvantageKit @AutoLogOutput fields land under RealOutputs/
+            if 'RealOutputs/' + c in signals:
+                return 'RealOutputs/' + c
         for key in signals:
             kl = key.lower()
-            if 'vxmeters' in kl or ('speed' in kl and 'vx' in kl):
+            # Require both "speed" and "vx" together — matching on "vxmeters"
+            # alone is unreliable, e.g. "PoseStdDevXMeters1s" contains
+            # "...devXMeters..." which falsely contains the substring
+            # "vxmeters" and can win this match purely due to dict
+            # iteration order (which differs across re-parses of the
+            # "same" log whenever record order shifts even slightly).
+            if 'speed' in kl and 'vx' in kl:
                 return key
         return None
 
@@ -87,9 +97,14 @@ def find_drivetrain_speeds(signals: Dict) -> Tuple[Optional[str], Optional[str]]
             omega_key = c
             break
     if omega_key is None:
+        for c in candidates_angular:
+            if 'RealOutputs/' + c in signals:
+                omega_key = 'RealOutputs/' + c
+                break
+    if omega_key is None:
         for key in signals:
             kl = key.lower()
-            if 'omega' in kl or ('speed' in kl and ('omega' in kl or 'angular' in kl)):
+            if 'speed' in kl and ('omega' in kl or 'angular' in kl):
                 omega_key = key
                 break
 
@@ -599,19 +614,43 @@ def compute_camera_metrics(
 # ─── Signal Filtering ──────────────────────────────────────────────────────────
 
 def _filter_signals_by_time(signals: Dict, t_lo: float, t_hi: float) -> Dict:
-    """Return signals containing only samples within [t_lo, t_hi]."""
-    return {
-        name: [(t, v) for t, v in samples if t_lo <= t <= t_hi]
-        for name, samples in signals.items()
-    }
+    """
+    Return signals containing only samples within [t_lo, t_hi], with one
+    addition: if a signal has no sample inside the window but does have one
+    before it, that last pre-window sample is carried forward and re-stamped
+    to t_lo. WPILog only logs a value when it changes, so "no sample in this
+    window" usually means "value held steady from before the window" (e.g. a
+    Connected flag that goes true once and is never re-logged) rather than
+    "value unknown" — without this, narrowing the time range can make a
+    perfectly fine signal look like it has no data at all in that window.
+    """
+    out: Dict = {}
+    for name, samples in signals.items():
+        inwindow = [(t, v) for t, v in samples if t_lo <= t <= t_hi]
+        if inwindow:
+            out[name] = inwindow
+            continue
+        before = [(t, v) for t, v in samples if t < t_lo]
+        out[name] = [(t_lo, before[-1][1])] if before else []
+    return out
 
 
 def _compute_mode_spans(
-    signals: Dict, start_t: float
+    signals: Dict, start_t: float, end_t: Optional[float] = None
 ) -> List[Tuple[float, float, str]]:
     """
     Return [(rel_start, rel_end, mode), ...] where mode is 'disabled', 'auto', or 'teleop'.
     Times are seconds relative to start_t.
+
+    WPILog only writes a new sample when a value changes, so the mode in
+    effect after the *last* DriverStation/Enabled sample persists until the
+    log actually ends — it is not "unknown". The final span's end is
+    therefore extended to `end_t` (the true end of the log, across all
+    signals) rather than just the timestamp of that last sample. Otherwise a
+    steady disabled tail (e.g. the DS app closing while robot code keeps
+    running and logging other signals) looks like it ends early and gets
+    excluded from mode-driven trimming, even though it's genuinely disabled
+    the whole way to the end.
     """
     import bisect as _bisect
 
@@ -649,10 +688,36 @@ def _compute_mode_spans(
             current_mode = mode
             span_start   = t
 
+    final_end = (end_t - start_t) if end_t is not None else (enabled_sig[-1][0] - start_t)
     if current_mode is not None and span_start is not None:
-        spans.append((span_start - start_t, enabled_sig[-1][0] - start_t, current_mode))
+        spans.append((span_start - start_t, final_end, current_mode))
 
     return spans
+
+
+def _auto_trim_window(
+    mode_spans: List[Tuple[float, float, str]], duration: float,
+) -> Tuple[float, float]:
+    """
+    Return (lo, hi) seconds (relative to log start) that exclude only the
+    leading and trailing 'disabled' spans, if present. Spans sandwiched
+    between auto/teleop periods are left alone — only a single contiguous
+    lead-in/lead-out is trimmed.
+
+    Relies on _compute_mode_spans having already extended its last span to
+    the true end of the log (`end_t`), so a genuinely steady disabled tail
+    is reported as ending at `duration`, not cut short by a gap in
+    DriverStation/Enabled samples.
+    """
+    if not mode_spans:
+        return 0.0, duration
+
+    lo = mode_spans[0][1] if mode_spans[0][2] == 'disabled' else 0.0
+
+    last_start, _last_end, last_mode = mode_spans[-1]
+    hi = last_start if last_mode == 'disabled' else duration
+
+    return lo, max(lo, hi)
 
 
 # ─── Field Figure ──────────────────────────────────────────────────────────────
