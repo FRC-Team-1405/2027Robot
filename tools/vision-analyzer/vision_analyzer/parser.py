@@ -1,12 +1,16 @@
 """
 WPILog binary parser. No Streamlit or Plotly dependency.
 """
+import logging
 import pathlib
 import struct
+import time
 from collections import defaultdict
 from typing import Any, Dict, List, Tuple
 
 from .constants import POSE2D_SIZE, POSE3D_SIZE
+
+log = logging.getLogger(__name__)
 
 
 def _parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
@@ -35,6 +39,7 @@ def _parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
     entries: Dict[int, Dict[str, str]] = {}
     signals: Dict[str, List[Tuple[float, Any]]] = defaultdict(list)
 
+    t0 = time.monotonic()
     while pos < len(raw):
         if pos >= len(raw):
             break
@@ -72,15 +77,26 @@ def _parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
             if value is not None:
                 signals[entry['name']].append((ts_sec, value))
 
+    elapsed = time.monotonic() - t0
+    log.debug(
+        'Parsed %d bytes in %.2f s — %d signals, %d entries registered',
+        len(raw), elapsed, len(signals), len(entries),
+    )
     return dict(signals)
 
 
 def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
     """Parse a WPILib DataLog (.wpilog) file by path."""
-    raw = pathlib.Path(path).read_bytes()
+    p = pathlib.Path(path)
+    size_kb = p.stat().st_size / 1024 if p.exists() else 0
+    log.info('Reading %s (%.1f KB)', p.name, size_kb)
+    raw = p.read_bytes()
     try:
-        return _parse_wpilog_bytes(raw)
+        signals = _parse_wpilog_bytes(raw)
+        log.info('Parsed %s — %d signals total', p.name, len(signals))
+        return signals
     except ValueError as exc:
+        log.error('Failed to parse %s: %s', path, exc, exc_info=True)
         raise ValueError(f"{exc}: {path}") from exc
 
 
@@ -160,6 +176,9 @@ def _decode(payload: bytes, typ: str) -> Any:
                               'qw': vals[3], 'qx': vals[4], 'qy': vals[5], 'qz': vals[6]})
             return poses
 
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug(
+            '_decode error: type=%r payload_len=%d error=%s',
+            typ, len(payload), exc,
+        )
     return None

@@ -1,6 +1,7 @@
 """
 Streamlit application: sidebar, time-range selector, and tab orchestration.
 """
+import logging
 import pathlib
 import re
 from typing import Any, Dict, List, Optional, Tuple
@@ -16,6 +17,8 @@ from .metrics import (
 )
 from .robot import _HAS_PARAMIKO, _fetch_latest_robot_log, _DEFAULT_LOGS
 from .tabs import TABS
+
+log = logging.getLogger(__name__)
 
 
 def _running_under_streamlit() -> bool:
@@ -301,11 +304,14 @@ def _streamlit_app() -> None:
                 with st.spinner('Connecting to roboRIO…'):
                     try:
                         _local = _fetch_latest_robot_log(dl_suffix, _DEFAULT_LOGS)
+                        log.info('Robot log downloaded: %s', _local)
                         st.session_state['_robot_dl_path'] = str(_local)
                         st.session_state['_dl_status'] = ('ok', f'Downloaded: **{_local.name}**')
                     except (ConnectionError, FileNotFoundError, RuntimeError) as exc:
+                        log.error('Robot log download failed: %s', exc, exc_info=True)
                         st.session_state['_dl_status'] = ('err', str(exc))
                     except Exception as exc:
+                        log.exception('Unexpected error during robot log download: %s', exc)
                         st.session_state['_dl_status'] = ('err', f'Unexpected error: {exc}')
                 st.rerun()
 
@@ -341,21 +347,25 @@ def _streamlit_app() -> None:
         display_name = uploaded.name
         mtime_key    = 0.0
         file_key     = display_name
+        log.info('Log A: uploaded file %r (%d bytes)', display_name, len(source))
     elif _rdp and pathlib.Path(_rdp).exists():
         p            = pathlib.Path(_rdp)
         source       = str(p)
         display_name = p.name
         mtime_key    = p.stat().st_mtime
         file_key     = source
+        log.info('Log A: robot download %s (%.1f KB)', p.name, p.stat().st_size / 1024)
     elif log_path:
         p = pathlib.Path(log_path)
         if not p.exists():
+            log.error('Log A path not found: %s', log_path)
             st.error(f'File not found: `{log_path}`')
             return
         source       = str(p)
         display_name = p.name
         mtime_key    = p.stat().st_mtime
         file_key     = source
+        log.info('Log A: file path %s (%.1f KB)', p.name, p.stat().st_size / 1024)
     else:
         st.info('Drop a `.wpilog` file in the sidebar, enter a path, or download from the robot.')
         return
@@ -371,15 +381,18 @@ def _streamlit_app() -> None:
         display_name_b = uploaded_b.name
         mtime_key_b    = 0.0
         file_key_b     = display_name_b
+        log.info('Log B: uploaded file %r (%d bytes)', display_name_b, len(source_b))
     elif log_path_b:
         p_b = pathlib.Path(log_path_b)
         if not p_b.exists():
+            log.error('Log B path not found: %s', log_path_b)
             st.warning(f'Log B not found: `{log_path_b}`')
         else:
             source_b       = str(p_b)
             display_name_b = p_b.name
             mtime_key_b    = p_b.stat().st_mtime
             file_key_b     = source_b
+            log.info('Log B: file path %s (%.1f KB)', p_b.name, p_b.stat().st_size / 1024)
 
     # ── Stage 1: parse signals (cached by source + mtime) ────────────────────
     @st.cache_data(show_spinner='Scanning log...')
@@ -391,6 +404,7 @@ def _streamlit_app() -> None:
     try:
         signals = _scan_signals(source, mtime_key)
     except Exception as exc:
+        log.exception('Failed to parse Log A (%s): %s', display_name, exc)
         st.error(f'Failed to parse Log A: {exc}')
         st.exception(exc)
         return
@@ -414,6 +428,7 @@ def _streamlit_app() -> None:
         try:
             signals_b = _scan_signals(source_b, mtime_key_b)
         except Exception as exc:
+            log.exception('Failed to parse Log B (%s): %s', display_name_b, exc)
             st.warning(f'Failed to parse Log B: {exc}')
 
     if signals_b is not None:
@@ -469,7 +484,15 @@ def _streamlit_app() -> None:
             source, mtime_key,
             round(t_lo, 1), round(t_hi, 1),
         )
+        log.info(
+            'Log A metrics computed: %d camera(s) in window %.1f–%.1f s',
+            len(all_metrics), committed[0], committed[1],
+        )
     except Exception as exc:
+        log.exception(
+            'Failed to compute Log A metrics (%s, window %.1f–%.1f s): %s',
+            display_name, committed[0], committed[1], exc,
+        )
         st.error(f'Failed to compute Log A metrics: {exc}')
         st.exception(exc)
         return
@@ -496,7 +519,15 @@ def _streamlit_app() -> None:
             )
             if all_metrics_b:
                 fmt_b = all_metrics_b[0]['format']
+                log.info(
+                    'Log B metrics computed: %d camera(s) in window %.1f–%.1f s',
+                    len(all_metrics_b), committed_b[0], committed_b[1],
+                )
         except Exception as exc:
+            log.exception(
+                'Failed to compute Log B metrics (%s, window %.1f–%.1f s): %s',
+                display_name_b, committed_b[0], committed_b[1], exc,
+            )
             st.warning(f'Failed to compute Log B metrics: {exc}')
 
     # ── Camera filter + sidebar info ──────────────────────────────────────────
@@ -561,4 +592,9 @@ def _streamlit_app() -> None:
 
     for tab_widget, tab_module in zip(tab_widgets, TABS):
         with tab_widget:
-            tab_module.render(ctx)
+            try:
+                tab_module.render(ctx)
+            except Exception as exc:
+                log.exception('Error rendering tab %r: %s', tab_module.LABEL, exc)
+                st.error(f'Error rendering tab "{tab_module.LABEL}": {exc}')
+                st.exception(exc)

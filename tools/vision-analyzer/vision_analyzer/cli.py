@@ -2,11 +2,13 @@
 CLI entry point: probe mode and legacy HTML generation.
 """
 import argparse
+import logging
 import pathlib
 import sys
 from collections import defaultdict
 from typing import Dict, List
 
+from .logger import get_log_file
 from .parser import parse_wpilog
 from .metrics import (
     discover_cameras,
@@ -16,8 +18,11 @@ from .metrics import (
 )
 from .exporter import build_export_rows, rows_to_csv, rows_to_markdown
 
+log = logging.getLogger(__name__)
+
 
 def probe_signals(path: str) -> None:
+    log.info('probe_signals: %s', path)
     signals = parse_wpilog(path)
     print(f"\n{'-' * 60}")
     print(f"Signals in {pathlib.Path(path).name}  ({len(signals)} entries)")
@@ -38,28 +43,43 @@ def probe_signals(path: str) -> None:
 
 def _load_log(path: str):
     """Parse a wpilog and compute metrics for all cameras. Returns (metrics, duration, meta, cameras)."""
+    log.info('Loading log: %s', path)
     signals = parse_wpilog(path)
     cameras = discover_cameras(signals)
     all_ts  = [t for sig in signals.values() for t, _ in sig]
     start_t = min(all_ts) if all_ts else 0.0
     end_t   = max(all_ts) if all_ts else 0.0
+    duration = end_t - start_t
+    log.info('Log span: %.1f s  (%d signals)', duration, len(signals))
 
     meta: Dict[str, str] = {}
     for key in ('RealMetadata/ProjectName', 'RealMetadata/GitHash', 'RealMetadata/RuntimeType'):
         if key in signals and signals[key]:
             meta[key.split('/')[-1]] = str(signals[key][-1][1])
+    if meta:
+        log.info('Log metadata: %s', meta)
 
     lin_key, omega_key = find_drivetrain_speeds(signals)
+    if lin_key:
+        log.debug('Drivetrain linear speed signal: %s', lin_key)
+    else:
+        log.warning('No drivetrain linear speed signal found — velocity-correlated metrics will be unavailable')
+    if omega_key:
+        log.debug('Drivetrain angular speed signal: %s', omega_key)
+    else:
+        log.warning('No drivetrain angular speed signal found — velocity-correlated metrics will be unavailable')
+
     linear_sig = signals[lin_key] if lin_key else None
     omega_sig  = signals[omega_key] if omega_key else None
 
     all_metrics = []
     for cam in cameras:
         fmt = detect_format(signals, cam)
+        log.debug('Computing metrics for camera %r (format=%s)', cam, fmt)
         m = compute_camera_metrics(signals, cam, fmt, start_t, end_t, linear_sig, omega_sig)
         all_metrics.append(m)
 
-    return all_metrics, end_t - start_t, meta, cameras
+    return all_metrics, duration, meta, cameras
 
 
 def _write_legacy_html(
@@ -130,6 +150,10 @@ def _cli_main() -> None:
                         help='Dump all signal names and types, then exit')
     args = parser.parse_args()
 
+    log_file = get_log_file()
+    if log_file:
+        print(f'Logging to: {log_file}')
+
     if not args.paths:
         print('Usage: streamlit run analyze.py   (dashboard)')
         print('       python analyze.py --probe log.wpilog  (signal dump)')
@@ -139,14 +163,18 @@ def _cli_main() -> None:
     for p in args.paths:
         pp = pathlib.Path(p)
         if pp.is_dir():
-            log_files.extend(str(f) for f in sorted(pp.glob('*.wpilog')))
+            found = sorted(pp.glob('*.wpilog'))
+            log.info('Scanning directory %s — found %d .wpilog files', pp, len(found))
+            log_files.extend(str(f) for f in found)
         elif pp.suffix == '.wpilog':
             log_files.append(str(pp))
         else:
+            log.warning('Skipping %s — not a .wpilog file or directory', p)
             print(f'Warning: {p} is not a .wpilog file or directory, skipping.',
                   file=sys.stderr)
 
     if not log_files:
+        log.error('No .wpilog files found in provided paths: %s', args.paths)
         print('No .wpilog files found.', file=sys.stderr)
         sys.exit(1)
 
@@ -162,6 +190,7 @@ def _cli_main() -> None:
             all_metrics, duration, meta, cameras = _load_log(lf)
             print(f'{len(cameras)} cameras.')
             if not all_metrics:
+                log.warning('No vision cameras found in %s — skipping output generation', lf)
                 print('  No vision cameras found. Skipping.')
                 continue
             for m in all_metrics:
@@ -176,6 +205,7 @@ def _cli_main() -> None:
             stem     = pathlib.Path(lf).stem
             out_path = out_dir / f'{stem}_vision_dashboard.html'
             _write_legacy_html(all_metrics, duration, meta, pathlib.Path(lf).name, out_path)
+            log.info('Wrote HTML dashboard: %s', out_path)
             print(f'  -> {out_path}')
 
             cameras = [m['camera'] for m in all_metrics]
@@ -188,8 +218,10 @@ def _cli_main() -> None:
                 rows_to_markdown(rows, cameras, pathlib.Path(lf).name, fmt, duration, meta),
                 encoding='utf-8',
             )
+            log.info('Wrote CSV: %s', csv_path)
+            log.info('Wrote Markdown: %s', md_path)
             print(f'  -> {csv_path}')
             print(f'  -> {md_path}')
         except Exception as e:
+            log.exception('Error processing %s: %s', lf, e)
             print(f'Error processing {lf}: {e}', file=sys.stderr)
-            import traceback; traceback.print_exc()

@@ -1,6 +1,7 @@
 """
 roboRIO SSH download. Requires paramiko.
 """
+import logging
 import pathlib
 import socket
 from typing import Optional
@@ -12,11 +13,14 @@ from .constants import (
     _ROBOT_LOG_DIR,
 )
 
+log = logging.getLogger(__name__)
+
 try:
     import paramiko as _paramiko
     _HAS_PARAMIKO = True
 except ImportError:
     _HAS_PARAMIKO = False
+    log.warning('paramiko not installed — robot log download unavailable (pip install paramiko)')
 
 # robot.py is inside vision_analyzer/, so go up 4 levels to reach repo root
 _REPO_ROOT    = pathlib.Path(__file__).resolve().parent.parent.parent.parent
@@ -33,6 +37,7 @@ def _fetch_latest_robot_log(suffix: str, logs_dir: pathlib.Path) -> pathlib.Path
     if not _HAS_PARAMIKO:
         raise RuntimeError('paramiko is not installed — run: pip install paramiko')
 
+    log.info('Starting robot log download — suffix=%r  dest=%s', suffix, logs_dir)
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     ssh = _paramiko.SSHClient()
@@ -41,6 +46,7 @@ def _fetch_latest_robot_log(suffix: str, logs_dir: pathlib.Path) -> pathlib.Path
     last_exc: Exception = ConnectionError('no hosts tried')
     connected_host: Optional[str] = None
     for host in _ROBORIO_HOSTS:
+        log.debug('Attempting SSH connection to %s (user=%s)', host, _ROBORIO_USER)
         try:
             ssh.connect(
                 host,
@@ -49,42 +55,72 @@ def _fetch_latest_robot_log(suffix: str, logs_dir: pathlib.Path) -> pathlib.Path
                 look_for_keys=False, allow_agent=False,
             )
             connected_host = host
+            log.info('SSH connected to roboRIO at %s', host)
             break
         except (socket.timeout, socket.gaierror, OSError) as exc:
+            log.debug('Connection to %s failed (network/timeout): %s', host, exc)
             last_exc = exc
         except Exception as exc:           # paramiko.SSHException etc.
+            log.debug('Connection to %s failed (SSH error): %s', host, exc)
             last_exc = exc
 
     if connected_host is None:
-        raise ConnectionError(
+        err = (
             f'Could not reach roboRIO — tried {", ".join(_ROBORIO_HOSTS)}.\n'
             f'Make sure the robot is powered on and on the same network.\n'
             f'Last error: {last_exc}'
         )
+        log.error('Robot download failed: %s', err)
+        raise ConnectionError(err)
 
     try:
+        log.debug('Opening SFTP channel')
         sftp = ssh.open_sftp()
         try:
             entries = sftp.listdir_attr(_ROBOT_LOG_DIR)
         except OSError as exc:
+            log.error(
+                'Could not list log directory %r on roboRIO: %s',
+                _ROBOT_LOG_DIR, exc, exc_info=True,
+            )
             raise FileNotFoundError(
                 f'Log directory {_ROBOT_LOG_DIR!r} not found on roboRIO: {exc}'
             ) from exc
 
         wpi = [e for e in entries
                if e.filename.endswith('.wpilog') and e.st_mtime is not None]
+        log.debug(
+            'Found %d total entries in %s, %d are .wpilog files',
+            len(entries), _ROBOT_LOG_DIR, len(wpi),
+        )
+
         if not wpi:
-            raise FileNotFoundError(
-                f'No .wpilog files found in {_ROBOT_LOG_DIR} on roboRIO.'
-            )
+            msg = f'No .wpilog files found in {_ROBOT_LOG_DIR} on roboRIO.'
+            log.error(msg)
+            raise FileNotFoundError(msg)
 
         latest     = max(wpi, key=lambda e: e.st_mtime)
+        remote_path = f'{_ROBOT_LOG_DIR}/{latest.filename}'
         stem       = pathlib.PurePosixPath(latest.filename).stem
         tag        = ('_' + suffix.replace(' ', '_')) if suffix else ''
         local_path = logs_dir / f'{stem}{tag}.wpilog'
-        sftp.get(f'{_ROBOT_LOG_DIR}/{latest.filename}', str(local_path))
+
+        log.info(
+            'Downloading %s (remote mtime=%s) -> %s',
+            remote_path, latest.st_mtime, local_path,
+        )
+        sftp.get(remote_path, str(local_path))
         sftp.close()
+
+        size_kb = local_path.stat().st_size / 1024
+        log.info('Download complete: %s (%.1f KB)', local_path.name, size_kb)
+    except (FileNotFoundError, ConnectionError):
+        raise
+    except Exception as exc:
+        log.exception('Unexpected error during SFTP operation: %s', exc)
+        raise
     finally:
+        log.debug('Closing SSH connection to %s', connected_host)
         ssh.close()
 
     return local_path
