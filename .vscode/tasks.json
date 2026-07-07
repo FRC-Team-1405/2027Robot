@@ -34,6 +34,17 @@
             },
             "isBackground": true,
             "problemMatcher": []
+        },
+        {
+            "label": "SimBot",
+            "detail": "Sim the robot, QUICK!",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": [
+                "simulateJava"
+            ],
+            "isBackground": true,
+            "problemMatcher": []
         }
     ]
 }
