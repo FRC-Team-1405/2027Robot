@@ -1,4 +1,4 @@
-package frc.robot.lib;
+package frc.robot.commands.Autos;
 
 import java.util.HashMap;
 import java.util.function.Supplier;
@@ -11,9 +11,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import frc.robot.commands.Autos.AutoPoses;
-import frc.robot.commands.Autos.CommandsForAutos;
-import frc.robot.commands.Autos.Full_Autos;
 import frc.robot.commands.PidToPose.PidToPoseCommands;
 import frc.robot.subsystems.AdjustableHood;
 import frc.robot.subsystems.Climber;
@@ -49,7 +46,8 @@ public class AutoCommands {
 
                 commandsToAddToChooser.put("JUST_SHOOT_FROM_ANYWHERE",
                                 NamedCommands.getCommand("JUST_SHOOT_FROM_ANYWHERE"));
-
+                commandsToAddToChooser.put("testOffHub", 
+                                NamedCommands.getCommand("testOffHub"));
                 // commandsToAddToChooser.put("blueCenterToDepot",
                 // NamedCommands.getCommand("blueCenterToDepot"));
                 // // commandsToAddToChooser.put("DepotFaceIn",

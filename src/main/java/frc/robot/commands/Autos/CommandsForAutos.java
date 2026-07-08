@@ -15,7 +15,6 @@ import frc.robot.commands.DriveToHubDistance;
 import frc.robot.commands.AutoPilot.AutoPilotV2Command;
 import frc.robot.commands.Shooter.AutoFire;
 import frc.robot.constants.FieldConstants;
-import frc.robot.lib.AutoCommands;
 import frc.robot.subsystems.AdjustableHood;
 import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
@@ -172,7 +171,12 @@ public class CommandsForAutos {
                         () -> fourMeters.get(), drivetrain, "MoveTo_fourMeters")
                         .withFlipPoseForAlliance(true)
                         // .withConstraints(fullFieldConstraints)
-                        .withMaxVelocity(() -> Math.min(Math.min((1 - (pickup.getPidError() / 20)) * 5, 20), 1.5))
+                       // .withMaxVelocity(() -> Math.min(Math.min((1 - (pickup.getPidError() / 20)) * 5, 20), 1.5))
+                        .build();
+        Supplier<Command> MoveTo_testOffHub = () -> new AutoPilotV2Command.Builder(
+                        () -> testOffHub.get(), drivetrain, "MoveTo_testOffHub")
+                        .withFlipPoseForAlliance(true)
+                        // .withConstraints(fullFieldConstraints)
                         .build();
         // #endregion
         Supplier<Command> MoveTo_behindHub = () -> new AutoPilotV2Command.Builder(

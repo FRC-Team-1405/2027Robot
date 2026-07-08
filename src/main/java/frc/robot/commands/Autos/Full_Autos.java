@@ -517,6 +517,10 @@ public class Full_Autos {
                                 // Commands.deadline(cmds.MoveTo_fourMeters.get(), cmds.pickup.runPickupIn()))
                                 cmds.MoveTo_fourMeters.get())
                                 .withName("fourMeters");
+                Command testOffHub = new SequentialCommandGroup(
+                                cmds.MoveTo_testOffHub.get(),
+                                cmds.MoveTo_fourMeters.get())
+                                .withName("testOffHub");
                 Command TheShowboater = new SequentialCommandGroup(
                                 cmds.MoveTo_leftOfDepot_Out.get(),
                                 cmds.MoveTo_leftOfDepot_In.get(),
@@ -538,7 +542,8 @@ public class Full_Autos {
                                 cmds.MoveTo_behindHub.get()
 
                 ).withName("GET_THOSE_LEFTOVERS");
-
+                
+                NamedCommands.registerCommand("testOffHub", testOffHub);
                 NamedCommands.registerCommand("LeftStart_ToDepot", LeftStart_ToDepot);
 
                 // NamedCommands.registerCommand("rightBumpToField", rightBumpToField);
@@ -574,12 +579,13 @@ public class Full_Autos {
                 // NamedCommands.registerCommand("LeftStartDepotScore", LeftStartDepotScore);
                 // NamedCommands.registerCommand("RightStartDepotScore", RightStartDepotScore);
 
-                // Feeding station
+                //#region Feeding station
                 NamedCommands.registerCommand("RightStartFeedingStationScore", RightStartFeedingStationScore);
                 NamedCommands.registerCommand("LeftStartFeedingStationScore", LeftStartFeedingStationScore);
 
                 NamedCommands.registerCommand("CenterStartFeedingStationScore",
                                 CenterStartFeedingStationScore);
+                //#endregion
                 NamedCommands.registerCommand("LeftDepotShootCenterHarvestInLeftShoot",
                                 LeftDepotShootCenterHarvestInLeftShoot);
                 NamedCommands.registerCommand("TheShowboater", TheShowboater);
