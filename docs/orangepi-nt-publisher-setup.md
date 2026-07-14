@@ -18,7 +18,8 @@ sudo apt install -y python3-venv
 
 python3 -m venv /home/pi/.venv-ntpublisher
 /home/pi/.venv-ntpublisher/bin/pip install --upgrade pip
-/home/pi/.venv-ntpublisher/bin/pip install robotpy-ntcore
+/home/pi/.venv-ntpublisher/bin/pip install -U pyntcore
+# broken, not needed /home/pi/.venv-ntpublisher/bin/pip install robotpy-ntcore
 ```
 
 Confirm it imports cleanly:
