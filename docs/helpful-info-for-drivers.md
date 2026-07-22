@@ -1,5 +1,5 @@
 # Dashboard Troubleshooting Steps
-## (Elastic, Advantage Scope) 
+## (Elastic, Advantage Scope)
 ![alt text](image.png)
     4. Call Stephen.
 
