@@ -2,7 +2,7 @@
 
 Installs `coprocessor/orangepi-nt-publisher.py` as a systemd service on the PhotonVision Orange Pi, so CPU/RAM/disk/temperature metrics show up in NetworkTables under `/OrangePi/`.
 
-**Prerequisite:** the Pi needs internet access once, to install the `robotpy-ntcore` Python package. The previous install attempt failed because the Pi has no internet route at all (see `notes/6-20/photonVisionSSH.txt`). Follow **`docs/orangepi-internet-access.md`** first, then come back here. Don't skip the "disconnect Wi-Fi when done" step in that doc before the Pi goes back on a robot.
+**Prerequisite:** the Pi needs internet access once, to install the `pyntcore` Python package (the PyPI package is named `pyntcore`, not `robotpy-ntcore` — that name 404s). The previous install attempt failed because the Pi has no internet route at all (see `notes/6-20/photonVisionSSH.txt`). Follow **`docs/orangepi-internet-access.md`** first, then come back here. Don't skip the "disconnect Wi-Fi when done" step in that doc before the Pi goes back on a robot.
 
 ## 1. Get a Python environment with `ntcore`
 

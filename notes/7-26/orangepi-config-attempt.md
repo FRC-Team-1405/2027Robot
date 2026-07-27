@@ -250,3 +250,90 @@ existing repo docs:
 - `docs/coprocessor-research.md` — Orange Pi 5 vs Rubik Pi 3 status/context
 - `notes/6-20/photonVisionSSH.txt` — prior SSH session log, same symptoms
   (no internet, `pip`/`ntcore` missing)
+
+## Update — power was the culprit; reflashed anyway; full setup completed
+
+User confirmed the power theory was right and reflashed the SD card with
+the latest image from the PhotonVision website regardless. Picking back up
+on a fresh image, with the `piclaw` static-IP + `dnsmasq` DHCP-on-`eth0`
+setup from earlier still in place:
+
+1. **Connectivity:** the fresh image's DHCP client got a lease immediately
+   (`10.14.5.186`, hostname `photonvision`) — confirms the physical
+   link/power issue is resolved, no more flapping.
+2. **SSH credentials changed** on the new image: `photon` / `vision`
+   (not the old `pi` user). `sshpass` was installed on `piclaw` to script
+   this non-interactively.
+3. **Internet access:** rather than using the Orange Pi's own Wi-Fi (the
+   method in `docs/orangepi-internet-access.md`, which requires
+   remembering to disable Wi-Fi before competition), routed the Pi's
+   internet through `piclaw` itself, since `piclaw` already has Wi-Fi
+   internet:
+   - `sudo sysctl -w net.ipv4.ip_forward=1` on `piclaw`
+   - `sudo iptables -t nat -A POSTROUTING -s 10.14.5.0/24 -o wlan0 -j MASQUERADE`
+     plus matching FORWARD rules
+   - Added `dhcp-option=3,10.14.5.1` (gateway) and `dhcp-option=6,8.8.8.8,1.1.1.1`
+     (DNS) to `/etc/dnsmasq.d/eth0-dhcp.conf`, restarted dnsmasq
+   - Forced a lease renewal on the Pi (`sudo nmcli connection down/up dhcp-end1`)
+
+   **This never touches the Orange Pi's own Wi-Fi radio at all**, so there's
+   no "disable Wi-Fi before it goes back on the robot" step to remember —
+   an advantage over the Wi-Fi method for future re-installs on this same
+   bench setup. This NAT config lives on `piclaw`, not the Orange Pi; it
+   has no effect once the Pi is back on the robot network. (These iptables
+   rules are not persisted across a `piclaw` reboot — if `piclaw` itself
+   restarts, redo the `sysctl`/`iptables` lines above.)
+4. **Clock:** the fresh image booted with a system clock ~641 days behind
+   (never had internet to NTP-sync before). This broke `apt`'s Release-file
+   date validation on the first `apt update` attempt. It self-corrected via
+   `systemd-timesyncd` within moments of getting a real internet route —
+   no manual fix needed, just re-run `apt update` if you see "Release file
+   ... is not valid yet" errors.
+5. **`apt upgrade`:** 299 packages upgraded. Two snags, both resolved:
+   - `DEBIAN_FRONTEND=noninteractive` alone doesn't suppress dpkg's
+     conffile-conflict prompt for `/etc/issue` (PhotonVision customizes
+     this file with its banner, so dpkg sees a local change and asks).
+     Fix: add `-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"`
+     to `apt-get upgrade`, which keeps locally-modified conffiles by default.
+   - Upgrading `openssh-server` restarts `sshd` mid-upgrade, which drops
+     the current SSH session — but the remote `apt`/`dpkg` process **keeps
+     running server-side**, detached from the dropped session. A second
+     SSH-and-rerun attempt collided with the still-running first attempt
+     on the dpkg lock (`dpkg frontend lock was locked by another process`).
+     Lesson: if a long `apt upgrade` over SSH drops mid-`openssh-server`
+     upgrade, **wait and reconnect** rather than immediately re-launching —
+     it's very likely still finishing on its own (it was, here — stuck on
+     a slow `update-initramfs` in the postinst script).
+   - `sudo reboot` afterward to clear `/var/run/reboot-required` and load
+     the fully-updated library set; came back up clean with the same
+     DHCP lease.
+6. **Camera:** detected fine at the OS level — `v4l2-ctl --list-devices`
+   shows `Cam1: Cam1` on `/dev/video0`/`/dev/video1` via the `uvcvideo`
+   driver (generic UVC enumeration is normal/expected for Arducam modules;
+   they typically don't report a distinct "Arducam" USB string).
+   PhotonVision's web UI responds `HTTP 200` on port 5800, confirming the
+   service is fully up.
+7. **`orangepi-nt-publisher` service:** reinstalled per
+   `docs/orangepi-nt-publisher-setup.md`, adjusted for the new `photon`
+   user (paths were `/home/pi/...`, changed to `/home/photon/...`):
+   - `python3 -m venv /home/photon/.venv-ntpublisher`
+   - `pip install pyntcore` — the doc's intro prose said `robotpy-ntcore`,
+     which 404s on PyPI; the correct package name is `pyntcore` (the doc's
+     own install *command* already had this right, just the description
+     text didn't — fixed in this update).
+   - Copied `orangepi-nt-publisher.py`/`.service`, pointed `ExecStart` at
+     the venv's Python, `systemctl enable --now`. Confirmed
+     `active (running)`, no crash-loop in `journalctl`.
+
+**End state:** fresh PhotonVision image, fully updated, camera detected,
+NT metrics publisher running, reachable at `10.14.5.186` (DHCP — this
+image uses DHCP by default unlike the old image's static `10.14.5.202`,
+so no manual revert-to-static step is needed before it goes back on the
+robot; the robot radio's own DHCP will hand it a normal lease).
+
+**Still outstanding (not attempted this session):**
+- Actual PhotonVision pipeline/camera calibration configuration through
+  the web UI — needs a human looking at the video feed, not scriptable.
+- Confirming NT metrics actually reach the roboRIO once back on the real
+  robot network (previously confirmed working per `notes/7-14/`, should
+  just work again, but hasn't been re-verified since the reflash).
