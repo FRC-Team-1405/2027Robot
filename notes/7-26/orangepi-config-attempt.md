@@ -1,5 +1,80 @@
 # Orange Pi 5 Reconfiguration Attempt — 2026-07-26
 
+## Update (same day, second pass with working sudo)
+
+Sudo access was restored in-session. Did the planned fix:
+
+1. `sudo apt-get install -y dnsmasq` — clean install, no pre-existing config
+   to worry about.
+2. Set `eth0` to a stable static IP via NetworkManager instead of a raw
+   `ip addr add`, so NM's own DHCP retry loop wouldn't fight it or flush it:
+   ```bash
+   sudo nmcli connection modify "Wired connection 1" ipv4.method manual \
+     ipv4.addresses 10.14.5.1/24 ipv4.never-default yes ipv6.method ignore
+   sudo nmcli connection up "Wired connection 1"
+   ```
+3. Scoped dnsmasq to DHCP-only on `eth0` (DNS disabled via `port=0` so it
+   doesn't touch the box's existing resolver setup, which depends on
+   Tailscale's MagicDNS at `100.100.100.100`) — config installed at
+   `/etc/dnsmasq.d/eth0-dhcp.conf`:
+   ```
+   interface=eth0
+   bind-interfaces
+   except-interface=lo
+   except-interface=wlan0
+   except-interface=tailscale0
+   dhcp-range=10.14.5.100,10.14.5.200,12h
+   dhcp-authoritative
+   port=0
+   ```
+   `sudo systemctl restart dnsmasq` confirmed via `journalctl -u dnsmasq`:
+   `DHCP, sockets bound exclusively to interface eth0`.
+
+**Revised finding — this is very likely a physical-layer problem, not a
+DHCP standoff.** After the DHCP server was live and ready, `eth0` kept
+flapping `Link is Down` / `Link is Up - 100Mbps/Full` on the *exact same*
+~21-22 second cadence as before any changes were made — the fix had zero
+effect on the flap pattern, which it should have if the far end were a
+DHCP client that just needed a server to answer it.
+
+More telling: `sudo tcpdump -i eth0 -n -e` run twice (30s, then 25s) across
+multiple full up/down cycles captured **zero incoming packets** — only
+this box's own outgoing IPv6 multicast listener reports. No ARP, no DHCP
+discover, no mDNS, nothing arriving from any remote device, ever. A live
+DHCP client (dhclient/NetworkManager/systemd-networkd) retries every few
+seconds and would have shown up well within that window if it were
+actually there and trying.
+
+**Conclusion:** something at the physical layer is producing successful
+100Mbps/Full autonegotiation but no actual data is crossing the link in
+either direction from a remote device. This is consistent with:
+- a marginal/damaged Ethernet cable,
+- a loose connector on one end,
+- the Orange Pi's Ethernet port itself not actually connected/live, or
+- the Orange Pi not being powered on at all.
+
+This can't be diagnosed further from software — it needs eyes on the
+hardware. **Recommended physical checks, in order:**
+1. Confirm the Orange Pi has power (status LEDs lit / fan spinning).
+2. Reseat the Ethernet cable fully on both ends (both this Pi's port and
+   the Orange Pi's port) — listen/feel for the clip click.
+3. Check the Orange Pi's own Ethernet port link LED — if it's dark or
+   also flapping, that corroborates a cable/port problem rather than
+   something specific to this box's NIC.
+4. Swap in a known-good cable if one's available.
+5. Once the cable/power is confirmed good, no further software changes
+   should be needed on this end — the static IP + scoped DHCP server are
+   already in place and listening, so a real link partner should get a
+   lease within seconds. Watch with:
+   ```bash
+   sudo journalctl -u dnsmasq -f
+   cat /var/lib/misc/dnsmasq.leases
+   ```
+
+The static-IP and dnsmasq changes above were left in place (harmless,
+scoped only to `eth0`, doesn't touch DNS or other interfaces) so the next
+session can pick up immediately once the cable/power issue is resolved.
+
 ## Goal
 
 User connected the control laptop (`piclaw`, a Raspberry Pi running Debian 13
