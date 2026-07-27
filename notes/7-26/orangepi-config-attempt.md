@@ -75,6 +75,43 @@ The static-IP and dnsmasq changes above were left in place (harmless,
 scoped only to `eth0`, doesn't touch DNS or other interfaces) so the next
 session can pick up immediately once the cable/power issue is resolved.
 
+## Update — likely root cause: underpowered via USB-A-to-USB-C adapter
+
+User confirmed the Orange Pi is currently powered at home via a USB-A power
+brick + a USB-A-to-USB-C adapter/cable into the board's USB-C power input,
+not a proper USB-C PD charger with a native USB-C-to-USB-C cable.
+
+This is almost certainly the actual root cause of the link-flap symptom
+above, and is a better fit for the evidence than a bad Ethernet cable:
+
+- Orange Pi 5 boards want 5V at 3-4A (~15-20W) over USB-C. A USB-A port
+  only supplies 5V and has no PD negotiation; a USB-A-to-C adapter/cable
+  frequently also lacks the CC-line pull-down resistor a USB-C port needs
+  to request anything above the default ~500mA-900mA. Under any real load
+  (Ethernet PHY + camera + PhotonVision's vision pipeline on the NPU/CPU),
+  the board can brown out.
+- A brownout that recovers as soon as draw drops, then repeats as soon as
+  the peripheral (onboard Ethernet) comes back up and starts drawing
+  current again, produces exactly the ~21-22s clockwork up/down cadence
+  observed here — a **bad cable typically flaps irregularly**, tied to
+  vibration/contact resistance, not on a fixed period. A power-brownout
+  loop is the more coherent explanation.
+- Unlike Raspberry Pi, Rockchip boards generally don't log an explicit
+  "under-voltage detected" kernel warning, so there's no dmesg smoking gun
+  to point to directly — absence of that message doesn't rule it out.
+
+**This also bears on the reflash question.** The notes pulled in from
+`notes/6-23/`, `notes/7-7/`, and `notes/7-14/` show this exact SD
+card/image was working fine as recently as 2026-07-14 — successful SSH,
+PhotonVision UI reachable, NT metrics publishing CPU temp/etc. A corrupted
+or "bogus" image would be a surprising regression given that recent a
+success, and corrupted images tend to show up as boot failures or
+filesystem errors, not a clean physical-layer-only symptom (successful
+autonegotiation, zero data ever, fixed-period flapping). **Recommendation:
+try a proper 5V/3A+ USB-C PD power supply and a real USB-C-to-USB-C cable
+before reflashing** — it's the cheaper, faster, non-destructive test, and
+better matches the evidence than a bad image.
+
 ## Goal
 
 User connected the control laptop (`piclaw`, a Raspberry Pi running Debian 13
