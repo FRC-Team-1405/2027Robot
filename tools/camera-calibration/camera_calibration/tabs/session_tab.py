@@ -30,6 +30,8 @@ def _detect_windows(signals: dict, start_t: float) -> list[tuple[float, float]]:
     if not events:
         return []
 
+    first_t = events[0][0]
+
     cur_lin = 0.0
     cur_ang = 0.0
     in_stat = False
@@ -47,13 +49,23 @@ def _detect_windows(signals: dict, start_t: float) -> list[tuple[float, float]]:
             win_start = t
         elif not stat and in_stat:
             in_stat = False
-            if t - win_start >= _MIN_DUR:
+            # A window already underway at the very first sample is
+            # truncated by the log's own start, not by an observed motion
+            # transition — we don't know how long the robot was actually
+            # stationary before recording began, so its *visible* duration
+            # is only a lower bound and must not be held to _MIN_DUR.
+            leading_truncated = win_start == first_t
+            if leading_truncated or t - win_start >= _MIN_DUR:
                 windows.append((win_start, t))
 
     if in_stat:
+        # Mirror image of the above: the log ends while the robot is still
+        # stationary, so this window's true duration extends past what we
+        # can see. This is frequently the *last* calibration stop (operator
+        # grabs a few vision frames and stops recording soon after), so it
+        # must never be dropped just because the visible slice is short.
         last_t = events[-1][0]
-        if last_t - win_start >= _MIN_DUR:
-            windows.append((win_start, last_t))
+        windows.append((win_start, last_t))
 
     return windows
 
