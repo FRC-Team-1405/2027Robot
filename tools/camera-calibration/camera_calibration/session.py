@@ -35,9 +35,17 @@ def compute_heading_deg(corner_l_in: float, corner_r_in: float,
     → positive heading. (A CCW turn, viewed from above, swings the robot's right
     side toward the wall and its left side away from it.)
 
-        heading = atan2(corner_l − corner_r, bumper_rail_width)
+    For a rigid rectangular footprint pivoting about its own center, the
+    corner-distance difference is an EXACT sine of the heading (not just a
+    small-angle approximation):
+        corner_l − corner_r = bumper_rail_width · sin(heading)
+        heading = asin((corner_l − corner_r) / bumper_rail_width)
+    Using atan2 here instead of asin would only be accurate for small angles
+    and drift increasingly at larger headings.
     """
-    return math.degrees(math.atan2(corner_l_in - corner_r_in, bumper_rail_width_in))
+    ratio = (corner_l_in - corner_r_in) / bumper_rail_width_in
+    ratio = max(-1.0, min(1.0, ratio))  # clamp for measurement noise
+    return math.degrees(math.asin(ratio))
 
 
 def user_heading_to_wpilib_yaw(heading_user_deg: float) -> float:
@@ -94,6 +102,6 @@ def math_breakdown(
          f'{c_diff:.3f} in'),
 
         ('Heading (°)',
-         f'atan2({c_diff:.3f}, {bumper_rail_width_in:.2f})',
+         f'asin({c_diff:.3f} / {bumper_rail_width_in:.2f})',
          f'{h_deg:.2f}°'),
     ]

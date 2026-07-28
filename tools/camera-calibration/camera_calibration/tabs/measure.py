@@ -46,7 +46,19 @@ def render(ctx: dict) -> None:
         use_container_width=True,
         key='_calib_meas_editor',
     )
-    st.session_state['_calib_meas_df'] = edited
+    # Do NOT write `edited` back into '_calib_meas_df': that key only seeds
+    # the widget's `value=` on first render, and nothing else reads it
+    # afterward, so reassigning it here just fights the widget's own
+    # per-cell edit tracking (keyed by '_calib_meas_editor') for no benefit.
+    # Read live data from `edited` below instead.
+    #
+    # Note: this does NOT fix the "typing fast clears the cell, works on the
+    # second try" glitch reported against this table. That reproduces even
+    # in a bare `st.data_editor` with none of this app's code — it's an
+    # upstream Streamlit/glide-data-grid issue where fast keystrokes race a
+    # re-render and only the last character survives (matches
+    # streamlit/streamlit#7831). Workaround: paste values instead of typing
+    # them, or pause briefly between digits.
 
     # Compute results
     rows = []
@@ -118,8 +130,10 @@ front bumper corner:
 
 **Formula:**
 ```
-heading = atan2(Corner L − Corner R, bumper rail width)
+heading = asin((Corner L − Corner R) / bumper rail width)
 ```
+This is exact for a rigid rectangular footprint pivoting about its center —
+not just a small-angle approximation — so it holds at large headings too.
 
 | Scenario | Corner R vs. Corner L | Heading |
 |---|---|---|
