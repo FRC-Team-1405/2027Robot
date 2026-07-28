@@ -33,14 +33,16 @@ def robot_pose_to_field(
     Calibration coordinate frame (tag-local):
       origin  = tag center
       +X axis = tag face direction (outward, toward robot approach area)
-      +Y axis = tag's +Y (left when facing the tag from the robot side)
+      +Y axis = tag's +Y (X×Y=Z with X outward, Z up → this is the tag's own
+                left as it "looks" outward, which is the robot's RIGHT when the
+                robot stands facing the tag)
       +Z axis = up
 
     Parameters
     ----------
     tag_matrix:           field-frame SE(3) of the tag (from field_calibration.json)
     x_calib_m:            perpendicular distance from tag face to robot center
-    y_calib_m:            lateral offset, positive = robot's left / tag's +Y
+    y_calib_m:            lateral offset, positive = robot's right / tag's +Y
     tag_height_m:         tag center height from floor; robot floor = z=-tag_height in tag frame
     heading_wpilib_deg:   WPILib yaw (180° = facing tag = typical starting point)
     """

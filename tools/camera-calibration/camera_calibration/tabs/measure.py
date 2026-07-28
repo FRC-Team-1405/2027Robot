@@ -75,7 +75,7 @@ def render(ctx: dict) -> None:
     st.markdown('#### Computed Robot Poses')
     st.caption(
         'x = perpendicular distance from tag face plane to robot center  |  '
-        'y = lateral offset (+left, −right from robot POV facing tag)  |  '
+        'y = lateral offset (−left, +right from robot POV facing tag)  |  '
         'heading = CCW positive, 0° = facing tag straight-on'
     )
     st.dataframe(results_df, use_container_width=True, hide_index=True)
@@ -118,14 +118,14 @@ front bumper corner:
 
 **Formula:**
 ```
-heading = atan2(Corner R − Corner L, bumper rail width)
+heading = atan2(Corner L − Corner R, bumper rail width)
 ```
 
 | Scenario | Corner R vs. Corner L | Heading |
 |---|---|---|
 | Facing tag straight | R = L | 0° |
-| Turned CCW (left) | R > L | + degrees |
-| Turned CW (right)  | R < L | − degrees |
+| Turned CCW (left) | R < L | + degrees |
+| Turned CW (right)  | R > L | − degrees |
 
 **Tip:** for ≤5° heading, a square or speed-square against the bumper is faster and
 good enough. Use the corner method for larger angles.

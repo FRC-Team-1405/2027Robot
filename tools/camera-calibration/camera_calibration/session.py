@@ -13,9 +13,14 @@ def compute_y_in(tape_b_in: float, half_width_in: float, side: str) -> float:
     tape_b_in : unsigned distance from tag centerline to nearest bumper rail edge
     side      : 'left'  → robot center is to the left  of the tag (from robot's POV facing tag)
                 'right' → robot center is to the right of the tag
-    Positive y = robot's left = tag's +Y direction.
+
+    The calibration frame's +Y is defined by X×Y=Z (X = tag-face-outward, Z = up),
+    which makes +Y the tag's own left as it "looks" outward — i.e. the robot's
+    RIGHT when the robot stands facing the tag. So:
+        Positive y = robot's right = tag's +Y direction.
+        Negative y = robot's left  = tag's −Y direction.
     """
-    sign = +1 if side == 'left' else -1
+    sign = -1 if side == 'left' else +1
     return sign * (tape_b_in + half_width_in)
 
 
@@ -26,12 +31,13 @@ def compute_heading_deg(corner_l_in: float, corner_r_in: float,
     corner_l_in / corner_r_in : distances from each FRONT bumper corner to the
         TAG FACE WALL (or any parallel reference plane).  Smaller = closer to wall.
 
-    Convention: right corner farther from wall than left corner → robot rotated CCW
-    → positive heading.
+    Convention: left corner farther from wall than right corner → robot rotated CCW
+    → positive heading. (A CCW turn, viewed from above, swings the robot's right
+    side toward the wall and its left side away from it.)
 
-        heading = atan2(corner_r − corner_l, bumper_rail_width)
+        heading = atan2(corner_l − corner_r, bumper_rail_width)
     """
-    return math.degrees(math.atan2(corner_r_in - corner_l_in, bumper_rail_width_in))
+    return math.degrees(math.atan2(corner_l_in - corner_r_in, bumper_rail_width_in))
 
 
 def user_heading_to_wpilib_yaw(heading_user_deg: float) -> float:
@@ -39,10 +45,11 @@ def user_heading_to_wpilib_yaw(heading_user_deg: float) -> float:
 
     When the robot faces the tag it faces along the tag's −X axis, which in the
     calibration frame is the −X direction → WPILib yaw = 180°.
-    Turning CCW (positive user heading) decreases WPILib yaw:
-        yaw_wpilib = 180° − heading_user
+    WPILib yaw is CCW-positive (increases going CCW, viewed from above), so a
+    CCW turn (positive user heading) increases WPILib yaw:
+        yaw_wpilib = 180° + heading_user
     """
-    return 180.0 - heading_user_deg
+    return 180.0 + heading_user_deg
 
 
 def math_breakdown(
@@ -60,8 +67,8 @@ def math_breakdown(
     h_deg  = compute_heading_deg(corner_l_in, corner_r_in, bumper_rail_width_in)
     x_m    = x_in * 0.0254
     y_m    = y_in * 0.0254
-    c_diff = corner_r_in - corner_l_in
-    sign   = '+' if side == 'left' else '−'
+    c_diff = corner_l_in - corner_r_in
+    sign   = '−' if side == 'left' else '+'
 
     return [
         ('X position (in)',
@@ -83,7 +90,7 @@ def math_breakdown(
          f'{y_m:.4f} m'),
 
         ('Corner diff (in)',
-         f'Corner R − Corner L  = {corner_r_in:.2f} − {corner_l_in:.2f}',
+         f'Corner L − Corner R  = {corner_l_in:.2f} − {corner_r_in:.2f}',
          f'{c_diff:.3f} in'),
 
         ('Heading (°)',
