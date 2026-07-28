@@ -45,7 +45,9 @@ drove to any location and measured against the wall and the centerline. much eas
 | 4 | 33 | 14.5 | 26.5 | 39 |
 
 
-Robot dimensions: 27x27in
+Robot dimensions 1/2 length: 13.5in
+Bumper rail width (in): 27
+Tag ID: 32
 Tag center height: 41.125in
 
 

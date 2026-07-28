@@ -17,7 +17,7 @@ GY-61
 # Cameras
 4x Limelight 2
 3x INNO-MAKER CAM-MIPI9281RAW-V2 Raspi 
-8x ArduCam UC-844 Rev.B
+8x ArduCam UC-844 Rev.B (Arducam OV9281)
 
 # TOF
 4x, SEN-36005, playing with fusion can bus time of flight range sensor
