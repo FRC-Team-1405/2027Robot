@@ -1,4 +1,6 @@
 """Tab 1 — Measure: convert tape readings to robot poses, showing all math steps."""
+import logging
+
 import pandas as pd
 import streamlit as st
 
@@ -6,6 +8,8 @@ from ..session import (
     compute_x_in, compute_y_in, compute_heading_deg,
     user_heading_to_wpilib_yaw, math_breakdown,
 )
+
+log = logging.getLogger(__name__)
 
 LABEL = '1 · Measure'
 
@@ -68,7 +72,13 @@ def render(ctx: dict) -> None:
             y_in = compute_y_in(row['Tape B (in)'], rc['half_wid'], row['Side'])
             h    = compute_heading_deg(row['Corner L (in)'], row['Corner R (in)'],
                                        rc['bumper_rail_w'])
-        except Exception:
+        except Exception as exc:
+            log.warning(
+                'Row %r: measurement math failed (%s) — showing NaN instead of a '
+                'wrong number. Check for blank/non-numeric tape readings or a zero '
+                'bumper rail width.',
+                row.get('Label'), exc,
+            )
             x_in = y_in = h = float('nan')
         rows.append({
             'Label':   row['Label'],

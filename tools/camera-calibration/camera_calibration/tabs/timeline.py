@@ -1,6 +1,10 @@
 """Tab 2 — Timeline: velocity chart and stationary window preview."""
 import streamlit as st
 
+# vision-analyzer is on sys.path by the time this module loads — see
+# camera_calibration/__init__.py -> logger.py.
+from vision_analyzer.metrics import find_drivetrain_speeds
+
 LABEL = '2 · Timeline'
 
 
@@ -11,12 +15,6 @@ def render(ctx: dict) -> None:
     if signals is None:
         st.info('Load a `.wpilog` file in the sidebar to see the velocity timeline.')
         return
-
-    import sys, pathlib
-    _va = pathlib.Path(__file__).parents[3] / 'vision-analyzer'
-    if str(_va) not in sys.path:
-        sys.path.insert(0, str(_va))
-    from vision_analyzer.metrics import find_drivetrain_speeds
 
     lin_key, ang_key = find_drivetrain_speeds(signals)
     if not lin_key and not ang_key:

@@ -1,3 +1,3 @@
-from . import measure, timeline, session_tab, solve
+from . import measure, timeline, session_tab, solve, live_health
 
-TABS = [measure, timeline, session_tab, solve]
+TABS = [measure, timeline, session_tab, solve, live_health]

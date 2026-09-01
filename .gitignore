@@ -178,6 +178,17 @@ networktables.json.bck
 # Simulation data log directory
 logs/
 
+# Tool session logs (vision-analyzer, camera-calibration): keep the folder
+# itself (via .gitkeep) so it exists in a fresh clone, but ignore the
+# timestamped log files it fills up with — those are per-run and local only.
+!tools/vision-analyzer/logs/
+tools/vision-analyzer/logs/*
+!tools/vision-analyzer/logs/.gitkeep
+
+!tools/camera-calibration/logs/
+tools/camera-calibration/logs/*
+!tools/camera-calibration/logs/.gitkeep
+
 # Folder that has CTRE Phoenix Sim device config storage
 ctre_sim/
 

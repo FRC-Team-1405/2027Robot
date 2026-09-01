@@ -1,21 +1,19 @@
 """Streamlit camera calibration app: sidebar, log parsing, and tab routing."""
 import logging
 import pathlib
-import sys
 from typing import Optional
 
 import streamlit as st
 
-# Make the sibling vision-analyzer importable
-_VA_PATH = pathlib.Path(__file__).parents[2] / 'vision-analyzer'
-if str(_VA_PATH) not in sys.path:
-    sys.path.insert(0, str(_VA_PATH))
-
+# vision-analyzer is put on sys.path (and its logging bridged into ours) by
+# camera_calibration/__init__.py -> logger.py, which always runs first as
+# part of importing this package.
 from vision_analyzer.parser import _parse_wpilog_bytes, parse_wpilog
 
-from .field  import load_tag_poses
-from .solver import params_to_matrix
-from .tabs   import TABS
+from .field   import load_tag_poses
+from .logger  import get_log_file
+from .solver  import params_to_matrix
+from .tabs    import TABS
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +43,10 @@ def _streamlit_app() -> None:
 
     # ── Sidebar ───────────────────────────────────────────────────────────────
     with st.sidebar:
+        session_log = get_log_file()
+        if session_log:
+            st.caption(f'📝 Session log: `{session_log}`')
+
         st.header('Log File')
         uploaded = st.file_uploader(
             'Drop or browse a .wpilog file', type=['wpilog'],
@@ -146,6 +148,7 @@ def _streamlit_app() -> None:
         try:
             signals = _parse_bytes(raw_bytes, uploaded.name)
         except Exception as exc:
+            log.exception('Failed to parse uploaded log %r', uploaded.name)
             st.sidebar.error(f'Parse error: {exc}')
 
     elif log_path:
@@ -163,12 +166,18 @@ def _streamlit_app() -> None:
             try:
                 signals = _parse_file(log_path, mtime_key)
             except Exception as exc:
+                log.exception('Failed to parse log file %r', log_path)
                 st.sidebar.error(f'Parse error: {exc}')
 
     if display_name and signals:
         all_ts  = [t for sig in signals.values() for t, _ in sig]
         start_t = min(all_ts) if all_ts else 0.0
-        st.sidebar.success(f'✓ {display_name}')
+        end_t   = max(all_ts) if all_ts else 0.0
+        st.sidebar.success(f'✓ {display_name}  —  {end_t - start_t:.1f}s of data')
+        st.sidebar.caption(
+            'If this looks shorter than the recorded session, check the session '
+            'log above for a "PARSING STOPPED EARLY" line.'
+        )
     else:
         start_t = 0.0
 

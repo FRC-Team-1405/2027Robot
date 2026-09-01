@@ -1,5 +1,9 @@
 """Tab 4 — Solve: run calibration, show results, output Java snippet."""
+import logging
+
 import streamlit as st
+
+log = logging.getLogger(__name__)
 
 LABEL = '4 · Solve'
 
@@ -82,6 +86,10 @@ def render(ctx: dict) -> None:
         for row in session_rows:
             poses = _get_poses(signals, camera, row['t0_abs'], row['t1_abs'], tag_id)
             if not poses:
+                log.warning(
+                    'Window %r [%.2f, %.2f]s: no poses found for tag %d on camera %r — skipping.',
+                    row['label'], row['t0_abs'], row['t1_abs'], tag_id, camera,
+                )
                 st.warning(f"Window {row['label']}: no poses found for tag {tag_id} — skipping.")
                 continue
             windows_data.append({
@@ -98,6 +106,7 @@ def render(ctx: dict) -> None:
             result = run_calibration(windows_data, T_rc_current, camera_name=camera)
             st.session_state['_calib_result'] = result
         except Exception as exc:
+            log.exception('Solver failed for camera %r', camera)
             st.error(f'Solver failed: {exc}')
             return
 

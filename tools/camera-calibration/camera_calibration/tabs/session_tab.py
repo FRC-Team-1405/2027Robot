@@ -1,6 +1,10 @@
 """Tab 3 — Session: assign measurements to stationary windows."""
 import streamlit as st
 
+# vision-analyzer is on sys.path by the time this module loads — see
+# camera_calibration/__init__.py -> logger.py.
+from vision_analyzer.metrics import find_drivetrain_speeds
+
 LABEL = '3 · Session'
 
 _LIN_THRESH  = 0.06   # m/s
@@ -10,12 +14,6 @@ _MIN_DUR     = 2.0    # seconds
 
 def _detect_windows(signals: dict, start_t: float) -> list[tuple[float, float]]:
     """Return list of (abs_start, abs_end) stationary windows from velocity signals."""
-    import sys, pathlib
-    _va = pathlib.Path(__file__).parents[3] / 'vision-analyzer'
-    if str(_va) not in sys.path:
-        sys.path.insert(0, str(_va))
-    from vision_analyzer.metrics import find_drivetrain_speeds
-
     lin_key, ang_key = find_drivetrain_speeds(signals)
     lin_sig = signals.get(lin_key, []) if lin_key else []
     ang_sig = signals.get(ang_key, []) if ang_key else []
@@ -73,11 +71,6 @@ def _detect_windows(signals: dict, start_t: float) -> list[tuple[float, float]]:
 def _count_poses_in_window(signals: dict, camera: str, t0: float, t1: float,
                             tag_id: int) -> int:
     """Count rawEstimatedPoses frames in [t0, t1] that include tag_id."""
-    import sys, pathlib
-    _va = pathlib.Path(__file__).parents[3] / 'vision-analyzer'
-    if str(_va) not in sys.path:
-        sys.path.insert(0, str(_va))
-
     def _find(base_key):
         for prefix in ('', 'RealOutputs/'):
             k = prefix + base_key
