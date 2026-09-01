@@ -134,7 +134,62 @@ def _render_camera_panel(camera: str, reading: health_mod.HealthReading, cam_dat
         })
 
 
-def _live_panel(target_fps: float) -> None:
+def _render_diagnostics(snapshot: dict, root_table: str) -> None:
+    """Splits "why is this blank" into the three places it can actually break:
+    no TCP connection to any server, connection but wrong topic paths, or right
+    paths but no value received yet. Refreshes live alongside the rest of the tab.
+    """
+    conns = nt_client.get_connections()
+    diag_rows = nt_client.topic_diagnostics()
+    any_topic_exists = any(r['exists'] for r in diag_rows)
+    any_camera_connected = any(snapshot.get(cam, {}).get('connected') for cam in ('Left', 'Right'))
+
+    with st.expander('🔍 Diagnostics', expanded=not conns or not any_topic_exists or not any_camera_connected):
+        st.markdown('**NT4 connections** — ground truth on whether we have reached any server at all')
+        if conns:
+            st.dataframe(conns, use_container_width=True, hide_index=True)
+        else:
+            st.error(
+                'No active NT4 connection — the client has never reached a server. Check the '
+                'team number/address, that the robot or coprocessor is powered and reachable on '
+                'this network, and that nothing is blocking NT4 (port 5810).'
+            )
+
+        events = nt_client.connection_events()
+        if events:
+            st.caption('Recent connection events (most recent first):')
+            st.code('\n'.join(events[:10]))
+
+        st.markdown('**Expected topics** — does each exist on the wire, and has it ever produced a value?')
+        if diag_rows:
+            st.dataframe(diag_rows, use_container_width=True, hide_index=True)
+        if diag_rows and not any_topic_exists:
+            st.warning(
+                'None of the expected topics exist on the server. The NT root table name is '
+                'almost certainly wrong for this robot — compare against "Discovered topics" '
+                'below and update **NT root table** in the Connection panel to match.'
+            )
+        elif diag_rows and not any(r['ever_received'] for r in diag_rows if r['exists']):
+            st.warning(
+                'Topics exist but none have ever produced a value — the type we subscribed with '
+                "(bool/double/double[]/int[]) may not match what's actually being published."
+            )
+
+        st.markdown(f'**Discovered topics under `/{root_table}`** — the real tree, from the wire')
+        discovered = nt_client.discover_topics(f'/{root_table}')
+        if not discovered:
+            st.caption(f'Nothing announced under `/{root_table}` yet — showing everything instead:')
+            discovered = nt_client.discover_topics('')
+        if discovered:
+            st.dataframe(
+                [{'topic': name, 'type': t} for name, t in discovered],
+                use_container_width=True, hide_index=True, height=240,
+            )
+        else:
+            st.caption('No topics discovered at all yet.')
+
+
+def _live_panel(target_fps: float, root_table: str) -> None:
     snapshot = nt_client.read()
     history = st.session_state['_health_history']
     now = time.time()
@@ -171,6 +226,8 @@ def _live_panel(target_fps: float) -> None:
 
         with col:
             _render_camera_panel(camera, reading, cam_data, hist, now)
+
+    _render_diagnostics(snapshot, root_table)
 
 
 def render(ctx: dict) -> None:
@@ -232,4 +289,4 @@ def render(ctx: dict) -> None:
         return
 
     refresh_s = st.select_slider('Refresh interval', options=[0.25, 0.5, 1.0, 2.0], value=0.5)
-    st.fragment(run_every=f'{refresh_s}s')(_live_panel)(target_fps)
+    st.fragment(run_every=f'{refresh_s}s')(_live_panel)(target_fps, root_table.strip('/'))
