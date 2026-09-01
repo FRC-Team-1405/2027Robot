@@ -84,6 +84,11 @@ public class VisionConstants {
                                 new LerpTable.LerpTableEntry(7.0, 0.65),
                                 new LerpTable.LerpTableEntry(12.0, 0.0));
 
+                // Single-tag PnP ambiguity cutoff: results at/above this are rejected by the
+                // P3 filter below AND scored as fully unhealthy by VisionHealth. Named so both
+                // call sites derive from one number instead of two copies of "0.2" drifting apart.
+                public static final double AMBIGUITY_REJECT_AT = 0.2;
+
                 /**
                  * P2: Distance-based XY stddev - a more principled alternative to area-proxy weighting.
                  * Maps estimated distance from camera to tag (meters) -> XY stddev multiplier.
@@ -150,5 +155,95 @@ public class VisionConstants {
                                 put(22, 1.0); // REEF
                         }
                 };
+        }
+
+        /**
+         * Curves for VisionHealth's live camera-health score (calibration tool Tab 5) — a
+         * pit/practice tuning aid, not part of the match-time filter pipeline above. Kept as
+         * separate LerpTables from Filtering because the two answer different questions: Filtering
+         * must tolerate the robot actually driving during a match, while these gate a deliberate
+         * "hold the robot still and look at one camera" check, so the stillness/jitter curves are
+         * intentionally much stricter than LINEAR_VELOCITY_WEIGHT_COEFFICIENT etc.
+         *
+         * First-pass breakpoints — not yet validated against real mount/calibration data. Tune
+         * after collecting a few sessions' worth of Vision/*\/Health/* logs.
+         */
+        public static final class Health {
+                public static final double TARGET_FPS = 30.0;
+
+                public static final LerpTable LIN_STILL_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 1.0),
+                                new LerpTable.LerpTableEntry(0.06, 0.95),
+                                new LerpTable.LerpTableEntry(0.3, 0.25),
+                                new LerpTable.LerpTableEntry(0.6, 0.0));
+
+                public static final LerpTable ANG_STILL_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 1.0),
+                                new LerpTable.LerpTableEntry(0.06, 0.95),
+                                new LerpTable.LerpTableEntry(1.0, 0.25),
+                                new LerpTable.LerpTableEntry(2.0, 0.0));
+
+                // Trailing-1s pose stddev (Vision/*/PoseStdDevXMeters1s etc.) while the robot is
+                // stationary — a direct, physical-units measurement of PnP solve noise, independent
+                // of what the solver itself claims via ambiguity. 1cm negligible, 3cm concerning,
+                // 6cm+ treated as unusable.
+                public static final LerpTable JITTER_XY_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 1.0),
+                                new LerpTable.LerpTableEntry(0.01, 0.9),
+                                new LerpTable.LerpTableEntry(0.03, 0.5),
+                                new LerpTable.LerpTableEntry(0.06, 0.0));
+
+                public static final LerpTable JITTER_THETA_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 1.0),
+                                new LerpTable.LerpTableEntry(0.5, 0.9),
+                                new LerpTable.LerpTableEntry(1.5, 0.5),
+                                new LerpTable.LerpTableEntry(3.0, 0.0));
+
+                // Vision/*/LatencyMsLatest -- catches a camera that's clean in every other respect
+                // but consistently stale, which none of the per-sample quality factors can see.
+                public static final LerpTable LATENCY_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 1.0),
+                                new LerpTable.LerpTableEntry(50.0, 1.0),
+                                new LerpTable.LerpTableEntry(150.0, 0.5),
+                                new LerpTable.LerpTableEntry(300.0, 0.0));
+
+                // Vision/*/AcceptanceRatePercent -- catches a camera delivering frames at target FPS
+                // that are mostly getting thrown out by the boundary/velocity/ambiguity filters,
+                // which fps_factor alone can't see.
+                public static final LerpTable ACCEPTANCE_RATE_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 0.0),
+                                new LerpTable.LerpTableEntry(50.0, 0.4),
+                                new LerpTable.LerpTableEntry(80.0, 0.85),
+                                new LerpTable.LerpTableEntry(100.0, 1.0));
+
+                // Fraction of recent accepted results that used 2+ tags -- a mount-positioning
+                // signal (how often does this camera achieve a well-constrained solve), orthogonal
+                // to per-sample quality. Never zeroes out: a mostly-single-tag camera isn't broken,
+                // just less ideally positioned.
+                public static final LerpTable MULTI_TAG_RATIO_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 0.5),
+                                new LerpTable.LerpTableEntry(0.3, 0.8),
+                                new LerpTable.LerpTableEntry(1.0, 1.0));
+
+                // Disagreement between Left's and Right's simultaneous pose estimates -- the one
+                // check here that can catch a systematically mis-calibrated camera (wrong mount
+                // transform), which can otherwise look perfectly clean on every self-consistency
+                // metric above.
+                public static final LerpTable CROSS_CAMERA_TRANSLATION_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 1.0),
+                                new LerpTable.LerpTableEntry(0.05, 0.9),
+                                new LerpTable.LerpTableEntry(0.15, 0.4),
+                                new LerpTable.LerpTableEntry(0.3, 0.0));
+
+                public static final LerpTable CROSS_CAMERA_ROTATION_CURVE = new LerpTable(
+                                new LerpTable.LerpTableEntry(0.0, 1.0),
+                                new LerpTable.LerpTableEntry(1.0, 0.9),
+                                new LerpTable.LerpTableEntry(3.0, 0.4),
+                                new LerpTable.LerpTableEntry(6.0, 0.0));
+
+                // Older than this, a camera's last accepted sample is too stale for the cross-camera
+                // check to mean anything -- "they disagree" is meaningless if one side just hasn't
+                // seen a tag recently.
+                public static final double CROSS_CAMERA_MAX_SAMPLE_AGE_SEC = 0.5;
         }
 }

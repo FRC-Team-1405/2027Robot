@@ -4,14 +4,20 @@ Unlike every other tab in this app, this one does not read a .wpilog — it
 connects live to the robot/coprocessor's NetworkTables server and polls it.
 It's a tuning aid for "did that mount/config change help or hurt," not a
 match-accuracy tool — see tools/vision-analyzer for that.
+
+The score itself is computed on the robot (VisionHealth.java) and published
+under RealOutputs/Vision/*/Health/* -- this tab only displays what nt_client.py
+reads back. It used to compute the score itself from raw per-sample vision
+inputs, duplicating LerpTable curves that lived in VisionConstants.java; now
+there's one implementation, and it's replayable against match logs too.
 """
 import logging
+import math
 import time
 from typing import Optional
 
 import streamlit as st
 
-from .. import health as health_mod
 from .. import nt_client
 
 log = logging.getLogger(__name__)
@@ -23,7 +29,7 @@ _BG = '#111827'  # matches tabs/timeline.py's dark plot background
 
 
 def _status_color(pct: Optional[float]) -> str:
-    if pct is None:
+    if pct is None or math.isnan(pct):
         return '#5c5b57'
     if pct >= 80:
         return '#0ca30c'
@@ -38,9 +44,9 @@ def _meter_figure(rows: list[tuple[str, Optional[float]]]):
     import plotly.graph_objects as go
 
     labels = [r[0] for r in rows][::-1]
-    values = [0.0 if r[1] is None else r[1] for r in rows][::-1]
+    values = [0.0 if r[1] is None or math.isnan(r[1]) else r[1] for r in rows][::-1]
     colors = [_status_color(r[1]) for r in rows][::-1]
-    texts = ['n/a' if r[1] is None else f'{r[1]:.0f}' for r in rows][::-1]
+    texts = ['n/a' if r[1] is None or math.isnan(r[1]) else f'{r[1]:.0f}' for r in rows][::-1]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -84,24 +90,29 @@ def _sparkline_figure(points: list[tuple[float, float]]):
     return fig
 
 
-def _render_camera_panel(camera: str, reading: health_mod.HealthReading, cam_data: dict,
-                          history: list[tuple[float, Optional[float]]], now: float) -> None:
-    st.markdown(f'#### {camera} camera')
-
-    if reading.score is None:
+def _score_badge(score: float, reason: str) -> None:
+    if math.isnan(score):
         st.markdown(
             f"<div style='padding:14px;border-radius:8px;background:#5c5b5733;"
-            f"color:#c3c2b7;text-align:center;font-size:1.1em'>⚪ {reading.reason}</div>",
+            f"color:#c3c2b7;text-align:center;font-size:1.1em'>⚪ {reason or 'No data received yet'}</div>",
             unsafe_allow_html=True,
         )
     else:
-        color = _status_color(reading.score)
+        color = _status_color(score)
         st.markdown(
             f"<div style='padding:10px;border-radius:8px;background:{color}22;"
             f"border:1px solid {color};color:{color};text-align:center;"
-            f"font-size:2.4em;font-weight:700'>{reading.score:.0f}</div>",
+            f"font-size:2.4em;font-weight:700'>{score:.0f}</div>",
             unsafe_allow_html=True,
         )
+
+
+def _render_camera_panel(camera: str, cam_data: dict,
+                          history: list[tuple[float, Optional[float]]], now: float) -> None:
+    st.markdown(f'#### {camera} camera')
+
+    score = cam_data.get('health_score', float('nan'))
+    _score_badge(score, cam_data.get('health_reason', ''))
 
     tags = cam_data.get('visible_tag_ids', [])
     st.caption(
@@ -110,28 +121,37 @@ def _render_camera_panel(camera: str, reading: health_mod.HealthReading, cam_dat
 
     st.plotly_chart(
         _meter_figure([
-            ('Stillness', None if reading.score is None else reading.stillness_pct),
-            ('Tag area',  None if reading.score is None else reading.area_pct),
-            ('Ambiguity', None if reading.score is None else reading.ambiguity_pct),
-            ('FPS',       None if reading.score is None else reading.fps_pct),
+            ('Stillness',  None if math.isnan(score) else cam_data.get('health_stillness', 0.0)),
+            ('Tag area',   None if math.isnan(score) else cam_data.get('health_area', 0.0)),
+            ('Ambiguity',  None if math.isnan(score) else cam_data.get('health_ambiguity', 0.0)),
+            ('FPS',        None if math.isnan(score) else cam_data.get('health_fps', 0.0)),
+            ('Jitter',     None if math.isnan(score) else cam_data.get('health_jitter', 0.0)),
+            ('Acceptance', None if math.isnan(score) else cam_data.get('health_acceptance', 0.0)),
+            ('Latency',    None if math.isnan(score) else cam_data.get('health_latency', 0.0)),
+            ('Multi-tag',  None if math.isnan(score) else cam_data.get('health_multitag', 0.0)),
         ]),
         use_container_width=True, config={'displayModeBar': False}, key=f'_health_meter_{camera}',
     )
 
-    spark = [(now - t, v) for t, v in history if v is not None]
+    spark = [(now - t, v) for t, v in history if v is not None and not math.isnan(v)]
     if len(spark) >= 2:
         st.plotly_chart(_sparkline_figure(spark), use_container_width=True,
                          config={'displayModeBar': False}, key=f'_health_spark_{camera}')
     else:
         st.caption('Collecting history…')
 
-    with st.expander('Raw values'):
-        st.json({
-            'sum_tag_area_pct': round(cam_data.get('sum_tag_area', 0.0), 3),
-            'ambiguity': round(cam_data.get('ambiguity', -1.0), 3),
-            'current_fps': round(cam_data.get('current_fps', 0.0), 1),
-            'visible_tag_ids': tags,
-        })
+
+def _render_cross_camera_panel(snapshot: dict) -> None:
+    """The one check on this tab that can catch a systematically mis-calibrated camera
+    (wrong mount transform) -- a bad camera can look perfectly clean on every
+    single-camera metric above and still disagree with the other camera's read."""
+    st.markdown('#### Cross-camera agreement')
+    score = snapshot.get('cross_score', float('nan'))
+    _score_badge(score, snapshot.get('cross_reason', ''))
+    st.caption(
+        f"Translation delta: {snapshot.get('cross_translation_delta', 0.0) * 100:.1f} cm  |  "
+        f"Rotation delta: {snapshot.get('cross_rotation_delta', 0.0):.1f}°"
+    )
 
 
 def _render_diagnostics(snapshot: dict, root_table: str) -> None:
@@ -172,7 +192,7 @@ def _render_diagnostics(snapshot: dict, root_table: str) -> None:
         elif diag_rows and not any(r['ever_received'] for r in diag_rows if r['exists']):
             st.warning(
                 'Topics exist but none have ever produced a value — the type we subscribed with '
-                "(bool/double/double[]/int[]) may not match what's actually being published."
+                "(bool/double/double[]/int[]/string) may not match what's actually being published."
             )
 
         st.markdown(f'**Discovered topics under `/{root_table}`** — the real tree, from the wire')
@@ -189,7 +209,7 @@ def _render_diagnostics(snapshot: dict, root_table: str) -> None:
             st.caption('No topics discovered at all yet.')
 
 
-def _live_panel(target_fps: float, root_table: str) -> None:
+def _live_panel(root_table: str) -> None:
     snapshot = nt_client.read()
     history = st.session_state['_health_history']
     now = time.time()
@@ -208,25 +228,18 @@ def _live_panel(target_fps: float, root_table: str) -> None:
     cols = st.columns(2)
     for col, camera in zip(cols, ('Left', 'Right')):
         cam_data = snapshot.get(camera, {})
-        reading = health_mod.compute_health(
-            connected=cam_data.get('connected', False),
-            has_tag=len(cam_data.get('visible_tag_ids', [])) > 0,
-            lin_speed=lin_speed, ang_speed=ang_speed,
-            sum_tag_area=cam_data.get('sum_tag_area', 0.0),
-            ambiguity=cam_data.get('ambiguity', -1.0),
-            current_fps=cam_data.get('current_fps', 0.0),
-            target_fps=target_fps,
-        )
+        score = cam_data.get('health_score', float('nan'))
 
         hist = history[camera]
-        hist.append((now, reading.score))
+        hist.append((now, score))
         cutoff = now - _HISTORY_WINDOW_SEC
         while hist and hist[0][0] < cutoff:
             hist.pop(0)
 
         with col:
-            _render_camera_panel(camera, reading, cam_data, hist, now)
+            _render_camera_panel(camera, cam_data, hist, now)
 
+    _render_cross_camera_panel(snapshot)
     _render_diagnostics(snapshot, root_table)
 
 
@@ -242,17 +255,18 @@ def render(ctx: dict) -> None:
 
     st.markdown(
         'Live 0–100 health snapshot per camera, sampled straight from NetworkTables while '
-        'the robot sits still with a tag in view. This is a **tuning aid** — watch it while '
-        'you change a mount angle or pipeline setting, not a match-accuracy report (see '
-        '**Vision Analyzer** for that). A camera at a worse angle than the other will always '
-        'read lower; what matters is the *same* camera trending up or down as you adjust it.'
+        'the robot sits still with a tag in view. Scored on the robot (VisionHealth.java) — '
+        'this tab just displays it. This is a **tuning aid** — watch it while you change a '
+        'mount angle or pipeline setting, not a match-accuracy report (see **Vision Analyzer** '
+        'for that). A camera at a worse angle than the other will always read lower; what '
+        'matters is the *same* camera trending up or down as you adjust it.'
     )
 
     if '_health_history' not in st.session_state:
         st.session_state['_health_history'] = {'Left': [], 'Right': []}
 
     with st.expander('Connection', expanded=not nt_client.is_connected()):
-        c1, c2, c3 = st.columns([2, 2, 1])
+        c1, c2 = st.columns([2, 2])
         with c1:
             server = st.text_input(
                 'Team number or server address', value='1405',
@@ -264,11 +278,6 @@ def render(ctx: dict) -> None:
                 'NT root table', value=nt_client.DEFAULT_ROOT_TABLE,
                 help="AdvantageKit's NT4Publisher table root — only change this if the "
                      'project overrode the default.',
-            )
-        with c3:
-            target_fps = st.number_input(
-                'Target FPS', value=30.0, min_value=1.0, step=1.0,
-                help='Camera/pipeline-dependent. Set to the FPS you expect at 100% health.',
             )
 
         b1, b2 = st.columns(2)
@@ -289,4 +298,4 @@ def render(ctx: dict) -> None:
         return
 
     refresh_s = st.select_slider('Refresh interval', options=[0.25, 0.5, 1.0, 2.0], value=0.5)
-    st.fragment(run_every=f'{refresh_s}s')(_live_panel)(target_fps, root_table.strip('/'))
+    st.fragment(run_every=f'{refresh_s}s')(_live_panel)(root_table.strip('/'))

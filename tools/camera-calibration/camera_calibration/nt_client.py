@@ -2,9 +2,18 @@
 
 Connects as an NT4 client to whatever the robot's own AdvantageKit NT4Publisher
 talks to — same server the Orange Pi metrics publisher connects to (see
-coprocessor/orangepi-nt-publisher.py) — and reads back the Vision IO inputs and
-drivetrain speed outputs live. This is what makes Tab 5 a *live* view: unlike
-every other tab in this app, it does not read a .wpilog file.
+coprocessor/orangepi-nt-publisher.py) — and reads back live camera-health
+scores. This is what makes Tab 5 a *live* view: unlike every other tab in this
+app, it does not read a .wpilog file.
+
+The health score itself is computed on the robot (see VisionHealth.java,
+Vision.java) and published under RealOutputs/Vision/*/Health/* — this module
+is a pure display client, it does not recompute anything. That used to not be
+true: this file used to read the raw per-sample vision inputs (tag area,
+ambiguity) and score them client-side, duplicating LerpTable curves that lived
+in VisionConstants.java and could silently drift out of sync. Moving the score
+onto the robot means one implementation, it's replay-testable against real
+match logs, and it can be compared after the fact instead of only live.
 
 Diagnostics: getting from "client connected" to "seeing real numbers" has three
 independent failure points — no TCP connection to any server (network/team
@@ -100,15 +109,34 @@ def connect(server: str, root_table: str = DEFAULT_ROOT_TABLE) -> None:
 
         for camera in _CAMERAS:
             base = f'/{root}/Vision/{camera}'
+            health_base = f'/{root}/RealOutputs/Vision/{camera}/Health'
             _sub(f'{camera}/connected', 'getBooleanTopic', f'{base}/connected', False)
             _sub(f'{camera}/current_fps', 'getDoubleTopic', f'{base}/currentFps', 0.0)
             _sub(f'{camera}/visible_tag_ids', 'getIntegerArrayTopic', f'{base}/visibleTagIds', [])
-            _sub(f'{camera}/sum_tag_areas', 'getDoubleArrayTopic', f'{base}/rawSumTagAreas', [])
-            _sub(f'{camera}/ambiguities', 'getDoubleArrayTopic', f'{base}/rawAmbiguities', [])
+
+            _sub(f'{camera}/health_score', 'getDoubleTopic', f'{health_base}/ScorePercent', float('nan'))
+            _sub(f'{camera}/health_reason', 'getStringTopic', f'{health_base}/Reason', '')
+            # Sub-factor breakdown (each 0-100) -- shown as the meter bars per camera so a bad
+            # score is immediately traceable to which of the eight inputs is dragging it down.
+            _sub(f'{camera}/health_stillness', 'getDoubleTopic', f'{health_base}/StillnessPercent', 0.0)
+            _sub(f'{camera}/health_area', 'getDoubleTopic', f'{health_base}/AreaPercent', 0.0)
+            _sub(f'{camera}/health_ambiguity', 'getDoubleTopic', f'{health_base}/AmbiguityPercent', 0.0)
+            _sub(f'{camera}/health_fps', 'getDoubleTopic', f'{health_base}/FpsPercent', 0.0)
+            _sub(f'{camera}/health_jitter', 'getDoubleTopic', f'{health_base}/JitterPercent', 0.0)
+            _sub(f'{camera}/health_acceptance', 'getDoubleTopic',
+                 f'{health_base}/AcceptanceRateFactorPercent', 0.0)
+            _sub(f'{camera}/health_latency', 'getDoubleTopic', f'{health_base}/LatencyPercent', 0.0)
+            _sub(f'{camera}/health_multitag', 'getDoubleTopic', f'{health_base}/MultiTagRatioPercent', 0.0)
 
         speeds_base = f'/{root}/RealOutputs/Drivetrain/Speeds'
         _sub('vx', 'getDoubleTopic', f'{speeds_base}/vxMetersPerSecond', 0.0)
         _sub('omega', 'getDoubleTopic', f'{speeds_base}/omegaRadiansPerSecond', 0.0)
+
+        cross_base = f'/{root}/RealOutputs/Vision/CrossCameraAgreement'
+        _sub('cross/score', 'getDoubleTopic', f'{cross_base}/ScorePercent', float('nan'))
+        _sub('cross/reason', 'getStringTopic', f'{cross_base}/Reason', '')
+        _sub('cross/translation_delta', 'getDoubleTopic', f'{cross_base}/TranslationDeltaMeters', 0.0)
+        _sub('cross/rotation_delta', 'getDoubleTopic', f'{cross_base}/RotationDeltaDegrees', 0.0)
 
         log.info('Subscribed to %d topics under root %r', len(channels), root)
 
@@ -144,26 +172,42 @@ def disconnect() -> None:
 
 
 def read() -> dict:
-    """Snapshot the latest value of every subscribed topic. {} if not connected."""
+    """Snapshot the latest value of every subscribed topic. {} if not connected.
+
+    Per-camera 'health_score' / 'cross_score' are NaN when the robot itself couldn't
+    measure a reading this loop (see the 'health_reason' / 'cross_reason' string
+    alongside it) -- mirrors VisionHealth.CameraHealth.score being NaN in that case.
+    """
     if _inst is None:
         return {}
 
+    def _get(key: str):
+        return _channels[key].subscriber.get()
+
     out: dict = {
         'nt_connected': _inst.isConnected(),
-        'lin_speed': _channels['vx'].subscriber.get(),
-        'ang_speed': _channels['omega'].subscriber.get(),
+        'lin_speed': _get('vx'),
+        'ang_speed': _get('omega'),
+        'cross_score': _get('cross/score'),
+        'cross_reason': _get('cross/reason'),
+        'cross_translation_delta': _get('cross/translation_delta'),
+        'cross_rotation_delta': _get('cross/rotation_delta'),
     }
     for camera in _CAMERAS:
-        areas = _channels[f'{camera}/sum_tag_areas'].subscriber.get()
-        ambiguities = _channels[f'{camera}/ambiguities'].subscriber.get()
         out[camera] = {
-            'connected': _channels[f'{camera}/connected'].subscriber.get(),
-            'current_fps': _channels[f'{camera}/current_fps'].subscriber.get(),
-            'visible_tag_ids': list(_channels[f'{camera}/visible_tag_ids'].subscriber.get()),
-            # Raw arrays hold one entry per pipeline result this loop (see
-            # VisionIO.java) — the last entry is the most recent result.
-            'sum_tag_area': areas[-1] if areas else 0.0,
-            'ambiguity': ambiguities[-1] if ambiguities else -1.0,
+            'connected': _get(f'{camera}/connected'),
+            'current_fps': _get(f'{camera}/current_fps'),
+            'visible_tag_ids': list(_get(f'{camera}/visible_tag_ids')),
+            'health_score': _get(f'{camera}/health_score'),
+            'health_reason': _get(f'{camera}/health_reason'),
+            'health_stillness': _get(f'{camera}/health_stillness'),
+            'health_area': _get(f'{camera}/health_area'),
+            'health_ambiguity': _get(f'{camera}/health_ambiguity'),
+            'health_fps': _get(f'{camera}/health_fps'),
+            'health_jitter': _get(f'{camera}/health_jitter'),
+            'health_acceptance': _get(f'{camera}/health_acceptance'),
+            'health_latency': _get(f'{camera}/health_latency'),
+            'health_multitag': _get(f'{camera}/health_multitag'),
         }
     log.debug('read() snapshot: %r', out)
     return out

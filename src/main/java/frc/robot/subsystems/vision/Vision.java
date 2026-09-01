@@ -22,6 +22,7 @@ import frc.robot.lib.GlobalField;
 import frc.robot.lib.ProceduralStructGenerator;
 import frc.robot.lib.Tracer;
 import frc.robot.subsystems.vision.VisionConstants.Filtering;
+import frc.robot.subsystems.vision.VisionConstants.Health;
 import org.littletonrobotics.junction.Logger;
 
 public class Vision extends SubsystemBase {
@@ -48,6 +49,11 @@ public class Vision extends SubsystemBase {
 
     private record TimestampedPose(double timestamp, Pose2d pose) {}
 
+    // Rolling window of "was this accepted result multi-tag" flags, used by VisionHealth as a
+    // mount-positioning signal (how often does this camera achieve a well-constrained solve).
+    private static final int MULTI_TAG_RATIO_WINDOW = 50;
+    private final List<Deque<Boolean>> recentMultiTagFlags;
+
     private final Timer timerSinceLastSample = new Timer();
     private final ChassisSpeeds speeds = new ChassisSpeeds();
     private final ArrayList<VisionSample> samples = new ArrayList<>();
@@ -73,12 +79,14 @@ public class Vision extends SubsystemBase {
         this.lastAcceptedTimestamp = new double[ios.length];
         this.recentAcceptedPoses = new ArrayList<>(ios.length);
         this.recentAcceptedPosesTimed = new ArrayList<>(ios.length);
+        this.recentMultiTagFlags = new ArrayList<>(ios.length);
         for (int i = 0; i < ios.length; i++) {
             inputs[i] = new VisionIOInputsAutoLogged();
             lastAcceptedPose[i] = Pose2d.kZero;
             lastAcceptedTimestamp[i] = 0.0;
             recentAcceptedPoses.add(new ArrayDeque<>(POSE_STDDEV_WINDOW));
             recentAcceptedPosesTimed.add(new ArrayDeque<>());
+            recentMultiTagFlags.add(new ArrayDeque<>(MULTI_TAG_RATIO_WINDOW));
         }
     }
 
@@ -193,7 +201,7 @@ public class Vision extends SubsystemBase {
                 // P3: Ambiguity filter — skip single-tag estimates the PnP solver can't
                 // distinguish. Multi-tag results report ambiguity = -1 and always pass.
                 if (FeatureSwitches.VISION_AMBIGUITY_THRESHOLD
-                        && tagCount == 1 && ambiguity >= 0.2) {
+                        && tagCount == 1 && ambiguity >= Filtering.AMBIGUITY_REJECT_AT) {
                     rejAmbiguity++;
                     rejectedAmbiguityPoses.add(pose3d.toPose2d());
                     continue;
@@ -247,6 +255,12 @@ public class Vision extends SubsystemBase {
 
                 lastAcceptedPose[i] = pose2d;
                 lastAcceptedTimestamp[i] = ts;
+
+                Deque<Boolean> multiTagWindow = recentMultiTagFlags.get(i);
+                multiTagWindow.addLast(tagCount >= 2);
+                if (multiTagWindow.size() > MULTI_TAG_RATIO_WINDOW) {
+                    multiTagWindow.pollFirst();
+                }
 
                 gaugeWeight(pose2d, ts, trust, avgDist).ifPresent(sample -> {
                     timerSinceLastSample.restart();
@@ -307,13 +321,40 @@ public class Vision extends SubsystemBase {
             // Derived metrics — viewable natively in AdvantageScope Line Graph / Statistics
             int rawCount = inputs[i].rawEstimatedPoses.length;
             Logger.recordOutput("Vision/" + name + "/ResultsPerLoop", (double) rawCount);
-            Logger.recordOutput("Vision/" + name + "/AcceptanceRatePercent",
-                    rawCount > 0 ? 100.0 * acceptedPoses.size() / rawCount : 0.0);
+            double acceptanceRatePercent = rawCount > 0 ? 100.0 * acceptedPoses.size() / rawCount : 0.0;
+            Logger.recordOutput("Vision/" + name + "/AcceptanceRatePercent", acceptanceRatePercent);
             double latencyMs = inputs[i].rawTimestampsSec.length > 0
                     ? (Timer.getFPGATimestamp()
                        - inputs[i].rawTimestampsSec[inputs[i].rawTimestampsSec.length - 1]) * 1000.0
                     : 0.0;
             Logger.recordOutput("Vision/" + name + "/LatencyMsLatest", latencyMs);
+
+            // Live camera-health score (calibration tool Tab 5) — see VisionHealth.java. A pit
+            // tuning aid, computed from data already published above; not used by the filter
+            // pipeline or match-time trust weighting.
+            double multiTagRatio = recentMultiTagFlags.get(i).isEmpty() ? 0.0
+                    : recentMultiTagFlags.get(i).stream().mapToInt(b -> b ? 1 : 0).average().orElse(0.0);
+            VisionHealth.CameraHealth health = VisionHealth.computeCameraHealth(
+                    inputs[i].connected, inputs[i].visibleTagIds.length > 0,
+                    Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond),
+                    speeds.omegaRadiansPerSecond,
+                    rawCount > 0 ? inputs[i].rawSumTagAreas[rawCount - 1] : 0.0,
+                    rawCount > 0 ? inputs[i].rawAmbiguities[rawCount - 1] : -1.0,
+                    inputs[i].currentFps, Health.TARGET_FPS,
+                    Math.hypot(poseStdDev1s[0], poseStdDev1s[1]), poseStdDev1s[2],
+                    acceptanceRatePercent, latencyMs, multiTagRatio);
+
+            Logger.recordOutput("Vision/" + name + "/Health/ScorePercent", health.score());
+            Logger.recordOutput("Vision/" + name + "/Health/Reason", health.reason());
+            Logger.recordOutput("Vision/" + name + "/Health/StillnessPercent", health.stillnessPct());
+            Logger.recordOutput("Vision/" + name + "/Health/AreaPercent", health.areaPct());
+            Logger.recordOutput("Vision/" + name + "/Health/AmbiguityPercent", health.ambiguityPct());
+            Logger.recordOutput("Vision/" + name + "/Health/FpsPercent", health.fpsPct());
+            Logger.recordOutput("Vision/" + name + "/Health/JitterPercent", health.jitterPct());
+            Logger.recordOutput("Vision/" + name + "/Health/AcceptanceRateFactorPercent", health.acceptanceRatePct());
+            Logger.recordOutput("Vision/" + name + "/Health/LatencyPercent", health.latencyPct());
+            Logger.recordOutput("Vision/" + name + "/Health/MultiTagRatioPercent", health.multiTagRatioPct());
+            Logger.recordOutput("Vision/" + name + "/Health/MultiTagRatio", multiTagRatio);
 
             // Log visible tag positions on the field for AdvantageScope odometry view
             for (int tagId : inputs[i].visibleTagIds) {
@@ -323,6 +364,23 @@ public class Vision extends SubsystemBase {
             }
 
             Tracer.endTrace();
+        }
+
+        // Cross-camera agreement — the one health check above that can catch a systematically
+        // mis-calibrated camera (wrong mount transform), which can otherwise look perfectly
+        // clean on every single-camera self-consistency metric. Only meaningful with exactly the
+        // two-camera Left/Right layout this robot has (see VisionConstants.CONFIGS).
+        if (ios.length == 2) {
+            double now = Timer.getFPGATimestamp();
+            VisionHealth.PairAgreement agreement = VisionHealth.computePairAgreement(
+                    lastAcceptedPose[0], lastAcceptedTimestamp[0],
+                    lastAcceptedPose[1], lastAcceptedTimestamp[1], now);
+            Logger.recordOutput("Vision/CrossCameraAgreement/ScorePercent", agreement.score());
+            Logger.recordOutput("Vision/CrossCameraAgreement/Reason", agreement.reason());
+            Logger.recordOutput("Vision/CrossCameraAgreement/TranslationDeltaMeters",
+                    agreement.translationDeltaMeters());
+            Logger.recordOutput("Vision/CrossCameraAgreement/RotationDeltaDegrees",
+                    agreement.rotationDeltaDegrees());
         }
 
         Tracer.endTrace();
