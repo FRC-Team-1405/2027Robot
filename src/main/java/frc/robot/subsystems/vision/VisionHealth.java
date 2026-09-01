@@ -19,8 +19,8 @@ public class VisionHealth {
     private VisionHealth() {}
 
     public record CameraHealth(
-            double score, // 0-100, or NaN if unmeasurable right now
-            String reason, // why score is NaN, else ""
+            double score, // 0-100; 0.0 if unmeasurable right now (see reason)
+            String reason, // why score is 0.0 and unmeasurable, else ""
             double stillnessPct,
             double areaPct,
             double ambiguityPct,
@@ -31,7 +31,7 @@ public class VisionHealth {
             double multiTagRatioPct) {}
 
     public record PairAgreement(
-            double score, // 0-100, or NaN if unmeasurable right now
+            double score, // 0-100; 0.0 if unmeasurable right now (see reason)
             String reason,
             double translationDeltaMeters,
             double rotationDeltaDegrees) {}
@@ -111,7 +111,7 @@ public class VisionHealth {
     }
 
     private static CameraHealth unmeasurableCamera(String reason) {
-        return new CameraHealth(Double.NaN, reason, 0, 0, 0, 0, 0, 0, 0, 0);
+        return new CameraHealth(0.0, reason, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     /**
@@ -140,6 +140,6 @@ public class VisionHealth {
     }
 
     private static PairAgreement unmeasurablePair(String reason) {
-        return new PairAgreement(Double.NaN, reason, 0, 0);
+        return new PairAgreement(0.0, reason, 0, 0);
     }
 }

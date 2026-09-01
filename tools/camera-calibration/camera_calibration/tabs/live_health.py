@@ -90,8 +90,16 @@ def _sparkline_figure(points: list[tuple[float, float]]):
     return fig
 
 
+def _is_unmeasurable(score: float, reason: str) -> bool:
+    """True if the robot couldn't compute a real score (reason non-empty), or we've never
+    received a value over NT at all yet (the subscriber's NaN default -- see nt_client.py).
+    The robot itself never publishes NaN; a real score is always a plain 0-100 number so it
+    plots as a continuous line (dropping to 0, not a gap) in AdvantageScope."""
+    return bool(reason) or math.isnan(score)
+
+
 def _score_badge(score: float, reason: str) -> None:
-    if math.isnan(score):
+    if _is_unmeasurable(score, reason):
         st.markdown(
             f"<div style='padding:14px;border-radius:8px;background:#5c5b5733;"
             f"color:#c3c2b7;text-align:center;font-size:1.1em'>⚪ {reason or 'No data received yet'}</div>",
@@ -112,7 +120,9 @@ def _render_camera_panel(camera: str, cam_data: dict,
     st.markdown(f'#### {camera} camera')
 
     score = cam_data.get('health_score', float('nan'))
-    _score_badge(score, cam_data.get('health_reason', ''))
+    reason = cam_data.get('health_reason', '')
+    _score_badge(score, reason)
+    unmeasurable = _is_unmeasurable(score, reason)
 
     tags = cam_data.get('visible_tag_ids', [])
     st.caption(
@@ -121,14 +131,14 @@ def _render_camera_panel(camera: str, cam_data: dict,
 
     st.plotly_chart(
         _meter_figure([
-            ('Stillness',  None if math.isnan(score) else cam_data.get('health_stillness', 0.0)),
-            ('Tag area',   None if math.isnan(score) else cam_data.get('health_area', 0.0)),
-            ('Ambiguity',  None if math.isnan(score) else cam_data.get('health_ambiguity', 0.0)),
-            ('FPS',        None if math.isnan(score) else cam_data.get('health_fps', 0.0)),
-            ('Jitter',     None if math.isnan(score) else cam_data.get('health_jitter', 0.0)),
-            ('Acceptance', None if math.isnan(score) else cam_data.get('health_acceptance', 0.0)),
-            ('Latency',    None if math.isnan(score) else cam_data.get('health_latency', 0.0)),
-            ('Multi-tag',  None if math.isnan(score) else cam_data.get('health_multitag', 0.0)),
+            ('Stillness',  None if unmeasurable else cam_data.get('health_stillness', 0.0)),
+            ('Tag area',   None if unmeasurable else cam_data.get('health_area', 0.0)),
+            ('Ambiguity',  None if unmeasurable else cam_data.get('health_ambiguity', 0.0)),
+            ('FPS',        None if unmeasurable else cam_data.get('health_fps', 0.0)),
+            ('Jitter',     None if unmeasurable else cam_data.get('health_jitter', 0.0)),
+            ('Acceptance', None if unmeasurable else cam_data.get('health_acceptance', 0.0)),
+            ('Latency',    None if unmeasurable else cam_data.get('health_latency', 0.0)),
+            ('Multi-tag',  None if unmeasurable else cam_data.get('health_multitag', 0.0)),
         ]),
         use_container_width=True, config={'displayModeBar': False}, key=f'_health_meter_{camera}',
     )
