@@ -4,4 +4,4 @@ scipy>=1.13.0
 numpy>=1.26.0
 # Needed only for Tab 5 (Live Health) — connects live to NetworkTables.
 # The other tabs work fine without it; Tab 5 shows an install hint if missing.
-robotpy-ntcore>=2025.0.0
+pyntcore>=2026.0.0

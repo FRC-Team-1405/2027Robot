@@ -7,7 +7,7 @@ drivetrain speed outputs live. This is what makes Tab 5 a *live* view: unlike
 every other tab in this app, it does not read a .wpilog file.
 
 `ntcore` is imported lazily (inside connect()) so importing this module never
-fails just because robotpy-ntcore isn't installed — the tab checks for it up
+fails just because pyntcore isn't installed — the tab checks for it up
 front and shows an install hint instead of a traceback.
 """
 import logging

@@ -178,8 +178,8 @@ def render(ctx: dict) -> None:
         import ntcore  # noqa: F401
     except ImportError:
         st.error(
-            'This tab needs `robotpy-ntcore` to talk to NetworkTables live.\n\n'
-            'Install it with:\n```\npip install robotpy-ntcore\n```\nthen reload this page.'
+            'This tab needs `pyntcore` to talk to NetworkTables live.\n\n'
+            'Install it with:\n```\npip install pyntcore\n```\nthen reload this page.'
         )
         return
 
