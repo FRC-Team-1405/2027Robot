@@ -169,7 +169,7 @@ public class VisionConstants {
          * after collecting a few sessions' worth of Vision/*\/Health/* logs.
          */
         public static final class Health {
-                public static final double TARGET_FPS = 30.0;
+                public static final double TARGET_FPS = 100.0;
 
                 public static final LerpTable LIN_STILL_CURVE = new LerpTable(
                                 new LerpTable.LerpTableEntry(0.0, 1.0),
