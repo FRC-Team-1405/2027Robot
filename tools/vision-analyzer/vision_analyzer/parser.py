@@ -12,6 +12,13 @@ from .constants import POSE2D_SIZE, POSE3D_SIZE
 
 log = logging.getLogger(__name__)
 
+# Above this many trailing unparsed bytes, an early stop in _iter_records is
+# treated as a loud anomaly rather than the normal "writer was killed
+# mid-record" tail. The largest a legitimate record header can ever be is
+# 4 (entry id) + 4 (payload size) + 16 (timestamp) = 24 bytes, so anything
+# meaningfully larger than that indicates real data is being dropped.
+_TRUNCATION_WARN_BYTES = 256
+
 
 def _wpilog_header_end(raw: bytes) -> int:
     """Validate magic bytes and return the byte offset where records begin."""
@@ -19,6 +26,38 @@ def _wpilog_header_end(raw: bytes) -> int:
         raise ValueError("Not a WPILog file (bad magic bytes)")
     extra_len = struct.unpack_from('<I', raw, 8)[0]
     return 12 + extra_len
+
+
+def _warn_early_stop(raw: bytes, record_start: int, n_yielded: int,
+                      last_ts: float, reason: str) -> None:
+    """
+    Called whenever _iter_records stops before consuming the whole buffer.
+
+    This used to be a silent `break` with no logging at all: a single
+    corrupted or misaligned record anywhere in a multi-hundred-second log
+    would drop every record after it with zero indication, producing a
+    dashboard/chart that looked like the log just ended early. Log loudly
+    enough (ERROR, not DEBUG) that it shows up in both this tool's own log
+    file and — via camera_calibration's logging bridge — the calibration
+    tool's session log, instead of just quietly returning fewer records.
+    """
+    remaining = len(raw) - record_start
+    if remaining <= _TRUNCATION_WARN_BYTES:
+        log.info(
+            'WPILog record stream ended %d bytes before EOF after %d record(s) '
+            '(last good timestamp %.3f s) — %s. This is expected for a log whose '
+            'writer was killed mid-record (e.g. robot power loss / unclean shutdown).',
+            remaining, n_yielded, last_ts, reason,
+        )
+    else:
+        log.error(
+            'WPILog PARSING STOPPED EARLY at byte %d/%d — %d bytes (%.1f%% of the file) '
+            'were NOT parsed, after %d good record(s) ending at timestamp %.3f s. '
+            'Reason: %s. Everything after this point in the log is silently missing '
+            'from the parsed signals — if the log should be longer than %.1f s, this is why.',
+            record_start, len(raw), remaining, 100.0 * remaining / len(raw),
+            n_yielded, last_ts, reason, last_ts,
+        )
 
 
 def _iter_records(raw: bytes, pos: int) -> Iterator[Tuple[int, float, bytes, int, int]]:
@@ -29,6 +68,8 @@ def _iter_records(raw: bytes, pos: int) -> Iterator[Tuple[int, float, bytes, int
     the record in `raw`, including its bitfield/entry-id/size/timestamp header —
     useful for byte-for-byte copying (e.g. trimming) without re-encoding.
     """
+    n_yielded = 0
+    last_ts = 0.0
     while pos < len(raw):
         record_start = pos
         bitfield = raw[pos]
@@ -40,6 +81,10 @@ def _iter_records(raw: bytes, pos: int) -> Iterator[Tuple[int, float, bytes, int
 
         needed = eid_sz + psz_sz + tsz
         if pos + needed > len(raw):
+            _warn_early_stop(
+                raw, record_start, n_yielded, last_ts,
+                'record header (entry-id/payload-size/timestamp fields) runs past end of file',
+            )
             break
 
         entry_id     = int.from_bytes(raw[pos:pos + eid_sz], 'little')
@@ -51,10 +96,17 @@ def _iter_records(raw: bytes, pos: int) -> Iterator[Tuple[int, float, bytes, int
         ts_sec       = ts_us / 1_000_000.0
 
         if pos + payload_size > len(raw):
+            _warn_early_stop(
+                raw, record_start, n_yielded, last_ts,
+                f'declared payload size ({payload_size} bytes) runs past end of file '
+                '— likely a corrupted or misaligned record',
+            )
             break
         payload = raw[pos:pos + payload_size]
         pos    += payload_size
 
+        n_yielded += 1
+        last_ts    = ts_sec
         yield entry_id, ts_sec, payload, record_start, pos
 
 
@@ -74,12 +126,13 @@ def _parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
       struct[]:Pose2d -> list[dict] with keys x, y, rot   (0 or more per record)
       struct:Pose3d  -> list[dict] with keys x, y, z, qw, qx, qy, qz
       struct[]:Pose3d -> list[dict] (0 or more per record)
-    Unknown types are silently skipped.
+    Unrecognized types are skipped, but logged (see `_decode`) — not silently.
     """
     pos = _wpilog_header_end(raw)
 
     entries: Dict[int, Dict[str, str]] = {}
     signals: Dict[str, List[Tuple[float, Any]]] = defaultdict(list)
+    unregistered_ids: Dict[int, int] = defaultdict(int)
 
     t0 = time.monotonic()
     for entry_id, ts_sec, payload, _start, _end in _iter_records(raw, pos):
@@ -88,6 +141,13 @@ def _parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
         else:
             entry = entries.get(entry_id)
             if entry is None:
+                # No control record ever registered this entry id — normally
+                # impossible for a well-formed log (control records precede
+                # the data they describe), so this is itself a corruption
+                # signal. Counted and summarized below rather than logged
+                # per-record, since a single dangling id can repeat thousands
+                # of times and would otherwise flood the log.
+                unregistered_ids[entry_id] += 1
                 continue
             value = _decode(payload, entry['type'])
             if value is not None:
@@ -98,6 +158,15 @@ def _parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
         'Parsed %d bytes in %.2f s — %d signals, %d entries registered',
         len(raw), elapsed, len(signals), len(entries),
     )
+    if unregistered_ids:
+        log.warning(
+            'Skipped %d data record(s) referencing %d entry ID(s) with no matching '
+            'control record (e.g. %s) — the log never told us how to decode them, so '
+            'their data is missing from the parsed signals. This usually means the '
+            'log is corrupted or was truncated mid-write.',
+            sum(unregistered_ids.values()), len(unregistered_ids),
+            sorted(unregistered_ids)[:5],
+        )
     return dict(signals)
 
 
@@ -205,6 +274,12 @@ def _handle_control(payload: bytes, entries: Dict) -> None:
         return
     pos = 1
     if pos + 4 > len(payload):
+        log.warning(
+            'Malformed "start" control record (payload too short to contain an entry '
+            'id, len=%d) — the entry this record was supposed to register is lost, so '
+            'any data records referencing it will be reported as unregistered.',
+            len(payload),
+        )
         return
     new_id = struct.unpack_from('<I', payload, pos)[0]
     pos += 4
@@ -220,6 +295,11 @@ def _lp_str(data: bytes, pos: int) -> Tuple[str, int]:
     pos += 4
     s = data[pos:pos + length].decode('utf-8', errors='replace')
     return s, pos + length
+
+
+# Types we've already logged a "don't know how to decode this" notice for,
+# so a log full of e.g. a custom struct type doesn't spam one line per record.
+_warned_unknown_types: set = set()
 
 
 def _decode(payload: bytes, typ: str) -> Any:
@@ -274,8 +354,23 @@ def _decode(payload: bytes, typ: str) -> Any:
             return poses
 
     except Exception as exc:
-        log.debug(
-            '_decode error: type=%r payload_len=%d error=%s',
+        log.warning(
+            'Failed to decode record: declared type=%r payload_len=%d error=%s '
+            '— dropping this record; its value is missing from the parsed signals.',
             typ, len(payload), exc,
+        )
+        return None
+
+    # Fell through every known-type branch above with no exception: this is a
+    # type this parser simply has no decoder for (not necessarily corruption —
+    # e.g. a custom struct type). Previously this returned None with zero
+    # logging. Log it once per type so it's visible without spamming a line
+    # per record.
+    if typ not in _warned_unknown_types:
+        _warned_unknown_types.add(typ)
+        log.info(
+            'Unrecognized WPILog entry type %r — records of this type are skipped '
+            '(no decoder for it in this parser).',
+            typ,
         )
     return None

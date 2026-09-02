@@ -1,0 +1,143 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\FinneyRobotics> ssh pi@photonvision.local
+
+              #######                   PhotonVision is the free, fast, and
+           #############                easy-to-use computer vision solution
+         #################              for the FIRST Robotics Competition.
+       ######        ######   :::
+      #####            ##*::::::::::    To configure PhotonVision, open:
+     #####     :::::::::::::::::::
+     #### :::::::::::    ###            http://photonvision.local:5800
+     ####                ####
+    ####                 ####           using a computer on the same network
+    #### ::              ###            as this device.
+     #### :::::::       ####
+     ####     ::::::::  ####            Documentation is available at:
+     #####         ::::::::    :
+      ######        ####:::::::::       https://docs.photonvision.org/
+       ##################    ::::::
+         ##############
+           #########
+pi@photonvision.local's password:
+Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.1.0-1025-rockchip aarch64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Mon Nov  4 14:10:42 UTC 2024
+
+  System load:  3.81               Temperature:           85.9 C
+  Usage of /:   19.6% of 14.50GB   Processes:             218
+  Memory usage: 4%                 Users logged in:       0
+  Swap usage:   0%                 IPv4 address for end1: 10.14.5.202
+
+Expanded Security Maintenance for Applications is not enabled.
+
+73 updates can be applied immediately.
+28 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+Last login: Mon Nov  4 12:21:34 2024 from 10.14.5.20
+pi@photonvision:~$ nmcli -v
+nmcli tool, version 1.46.0
+pi@photonvision:~$ sudo nmcli device wifi connect "Cajetan" password "LotionCardboard"
+Error: No Wi-Fi device found.
+pi@photonvision:~$ sudo nmcli device wifi list
+pi@photonvision:~$ sudo dhclient
+sudo: dhclient: command not found
+pi@photonvision:~$ ipconfig
+Command 'ipconfig' not found, did you mean:
+  command 'hipconfig' from deb hipcc (5.2.3-12)
+  command 'iconfig' from deb ipmiutil (3.1.9-3)
+  command 'iwconfig' from deb wireless-tools (30~pre9-13.1ubuntu4)
+  command 'ifconfig' from deb net-tools (2.10-0.1ubuntu3)
+Try: sudo apt install <deb name>
+pi@photonvision:~$ ifconfig
+end1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.14.5.202  netmask 255.255.255.0  broadcast 10.14.5.255
+        ether d2:45:38:09:f5:44  txqueuelen 1000  (Ethernet)
+        RX packets 1936207  bytes 118639526 (118.6 MB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 2578826  bytes 3850456882 (3.8 GB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+        device interrupt 66
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 53846  bytes 4146208 (4.1 MB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 53846  bytes 4146208 (4.1 MB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+pi@photonvision:~$ sudo apt update
+Ign:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:3 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:4 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:5 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:3 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:5 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:4 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Ign:3 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+Ign:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Ign:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+Ign:5 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+Ign:4 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Ign:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Ign:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Err:2 https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpadcontent.net'
+Err:3 http://ppa.launchpad.net/jjriek/rockchip/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpad.net'
+Err:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:5 http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu noble InRelease
+  Temporary failure resolving 'ppa.launchpad.net'
+Err:4 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:6 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Err:7 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+  Temporary failure resolving 'ports.ubuntu.com'
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+All packages are up to date.
+W: Failed to fetch http://ppa.launchpad.net/jjriek/rockchip/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpad.net'
+W: Failed to fetch http://ppa.launchpad.net/jjriek/rockchip-multimedia/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpad.net'
+W: Failed to fetch https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu/dists/noble/InRelease  Temporary failure resolving 'ppa.launchpadcontent.net'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble/InReleaseTemporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-backports/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease  Temporary failure resolving 'ports.ubuntu.com'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+pi@photonvision:~$ ping google.com
+ping: socktype: SOCK_RAW
+ping: socket: Operation not permitted
+ping: => missing cap_net_raw+p capability or setuid?
+pi@photonvision:~$ sudo ping google.com
+ping: google.com: Temporary failure in name resolution
+pi@photonvision:~$ ping -v
+ping: usage error: Destination address required
+pi@photonvision:~$ ping google.com
+ping: socktype: SOCK_RAW
+ping: socket: Operation not permitted
+ping: => missing cap_net_raw+p capability or setuid?
+pi@photonvision:~$ sudo dhclient

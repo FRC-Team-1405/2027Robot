@@ -22,6 +22,7 @@ import frc.robot.lib.GlobalField;
 import frc.robot.lib.ProceduralStructGenerator;
 import frc.robot.lib.Tracer;
 import frc.robot.subsystems.vision.VisionConstants.Filtering;
+import frc.robot.subsystems.vision.VisionConstants.Health;
 import org.littletonrobotics.junction.Logger;
 
 public class Vision extends SubsystemBase {
@@ -48,6 +49,21 @@ public class Vision extends SubsystemBase {
 
     private record TimestampedPose(double timestamp, Pose2d pose) {}
 
+    // Health keeps raw signals in the log, but scores from short time-bounded summaries so one
+    // pipeline result cannot make a diagnostic score flap. Geometry gets a shorter window to
+    // stay responsive as a camera moves relative to a tag.
+    private static final double HEALTH_WINDOW_SEC = 1.0;
+    private static final double HEALTH_GEOMETRY_WINDOW_SEC = 0.5;
+    private record TimestampedScalar(double timestamp, double value) {}
+    private record TimestampedCounts(double timestamp, int accepted, int raw) {}
+    private record TimestampedFlag(double timestamp, boolean value) {}
+    private final List<Deque<TimestampedScalar>> recentHealthAreas;
+    private final List<Deque<TimestampedScalar>> recentHealthAmbiguityFactors;
+    private final List<Deque<TimestampedScalar>> recentHealthFps;
+    private final List<Deque<TimestampedScalar>> recentHealthLatencies;
+    private final List<Deque<TimestampedCounts>> recentHealthAcceptance;
+    private final List<Deque<TimestampedFlag>> recentMultiTagFlags;
+
     private final Timer timerSinceLastSample = new Timer();
     private final ChassisSpeeds speeds = new ChassisSpeeds();
     private final ArrayList<VisionSample> samples = new ArrayList<>();
@@ -73,12 +89,24 @@ public class Vision extends SubsystemBase {
         this.lastAcceptedTimestamp = new double[ios.length];
         this.recentAcceptedPoses = new ArrayList<>(ios.length);
         this.recentAcceptedPosesTimed = new ArrayList<>(ios.length);
+        this.recentHealthAreas = new ArrayList<>(ios.length);
+        this.recentHealthAmbiguityFactors = new ArrayList<>(ios.length);
+        this.recentHealthFps = new ArrayList<>(ios.length);
+        this.recentHealthLatencies = new ArrayList<>(ios.length);
+        this.recentHealthAcceptance = new ArrayList<>(ios.length);
+        this.recentMultiTagFlags = new ArrayList<>(ios.length);
         for (int i = 0; i < ios.length; i++) {
             inputs[i] = new VisionIOInputsAutoLogged();
             lastAcceptedPose[i] = Pose2d.kZero;
             lastAcceptedTimestamp[i] = 0.0;
             recentAcceptedPoses.add(new ArrayDeque<>(POSE_STDDEV_WINDOW));
             recentAcceptedPosesTimed.add(new ArrayDeque<>());
+            recentHealthAreas.add(new ArrayDeque<>());
+            recentHealthAmbiguityFactors.add(new ArrayDeque<>());
+            recentHealthFps.add(new ArrayDeque<>());
+            recentHealthLatencies.add(new ArrayDeque<>());
+            recentHealthAcceptance.add(new ArrayDeque<>());
+            recentMultiTagFlags.add(new ArrayDeque<>());
         }
     }
 
@@ -144,6 +172,36 @@ public class Vision extends SubsystemBase {
         return new double[] {Math.sqrt(varX), Math.sqrt(varY), thetaStdDevDeg};
     }
 
+    private static void trimScalars(Deque<TimestampedScalar> values, double now, double windowSec) {
+        while (!values.isEmpty() && values.peekFirst().timestamp() < now - windowSec) {
+            values.pollFirst();
+        }
+    }
+
+    private static void trimCounts(Deque<TimestampedCounts> values, double now) {
+        while (!values.isEmpty() && values.peekFirst().timestamp() < now - HEALTH_WINDOW_SEC) {
+            values.pollFirst();
+        }
+    }
+
+    private static void trimFlags(Deque<TimestampedFlag> values, double now) {
+        while (!values.isEmpty() && values.peekFirst().timestamp() < now - HEALTH_WINDOW_SEC) {
+            values.pollFirst();
+        }
+    }
+
+    private static double median(Deque<TimestampedScalar> values, double fallback) {
+        if (values.isEmpty()) return fallback;
+        double[] sorted = values.stream().mapToDouble(TimestampedScalar::value).sorted().toArray();
+        int middle = sorted.length / 2;
+        return sorted.length % 2 == 0 ? (sorted[middle - 1] + sorted[middle]) / 2.0 : sorted[middle];
+    }
+
+    private static double mean(Deque<TimestampedScalar> values, double fallback) {
+        return values.isEmpty() ? fallback
+                : values.stream().mapToDouble(TimestampedScalar::value).average().orElse(fallback);
+    }
+
     @Override
     public void periodic() {
         Tracer.startTrace("VisionPeriodic");
@@ -175,6 +233,10 @@ public class Vision extends SubsystemBase {
             ArrayList<Pose2d> rejectedBoundaryPoses = new ArrayList<>();
             ArrayList<Pose2d> rejectedVelocityPoses = new ArrayList<>();
             ArrayList<Pose2d> rejectedAmbiguityPoses = new ArrayList<>();
+            double healthNow = Timer.getFPGATimestamp();
+
+            Deque<TimestampedScalar> healthAreas = recentHealthAreas.get(i);
+            Deque<TimestampedScalar> healthAmbiguityFactors = recentHealthAmbiguityFactors.get(i);
 
             for (int j = 0; j < inputs[i].rawEstimatedPoses.length; j++) {
                 Pose3d pose3d = inputs[i].rawEstimatedPoses[j];
@@ -186,6 +248,12 @@ public class Vision extends SubsystemBase {
                 double pixelOffset = inputs[i].rawAvgNormalizedPixelOffsets[j];
                 double aspectRatio = inputs[i].rawAvgAspectRatioDevs[j];
 
+                // Keep raw geometry in VisionIOInputs for post-match inspection, and retain a
+                // short median for the live health score so one noisy solve is not decisive.
+                healthAreas.addLast(new TimestampedScalar(healthNow, sumArea));
+                healthAmbiguityFactors.addLast(
+                        new TimestampedScalar(healthNow, VisionHealth.ambiguityFactor(ambiguity)));
+
                 int[] resultTagIds = Arrays.copyOfRange(
                         inputs[i].rawTagIdsFlat, tagIdOffset, tagIdOffset + tagCount);
                 tagIdOffset += tagCount;
@@ -193,7 +261,7 @@ public class Vision extends SubsystemBase {
                 // P3: Ambiguity filter — skip single-tag estimates the PnP solver can't
                 // distinguish. Multi-tag results report ambiguity = -1 and always pass.
                 if (FeatureSwitches.VISION_AMBIGUITY_THRESHOLD
-                        && tagCount == 1 && ambiguity >= 0.2) {
+                        && tagCount == 1 && ambiguity >= Filtering.AMBIGUITY_REJECT_AT) {
                     rejAmbiguity++;
                     rejectedAmbiguityPoses.add(pose3d.toPose2d());
                     continue;
@@ -247,6 +315,8 @@ public class Vision extends SubsystemBase {
 
                 lastAcceptedPose[i] = pose2d;
                 lastAcceptedTimestamp[i] = ts;
+
+                recentMultiTagFlags.get(i).addLast(new TimestampedFlag(healthNow, tagCount >= 2));
 
                 gaugeWeight(pose2d, ts, trust, avgDist).ifPresent(sample -> {
                     timerSinceLastSample.restart();
@@ -307,13 +377,75 @@ public class Vision extends SubsystemBase {
             // Derived metrics — viewable natively in AdvantageScope Line Graph / Statistics
             int rawCount = inputs[i].rawEstimatedPoses.length;
             Logger.recordOutput("Vision/" + name + "/ResultsPerLoop", (double) rawCount);
-            Logger.recordOutput("Vision/" + name + "/AcceptanceRatePercent",
-                    rawCount > 0 ? 100.0 * acceptedPoses.size() / rawCount : 0.0);
+            double acceptanceRatePercent = rawCount > 0 ? 100.0 * acceptedPoses.size() / rawCount : 0.0;
+            Logger.recordOutput("Vision/" + name + "/AcceptanceRatePercent", acceptanceRatePercent);
             double latencyMs = inputs[i].rawTimestampsSec.length > 0
                     ? (Timer.getFPGATimestamp()
                        - inputs[i].rawTimestampsSec[inputs[i].rawTimestampsSec.length - 1]) * 1000.0
                     : 0.0;
             Logger.recordOutput("Vision/" + name + "/LatencyMsLatest", latencyMs);
+
+            // Live camera-health score (calibration tool Tab 5) — see VisionHealth.java. Raw
+            // signals above stay available for diagnosis; the score uses time-windowed values.
+            Deque<TimestampedScalar> healthFps = recentHealthFps.get(i);
+            Deque<TimestampedScalar> healthLatencies = recentHealthLatencies.get(i);
+            Deque<TimestampedCounts> healthAcceptance = recentHealthAcceptance.get(i);
+            healthFps.addLast(new TimestampedScalar(healthNow, inputs[i].currentFps));
+            healthAcceptance.addLast(new TimestampedCounts(healthNow, acceptedPoses.size(), rawCount));
+            if (rawCount > 0) healthLatencies.addLast(new TimestampedScalar(healthNow, latencyMs));
+
+            trimScalars(healthAreas, healthNow, HEALTH_GEOMETRY_WINDOW_SEC);
+            trimScalars(healthAmbiguityFactors, healthNow, HEALTH_GEOMETRY_WINDOW_SEC);
+            trimScalars(healthFps, healthNow, HEALTH_WINDOW_SEC);
+            trimScalars(healthLatencies, healthNow, HEALTH_WINDOW_SEC);
+            trimCounts(healthAcceptance, healthNow);
+            Deque<TimestampedFlag> multiTagWindow = recentMultiTagFlags.get(i);
+            trimFlags(multiTagWindow, healthNow);
+
+            int rawResultsInWindow = healthAcceptance.stream().mapToInt(TimestampedCounts::raw).sum();
+            int acceptedResultsInWindow = healthAcceptance.stream().mapToInt(TimestampedCounts::accepted).sum();
+            double acceptanceRateWindowed = rawResultsInWindow > 0
+                    ? 100.0 * acceptedResultsInWindow / rawResultsInWindow : 0.0;
+            double multiTagRatio = multiTagWindow.isEmpty() ? 0.0
+                    : multiTagWindow.stream().mapToInt(flag -> flag.value() ? 1 : 0)
+                            .average().orElse(0.0);
+            double areaForScore = median(healthAreas, 0.0);
+            double ambiguityFactorForScore = median(healthAmbiguityFactors, 0.0);
+            double fpsForScore = mean(healthFps, 0.0);
+            double latencyForScore = median(healthLatencies, 0.0);
+
+            Logger.recordOutput("Vision/" + name + "/Health/ScoringAreaPercent", areaForScore);
+            Logger.recordOutput("Vision/" + name + "/Health/ScoringAmbiguityFactorPercent",
+                    ambiguityFactorForScore * 100.0);
+            Logger.recordOutput("Vision/" + name + "/Health/ScoringFps", fpsForScore);
+            Logger.recordOutput("Vision/" + name + "/Health/ScoringAcceptanceRatePercent",
+                    acceptanceRateWindowed);
+            Logger.recordOutput("Vision/" + name + "/Health/ScoringLatencyMs", latencyForScore);
+            Logger.recordOutput("Vision/" + name + "/Health/ScoringMultiTagSampleCount",
+                    multiTagWindow.size());
+
+            VisionHealth.CameraHealth health = VisionHealth.computeCameraHealthFromFactors(
+                    inputs[i].connected, inputs[i].visibleTagIds.length > 0,
+                    VisionHealth.stillnessFactor(Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond),
+                            speeds.omegaRadiansPerSecond),
+                    VisionHealth.areaFactor(areaForScore), ambiguityFactorForScore,
+                    VisionHealth.fpsFactor(fpsForScore, Health.TARGET_FPS),
+                    VisionHealth.jitterFactor(Math.hypot(poseStdDev1s[0], poseStdDev1s[1]), poseStdDev1s[2]),
+                    VisionHealth.acceptanceRateFactor(acceptanceRateWindowed),
+                    VisionHealth.latencyFactor(latencyForScore),
+                    VisionHealth.multiTagRatioFactor(multiTagRatio));
+
+            Logger.recordOutput("Vision/" + name + "/Health/ScorePercent", health.score());
+            Logger.recordOutput("Vision/" + name + "/Health/Reason", health.reason());
+            Logger.recordOutput("Vision/" + name + "/Health/StillnessPercent", health.stillnessPct());
+            Logger.recordOutput("Vision/" + name + "/Health/AreaPercent", health.areaPct());
+            Logger.recordOutput("Vision/" + name + "/Health/AmbiguityPercent", health.ambiguityPct());
+            Logger.recordOutput("Vision/" + name + "/Health/FpsPercent", health.fpsPct());
+            Logger.recordOutput("Vision/" + name + "/Health/JitterPercent", health.jitterPct());
+            Logger.recordOutput("Vision/" + name + "/Health/AcceptanceRateFactorPercent", health.acceptanceRatePct());
+            Logger.recordOutput("Vision/" + name + "/Health/LatencyPercent", health.latencyPct());
+            Logger.recordOutput("Vision/" + name + "/Health/MultiTagRatioPercent", health.multiTagRatioPct());
+            Logger.recordOutput("Vision/" + name + "/Health/MultiTagRatio", multiTagRatio);
 
             // Log visible tag positions on the field for AdvantageScope odometry view
             for (int tagId : inputs[i].visibleTagIds) {
@@ -323,6 +455,23 @@ public class Vision extends SubsystemBase {
             }
 
             Tracer.endTrace();
+        }
+
+        // Cross-camera agreement — the one health check above that can catch a systematically
+        // mis-calibrated camera (wrong mount transform), which can otherwise look perfectly
+        // clean on every single-camera self-consistency metric. Only meaningful with exactly the
+        // two-camera Left/Right layout this robot has (see VisionConstants.CONFIGS).
+        if (ios.length == 2) {
+            double now = Timer.getFPGATimestamp();
+            VisionHealth.PairAgreement agreement = VisionHealth.computePairAgreement(
+                    lastAcceptedPose[0], lastAcceptedTimestamp[0],
+                    lastAcceptedPose[1], lastAcceptedTimestamp[1], now);
+            Logger.recordOutput("Vision/CrossCameraAgreement/ScorePercent", agreement.score());
+            Logger.recordOutput("Vision/CrossCameraAgreement/Reason", agreement.reason());
+            Logger.recordOutput("Vision/CrossCameraAgreement/TranslationDeltaMeters",
+                    agreement.translationDeltaMeters());
+            Logger.recordOutput("Vision/CrossCameraAgreement/RotationDeltaDegrees",
+                    agreement.rotationDeltaDegrees());
         }
 
         Tracer.endTrace();

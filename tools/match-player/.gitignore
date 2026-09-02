@@ -1,0 +1,7 @@
+web/node_modules/
+web/dist/
+web/tsconfig.tsbuildinfo
+# Dev fixture: a real log's spec, ~2MB, regenerate with
+#   python server/dump_spec.py <some.wpilog> --out web/public/sample-spec.json
+web/public/sample-spec.json
+__pycache__/
