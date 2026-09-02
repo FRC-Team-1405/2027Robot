@@ -4,20 +4,22 @@ position on the field, together, instead of as two separate disconnected numbers
 Uses whatever log is already loaded in the sidebar (same uploader every other tab reads
 from) -- there's no separate file picker here.
 
-Needs two signals this session's changes added:
-  - Vision/*/Health/* (VisionHealth.java / Vision.java) -- the 0-100 health score over time.
-  - Drivetrain/Pose (CommandSwerveDrivetrain.java) -- the robot's fused field pose. This
-    genuinely did not exist before: only Drivetrain/Speeds was logged via AdvantageKit, so
-    there was no way to know where the robot was without this addition.
-Logs recorded before those changes will be missing one or both; this tab says so plainly
-rather than silently rendering an empty field/chart.
+Field position can come from up to three independent sources, all optional -- shows
+whichever exist, requires none of them:
+  - Drivetrain/Pose: the fused odometry pose (CommandSwerveDrivetrain.java addition this
+    session -- older logs won't have it).
+  - Vision/{camera}/AcceptedPoses: each camera's own accepted pose estimates, which existed
+    in logs long before Drivetrain/Pose did. A log recorded before today still has these, so
+    the field view works on old logs too -- just without the (white) odometry marker.
+Health (Vision/*/Health/*) is a separate, also-optional session addition; a log missing it
+still gets the field view, just without health playback.
 """
 import logging
 import math
 
 import streamlit as st
 
-from vision_analyzer.constants import APRILTAG_POSITIONS, FIELD_LENGTH, FIELD_WIDTH
+from vision_analyzer.constants import APRILTAG_POSITIONS, FIELD_LENGTH, FIELD_WIDTH, _cam_color
 from vision_analyzer.metrics import nearest_value
 
 from ..health_display import is_unmeasurable, severity_word
@@ -52,6 +54,16 @@ def _find_signal(signals: dict, base_key: str):
     return None
 
 
+def _flatten_pose_signal(raw_signal):
+    """Pose2d and Pose2d[] log entries both decode to (ts, list[dict]) -- the parser doesn't
+    distinguish scalar vs array structs (vision_analyzer.parser._decode just chunks the
+    payload by struct size). For a scalar (Drivetrain/Pose) the list always has exactly one
+    entry; for an array (Vision/*/AcceptedPoses, 0+ accepted poses per loop) take the most
+    recent one that loop. Either way this produces one flat (ts, {'x','y','rot'}) series
+    that nearest_value() and the trail-window filter below can consume uniformly."""
+    return [(t, poses[-1]) for t, poses in raw_signal if poses]
+
+
 def _load_series(signals: dict) -> dict:
     """Pulls every signal this tab needs out of the parsed log once per log, cached by the
     signals dict's identity (app.py's st.cache_data already guarantees the same dict object
@@ -62,12 +74,16 @@ def _load_series(signals: dict) -> dict:
     if key in cache:
         return cache[key]
 
-    result: dict = {'pose': _find_signal(signals, 'Drivetrain/Pose') or [], 'cameras': {}}
+    result: dict = {
+        'pose': _flatten_pose_signal(_find_signal(signals, 'Drivetrain/Pose') or []),
+        'cameras': {},
+    }
     for cam in _CAMERAS:
         cam_series = {
             'score': _find_signal(signals, f'Vision/{cam}/Health/ScorePercent') or [],
             'reason': _find_signal(signals, f'Vision/{cam}/Health/Reason') or [],
             'visible_tags': _find_signal(signals, f'Vision/{cam}/visibleTagIds') or [],
+            'accepted_pose': _flatten_pose_signal(_find_signal(signals, f'Vision/{cam}/AcceptedPoses') or []),
         }
         for field, _, _, suffix in _FACTORS:
             cam_series[field] = _find_signal(signals, f'Vision/{cam}/Health/{suffix}') or []
@@ -112,7 +128,11 @@ def _trend_figure(cam_series: dict, start_t: float, playhead: float):
     return fig
 
 
-def _field_figure(pose_now, trail: list[tuple[float, float]], visible_tags: set[int]):
+def _field_figure(pose_sources: list[tuple[str, str, tuple, list]], visible_tags: set[int]):
+    """pose_sources: (label, color, pose_now_or_None, trail) for each of up to three
+    independent position sources (odometry, Left camera estimate, Right camera estimate).
+    None of them are required -- whichever have data get drawn, in their own color, so you
+    can see e.g. two cameras' estimates disagreeing on the field even with no odometry at all."""
     import plotly.graph_objects as go
 
     fig = go.Figure()
@@ -138,24 +158,24 @@ def _field_figure(pose_now, trail: list[tuple[float, float]], visible_tags: set[
             name='Visible now',
         ))
 
-    if trail:
-        fig.add_trace(go.Scatter(
-            x=[p[0] for p in trail], y=[p[1] for p in trail], mode='lines',
-            line=dict(color='rgba(79,195,247,0.45)', width=2), showlegend=False, hoverinfo='skip',
-        ))
-
-    if pose_now is not None:
-        x, y, rot = pose_now
-        hx, hy = x + 0.5 * math.cos(rot), y + 0.5 * math.sin(rot)
-        fig.add_trace(go.Scatter(
-            x=[x, hx], y=[y, hy], mode='lines', line=dict(color='#f5f5f5', width=3),
-            showlegend=False, hoverinfo='skip',
-        ))
-        fig.add_trace(go.Scatter(
-            x=[x], y=[y], mode='markers',
-            marker=dict(size=16, color='#f5f5f5', line=dict(color='#111827', width=2)),
-            name='Robot',
-        ))
+    for label, color, pose_now, trail in pose_sources:
+        if trail:
+            fig.add_trace(go.Scatter(
+                x=[p[0] for p in trail], y=[p[1] for p in trail], mode='lines',
+                line=dict(color=color, width=2), opacity=0.5, showlegend=False, hoverinfo='skip',
+            ))
+        if pose_now is not None:
+            x, y, rot = pose_now
+            hx, hy = x + 0.5 * math.cos(rot), y + 0.5 * math.sin(rot)
+            fig.add_trace(go.Scatter(
+                x=[x, hx], y=[y, hy], mode='lines', line=dict(color=color, width=3),
+                showlegend=False, hoverinfo='skip',
+            ))
+            fig.add_trace(go.Scatter(
+                x=[x], y=[y], mode='markers',
+                marker=dict(size=14, color=color, line=dict(color='#111827', width=2)),
+                name=label,
+            ))
 
     fig.update_layout(
         template='plotly_dark',
@@ -202,14 +222,22 @@ def _playback_body(series: dict, start_t: float, end_t: float, duration: float) 
         + ('  ▶ playing' if st.session_state['_replay_playing'] else '  ⏸ paused')
     )
 
-    pose_sig = series['pose']
-    pose_now = None
-    trail: list[tuple[float, float]] = []
-    if pose_sig:
-        raw = nearest_value(pose_sig, playhead)
+    def _pose_and_trail(flat_signal):
+        pose_now = None
+        raw = nearest_value(flat_signal, playhead)
         if raw is not None:
             pose_now = (raw['x'], raw['y'], raw['rot'])
-        trail = [(v['x'], v['y']) for t, v in pose_sig if playhead - _TRAIL_SEC <= t <= playhead]
+        trail = [(v['x'], v['y']) for t, v in flat_signal if playhead - _TRAIL_SEC <= t <= playhead]
+        return pose_now, trail
+
+    odo_now, odo_trail = _pose_and_trail(series['pose'])
+    left_now, left_trail = _pose_and_trail(series['cameras']['Left']['accepted_pose'])
+    right_now, right_trail = _pose_and_trail(series['cameras']['Right']['accepted_pose'])
+    pose_sources = [
+        ('Odometry', '#f5f5f5', odo_now, odo_trail),
+        ('Left cam est.', _cam_color('Left'), left_now, left_trail),
+        ('Right cam est.', _cam_color('Right'), right_now, right_trail),
+    ]
 
     visible_tags: set[int] = set()
     for cam in _CAMERAS:
@@ -219,10 +247,11 @@ def _playback_body(series: dict, start_t: float, end_t: float, duration: float) 
 
     col_field, col_health = st.columns([3, 2])
     with col_field:
-        st.plotly_chart(_field_figure(pose_now, trail, visible_tags), use_container_width=True,
+        st.plotly_chart(_field_figure(pose_sources, visible_tags), use_container_width=True,
                          config={'displayModeBar': False}, key='_replay_field')
-        if pose_sig and pose_now is None:
-            st.caption('No pose sample within 1s of this timestamp.')
+        stale = [label for label, _, now, trail in pose_sources if trail and now is None]
+        if stale:
+            st.caption(f"No sample within 1s of this timestamp for: {', '.join(stale)}")
 
     with col_health:
         for cam in _CAMERAS:
@@ -251,21 +280,32 @@ def render(ctx: dict) -> None:
         return
 
     series = _load_series(signals)
-    has_pose = bool(series['pose'])
     has_health = any(series['cameras'][cam]['score'] for cam in _CAMERAS)
+    has_odometry = bool(series['pose'])
+    has_left_pose = bool(series['cameras']['Left']['accepted_pose'])
+    has_right_pose = bool(series['cameras']['Right']['accepted_pose'])
+    has_any_pose = has_odometry or has_left_pose or has_right_pose
 
+    # None of the three position sources are required -- whichever exist get shown (see
+    # _field_figure). Only warn when a whole category (all position sources, or health) is
+    # completely absent, since that's the only case where a panel would otherwise render
+    # silently empty with no explanation.
     if not has_health:
         st.warning(
             'No `Vision/*/Health/*` signals in this log — it predates the live-health scoring '
             'added to Vision.java / VisionHealth.java. Record a fresh log to replay health here.'
         )
-    if not has_pose:
+    if not has_any_pose:
         st.warning(
-            'No `Drivetrain/Pose` signal in this log — it predates pose logging added to '
-            'CommandSwerveDrivetrain.java. The field view will stay empty; health playback '
-            'below still works if the log has it.'
+            'No position data at all in this log (no `Drivetrain/Pose`, and no '
+            '`Vision/{Left,Right}/AcceptedPoses`) — the field view will stay empty.'
         )
-    if not has_health and not has_pose:
+    elif not has_odometry:
+        st.caption(
+            'No `Drivetrain/Pose` in this log (predates that addition) — field view is '
+            'showing per-camera accepted-pose estimates only, no fused odometry marker.'
+        )
+    if not has_health and not has_any_pose:
         return
 
     st.caption(
@@ -277,6 +317,7 @@ def render(ctx: dict) -> None:
     all_ts = [t for t, _ in series['pose']]
     for cam in _CAMERAS:
         all_ts += [t for t, _ in series['cameras'][cam]['score']]
+        all_ts += [t for t, _ in series['cameras'][cam]['accepted_pose']]
     if not all_ts:
         st.info('No timestamps found in the replay signals.')
         return
