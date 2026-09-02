@@ -1,0 +1,5 @@
+# The server app (server/main.py). The spec builders, encoder and standalone export
+# need none of this -- they are stdlib-only and reuse vision-analyzer's parser, which
+# is why the Streamlit calibration tab can embed the player without installing FastAPI.
+fastapi>=0.115.0
+uvicorn>=0.30.0

@@ -90,24 +90,31 @@ public class VisionHealth {
             double acceptanceRatePct, double latencyMs,
             double multiTagRatio) {
 
+        return computeCameraHealthFromFactors(connected, hasTag,
+                stillnessFactor(linSpeedMps, angSpeedRadps), areaFactor(sumTagAreaPct),
+                ambiguityFactor(ambiguity), fpsFactor(currentFps, targetFps),
+                jitterFactor(jitterXyMeters, jitterThetaDeg),
+                acceptanceRateFactor(acceptanceRatePct), latencyFactor(latencyMs),
+                multiTagRatioFactor(multiTagRatio));
+    }
+
+    /** Uses precomputed factors so callers can smooth noisy camera measurements first. */
+    public static CameraHealth computeCameraHealthFromFactors(
+            boolean connected, boolean hasTag,
+            double stillnessFactor, double areaFactor, double ambiguityFactor,
+            double fpsFactor, double jitterFactor, double acceptanceRateFactor,
+            double latencyFactor, double multiTagRatioFactor) {
         if (!connected) return unmeasurableCamera("Camera not connected");
         if (!hasTag) return unmeasurableCamera("No tag in view");
-
-        double sf = stillnessFactor(linSpeedMps, angSpeedRadps);
-        double af = areaFactor(sumTagAreaPct);
-        double mf = ambiguityFactor(ambiguity);
-        double ff = fpsFactor(currentFps, targetFps);
-        double jf = jitterFactor(jitterXyMeters, jitterThetaDeg);
-        double arf = acceptanceRateFactor(acceptanceRatePct);
-        double lf = latencyFactor(latencyMs);
-        double mtf = multiTagRatioFactor(multiTagRatio);
 
         // Multiplicative, mirroring Vision.java's own `trust *= ...` composition -- one bad
         // factor (e.g. the robot rolling during the check) craters the whole reading instead of
         // being averaged away by several good ones.
-        double score = 100.0 * sf * af * mf * ff * jf * arf * lf * mtf;
-        return new CameraHealth(score, "", sf * 100, af * 100, mf * 100, ff * 100,
-                jf * 100, arf * 100, lf * 100, mtf * 100);
+        double score = 100.0 * stillnessFactor * areaFactor * ambiguityFactor * fpsFactor
+                * jitterFactor * acceptanceRateFactor * latencyFactor * multiTagRatioFactor;
+        return new CameraHealth(score, "", stillnessFactor * 100, areaFactor * 100,
+                ambiguityFactor * 100, fpsFactor * 100, jitterFactor * 100,
+                acceptanceRateFactor * 100, latencyFactor * 100, multiTagRatioFactor * 100);
     }
 
     private static CameraHealth unmeasurableCamera(String reason) {

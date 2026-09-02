@@ -26,6 +26,7 @@ from datetime import datetime
 
 _LOG_DIR = pathlib.Path(__file__).parent.parent / 'logs'
 _VA_PATH = pathlib.Path(__file__).parents[2] / 'vision-analyzer'
+_MP_PATH = pathlib.Path(__file__).parents[2] / 'match-player' / 'server'
 
 # Cached so callers can surface the path in the UI.
 _log_file: pathlib.Path | None = None
@@ -68,6 +69,7 @@ def setup_logging() -> pathlib.Path:
     logger.info('camera_calibration session started — log: %s', _log_file)
 
     _bridge_vision_analyzer(fh)
+    _bridge_match_player()
 
     return _log_file
 
@@ -84,6 +86,18 @@ def _bridge_vision_analyzer(fh: logging.FileHandler) -> None:
         va_logger.info(
             'Bridged into camera_calibration session log: %s', _log_file,
         )
+
+
+def _bridge_match_player() -> None:
+    """Put the sibling match-player tool's server package on sys.path.
+
+    Same rationale as _bridge_vision_analyzer: Tab 6 renders its replay with the
+    match-player front end rather than rebuilding Plotly figures server-side, and reusing
+    the sibling tool by path keeps one implementation of the player instead of two.
+    Imported lazily by tabs/replay.py -- only the path insert happens here.
+    """
+    if str(_MP_PATH) not in sys.path:
+        sys.path.insert(0, str(_MP_PATH))
 
 
 def get_log_file() -> pathlib.Path | None:

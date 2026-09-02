@@ -73,6 +73,34 @@
             ],
             "isBackground": true,
             "problemMatcher": []
+        },
+        {
+            "label": "MatchPlayerBuild",
+            "detail": "Build the current Match Player front end before serving it.",
+            "type": "process",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "tools/match-player/web",
+                "run",
+                "build"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "MatchPlayer",
+            "detail": "Build and serve the current Match Player at http://127.0.0.1:8765 (logs/ picker).",
+            "type": "process",
+            "command": "python",
+            "args": [
+                ".\\tools\\match-player\\server\\main.py",
+                "--logs",
+                ".\\logs"
+            ],
+            "dependsOn": "MatchPlayerBuild",
+            "dependsOrder": "sequence",
+            "isBackground": true,
+            "problemMatcher": []
         }
     ]
 }

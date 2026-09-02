@@ -189,6 +189,7 @@ def _streamlit_app() -> None:
 
     ctx = {
         'signals':           signals,
+        'log_name':          display_name,
         'start_t':           start_t,
         'camera':            camera_name,
         'tag_cfg':           tag_cfg,
