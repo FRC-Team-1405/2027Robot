@@ -293,6 +293,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         ChassisSpeeds speeds = getState().Speeds;
         Logger.recordOutput("Drivetrain/Speeds/vxMetersPerSecond",    speeds.vxMetersPerSecond);
         Logger.recordOutput("Drivetrain/Speeds/omegaRadiansPerSecond", speeds.omegaRadiansPerSecond);
+
+        // Fused (vision-corrected) pose estimate, for offline tools that replay a wpilog and
+        // need to know where the robot actually was -- e.g. the camera calibration tool's
+        // replay/field view. Wasn't previously logged: only Speeds was, since that's all the
+        // vision analyzer's motion-bucketing needed.
+        Logger.recordOutput("Drivetrain/Pose", getState().Pose);
     }
 
     /**

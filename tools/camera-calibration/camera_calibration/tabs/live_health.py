@@ -10,6 +10,14 @@ under RealOutputs/Vision/*/Health/* -- this tab only displays what nt_client.py
 reads back. It used to compute the score itself from raw per-sample vision
 inputs, duplicating LerpTable curves that lived in VisionConstants.java; now
 there's one implementation, and it's replayable against match logs too.
+
+Layout note: earlier versions redrew a bar-meter chart from scratch every
+refresh tick with no memory of history, and ran the (expensive -- it enumerates
+every NT topic on the server) Diagnostics panel on that same fast tick, which
+together made the whole page flicker unusably fast. This version keeps a
+rolling history buffer per camera so the trend and rolling average are
+visible instead of a single noisy instant, and Diagnostics gets its own
+independent, much slower refresh cycle.
 """
 import logging
 import math
@@ -19,156 +27,150 @@ from typing import Optional
 import streamlit as st
 
 from .. import nt_client
+from ..health_display import is_unmeasurable, severity_word
 
 log = logging.getLogger(__name__)
 
 LABEL = '5 · Live Health'
 
-_HISTORY_WINDOW_SEC = 60.0
 _BG = '#111827'  # matches tabs/timeline.py's dark plot background
+_TREND_WINDOW_SEC = 60.0
+_AVG_WINDOW_SEC = 10.0
+_DIAGNOSTICS_REFRESH_SEC = 3.0
+
+# (history key, legend label, line color) -- kept dim/legend-only by default so the trend
+# chart opens on just the composite Score line; click a legend entry to drill into that
+# specific factor's trace without cluttering the default view.
+_FACTORS = [
+    ('stillness', 'Stillness', '#f2c14e'),
+    ('area', 'Tag area', '#3987e5'),
+    ('ambiguity', 'Ambiguity', '#9b59b6'),
+    ('fps', 'FPS', '#2ecc71'),
+    ('jitter', 'Jitter', '#e67e22'),
+    ('acceptance', 'Acceptance', '#1abc9c'),
+    ('latency', 'Latency', '#e74c3c'),
+    ('multitag', 'Multi-tag', '#95a5a6'),
+]
 
 
-def _status_color(pct: Optional[float]) -> str:
-    if pct is None or math.isnan(pct):
-        return '#5c5b57'
-    if pct >= 80:
-        return '#0ca30c'
-    if pct >= 60:
-        return '#fab219'
-    if pct >= 40:
-        return '#ec835a'
-    return '#d03b3b'
+def _rolling_avg(records: list[dict], field: str, window_sec: float, now: float) -> float:
+    vals = [r[field] for r in records if now - r['t'] <= window_sec and not math.isnan(r[field])]
+    return sum(vals) / len(vals) if vals else float('nan')
 
 
-def _meter_figure(rows: list[tuple[str, Optional[float]]]):
+def _trend_figure(records: list[dict], now: float):
     import plotly.graph_objects as go
 
-    labels = [r[0] for r in rows][::-1]
-    values = [0.0 if r[1] is None or math.isnan(r[1]) else r[1] for r in rows][::-1]
-    colors = [_status_color(r[1]) for r in rows][::-1]
-    texts = ['n/a' if r[1] is None or math.isnan(r[1]) else f'{r[1]:.0f}' for r in rows][::-1]
+    recent = [r for r in records if now - r['t'] <= _TREND_WINDOW_SEC]
+    xs = [-(now - r['t']) for r in recent]
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=[100] * len(rows), y=labels, orientation='h',
-        marker_color='rgba(255,255,255,0.08)', hoverinfo='skip', showlegend=False, width=0.6,
-    ))
-    fig.add_trace(go.Bar(
-        x=values, y=labels, orientation='h',
-        marker_color=colors, text=texts, textposition='outside',
-        hoverinfo='skip', showlegend=False, width=0.6,
-    ))
-    fig.update_layout(
-        barmode='overlay', template='plotly_dark',
-        height=42 * len(rows) + 30,
-        xaxis=dict(range=[0, 112], showgrid=False, zeroline=False, visible=False),
-        yaxis=dict(showgrid=False),
-        margin=dict(l=90, r=30, t=10, b=10),
-        plot_bgcolor=_BG, paper_bgcolor=_BG,
-    )
-    return fig
-
-
-def _sparkline_figure(points: list[tuple[float, float]]):
-    import plotly.graph_objects as go
-
-    xs = [-p[0] for p in points]
-    ys = [p[1] for p in points]
-    fig = go.Figure()
+    for field, label, color in _FACTORS:
+        fig.add_trace(go.Scatter(
+            x=xs, y=[r.get(field, float('nan')) for r in recent],
+            mode='lines', name=label, line=dict(color=color, width=1.5),
+            visible='legendonly', hovertemplate=f'{label}: %{{y:.0f}}<extra></extra>',
+        ))
     fig.add_trace(go.Scatter(
-        x=xs, y=ys, mode='lines', line=dict(color='#3987e5', width=2),
-        fill='tozeroy', fillcolor='rgba(57,135,229,0.15)',
-        hovertemplate='%{y:.0f}<extra></extra>',
+        x=xs, y=[r.get('score', float('nan')) for r in recent],
+        mode='lines', name='Score', line=dict(color='#f5f5f5', width=3),
+        hovertemplate='Score: %{y:.0f}<extra></extra>',
     ))
     fig.update_layout(
-        template='plotly_dark', height=130,
-        xaxis=dict(title='seconds ago', range=[-_HISTORY_WINDOW_SEC, 0], showgrid=False),
-        yaxis=dict(title='Health', range=[0, 100]),
-        margin=dict(l=40, r=10, t=10, b=30),
+        template='plotly_dark', height=280,
+        xaxis=dict(title='seconds ago', range=[-_TREND_WINDOW_SEC, 0], showgrid=False),
+        yaxis=dict(title='%', range=[0, 100]),
+        legend=dict(orientation='h', y=-0.22),
+        margin=dict(l=40, r=10, t=10, b=10),
         plot_bgcolor=_BG, paper_bgcolor=_BG,
+        uirevision='trend',  # preserves legend show/hide + zoom state across refreshes
     )
     return fig
 
 
-def _is_unmeasurable(score: float, reason: str) -> bool:
-    """True if the robot couldn't compute a real score (reason non-empty), or we've never
-    received a value over NT at all yet (the subscriber's NaN default -- see nt_client.py).
-    The robot itself never publishes NaN; a real score is always a plain 0-100 number so it
-    plots as a continuous line (dropping to 0, not a gap) in AdvantageScope."""
-    return bool(reason) or math.isnan(score)
-
-
-def _score_badge(score: float, reason: str) -> None:
-    if _is_unmeasurable(score, reason):
-        st.markdown(
-            f"<div style='padding:14px;border-radius:8px;background:#5c5b5733;"
-            f"color:#c3c2b7;text-align:center;font-size:1.1em'>⚪ {reason or 'No data received yet'}</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        color = _status_color(score)
-        st.markdown(
-            f"<div style='padding:10px;border-radius:8px;background:{color}22;"
-            f"border:1px solid {color};color:{color};text-align:center;"
-            f"font-size:2.4em;font-weight:700'>{score:.0f}</div>",
-            unsafe_allow_html=True,
-        )
-
-
-def _render_camera_panel(camera: str, cam_data: dict,
-                          history: list[tuple[float, Optional[float]]], now: float) -> None:
-    st.markdown(f'#### {camera} camera')
-
+def _render_camera_panel(camera: str, cam_data: dict, records: list[dict], now: float) -> None:
     score = cam_data.get('health_score', float('nan'))
     reason = cam_data.get('health_reason', '')
-    _score_badge(score, reason)
-    unmeasurable = _is_unmeasurable(score, reason)
+    unmeasurable = is_unmeasurable(score, reason)
+    avg = _rolling_avg(records, 'score', _AVG_WINDOW_SEC, now)
+
+    avg_text = 'n/a' if math.isnan(avg) else f'{avg:.0f}'
+    st.markdown(f'#### {camera} — {_AVG_WINDOW_SEC:.0f}s avg: :{severity_word(avg)}[{avg_text}]')
+
+    inst_text = 'n/a' if unmeasurable else f'{score:.0f}'
+    detail = f' — {reason}' if reason else ''
+    st.caption(f'Instantaneous: {inst_text}{detail}')
 
     tags = cam_data.get('visible_tag_ids', [])
     st.caption(
         f"Tags visible: {tags if tags else '—'}  |  FPS: {cam_data.get('current_fps', 0.0):.1f}"
     )
 
-    st.plotly_chart(
-        _meter_figure([
-            ('Stillness',  None if unmeasurable else cam_data.get('health_stillness', 0.0)),
-            ('Tag area',   None if unmeasurable else cam_data.get('health_area', 0.0)),
-            ('Ambiguity',  None if unmeasurable else cam_data.get('health_ambiguity', 0.0)),
-            ('FPS',        None if unmeasurable else cam_data.get('health_fps', 0.0)),
-            ('Jitter',     None if unmeasurable else cam_data.get('health_jitter', 0.0)),
-            ('Acceptance', None if unmeasurable else cam_data.get('health_acceptance', 0.0)),
-            ('Latency',    None if unmeasurable else cam_data.get('health_latency', 0.0)),
-            ('Multi-tag',  None if unmeasurable else cam_data.get('health_multitag', 0.0)),
-        ]),
-        use_container_width=True, config={'displayModeBar': False}, key=f'_health_meter_{camera}',
-    )
-
-    spark = [(now - t, v) for t, v in history if v is not None and not math.isnan(v)]
-    if len(spark) >= 2:
-        st.plotly_chart(_sparkline_figure(spark), use_container_width=True,
-                         config={'displayModeBar': False}, key=f'_health_spark_{camera}')
+    if len(records) >= 2:
+        st.plotly_chart(_trend_figure(records, now), use_container_width=True,
+                         config={'displayModeBar': False}, key=f'_health_trend_{camera}')
     else:
         st.caption('Collecting history…')
 
+    with st.expander(f'{camera} — recent raw samples'):
+        rows = [
+            {
+                'sec_ago': round(now - r['t'], 1),
+                'score': round(r['score'], 1) if not math.isnan(r['score']) else None,
+                **{label: round(r.get(field, float('nan')), 1) for field, label, _ in _FACTORS},
+            }
+            for r in list(records)[-20:][::-1]
+        ]
+        st.dataframe(rows, use_container_width=True, hide_index=True)
 
-def _render_cross_camera_panel(snapshot: dict) -> None:
+
+def _render_score_gap(left_records: list[dict], right_records: list[dict], now: float) -> None:
+    """Makes the *magnitude* of the difference between cameras explicit instead of requiring
+    a visual eyeball comparison of two independently-updating panels."""
+    left_avg = _rolling_avg(left_records, 'score', _AVG_WINDOW_SEC, now)
+    right_avg = _rolling_avg(right_records, 'score', _AVG_WINDOW_SEC, now)
+    if math.isnan(left_avg) or math.isnan(right_avg):
+        return
+    gap = left_avg - right_avg
+    leader = 'Left' if gap > 0 else 'Right' if gap < 0 else None
+    if leader is None:
+        st.markdown(f'**Score gap ({_AVG_WINDOW_SEC:.0f}s avg):** 0 — cameras reading equal')
+    else:
+        st.markdown(
+            f'**Score gap ({_AVG_WINDOW_SEC:.0f}s avg):** {abs(gap):.1f} points '
+            f'— **{leader}** reading higher (Left {left_avg:.0f} / Right {right_avg:.0f})'
+        )
+
+
+def _render_cross_camera_panel(snapshot: dict, records: list[dict], now: float) -> None:
     """The one check on this tab that can catch a systematically mis-calibrated camera
     (wrong mount transform) -- a bad camera can look perfectly clean on every
     single-camera metric above and still disagree with the other camera's read."""
-    st.markdown('#### Cross-camera agreement')
     score = snapshot.get('cross_score', float('nan'))
-    _score_badge(score, snapshot.get('cross_reason', ''))
+    reason = snapshot.get('cross_reason', '')
+    unmeasurable = is_unmeasurable(score, reason)
+    avg = _rolling_avg(records, 'score', _AVG_WINDOW_SEC, now)
+
+    avg_text = 'n/a' if math.isnan(avg) else f'{avg:.0f}'
+    st.markdown(f'#### Cross-camera agreement — {_AVG_WINDOW_SEC:.0f}s avg: :{severity_word(avg)}[{avg_text}]')
+
+    inst_text = 'n/a' if unmeasurable else f'{score:.0f}'
+    detail = f' — {reason}' if reason else ''
     st.caption(
+        f'Instantaneous: {inst_text}{detail}  |  '
         f"Translation delta: {snapshot.get('cross_translation_delta', 0.0) * 100:.1f} cm  |  "
         f"Rotation delta: {snapshot.get('cross_rotation_delta', 0.0):.1f}°"
     )
 
 
-def _render_diagnostics(snapshot: dict, root_table: str) -> None:
+def _render_diagnostics(root_table: str) -> None:
     """Splits "why is this blank" into the three places it can actually break:
     no TCP connection to any server, connection but wrong topic paths, or right
-    paths but no value received yet. Refreshes live alongside the rest of the tab.
+    paths but no value received yet. Deliberately its own slow-refresh fragment
+    (see _diagnostics_panel) -- discover_topics() enumerates every topic on the
+    server, which is too heavy to run on the same fast tick as the health panels.
     """
+    snapshot = nt_client.read()
     conns = nt_client.get_connections()
     diag_rows = nt_client.topic_diagnostics()
     any_topic_exists = any(r['exists'] for r in diag_rows)
@@ -219,6 +221,21 @@ def _render_diagnostics(snapshot: dict, root_table: str) -> None:
             st.caption('No topics discovered at all yet.')
 
 
+def _record_from(cam_data: dict, now: float) -> dict:
+    return {
+        't': now,
+        'score': cam_data.get('health_score', float('nan')),
+        **{field: cam_data.get(f'health_{field}', float('nan')) for field, _, _ in _FACTORS},
+    }
+
+
+def _append_trimmed(records: list[dict], record: dict) -> None:
+    records.append(record)
+    cutoff = record['t'] - _TREND_WINDOW_SEC
+    while records and records[0]['t'] < cutoff:
+        records.pop(0)
+
+
 def _live_panel(root_table: str) -> None:
     snapshot = nt_client.read()
     history = st.session_state['_health_history']
@@ -235,22 +252,22 @@ def _live_panel(root_table: str) -> None:
         + ('stationary ✓' if still else 'moving — hold the robot still for an accurate reading')
     )
 
+    for camera in ('Left', 'Right'):
+        _append_trimmed(history[camera], _record_from(snapshot.get(camera, {}), now))
+    _append_trimmed(history['cross'], {'t': now, 'score': snapshot.get('cross_score', float('nan'))})
+
+    _render_score_gap(history['Left'], history['Right'], now)
+
     cols = st.columns(2)
     for col, camera in zip(cols, ('Left', 'Right')):
-        cam_data = snapshot.get(camera, {})
-        score = cam_data.get('health_score', float('nan'))
-
-        hist = history[camera]
-        hist.append((now, score))
-        cutoff = now - _HISTORY_WINDOW_SEC
-        while hist and hist[0][0] < cutoff:
-            hist.pop(0)
-
         with col:
-            _render_camera_panel(camera, cam_data, hist, now)
+            _render_camera_panel(camera, snapshot.get(camera, {}), history[camera], now)
 
-    _render_cross_camera_panel(snapshot)
-    _render_diagnostics(snapshot, root_table)
+    _render_cross_camera_panel(snapshot, history['cross'], now)
+
+
+def _diagnostics_panel(root_table: str) -> None:
+    _render_diagnostics(root_table)
 
 
 def render(ctx: dict) -> None:
@@ -273,7 +290,7 @@ def render(ctx: dict) -> None:
     )
 
     if '_health_history' not in st.session_state:
-        st.session_state['_health_history'] = {'Left': [], 'Right': []}
+        st.session_state['_health_history'] = {'Left': [], 'Right': [], 'cross': []}
 
     with st.expander('Connection', expanded=not nt_client.is_connected()):
         c1, c2 = st.columns([2, 2])
@@ -298,7 +315,7 @@ def render(ctx: dict) -> None:
         with b2:
             if nt_client.is_connected() and st.button('Disconnect'):
                 nt_client.disconnect()
-                st.session_state['_health_history'] = {'Left': [], 'Right': []}
+                st.session_state['_health_history'] = {'Left': [], 'Right': [], 'cross': []}
                 st.rerun()
 
         st.caption('🟢 NT connected' if nt_client.is_connected() else '⚪ Not connected')
@@ -307,5 +324,7 @@ def render(ctx: dict) -> None:
         st.info('Connect to NetworkTables above to start the live health view.')
         return
 
-    refresh_s = st.select_slider('Refresh interval', options=[0.25, 0.5, 1.0, 2.0], value=0.5)
-    st.fragment(run_every=f'{refresh_s}s')(_live_panel)(root_table.strip('/'))
+    refresh_s = st.select_slider('Refresh interval', options=[0.5, 1.0, 2.0, 5.0], value=1.0)
+    root_table_clean = root_table.strip('/')
+    st.fragment(run_every=f'{refresh_s}s')(_live_panel)(root_table_clean)
+    st.fragment(run_every=f'{_DIAGNOSTICS_REFRESH_SEC}s')(_diagnostics_panel)(root_table_clean)
