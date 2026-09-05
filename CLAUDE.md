@@ -73,13 +73,13 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 ### Tools
 
-Three sibling tools under `tools/`. They share one `.wpilog` parser rather than vendoring copies of it: `vision_analyzer/parser.py` is genuinely stdlib-only, and the other two put it on `sys.path` (see `camera_calibration/logger.py` and `match-player/server/paths.py`). Each tool has its own `requirements.txt`.
+`tools/logbench/` is the primary tool: a generic (not vision-specific) metric/composite-score comparison library over `.wpilog`s, with a CLI and a Vite + React + TypeScript / FastAPI web UI as two views over the same core. It's in the process of absorbing `tools/vision-analyzer` and `tools/ab-metrics` (see `tools/logbench/README.md` for migration status) — check there before assuming a tool listed below still owns a piece of functionality.
 
-`tools/vision-analyzer/analyze.py` — Streamlit + Plotly dashboard over a `.wpilog`: vision acceptance/rejection, pose estimates, correction magnitudes, and a CSV/Markdown export for comparing two runs. Run against logs pulled from `/home/lvuser/logs/` on the roboRIO. `streamlit run analyze.py`.
+`tools/vision-analyzer/analyze.py` — Streamlit + Plotly dashboard over a `.wpilog`: vision acceptance/rejection, pose estimates, correction magnitudes, and a CSV/Markdown export for comparing two runs. Being migrated into `logbench`; being kept in place until that migration is reviewed for parity. `streamlit run analyze.py`.
 
-`tools/camera-calibration/calibrate.py` — Streamlit app for solving camera mount transforms from a tape-measure calibration run, plus live health monitoring over NetworkTables. Six tabs; Tab 6 (Replay) embeds the match player below.
+`tools/camera-calibration/calibrate.py` — Streamlit app for solving camera mount transforms from a tape-measure calibration run, plus live health monitoring over NetworkTables. Six tabs; Tab 6 (Replay) embeds `logbench`'s player below. Out of scope for the `logbench` migration — it solves a geometry problem (mount transform), not a metrics problem.
 
-`tools/match-player/` — Vite + React + TypeScript front end (canvas, 60fps) with a FastAPI back end, for playing back a log and watching metrics move against the robot's field position. Replaced a Streamlit implementation that took seconds per frame; see its README for the measurements and the reasoning. **The player core is metric-agnostic** — adding a new kind of playback (shooter, swerve modules) means writing one `server/specs/*.py` builder and registering it, with no front-end changes. `server/assets/player.singlefile.html` is a committed build artifact; rebuild it with `cd web && npm run build:single` whenever `web/src` changes, or the Streamlit tab and the standalone export will serve stale UI.
+`tools/logbench/` — shares the `vision_analyzer/parser.py` stdlib-only `.wpilog` parser (bridged onto `sys.path`, see `server/paths.py`) rather than vendoring a copy. Vite + React + TypeScript front end (canvas, 60fps) with a FastAPI back end, for playing back a log and watching metrics move against the robot's field position — this replaced a Streamlit implementation that took seconds per frame; see its README for the measurements and the reasoning. **The player core is metric-agnostic** — adding a new kind of playback (shooter, swerve modules) means writing one `server/specs/*.py` builder and registering it, with no front-end changes. `server/assets/player.singlefile.html` is a committed build artifact; rebuild it with `cd web && npm run build:single` whenever `web/src` changes, or the Streamlit tab and the standalone export will serve stale UI.
 
 ## 2027 TODOs
 
@@ -89,4 +89,4 @@ Several `TODO(2027):` markers in the code flag things that need updating for the
 - `Vision.java` — update `FIELD_LENGTH`/`FIELD_WIDTH` constants once 2027 field layout is published.
 - `VisionConstants.Filtering.TAG_RANKINGS` — update for 2027 game structure.
 - `Robot.java` — verify autonomous duration for 2027 rules.
-- `tools/vision-analyzer/vision_analyzer/constants.py` — `FIELD_LENGTH`/`FIELD_WIDTH`/`APRILTAG_POSITIONS` are 2026 Reefscape. All three tools read field geometry from here, so the analyzer, the calibrator and the match player all update together.
+- `tools/vision-analyzer/vision_analyzer/constants.py` — `FIELD_LENGTH`/`FIELD_WIDTH`/`APRILTAG_POSITIONS` are 2026 Reefscape. The analyzer, the calibrator and `logbench` all read field geometry from here, so they update together.

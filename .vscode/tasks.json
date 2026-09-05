@@ -75,29 +75,29 @@
             "problemMatcher": []
         },
         {
-            "label": "MatchPlayerBuild",
-            "detail": "Build the current Match Player front end before serving it.",
+            "label": "LogbenchBuild",
+            "detail": "Build the current Logbench front end before serving it.",
             "type": "process",
             "command": "npm",
             "args": [
                 "--prefix",
-                "tools/match-player/web",
+                "tools/logbench/web",
                 "run",
                 "build"
             ],
             "problemMatcher": []
         },
         {
-            "label": "MatchPlayer",
-            "detail": "Build and serve the current Match Player at http://127.0.0.1:8765 (logs/ picker).",
+            "label": "Logbench",
+            "detail": "Build and serve the current Logbench at http://127.0.0.1:8765 (logs/ picker).",
             "type": "process",
             "command": "python",
             "args": [
-                ".\\tools\\match-player\\server\\main.py",
+                ".\\tools\\logbench\\server\\main.py",
                 "--logs",
                 ".\\logs"
             ],
-            "dependsOn": "MatchPlayerBuild",
+            "dependsOn": "LogbenchBuild",
             "dependsOrder": "sequence",
             "isBackground": true,
             "problemMatcher": []

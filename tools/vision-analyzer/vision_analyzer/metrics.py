@@ -705,6 +705,13 @@ def _compute_mode_spans(
     return spans
 
 
+# Public aliases for tools/logbench, which reuses this module's DS-state windowing
+# rather than a second implementation (see tools/logbench/server/core/log.py). The
+# leading-underscore originals stay as the names this module uses internally.
+compute_mode_spans = _compute_mode_spans
+filter_signals_by_time = _filter_signals_by_time
+
+
 def _auto_trim_window(
     mode_spans: List[Tuple[float, float, str]], duration: float,
 ) -> Tuple[float, float]:

@@ -10,13 +10,13 @@ camera (~135k points), rebuilt the field figure, rescanned the full pose series 
 times for the trail, and shipped the lot over the websocket. Streamlit's execution model
 is request/response, so each "frame" cost seconds and playback was unwatchable.
 
-The player is now the match-player front end (tools/match-player), embedded as one
+The player is now the logbench front end (tools/logbench), embedded as one
 self-contained HTML document with this log's data baked in. The data crosses the wire
 once, at render time; play/pause/scrub/legend all happen inside the iframe at 60fps with
 no round-trip to Streamlit at all. Everything domain-specific -- which signals to read,
-what the eight health factors are, the severity thresholds -- lives in match-player's
+what the eight health factors are, the severity thresholds -- lives in logbench's
 specs/camera_health.py, so the same player also drives the standalone export below and
-the match-player server app.
+the logbench server app.
 """
 import logging
 import pathlib
@@ -39,7 +39,7 @@ def render(ctx: dict) -> None:
         st.info('Load a `.wpilog` file in the sidebar to replay it here.')
         return
 
-    # Imported here rather than at module scope so a missing or unbuilt match-player only
+    # Imported here rather than at module scope so a missing or unbuilt logbench only
     # breaks this tab, with an actionable message, instead of the whole app's import.
     try:
         import export
@@ -47,7 +47,7 @@ def render(ctx: dict) -> None:
         from encode import spec_to_dict
     except ImportError as exc:
         st.error(
-            'Could not import the match-player tool from `tools/match-player/server` '
+            'Could not import the logbench tool from `tools/logbench/server` '
             f'({exc}). It is bridged onto sys.path by camera_calibration/logger.py.'
         )
         return
@@ -63,8 +63,8 @@ def render(ctx: dict) -> None:
 
     if not export.bundle_exists():
         st.error(
-            'The match-player bundle has not been built yet, so there is nothing to '
-            f'embed.\n\n```\ncd tools/match-player/web && npm install && '
+            'The logbench bundle has not been built yet, so there is nothing to '
+            f'embed.\n\n```\ncd tools/logbench/web && npm install && '
             f'npm run build:single\n```\n\nExpected at `{export.bundle_path()}`.'
         )
         return
@@ -79,7 +79,7 @@ def render(ctx: dict) -> None:
     try:
         html = export.render_single_file(payload)
     except Exception as exc:
-        log.exception('Failed to render the match-player bundle')
+        log.exception('Failed to render the logbench bundle')
         st.error(f'Could not build the replay view: {exc}')
         return
 
