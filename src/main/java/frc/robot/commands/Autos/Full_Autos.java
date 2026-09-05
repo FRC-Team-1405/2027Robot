@@ -591,6 +591,7 @@ public class Full_Autos {
                 NamedCommands.registerCommand("TheShowboater", TheShowboater);
                 NamedCommands.registerCommand("TEST", TEST);
                 NamedCommands.registerCommand("CircleHub", CircleHub);
+                NamedCommands.registerCommand("CircleFacingTag", cmds.CircleFacingTag.get());
                 // TODO: use DepotFaceIn
                 // NamedCommands.registerCommand("DepotFaceIn", DepotFaceIn);
                 NamedCommands.registerCommand("JUSTSHOOT", JUSTSHOOT);

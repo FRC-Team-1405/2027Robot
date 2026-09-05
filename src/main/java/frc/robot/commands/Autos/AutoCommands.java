@@ -80,6 +80,7 @@ public class AutoCommands {
                 // NamedCommands.getCommand("TheShowboater"));
 
                 commandsToAddToChooser.put("CircleHub", NamedCommands.getCommand("CircleHub"));
+                commandsToAddToChooser.put("CircleFacingTag_Tag10", NamedCommands.getCommand("CircleFacingTag"));
                 // commandsToAddToChooser.put("TEST", NamedCommands.getCommand("TEST"));
                 // commandsToAddToChooser.put("fourMeters",
                 // NamedCommands.getCommand("fourMeters"));

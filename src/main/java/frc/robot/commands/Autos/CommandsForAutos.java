@@ -11,6 +11,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import frc.robot.Constants.ShooterPreferences;
+import frc.robot.commands.CircleFacingTagCommand;
 import frc.robot.commands.DriveToHubDistance;
 import frc.robot.commands.AutoPilot.AutoPilotV2Command;
 import frc.robot.commands.Shooter.AutoFire;
@@ -133,6 +134,14 @@ public class CommandsForAutos {
                         .withHeadingPID(circle_headingKp, 0)
                         .withEntryAngle(Rotation2d.fromDegrees(-45))
                         .build();
+
+        //
+        // Vision test: orbit the starting point while facing a fixed AprilTag,
+        // ramping speed up to exercise vision under acceleration + rotation.
+        //
+        private static final int VISION_CIRCLE_TEST_TAG_ID = 10;
+        Supplier<Command> CircleFacingTag = () -> new CircleFacingTagCommand(drivetrain,
+                        VISION_CIRCLE_TEST_TAG_ID);
 
         // endregion Test Commands
 
