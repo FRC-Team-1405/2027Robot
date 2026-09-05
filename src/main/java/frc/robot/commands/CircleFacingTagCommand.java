@@ -5,6 +5,7 @@
 package frc.robot.commands;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -37,7 +38,12 @@ public class CircleFacingTagCommand extends Command {
     private final CommandSwerveDrivetrain drivetrain;
     private final int tagId;
 
+    // All position/velocity math here works in absolute (blue-origin) field
+    // coordinates, so force that frame explicitly. Otherwise this request
+    // defaults to OperatorPerspective, which CommandSwerveDrivetrain rotates
+    // 180 degrees on red alliance, flipping every velocity command we send.
     private final SwerveRequest.FieldCentricFacingAngle request = new SwerveRequest.FieldCentricFacingAngle()
+            .withForwardPerspective(ForwardPerspectiveValue.BlueAlliance)
             .withHeadingPID(10.0, 0.0, 0.2);
 
     private Translation2d center;
