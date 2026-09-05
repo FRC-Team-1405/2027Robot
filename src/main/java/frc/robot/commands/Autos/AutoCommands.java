@@ -3,7 +3,12 @@ package frc.robot.commands.Autos;
 import java.util.HashMap;
 import java.util.function.Supplier;
 
-import com.pathplanner.lib.auto.NamedCommands;
+import com.pathplanner.lib.auto.NamedCommands; //KEEP THIS ONE!!!
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.util.FileVersionException;
+import java.io.IOException;
+import org.json.simple.parser.ParseException;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -11,6 +16,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.commands.PidToPose.PidToPoseCommands;
 import frc.robot.subsystems.AdjustableHood;
 import frc.robot.subsystems.Climber;
@@ -124,7 +130,10 @@ public class AutoCommands {
                                 NamedCommands.getCommand("Zac_LeftQuad"));
                 // commandsToAddToChooser.put("Right_Yum_Middle",
                 // NamedCommands.getCommand("Right_Yum_Middle"));
-
+                commandsToAddToChooser.put("Right_Path",
+                                NamedCommands.getCommand("Right_Path"));
+                commandsToAddToChooser.put("PP_Right_Path",
+                                runPathPlannerPath(PP_Right_Test, drivetrain, resetOdometry));
                 // Add all commands in Map to chooser
                 commandsToAddToChooser.keySet().stream()
                                 .forEach(name -> chooser.addOption(name, commandsToAddToChooser.get(name)));
@@ -152,6 +161,19 @@ public class AutoCommands {
 
         }
 
+         private static Command runPathPlannerPath(String pathName, CommandSwerveDrivetrain drivetrain, boolean resetOdometry) {
+        try {
+            PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
+            return new SequentialCommandGroup(
+                Commands.runOnce(() -> drivetrain.resetPose(path.getStartingDifferentialPose())).onlyIf(() -> resetOdometry),
+                AutoBuilder.followPath(path)
+                );
+        } catch (FileVersionException | IOException | ParseException e) {
+            System.err.println("ERROR: PathPlannerPath not found, name: " + pathName);
+            System.err.println(e.getStackTrace());
+            return null;
+                }
+        }
         public static Command getAutonomousCommand() {
                 /* Run the path selected from the auto chooser */
                 if (DriverStation.isFMSAttached()
@@ -166,4 +188,6 @@ public class AutoCommands {
                 }
 
         }
+
+        
 }

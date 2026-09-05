@@ -25,10 +25,24 @@ public class Full_Autos {
         /* Register Commands */ // any auto added here needs to be registered in AutoCommands to show up on
                                 // Elastic
         // NamedCommands.registerCommand("blueCenter", blueCenter);
+       //This was a bad idea....
+       //TODO: Delete this.....
+        /* public AutoRoutine Right_Path() {
+                AutoRoutine routine = autoFactory.newRoutine("Right_Path");
+
+         AutoTrajectory Right_To_Field = routine.trajectory("Right_To_Field");
+        routine.active().onTrue(
+        Commands.sequence(
+            Right_To_Field.cmd()));
+        }*/
         public void registerAutos(CommandsForAutos cmds) {
 
                 // #region TEST AUTOS (All caps)
-                Command CircleHub = new SequentialCommandGroup(cmds.MoveTo_circleBottom.get(), cmds.MoveTo_circleRight.get(), cmds.MoveTo_circleTop.get(), cmds.MoveTo_circleLeft.get());
+                Command CircleHub = new SequentialCommandGroup(
+                        cmds.MoveTo_circleBottom.get(), 
+                        cmds.MoveTo_circleRight.get(), 
+                        cmds.MoveTo_circleTop.get(), 
+                        cmds.MoveTo_circleLeft.get()).withName("CircleHub");
 
                 Command TEST = new SequentialCommandGroup(
                                 // cmds.MoveTo_depot_BackFace_t.get(),
@@ -536,12 +550,6 @@ public class Full_Autos {
                                 cmds.MoveTo_rightOfDepot_Out.get(),
                                 cmds.MoveTo_ClosestShootingPosition_LONG.get(),
                                 cmds.mediumShoot.get()).withName("TheShowboater");
-                Command GET_THOSE_LEFTOVERS = new SequentialCommandGroup(
-                                // cmds.MoveTo_ClosestShootingPosition_MEDIUM.get(),
-                                // cmds.mediumShoot.get(),
-                                cmds.MoveTo_behindHub.get()
-
-                ).withName("GET_THOSE_LEFTOVERS");
                 
                 NamedCommands.registerCommand("testOffHub", testOffHub);
                 NamedCommands.registerCommand("LeftStart_ToDepot", LeftStart_ToDepot);
@@ -552,7 +560,7 @@ public class Full_Autos {
                 // NamedCommands.registerCommand("leftBumpToAlliance", leftBumpToAlliance);
 
                 NamedCommands.registerCommand("JUST_SHOOT_FROM_ANYWHERE", JUST_SHOOT_FROM_ANYWHERE);
-                NamedCommands.registerCommand("GET_THOSE_LEFTOVERS", GET_THOSE_LEFTOVERS);
+
 
                 NamedCommands.registerCommand("RightStartCenterHarvestInLeft", RightStartCenterHarvestInLeft);
                 NamedCommands.registerCommand("LeftStartCenterHarvestInRight", LeftStartCenterHarvestInRight);
@@ -607,5 +615,10 @@ public class Full_Autos {
                 // OVERRIDE_AUTO_COMMAND = LeftQuad;
                 // SmartDashboard.putString("Auto/SELECTED OVERRIDE_AUTO_COMMAND",
                 //                 OVERRIDE_AUTO_COMMAND.getName());
+
+
         }
+
+        
+                
 }
