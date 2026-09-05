@@ -194,7 +194,7 @@ def build(signals: dict, title: str = 'Camera Health Replay') -> tuple:
                 continue
             tid = f'health/{cam}/{suffix}'
             tracks.append(Track(id=tid, label=label, kind='scalar', group=cam, unit='%',
-                                color=color, domain=(0.0, 100.0), hidden=True))
+                                color=color, domain=(0.0, 100.0)))
             data[tid] = sig
 
     cross_score = _find_signal(signals, 'Vision/CrossCameraAgreement/ScorePercent')

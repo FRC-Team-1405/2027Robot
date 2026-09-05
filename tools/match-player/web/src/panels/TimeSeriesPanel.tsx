@@ -48,7 +48,7 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
   const [view, setView] = useState<[number, number]>([0, spec.duration]);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [tagSamplesOnly, setTagSamplesOnly] = useState(false);
-  const [movingAverage, setMovingAverage] = useState(false);
+  const [movingAverage, setMovingAverage] = useState(true);
 
   const duration = spec.duration;
   const stalenessSec = spec.static.staleness_sec ?? 1;

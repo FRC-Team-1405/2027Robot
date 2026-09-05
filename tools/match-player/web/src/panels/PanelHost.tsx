@@ -49,7 +49,7 @@ function UnknownPanel({ panel }: { panel: Panel }) {
 export function PanelHost() {
   const { spec } = usePlayer();
   const byId = Object.fromEntries(spec.panels.map((p) => [p.id, p]));
-  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
   const [timelinesOpen, setTimelinesOpen] = useState(true);
   const [fieldWidth, setFieldWidth] = useState(520);
 
