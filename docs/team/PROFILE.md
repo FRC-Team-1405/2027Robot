@@ -51,6 +51,24 @@ Last built: 2026-09-06.
   *more* sustained mentor hours are less likely to survive than ones that are self-serve or
   front-loaded (built once, reused every year).
 
+## 2a. Mentor pipeline (answered 2026-09-06)
+
+- **No formal mentor recruitment process.** Mentors come almost entirely through students —
+  a student's parent happens to be a software engineer or works somewhere like L3Harris, and
+  recruitment happens organically from that connection. This mirrors the recruitment story in
+  §5a: the working channel is relational/word-of-mouth, not structured outreach, for both
+  mentors and students.
+- **Untapped resource: RIT (Rochester Institute of Technology) connection.** One of the team's
+  lead mentors is senior in RIT's entrepreneurship program (startup investing + mentoring
+  background). This is a live bridge to a local college that isn't yet described as being used
+  for team growth — worth exploring deliberately: RIT engineering/CS students as near-mentors
+  or occasional helpers, RIT's own outreach/volunteering programs, or simply asking this mentor
+  who else at RIT might want to get involved. Given mentor bandwidth is the team's tightest
+  constraint (§2), a college-student mentor pipeline (even informal, even just a few hours/
+  month per person) could matter more than any single new recruitment tactic.
+- Open sub-question, not yet answered: is there a current strong senior student who could grow
+  into a captain/near-mentor role for software specifically? Worth asking directly.
+
 ## 3. Student pipeline (stated + evidence)
 
 - Stated: "a handful of students every year," maybe two are decent at basic programming,
