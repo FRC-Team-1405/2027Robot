@@ -2,9 +2,16 @@
 
 Twelve rungs, from "never opened this repo" to "can read `Vision.java` and propose a
 change to it." Every rung is a **real change to this codebase** (or a real replay of a
-real match log), not an exercise. Every rung ends with a commit **under the student's own
-GitHub account** — that's non-negotiable; the commit history is the student's season
-portfolio.
+real match log), not an exercise. Every rung ends with a commit **carrying a
+`Student: <Name>` line in the message** — that's non-negotiable; the commit history
+(searchable by that trailer) is the student's season portfolio.
+
+Students commit from the team's shared `Student` account, on purpose — not a placeholder
+to fix later. Individual GitHub accounts were considered and rejected: these are shared
+school laptops with low general tech fluency, and per-student account + git + VS Code
+setup, repeated every time a student switches machines, is a real onboarding tax that
+isn't worth what it buys. The `Student:` trailer plus the roster table below gets the
+"my work has my name on it" effect without any of that setup cost.
 
 Assumes: a student with "basic programming" ability (a semester of intro coding — loops,
 functions, maybe classes), a laptop with WPILib VS Code installed, and this repo cloned.
@@ -14,16 +21,28 @@ No robot required until it's convenient; rungs 1–8 run entirely in simulation.
 
 - One rung per meeting is the expected pace. Faster is fine; a student who can
   demonstrate a rung's "done" checklist may skip it.
-- A "session" below ≈ 1.5–2 hours.
+- A "session" below ≈ 1.5–2 hours. Software students here typically show up 1-2 days a
+  week during build season (a committed student ≈ 8-10 hrs/week: one weekday session
+  plus one longer Saturday session) — so a rung marked "2 sessions" is roughly a week of
+  calendar time, not a single evening. **Rungs 1-6 are meant to happen mostly during a
+  fall on-ramp, before build season's 6-10 week crunch starts** (see
+  `docs/team/GROWTH-PLAN.md`), because there usually isn't enough build-season calendar
+  time alone to reach rung 12 from zero.
+- Rung 1 needs no lab, no robot, and no team resources — just this repo and a laptop.
+  It's the one rung that's realistic to do at home, and doing programming work outside
+  of meetings isn't the norm here yet. If a student finishes rung 1 in a session and
+  seems into it, explicitly tell them they can keep driving the sim at home — that
+  invitation matters more than it sounds like it should.
 - Each rung names the concept it teaches. When a student asks "why," the answer is in
   the named concept — teach it *then*, at the moment it's needed, not as a lecture up
   front.
 - Mentor sign-off = the student walks the mentor (any mentor — see
   `docs/team/MENTOR-PLAYBOOK.md`) through the "Done when" checklist. Then they commit:
-  message starts with `rung-N:`, e.g. `rung-2: log hopper roller velocity`.
+  message starts with `rung-N:`, e.g. `rung-2: log hopper roller velocity`, with a
+  `Student: <Name>` trailer line in the body.
 - Rungs 2–8 should be done on a branch and can be reverted after sign-off if the change
-  was purely for learning — the *commit* still exists under the student's name either
-  way. Rungs that improve the robot for real (many will) get merged.
+  was purely for learning — the *commit* still exists, trailer and all, either way.
+  Rungs that improve the robot for real (many will) get merged.
 
 ---
 
@@ -277,6 +296,6 @@ near-mentor: they should be signing off rungs 1–8 for next year's students.
 
 ## Roster
 
-| Student (GitHub handle) | Started | Current rung | Rung-12 capstone topic |
+| Student (name) | Started | Current rung | Rung-12 capstone topic |
 |---|---|---|---|
 | _add yourself here in rung 1_ | | | |

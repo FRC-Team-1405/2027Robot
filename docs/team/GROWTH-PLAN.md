@@ -11,68 +11,101 @@ has been sent, posted, or committed on your behalf.
 
 ## Top 3 recommendations (if you skim nothing else)
 
-1. **Adopt the onboarding ladder and individual commit attribution together, now, before
-   kickoff.** `docs/team/onboarding/CURRICULUM.md` is a 12-rung sequence of real
-   contributions to this codebase, each ending in a commit under the student's own GitHub
-   account. It's self-serve by design: a student can run rungs 1–5 with no mentor in the
-   room. This is the single cheapest attack on all three stated goals at once (skill
-   floor, bus factor, visible student growth). Cost: ~2 hours of mentor review of the
-   curriculum + one meeting to set up student GitHub accounts. Recurring cost: ~0.
+1. **Adopt the onboarding ladder now, before kickoff, with attribution that fits how this
+   team actually works.** `docs/team/onboarding/CURRICULUM.md` is a 12-rung sequence of
+   real contributions to this codebase. Students stay on the shared `Student` account —
+   individual GitHub accounts were considered and deliberately rejected (see
+   `PROFILE.md` §3): on shared school laptops with low general tech fluency, per-student
+   account + git + VS Code setup, redone every laptop swap, is a real tax not worth
+   paying. Instead, every rung commit carries a `Student: <Name>` trailer in the message
+   body — the "my work is in the permanent record under my name" effect survives without
+   any account plumbing. The roster table at the bottom of `CURRICULUM.md` is the
+   human-readable version of the same thing. It's self-serve by design: a student can run
+   rungs 1–5 with no mentor in the room. Cost: ~2 hours of mentor review of the
+   curriculum. Recurring cost: ~0.
 
-2. **Run a 6-week fall on-ramp using the simulator and last year's robot, and make it the
-   recruitment event.** One evening a week, October–November: rookies drive
-   `simulateJava`, climb curriculum rungs, and get time on the real 2026 robot. Teams
-   that go quiet from September to January lose their fall recruits ([Chief Delphi:
-   subteam recruitment](https://www.chiefdelphi.com/t/subteam-recruitment/503104),
+2. **Send the homeschool outreach email(s) this month.** Per the mentor's own read of the
+   team: roughly half the team is already homeschoolers, they tend to be the strongest
+   contributors, this channel has never been worked deliberately (no feeder pipeline, no
+   structured homeschool outreach — `PROFILE.md` §5a), and the school itself won't invest
+   in recruiting for you. This is the single cheapest, highest-confidence lever available
+   — cheaper than the live-demo tactic below, because it's one email, not an event. See
+   `RECRUITMENT.md`'s tactic #1. Cost: ~1 hour to draft and send. Recurring cost: ~0
+   (repeat once a year).
+
+3. **Run a fall on-ramp using the simulator and last year's robot, and make it the
+   recruitment event for both channels above.** One evening a week, October–November
+   (this fits inside the "school provides space, nothing else" reality — no funding
+   needed): rookies drive `simulateJava`, climb curriculum rungs, and get time on the
+   real 2026 robot. Teams that go quiet from September to January lose their fall
+   recruits ([Chief Delphi: subteam recruitment](https://www.chiefdelphi.com/t/subteam-recruitment/503104),
    [recruitment](https://www.chiefdelphi.com/t/recruitment/494997)). The profile notes
    2027Robot activity went quiet for everyone but Stephen after May — this is the
-   momentum leak. Cost: 6 × 2 mentor-hours, but rungs are self-serve, so an "on-and-off"
-   mentor can run a session from `MENTOR-PLAYBOOK.md` without Stephen present.
+   momentum leak. Cost: 6-8 × 2 mentor-hours, but rungs are self-serve, so an
+   "on-and-off" mentor can run a session from `MENTOR-PLAYBOOK.md` without Stephen
+   present.
 
-3. **Convert occasional mentors into rung-checkers, not co-leads.**
-   `docs/team/MENTOR-PLAYBOOK.md` is a 5-minute read that gives a drop-in mentor a
-   concrete, bounded job for that visit (sit with a student on their current rung, use
-   the checklist, sign off). This turns intermittent attendance from "helped one kid with
-   one bug" into "advanced one student one permanent rung," with zero prep. Cost: the
-   playbook exists; recurring cost lands on the occasional mentors, not the lead.
+Converting occasional mentors into rung-checkers (§4) and pulling the RIT thread (§4a)
+are both still real, still cheap — they just didn't make the top 3 because they compound
+*after* the ladder and the recruitment channel exist, not before.
 
 ---
 
 ## Sequencing
 
 ```
-Now (offseason)      → Review/adopt curriculum + playbook. Student GitHub accounts.
-                       Announce fall on-ramp (see RECRUITMENT.md tactics).
-October–November     → 6-week on-ramp. Rookies reach rung 4–6. Identify the 1–2
-                       students who push past rung 6 unprompted — they're your
-                       future near-mentors/captains.
+Now (offseason)      → Review/adopt curriculum + playbook. Send the homeschool
+                       outreach email(s) (RECRUITMENT.md #1). Have one conversation
+                       with the RIT-connected mentor about pulling in RIT students
+                       (§4a) — costs an hour, not a program.
+October–November     → Fall on-ramp (6-8 weeks). Rookies reach rung 4–6 — that's
+                       the realistic ceiling given software students typically show
+                       up 1-2 days/week (`PROFILE.md` time budget), so most of the
+                       calendar runway for rungs 1-6 should come from here, not from
+                       the 6-10 week build season itself. Identify the 1–2 students
+                       who push past rung 6 unprompted — they're your future
+                       near-mentors/captains.
 December             → Bus-factor pass: record the Vision.java walkthrough (below),
                        have the strongest student present rung 12 to the team.
 Build season (Jan+)  → Rung level = task assignment level. Rung 6+ students own a
                        feature switch each. On-and-off mentors keep running rungs
                        with the long tail.
-Post-season          → Each student's commit history under their own name is their
-                       season portfolio. Use it for recruiting next fall's pitch.
+Post-season          → Each student's `Student: <Name>` commit trail plus their
+                       roster row is their season portfolio. Use it for recruiting
+                       next fall's pitch, and for the next homeschool outreach round.
 ```
 
 The dependency that matters: **attribution and curriculum must precede the on-ramp**,
-because the on-ramp's retention mechanism is "your commit is in the robot repo, under
-your name, by week 2."
+because the on-ramp's retention mechanism is "your name is on a real commit in the robot
+repo by week 2" — that still works with the shared account + commit trailer approach,
+it just doesn't require solving account setup first.
 
 ---
 
 ## 1. Recruitment
 
-See `docs/team/RECRUITMENT.md` for the pitch draft and five tactics ranked by effort.
-Summary of the strategy: stop selling "join robotics" and sell the three things this
-program has that almost no small team has — AI-agent-assisted development, replay-based
-debugging of real match logs, and custom internal tooling (logbench) that students can
-extend. Target 9th–10th graders specifically; they pay dividends for multiple years
-([Chief Delphi: recruiting students](https://www.chiefdelphi.com/t/recruiting-students/129979)).
+See `docs/team/RECRUITMENT.md` for the pitch draft and tactics ranked by effort. Two
+channels, and they're not equally proven:
 
-Mentor cost: front-loaded (one demo prepared once, reused at every event). The
-highest-leverage tactic — a live `simulateJava` + logbench demo at the school clubs
-fair — costs ~2 hours to prepare the first time and ~0 thereafter.
+- **Homeschool outreach — untried, high-confidence, cheapest.** Per `PROFILE.md` §1a/§5a:
+  roughly half the team is already homeschoolers, they tend to be the strongest
+  contributors, and nothing structured has ever been sent to homeschool co-ops/groups —
+  today's homeschool students arrived by word of mouth alone. The mentor's own assessment
+  is that "an email or two... would get a ton of kids interested." This is now
+  `RECRUITMENT.md`'s #1 tactic, ahead of anything school-side.
+- **School-side channels — tried, weak, still worth the low-effort ones.** In-school
+  announcements and small event demos haven't worked well (§5a). Don't abandon the school
+  entirely (it's still the venue, and word-of-mouth there is real), but don't expect the
+  clubs-fair-style tactics to carry the plan; they're priced as low-effort/low-certainty
+  below, not as the lead strategy.
+
+Shared pitch content for both channels: stop selling "join robotics" and sell the three
+things this program has that almost no small team has — AI-agent-assisted development,
+replay-based debugging of real match logs, and custom internal tooling (logbench) that
+students can extend. Target 9th–10th graders specifically; they pay dividends for
+multiple years ([Chief Delphi: recruiting students](https://www.chiefdelphi.com/t/recruiting-students/129979)).
+
+Mentor cost: front-loaded (one pitch written once, reused for the email and every event).
 
 ## 2. Retention (why a joiner stays past week 3)
 
@@ -85,9 +118,10 @@ get a real contribution to land, leave. Mechanisms, cheapest first:
 - **Visible progress ladder.** The curriculum's rung numbers give students a public
   level system. Track rung completion on a whiteboard or a table in the repo — social
   proof and friendly competition for free.
-- **Individual attribution.** A student who can point a parent or a college at *their*
-  commit history has a reason to keep building it. This also fixes the profile §3 gap
-  (shared `Finney Student` account makes individual growth invisible).
+- **Attribution without new accounts.** The `Student: <Name>` commit trailer (§ top-3
+  item 1) plus the curriculum roster table gives a student something to point a parent or
+  a college at — "here's my season" — without the shared-laptop account friction that
+  made per-student GitHub accounts a non-starter (`PROFILE.md` §3).
 - **Peer recruiting loop.** Retained sophomores are next year's best recruiters —
   students respond to peers, not mentors, at clubs fairs
   ([Chief Delphi: how to get freshmen interested](https://www.chiefdelphi.com/t/how-to-get-freshman-interested-in-robotics/355476)).
@@ -135,6 +169,23 @@ five minutes of a visit:
 The common thread: each role converts an unpredictable visit into a durable increment
 (a signed-off rung, a run session, a retained student) instead of ephemeral 1:1 help.
 
+## 4a. Mentor pipeline: pull the RIT thread
+
+Per `PROFILE.md` §2a, there's no formal mentor recruitment process — mentors arrive
+because a student's parent happens to work in software or similar. That's fine as a
+baseline, but there's one specific, already-existing bridge that isn't being used
+deliberately: one of the team's lead mentors is senior in RIT's entrepreneurship program
+(startup investing + mentoring background).
+
+This is not "go recruit mentors" (correctly deprioritized below as slow and
+unschedulable) — it's one conversation with someone already on the team: ask them
+whether RIT has students (CS/engineering, or their own entrepreneurship-program network)
+who'd want occasional FRC exposure, or whether RIT itself runs a volunteering/outreach
+program this could plug into. Cost: one conversation. If it produces even one RIT
+student willing to show up a few hours a month, that's a near-mentor who can run
+rung-checker sessions (§4) without the multi-year runway a high schooler needs to get
+there (§2a's autonomous-lead student is still growing into that role).
+
 ## 5. Things considered and deprioritized
 
 - **A formal classroom-style Java course.** Teams consistently report lecture-style
@@ -142,44 +193,44 @@ The common thread: each role converts an unpredictable visit into a durable incr
   ([Chief Delphi: teaching new members programming](https://www.chiefdelphi.com/t/teaching-new-members-programming/458293),
   [how do you teach programming members quickly](https://www.chiefdelphi.com/t/how-do-you-teach-programming-members-quickly/466580)).
   The curriculum embeds concepts in rungs instead.
-- **Recruiting new lead mentors externally.** Worth doing opportunistically (alumni,
-  parent engineers), but it's slow, low-probability, and not something this plan can
-  schedule. The playbook squeezes more from the mentors who already show up.
-- **Middle-school/FLL feeder program.** Likely the best *long-term* pipeline builder,
-  but it's a permanent recurring mentor obligation — exactly what §7 warns against —
-  until there's a second consistent mentor to own it. Revisit if an on-and-off mentor
-  wants to own it outright.
+- **Recruiting new lead mentors externally, in general.** Worth doing opportunistically
+  (alumni, parent engineers), but as a general strategy it's slow and low-probability —
+  not something this plan can schedule. The one exception is the RIT thread (§4a), which
+  is specific and cheap enough to pull now rather than defer.
+- **Middle-school/FLL feeder program.** Confirmed not to exist (`PROFILE.md` §6) and
+  likely the best *long-term* pipeline builder if it did — but it's a permanent
+  recurring mentor obligation, exactly what §7 warns against, until there's a second
+  consistent mentor to own it. Revisit if an on-and-off mentor (or an RIT near-mentor,
+  §4a) wants to own it outright.
 
 ---
 
-## Assumptions to verify (open questions from PROFILE.md §6 that shaped this plan)
+## Resolved via Q&A (2026-09-06) — no longer assumptions
 
-1. **Fall availability:** assumed students can make one ~2-hour evening/week in
-   Oct–Nov, and that the school allows an offseason meeting space. If not, the on-ramp
-   compresses to bi-weekly and the retention math weakens.
-2. **Team size / software share:** assumed software is ~5–10 students out of a larger
-   team, and that recruiting *into software from the existing team* is as viable as
-   recruiting new students to the team. If the whole team is tiny, RECRUITMENT.md's
-   clubs-fair tactic is the priority; if the team is big but software is small,
-   internal recruiting is cheaper.
-3. **Hardware access in fall:** assumed the 2026 robot is drivable in the offseason.
-   If not, the sim carries the whole on-ramp (it can — that's why rungs 1–8 are
-   sim-first), but "drive the real robot" is the best hook and worth fighting for.
-4. **GitHub policy:** assumed students can create individual GitHub accounts and be
-   added to the repo (school/parental policy permitting). If not, at minimum set
-   per-student `git config user.name` on shared machines so commits are attributable.
-5. **Recruitment history:** assumed a school clubs fair (or equivalent) exists and
-   hasn't yet been worked with a live demo. If prior attempts already did this and
-   failed, the peer-led classroom-visit tactic moves up.
-6. **Success horizon:** assumed the 1-year definition of success is: 3+ new students
-   reaching rung 4+, one student at rung 12, all commits attributed; and the 3-year
-   definition is a student-led software subteam where Stephen reviews more than he
-   writes. If the mentor's actual priority is competition results first, the bus-factor
-   tier ordering shifts (driver practice and reliability beat curriculum polish).
-7. **On-and-off mentor identity:** assumed the occasional mentors are adults with some
-   technical comfort (can follow a checklist involving an IDE) even if they don't know
-   this codebase. If some are non-technical, they map to the session-runner and
-   culture-keeper roles only — still valuable.
+A first draft of this plan carried several unverified assumptions; a Q&A pass with the
+mentor resolved almost all of them, now reflected directly in `PROFILE.md` and above:
+team size (~10 mentors/20 students), recruitment history (school channels tried and
+weak; homeschool never tried), mentor pipeline (informal, plus the RIT thread), the
+near-mentor candidate (an autonomous-lead student, growing), school support (space only),
+time budget (6-10 week build season, students typically 1-2 days/week, ~8-10 hrs/week if
+committed, no at-home work yet), success priorities (more students *and* deeper technical
+ability is the top priority, ahead of competition results, which is treated as
+downstream), and the shared-account decision (§ top-3 item 1). No feeder pipeline exists.
+
+## Still genuinely open
+
+1. **Competition results/technical weaknesses.** Deliberately not chased in this plan —
+   the mentor's stated priority order (`PROFILE.md` §5) treats competition results as
+   downstream of student depth, not a separate lever. Revisit only if a specific failure
+   mode (reliability, autonomous consistency) is costing matches independent of this plan.
+2. **Whether the homeschool email actually converts.** This is the plan's single
+   biggest untested bet (top-3 item 2) — high-confidence per the mentor's own read, but
+   unproven. Worth treating the first round as a fast, cheap experiment: send it, see
+   what shows up to the fall on-ramp, and adjust before investing more in that channel.
+3. **At-home engagement.** The mentor wants students doing work outside meetings, which
+   isn't happening today. This plan leans on rung 1 being fully home-portable (no lab,
+   no robot, just the sim) as a low-friction first nudge, but hasn't been tested as a
+   deliberate retention/engagement lever beyond that.
 
 Sources: [Subteam recruitment](https://www.chiefdelphi.com/t/subteam-recruitment/503104) ·
 [Recruitment](https://www.chiefdelphi.com/t/recruitment/494997) ·

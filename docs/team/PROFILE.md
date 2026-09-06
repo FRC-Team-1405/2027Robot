@@ -201,9 +201,12 @@ Still genuinely open, not yet asked or answered:
   homework time exists yet — and "getting students to want to work on this at home" is itself a
   retention/engagement lever worth designing for (e.g., a rung that's fun enough to pull them
   back to it unprompted), not just a scheduling fact.
-- Minor/unresolved: no feeder pipeline (FLL/FTC teams, a middle-school program) has been
-  mentioned — worth a quick check but not asked yet; likely low-priority given §1a/§5a already
-  point at homeschool outreach as the higher-leverage channel.
+- ~~Feeder pipeline~~ — answered 2026-09-06: none exists (no FLL/FTC or middle-school program
+  feeding in). Confirms homeschool outreach (§5a) as the primary untapped channel rather than
+  one option among several.
+
+All open questions from the original list are now answered. This profile is ready to hand to
+a planning pass (Fable or otherwise) as-is.
 
 ## 7. Constraints for any plan built from this profile
 

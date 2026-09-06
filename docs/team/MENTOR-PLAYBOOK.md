@@ -24,8 +24,11 @@ the robot code works.
 2. Sit with them while they work it. Your job is not to know the answer — it's to ask
    the questions in the rung's **"Done when"** checklist and refuse to be hand-waved.
    "Show me." "Run it." "What did you predict would happen?"
-3. When the checklist passes, they commit with the rung tag (`rung-3: ...`) **under
-   their own GitHub account** — check the name on the commit, that part matters.
+3. When the checklist passes, they commit with the rung tag (`rung-3: ...`) from the
+   shared student account, but **the commit message must include a `Student: <Name>`
+   line** — check that it's there, that's what makes it count as theirs. (Individual
+   GitHub accounts were considered and deliberately skipped — the setup/laptop-swap
+   friction wasn't worth it. This trailer gets the same effect for free.)
 4. Update their row in the roster table at the bottom of CURRICULUM.md.
 
 You just advanced a student one permanent level in one visit. If you only ever do this
