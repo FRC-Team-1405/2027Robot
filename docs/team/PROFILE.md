@@ -66,8 +66,12 @@ Last built: 2026-09-06.
   who else at RIT might want to get involved. Given mentor bandwidth is the team's tightest
   constraint (§2), a college-student mentor pipeline (even informal, even just a few hours/
   month per person) could matter more than any single new recruitment tactic.
-- Open sub-question, not yet answered: is there a current strong senior student who could grow
-  into a captain/near-mentor role for software specifically? Worth asking directly.
+- **Closest thing to a near-mentor today:** an autonomous-lead student, strong on leadership
+  and problem-solving, weaker on raw technical depth (growing their technical ability is
+  explicitly on the mentor's to-do list). They design autonomous routines using the existing
+  AutoPilot-based tooling and are independently investigating alternatives (Choreo) — real
+  initiative, not just following instructions. Not yet a general software captain, but a
+  plausible one to grow deliberately rather than a role to fill externally.
 
 ## 3. Student pipeline (stated + evidence)
 
