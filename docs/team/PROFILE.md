@@ -41,12 +41,15 @@ Last built: 2026-09-06.
     `Grace` — 1, `Andrew` — 1
   - This is a classic power-law distribution: one strong student, a small second tier,
     then a long tail of students who touched the code a handful of times.
-- **Notable gap:** student commits mostly come from a shared `Student`/`Finney Student`
-  account rather than individual logins (2027Robot: `Student` — 20 commits, undifferentiated).
-  There's currently no way to reconstruct *which* student did what, or track an individual's
-  growth over a season from the repo alone. If part of the growth goal is showing students
-  (and colleges/parents/sponsors) a track record of their own progress, this is a fixable gap —
-  worth each student committing under their own name/account.
+- **Deliberate tradeoff, not an oversight:** student commits mostly come from a shared
+  `Student`/`Finney Student` account rather than individual logins (2027Robot: `Student` — 20
+  commits, undifferentiated). This is intentional — students are on shared school laptops with
+  low general tech fluency, and the setup cost of an individual GitHub account + git config +
+  VS Code auth, redone every time a student switches laptops, is a real onboarding tax the team
+  has decided isn't worth paying. The tradeoff is losing per-student attribution/growth
+  tracking from the repo. Any growth plan should treat this as a constraint to design around
+  (e.g., attribution via commit message trailers, a lightweight external log, or in-person
+  tracking) rather than a gap to close by pushing individual accounts.
 - 2027Robot commit activity has gone quiet for everyone except Stephen and his AI-agent
   account since late May 2026 (offseason) — consistent with a normal summer lull, but also
   the point where a team risks losing the momentum/attachment built during build season if
@@ -87,7 +90,8 @@ Last built: 2026-09-06.
   requires sophisticated teaching to transfer, and the mentors who could do that teaching
   are the same ones being asked to lead everything else.
 - **No student-attributable history**, per §3 — makes it harder to mentor individuals
-  based on what they've actually done, or to show growth over time.
+  based on what they've actually done, or to show growth over time. Accepted tradeoff
+  against onboarding friction on shared school laptops; solve around it, don't reverse it.
 
 ## 5. Stated goals
 
