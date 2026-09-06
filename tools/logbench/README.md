@@ -46,6 +46,8 @@ cd web && npm install && npm run build && cd ..
 python server/main.py --logs ../../logs
 ```
 
+Install NPM if you see an error indicating NPM missing: `winget install OpenJS.NodeJS.LTS`
+
 **Inside the calibration app** — Tab 6 of `tools/camera-calibration/calibrate.py` embeds
 the player and offers the standalone file as a download. Needs no npm: the built bundle is
 committed at `server/assets/player.singlefile.html`.

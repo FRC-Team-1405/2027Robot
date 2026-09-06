@@ -31,8 +31,8 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
 public class CircleFacingTagCommand extends Command {
     private static final double CIRCLE_DIAMETER_METERS = Units.feetToMeters(5.0);
     private static final double CIRCLE_RADIUS_METERS = CIRCLE_DIAMETER_METERS / 2.0;
-    private static final double MAX_TANGENTIAL_SPEED_MPS = 2.0;
-    private static final double ACCELERATION_MPS2 = 0.5; // ramp to max speed over ~4s
+    private static final double MAX_TANGENTIAL_SPEED_MPS = 1.0;
+    private static final double ACCELERATION_MPS2 = 0.2; // ramp to max speed over ~4s
     private static final double POSITION_CORRECTION_KP = 3.0; // (m/s) per (m) of drift off the reference path
 
     private final CommandSwerveDrivetrain drivetrain;
