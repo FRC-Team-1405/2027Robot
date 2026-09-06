@@ -121,6 +121,23 @@ Last built: 2026-09-06.
 - Underlying, implied goal: build a team that's less dependent on one or two people —
   durable across mentor and student turnover.
 
+## 5a. Recruitment channels tried so far (answered 2026-09-06)
+
+- School side: in-school announcements + a small demo table at events like homecoming.
+  Stated as "not really very effective."
+- **Best channel today is word of mouth** — a student bringing a friend. Some homeschoolers
+  already self-select in via word of mouth within homeschool circles, unprompted.
+- **Nothing structured has been tried in the homeschool community** — no outreach email to
+  homeschool groups/co-ops yet. The mentor's own instinct, stated directly: "we could go in and
+  do an email or two to a couple of these homeschool groups and get a ton of kids interested."
+  This is a cheap, untried, high-confidence lever — should rank near the top of any plan given
+  it's low-effort and the mentor already believes it'll work, versus school-side channels that
+  have been tried and underperformed.
+- Caveat: mentor is new to the recruitment side of team ops and has only vague knowledge of
+  history here — treat this section as directionally right, not exhaustive. Whoever has run
+  recruitment longer (or the outreach/business subteam, if one exists) may have more detail or
+  have already tried homeschool outreach without it sticking.
+
 ## 6. Open questions (not derivable from the repo — needed for a real plan)
 
 These are the load-bearing unknowns. Worth answering before or during the Fable run,
