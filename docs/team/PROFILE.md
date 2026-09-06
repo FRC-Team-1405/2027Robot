@@ -136,12 +136,27 @@ Last built: 2026-09-06.
   based on what they've actually done, or to show growth over time. Accepted tradeoff
   against onboarding friction on shared school laptops; solve around it, don't reverse it.
 
-## 5. Stated goals
+## 5. Stated goals, in priority order (refined 2026-09-06)
 
-- Improve the software program generally.
-- Attract more students to the program (recruiting/pipeline growth).
-- Underlying, implied goal: build a team that's less dependent on one or two people —
-  durable across mentor and student turnover.
+1. **More software students overall, with deeper technical ability.** Explicitly the top
+   priority — growth in headcount and growth in depth are treated as one goal, not two.
+2. **Scale up leadership/confidence-building to more students.** Already happening at small
+   scale (see the autonomous-lead student in §2a); the goal is the same mentoring approach
+   at a larger scale, which the mentor explicitly ties to needing more mentors (§2a's RIT
+   lead is the obvious first thing to pull on).
+3. Personally keep pushing the technical ceiling upward (the mentor's own R&D — vision,
+   tooling, etc.), on the theory that this also improves competition results both directly and
+   by giving students more advanced subsystem/autonomous work to grow into.
+4. Better competition results — treated as a downstream effect of 1-3, not a separate lever to
+   pull directly.
+5. Less dependence on the mentor specifically — implied throughout, not named outright as a
+   top priority, but structurally what closing the mentor-bottleneck (§2a) and building a
+   near-mentor pipeline (§2a) would produce.
+
+Net: this is a **student depth + mentor capacity plan**, not primarily a marketing/headcount
+plan. Recruitment (§5a) matters, but mainly as a way to get more raw material for the deeper
+goal of building technical depth and leadership — a growth plan that adds students without a
+way to grow their depth would miss the actual priority.
 
 ## 5a. Recruitment channels tried so far (answered 2026-09-06)
 
@@ -160,28 +175,25 @@ Last built: 2026-09-06.
   recruitment longer (or the outreach/business subteam, if one exists) may have more detail or
   have already tried homeschool outreach without it sticking.
 
-## 6. Open questions (not derivable from the repo — needed for a real plan)
+## 6. Open questions
 
-These are the load-bearing unknowns. Worth answering before or during the Fable run,
-either by the user directly or by having the agent ask rather than assume:
+Answered via Q&A on 2026-09-06 — see §1a (team size/context), §5a (recruitment tried), §2a
+(mentor pipeline, near-mentor candidate), §5 (success priorities).
 
-- **Team-wide context:** total team size (all subteams, not just software)? Is software
-  seen as a bottleneck, a strength, or invisible to the rest of the team/school?
-- **School support:** does Charles Finney give the team a classroom/lab, a course credit,
-  release time, funding? Is there a feeder pipeline (a middle-school program, a robotics
-  elective, FLL/FTC teams that funnel into FRC)?
-- **Recruitment channels tried already:** what's been tried to attract students (announcements,
-  clubs fair, teacher referrals, alumni outreach) and what happened?
-- **Competition results/history:** how has the team performed? Is there a specific technical
-  weakness (e.g., reliability, autonomous, driver practice) that's actually costing matches,
-  separate from the "grow the team" question?
-- **Time budget:** how many hours/week do students realistically have, in-season vs.
-  off-season? How many weeks is "build season" vs. "offseason" for this team?
-- **Mentor pipeline:** where do mentors come from (parents, alumni, local engineers)? Is
-  there a path to convert an "on-and-off" mentor into a more consistent one, or a strong
-  senior student into a near-mentor/captain role?
-- **What "success" looks like in 1 year vs. 3 years** — more students, better retention,
-  less mentor dependency, competition results, or some mix, in what priority order?
+Still genuinely open, not yet asked or answered:
+
+- **School support:** does Charles Finney give the team a classroom/lab, course credit, release
+  time, or funding? Is there a feeder pipeline (middle-school program, robotics elective,
+  FLL/FTC teams feeding into FRC)? (§1a establishes the school under-invests in advertising the
+  team; unclear whether that extends to physical/budget support too.)
+- **Competition results/history:** is there a specific technical weakness (reliability,
+  autonomous consistency, driver practice) actually costing matches, separate from the
+  team-growth question? Lower priority per §5 (results are treated as downstream of student
+  depth), but still useful if there's a specific fire to put out.
+- **Time budget:** how many hours/week do students realistically have, in-season vs. offseason?
+  How long is build season for this team? Matters directly for pacing the onboarding curriculum
+  (§ referenced in `onboarding/CURRICULUM.md`) — a rung sized for a 2-hour weekly meeting looks
+  different than one sized for daily after-school access.
 
 ## 7. Constraints for any plan built from this profile
 
