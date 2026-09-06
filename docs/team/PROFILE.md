@@ -182,10 +182,12 @@ Answered via Q&A on 2026-09-06 — see §1a (team size/context), §5a (recruitme
 
 Still genuinely open, not yet asked or answered:
 
-- **School support:** does Charles Finney give the team a classroom/lab, course credit, release
-  time, or funding? Is there a feeder pipeline (middle-school program, robotics elective,
-  FLL/FTC teams feeding into FRC)? (§1a establishes the school under-invests in advertising the
-  team; unclear whether that extends to physical/budget support too.)
+- ~~**School support**~~ — answered 2026-09-06: the school provides physical space (a room +
+  workshop area) and nothing else — no paid staff time, no course credit mentioned, and
+  (consistent with §1a) minimal promotion. Confirms the school is a facilities landlord, not a
+  program partner; any growth lever involving the school should assume space-only support and
+  budget accordingly. No feeder pipeline (FLL/FTC, middle-school program) mentioned — worth a
+  quick follow-up if useful, but not asked yet.
 - **Competition results/history:** is there a specific technical weakness (reliability,
   autonomous consistency, driver practice) actually costing matches, separate from the
   team-growth question? Lower priority per §5 (results are treated as downstream of student
