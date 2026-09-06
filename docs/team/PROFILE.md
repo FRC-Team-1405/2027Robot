@@ -13,6 +13,27 @@ Last built: 2026-09-06.
   builds internal tooling, and is actively experimenting with AI-agent-assisted development
   (see §4).
 
+## 1a. Whole-team context (answered 2026-09-06)
+
+- Core usable team overall: roughly **10 mentors, 20 students** (rough guess, "probably pretty
+  close").
+- **Mechanical is the largest subteam** and has the most dedicated mentors of any subteam
+  (2-3). Software has comparatively fewer active mentors, but the trajectory matters more than
+  the headcount here (next point).
+- **Software's reputation has flipped.** Before Stephen joined, software was seen as a
+  bottleneck/liability for the team. Over the last 2 years it's become seen as an opportunity
+  instead. The plan should protect and extend that trajectory, not just treat software as "a
+  subteam that needs students" in the abstract.
+- There's real subsystem-level work students *can* do even though the vision pipeline is out
+  of reach for a while — this matches the rung-ladder approach in the curriculum draft.
+- **Team composition:** hosted by a private school that doesn't advertise the team well
+  internally. Roughly **half the team is homeschoolers**, recruited outside the school's own
+  student body, and — per the mentor's direct assessment — the homeschoolers tend to be the
+  strongest contributors on the team. The school benefits optically from more of its own
+  students joining but doesn't invest resources to make that happen, so school-driven
+  recruitment can't be counted on. **Growth strategy should treat homeschool recruitment as a
+  primary, not secondary, channel** — it's already outperforming the "official" pipeline.
+
 ## 2. Mentor capacity (stated + evidence)
 
 - **A handful of mentors are actively leading** — pushing curriculum, structure, and team
