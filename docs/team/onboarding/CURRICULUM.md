@@ -195,7 +195,8 @@ and replay — rung 9 — needs every hardware read captured in the log.)
 a gearing of 10.0, and a voltage clamp of ±8V.
 
 **Task:** run the sim, command the climber up/down (your rung-3 binding!), and plot
-`Climber/ClimberIOInputs/climberClosedLoopError` in AdvantageScope. Now: set kP to 0.05
+`Climber/ClimberClosedLoopError` in AdvantageScope (`processInputs("Climber", ...)`
+plus the `@AutoLog` generator puts every input field there, PascalCased). Now: set kP to 0.05
 (sluggish), then to 20 (watch it ring/overshoot), then find a value you can defend.
 Change the gearing and observe what that does to the same gain.
 
