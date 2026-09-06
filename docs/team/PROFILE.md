@@ -192,10 +192,18 @@ Still genuinely open, not yet asked or answered:
   autonomous consistency, driver practice) actually costing matches, separate from the
   team-growth question? Lower priority per §5 (results are treated as downstream of student
   depth), but still useful if there's a specific fire to put out.
-- **Time budget:** how many hours/week do students realistically have, in-season vs. offseason?
-  How long is build season for this team? Matters directly for pacing the onboarding curriculum
-  (§ referenced in `onboarding/CURRICULUM.md`) — a rung sized for a 2-hour weekly meeting looks
-  different than one sized for daily after-school access.
+- ~~**Time budget**~~ — answered 2026-09-06: build season is nominally 6 weeks but effectively
+  8-10 once the RIT event (their first competition) is counted in. Software students typically
+  show up **1-2 days/week during build season and don't work at home** — a committed software
+  student puts in roughly **8-10 hours/week** (one weekday + one Saturday). The mentor
+  explicitly wants to improve the "no work at home" pattern. This should size the curriculum
+  directly: rungs need to fit inside a handful of ~2-4 hour on-site sessions, not assume
+  homework time exists yet — and "getting students to want to work on this at home" is itself a
+  retention/engagement lever worth designing for (e.g., a rung that's fun enough to pull them
+  back to it unprompted), not just a scheduling fact.
+- Minor/unresolved: no feeder pipeline (FLL/FTC teams, a middle-school program) has been
+  mentioned — worth a quick check but not asked yet; likely low-priority given §1a/§5a already
+  point at homeschool outreach as the higher-leverage channel.
 
 ## 7. Constraints for any plan built from this profile
 
