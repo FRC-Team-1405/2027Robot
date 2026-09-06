@@ -8,47 +8,45 @@ tools.**
 
 ---
 
-## The pitch (one-pager — for a flyer, a slide, or reading aloud in a classroom visit)
+## The pitch (one-pager — student-facing flyer or classroom handout)
 
-### Write code. Put it on a 120-pound robot. Watch it play.
+### Build something real. Find your place on the team.
 
-Most coding classes end with a program that prints text. Ours ends with a swerve-drive
-robot doing what you told it to, in front of a crowd, in a competition that does not
-wait for you to fix your bugs.
+**You do not need to know how to code, build a robot, or even know exactly what you are
+interested in yet.** Team 1405 is a place to learn by working alongside other students on
+a real challenge: designing, building, programming, and competing with a new robot each
+year.
 
-**Here's what's different about software on Team 1405:**
+This is not a class where everyone follows the same instructions and ends with the same
+project. The robot gives us problems no one has solved for us. Students share ideas, test
+them, learn from what fails, and make the next version better. Your first contribution may
+be small, but it will be part of something the whole team depends on.
 
-- **You ship in week two.** Our onboarding ladder starts with driving a full physics
-  simulation of the robot on your laptop — no robot required, no waiting your turn. By
-  your second meeting, a change *you* wrote is in the robot's code, committed under
-  *your* name. Your GitHub history becomes a portfolio you can show colleges and
-  employers: not "I was in robotics club," but *here is the code I wrote, here's the
-  match it ran in.*
+**There is meaningful work here for many kinds of people.** You might design a mechanism,
+wire electronics, program autonomous movement, analyze match data, create a scouting or
+web tool, make media, develop strategy, or help organize the team. You do not have to
+arrive knowing which role fits you. Trying things and discovering what you enjoy is part of
+the experience.
 
-- **We replay matches like game film.** Every match the robot plays is recorded — every
-  sensor reading, every camera frame's pose estimate. We re-run those recordings
-  through new code on a laptop: change a line, replay the match, watch history come
-  out differently. When something goes wrong at competition, we don't guess — we
-  replay it and find it. Almost no team our size debugs this way.
+If you choose software, you can begin in a full robot simulator before touching the real
+machine. As your skills grow, you can work with sensors and cameras, control motors, build
+autonomous routines, or improve tools the team uses. We record matches and replay them like
+game film, allowing students to investigate what happened and test how a code change would
+perform. Students also learn how modern developers use AI tools responsibly: not as a
+substitute for thinking, but as something to direct, question, test, and improve.
 
-- **We build our own tools.** The team wrote its own match-playback dashboard
-  (a web app — React front end, Python back end), its own camera-calibration app, its
-  own analysis pipeline. If you're more interested in web dev or data than robots,
-  there's real work here for you too — tools the team actually uses every week.
+**What you build here also builds you.** Robotics gives you practice asking questions,
+explaining your ideas, working through frustration, and trusting teammates with real
+responsibility. You can become more confident without being expected to be outgoing on day
+one. Over time, you will have genuine projects and competition experiences to discuss in
+college applications, interviews, and future work—not simply a club name on a list.
 
-- **You'll work the way software is actually built now.** Our mentor develops with AI
-  coding agents daily, and you'll learn to use them the way professionals do: directing
-  them, reviewing what they produce, knowing when they're wrong. That's a skill most
-  adults don't have yet.
+**Come to one meeting and see what it is actually like.** Meet the team, explore the robot,
+and try the simulator. There is no pressure to arrive prepared or to commit before you know
+whether it is right for you.
 
-- **Real hardware, real stakes.** Vision processing on coprocessors, CAN networks,
-  brushless motor control, autonomous routines. It's the same stack as real robotics
-  companies, scaled to fit in a school build room.
-
-**No experience needed.** If you've written a loop in any language, rung 1 of our
-ladder is built for you. Come to one fall session, drive the simulator, and decide.
-
-*[Insert: meeting day/time/room, mentor contact, QR code to sign up]*
+*[Insert: grades/ages served, meeting day/time/location, season dates, cost if any, mentor
+contact, and QR code to visit or sign up]*
 
 ---
 
@@ -67,14 +65,16 @@ co-ops, enrichment groups, or homeschool social circles that have never been rea
 deliberately. Before writing any cold outreach, ask: *"Would you be willing to share
 this with your co-op / homeschool group, or introduce us to whoever runs it?"* A warm
 introduction from a family already in those circles will outperform a cold email from
-the team, and it costs one conversation. Pair it with the one-pager below.
+the team, and it costs one conversation. Pair it with the student-facing one-pager above.
 
 ### 2. Direct outreach to 1-2 homeschool co-ops or groups (low effort, high confidence)
-Draft an email (or a message to a homeschool Facebook/Discord group, whichever the local
-groups actually use) built from the one-pager below, and send it to one or two homeschool
-co-ops, enrichment programs, or support groups. The mentor doesn't need to know exactly
-which groups yet — that's local knowledge current homeschool families or a quick search
-of local homeschool co-op directories will surface. Draft template:
+Send an email (or a message to a homeschool Facebook/Discord group, whichever the local
+groups actually use) to one or two homeschool co-ops, enrichment programs, or support
+groups. The mentor doesn't need to know exactly which groups yet — that's local knowledge
+current homeschool families or a quick search of local homeschool co-op directories will
+surface.
+
+#### Co-op email — Draft 1 (original)
 
 > Subject: FRC robotics team looking for homeschool students (all experience levels)
 >
@@ -84,6 +84,51 @@ of local homeschool co-op directories will surface. Draft template:
 > strongest members. We'd love to reach more homeschool students who might be
 > interested, especially in software (no experience required — see attached one-pager).
 > Happy to answer questions, host a visit, or send more info to interested families.
+
+#### Co-op email — Draft 2 (for homeschool parents)
+
+> Subject: A place for homeschool students to build STEM skills—and confidence
+>
+> Hi [name/group],
+>
+> Finding the right group experience for a homeschooled teenager can be difficult. Many
+> parents are looking for more than another class: they want a place where their student
+> can make friends around a shared interest, become more comfortable working with others,
+> and discover that STEM can be creative, practical, and genuinely exciting.
+>
+> Team 1405, the Charles Finney Falcons, is a competitive FIRST Robotics Competition team
+> in [city], and we welcome homeschool students [in grades/ages]. Each year, students and
+> mentors work together to design, build, program, and compete with a full-size robot.
+> Homeschool students are already an important part of our team, so a new student would
+> not be the only one joining from outside a traditional school classroom.
+>
+> **No previous robotics, engineering, or programming experience is required.** Students
+> learn alongside teammates and adult mentors through real projects, with room to explore
+> mechanical design, electronics, software, strategy, data, media, and team organization.
+> This can provide the hands-on STEM instruction and inspiration that are often difficult
+> to recreate at home—without asking a parent to become the robotics teacher.
+>
+> **The benefits go beyond STEM.** Because every student contributes to a shared goal,
+> they have a natural reason to talk, collaborate, solve disagreements, ask for help, and
+> take responsibility. Quieter or less-confident students can begin with a manageable task
+> and build toward presenting an idea, leading a project, or representing the team at a
+> competition. Friendships grow out of doing meaningful work together rather than being
+> forced through a purely social activity.
+>
+> **Your student can visit before deciding.** We would be glad to host interested families
+> at a meeting, show them the robot, and let students [try the simulator/participate in a
+> simple hands-on activity]. Our next opportunity is [date/time/location]. Families can
+> learn more or sign up here: [link].
+>
+> Would you be willing to share this invitation with families in [co-op/group name]? I am
+> also happy to answer questions about scheduling, cost, supervision, or what a first-year
+> student can expect.
+>
+> Thank you,
+>
+> [name]<br>
+> [role], FRC Team 1405 — Charles Finney Falcons<br>
+> [email/phone] | [website]
 
 Cost: ~1 hour to draft, adapt per group, and send. Recurring cost: ~0 (repeat once a
 year, or whenever a new group is identified via #1).
@@ -98,8 +143,8 @@ two laptops. Peer-staffed: students run the table, mentors stay home — student
 to peers, not adults ([Chief Delphi: how to get freshmen interested](https://www.chiefdelphi.com/t/how-to-get-freshman-interested-in-robotics/355476)).
 
 ### 4. Sophomore testimonial + flyer in intro CS / math classes (low effort, school-side)
-A returning student takes 5 minutes of an intro programming class: shows their own
-commit history and one 30-second replay clip, hands out the one-pager above. Target
+A returning student takes 5 minutes of an intro programming class: shows one project they
+helped build and one 30-second replay clip, then hands out the one-pager above. Target
 9th–10th graders deliberately — they compound for three more years
 ([Chief Delphi: recruiting students](https://www.chiefdelphi.com/t/recruiting-students/129979)).
 Cost: one email to the CS/math teacher + printing. Note: school-side channels like this

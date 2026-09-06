@@ -52,7 +52,7 @@ No robot required until it's convenient; rungs 1–8 run entirely in simulation.
 **Time: 1 session.**
 
 1. `./gradlew build` — watch it compile. Find the generated
-   `ClimberIOInputsAutoLogged` class under `build/` and marvel that code wrote code
+   `IntakeIOInputsAutoLogged` class under `build/` and marvel that code wrote code
    (that's the `@AutoLog` annotation processor; it comes back in rung 7).
 2. `./gradlew simulateJava` — the sim GUI and DriverStation open. Attach a gamepad,
    enable teleop, drive the swerve around.
@@ -70,13 +70,13 @@ the bottom of this file (that's your first PR).
 **Concept: observability — if it isn't logged, it didn't happen.**
 **Time: 1 session.**
 
-Look at `src/main/java/frc/robot/subsystems/Climber.java`: fields like
-`climberPositionTarget` carry `@AutoLogOutput(key = "Climber/ArmPositionTarget")`, and
-methods like `isClimberAtTarget()` do too. That one annotation makes the value appear in
+Look at `src/main/java/frc/robot/subsystems/Intake.java`: fields like
+`intakePositionTarget` carry `@AutoLogOutput(key = "Intake/PositionTarget")`, and
+methods like `isAtTarget()` do too. That one annotation makes the value appear in
 NetworkTables and in every `.wpilog`.
 
-**Task:** pick any subsystem (`Hopper`, `Intake`, `Indexer`...) and log one value that
-isn't logged yet but that you'd want when debugging — a target, a boolean state, a
+**Task:** pick a different subsystem (`Hopper`, `Shooter`, `Indexer`...) and log one value
+that isn't logged yet but that you'd want when debugging — a target, a boolean state, a
 computed error. Add the annotated field or method, run the sim, find your key in
 AdvantageScope, and watch it change as you trigger the mechanism.
 
@@ -97,7 +97,7 @@ HoodAngles.SHORT))`, chords like `.and(driverJoystick.back())`, negations like
 
 **Task:** in simulation, (a) move an existing binding to a different button and verify
 it, then (b) add one new binding of your own choosing that runs an existing command
-factory (e.g. `climber.runOpenClaw()` from `Climber.java`). Notice the commands have
+factory (e.g. `intake.runIntakeCenter()` from `Intake.java`). Notice the commands have
 `.withName(...)` — find the running command's name in the log.
 
 **Done when:** the student can trace, out loud, the path from button press → `Trigger` →
@@ -139,7 +139,7 @@ exact table points, a midpoint between two entries, clamping below/above the tab
 at the bottom of `lerp()` — can any input actually reach it? Write down your answer.
 
 **Done when:** `./gradlew test` runs green with ≥5 assertions, and the student can
-explain why testing pure math classes like this is easy while testing `Climber` isn't
+explain why testing pure math classes like this is easy while testing `Intake` isn't
 (that difference is *why* the IO pattern in rung 7 exists).
 
 ---
@@ -170,15 +170,16 @@ switches in that file defaulting to "2026 behavior" makes A/B testing possible.
 **Concept: the IO pattern — the architectural heart of this codebase.**
 **Time: 2 sessions.**
 
-Read the trio: `ClimberIO.java` (interface + `@AutoLog` inputs class),
-`ClimberIOTalonFX.java` (real hardware), `ClimberIOSim.java` (physics model), and how
-`Climber.periodic()` calls `io.updateInputs(inputs)` then
-`Logger.processInputs("Climber", inputs)`.
+Read the trio: `IntakeIO.java` (interface + `@AutoLog` inputs class),
+`IntakeIOTalonFX.java` (real hardware), `IntakeIOSim.java` (physics model), and how
+`Intake.periodic()` calls `io.updateInputs(inputs)` then
+`Logger.processInputs("Intake", inputs)`.
 
-**Task:** add one new field to a subsystem's `FooIOInputs` class (e.g. motor temperature
-in the TalonFX implementation — `getDeviceTemp()` — with a plausible constant or simple
-model on the sim side). Populate it in **both** implementations, rebuild (the annotation
-processor regenerates `FooIOInputsAutoLogged`), and find it in AdvantageScope.
+**Task:** add one new field to a subsystem's `FooIOInputs` class (e.g. deploy motor
+temperature in `IntakeIOTalonFX` — `deployMotor.getDeviceTemp()` — with a plausible
+constant on the sim side, since `IntakeIOSim` has no thermal model to copy). Populate it
+in **both** implementations, rebuild (the annotation processor regenerates
+`FooIOInputsAutoLogged`), and find it in AdvantageScope.
 
 **Done when:** the student can answer: "Why do reads go into `inputs` instead of the
 subsystem just calling the motor directly?" (Answer involves: sim runs without hardware,
@@ -191,14 +192,15 @@ and replay — rung 9 — needs every hardware read captured in the log.)
 **Concept: closed-loop control (P gain), and sims as safe crash-test dummies.**
 **Time: 1–2 sessions.**
 
-`ClimberIOSim.java` has a `PIDController` with `CLIMBER_KP = 0.66`, a `DCMotorSim` with
-a gearing of 10.0, and a voltage clamp of ±8V.
+`IntakeIOSim.java` has a `PIDController` for the deploy arm seeded from
+`IntakePreferences.DEPLOY_KP = 4.8`, a `DCMotorSim` with a gearing of 20.0, and a voltage
+clamp of ±12V.
 
-**Task:** run the sim, command the climber up/down (your rung-3 binding!), and plot
-`Climber/ClimberClosedLoopError` in AdvantageScope (`processInputs("Climber", ...)`
-plus the `@AutoLog` generator puts every input field there, PascalCased). Now: set kP to 0.05
-(sluggish), then to 20 (watch it ring/overshoot), then find a value you can defend.
-Change the gearing and observe what that does to the same gain.
+**Task:** run the sim, command the intake out/in (your rung-3 binding!), and plot
+`Intake/DeployClosedLoopError` in AdvantageScope (`processInputs("Intake", ...)`
+plus the `@AutoLog` generator puts every input field there, PascalCased). Now: set
+`DEPLOY_KP` to 0.5 (sluggish), then to 20 (watch it ring/overshoot), then find a value you
+can defend. Change the gearing and observe what that does to the same gain.
 
 **Done when:** the student can describe, from their own plots, what "too little P" and
 "too much P" each look like. This is the exact skill swerve/shooter tuning needs on the
@@ -263,7 +265,7 @@ this: "adding a different kind of match playback means writing a sibling of this
 - (a) Add one already-logged signal as a new track in `camera_health.py`'s `build()`
   (the `find_signal` → `Track` → `data[tid]` pattern repeats a dozen times in that
   file — copy it).
-- (b) Write a small sibling spec, e.g. `climber.py`: field pose plus the climber
+- (b) Write a small sibling spec, e.g. `intake.py`: field pose plus the intake deploy
   position/error/current signals you've been logging since rung 2, registered next to
   `camera_health`. Per the README/CLAUDE.md: no front-end changes needed.
 
