@@ -10,7 +10,7 @@ tools.**
 
 ## The pitch (one-pager — student-facing flyer or classroom handout)
 
-### Build something real. Find your place on the team.
+### Build something real. Find your place on the robotics team.
 
 **You do not need to know how to code, build a robot, or even know exactly what you are
 interested in yet.** Team 1405 is a place to learn by working alongside other students on
@@ -42,8 +42,8 @@ one. Over time, you will have genuine projects and competition experiences to di
 college applications, interviews, and future work—not simply a club name on a list.
 
 **Come to one meeting and see what it is actually like.** Meet the team, explore the robot,
-and try the simulator. There is no pressure to arrive prepared or to commit before you know
-whether it is right for you.
+and try the simulator. ~~There is no pressure to arrive prepared or to commit before you know
+whether it is right for you.~~
 
 *[Insert: grades/ages served, meeting day/time/location, season dates, cost if any, mentor
 contact, and QR code to visit or sign up]*
@@ -87,7 +87,9 @@ surface.
 
 #### Co-op email — Draft 2 (for homeschool parents)
 
-> Subject: A place for homeschool students to build STEM skills—and confidence
+TODO: alter email to be specifically for signing up for a software course
+
+> Subject: A place for homeschool students to build STEM skills and confidence
 >
 > Hi [name/group],
 >
@@ -96,24 +98,21 @@ surface.
 > can make friends around a shared interest, become more comfortable working with others,
 > and discover that STEM can be creative, practical, and genuinely exciting.
 >
-> Team 1405, the Charles Finney Falcons, is a competitive FIRST Robotics Competition team
-> in [city], and we welcome homeschool students [in grades/ages]. Each year, students and
+> Team 1405, the Charles Finney Falcons, is a Webster based competitive FIRST Robotics Competition team
+> with a large homeschool roster. Each year, students and
 > mentors work together to design, build, program, and compete with a full-size robot.
-> Homeschool students are already an important part of our team, so a new student would
-> not be the only one joining from outside a traditional school classroom.
 >
 > **No previous robotics, engineering, or programming experience is required.** Students
 > learn alongside teammates and adult mentors through real projects, with room to explore
 > mechanical design, electronics, software, strategy, data, media, and team organization.
-> This can provide the hands-on STEM instruction and inspiration that are often difficult
-> to recreate at home—without asking a parent to become the robotics teacher.
+> This can provide the hands-on STEM instruction and inspiration that is so hard to find.
 >
-> **The benefits go beyond STEM.** Because every student contributes to a shared goal,
-> they have a natural reason to talk, collaborate, solve disagreements, ask for help, and
+> ~~**The benefits go beyond STEM.** Because every student contributes to a shared goal,
+> they have a natural reason to collaborate, solve disagreements, ask for help, and
 > take responsibility. Quieter or less-confident students can begin with a manageable task
 > and build toward presenting an idea, leading a project, or representing the team at a
 > competition. Friendships grow out of doing meaningful work together rather than being
-> forced through a purely social activity.
+> forced through a purely social activity.~~
 >
 > **Your student can visit before deciding.** We would be glad to host interested families
 > at a meeting, show them the robot, and let students [try the simulator/participate in a
@@ -126,9 +125,9 @@ surface.
 >
 > Thank you,
 >
-> [name]<br>
-> [role], FRC Team 1405 — Charles Finney Falcons<br>
-> [email/phone] | [website]
+> Stephen Cerbone<br>
+> Software Mentor, FRC Team 1405 — Finney Falcons<br>
+> importsjc@gmail.com | 585-308-1144 | [website]
 
 Cost: ~1 hour to draft, adapt per group, and send. Recurring cost: ~0 (repeat once a
 year, or whenever a new group is identified via #1).
