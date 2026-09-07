@@ -1,0 +1,2 @@
+- Confirm the `/FMSInfo/FMSControlData` enabled-bit decoding: run `./gradlew simulateJava` with the DS GUI open, toggle Enabled/Autonomous, and verify bit 0 tracks Enabled (see `docs/orangepi-vision-recorder-setup.md` step 1b).
+- Confirm the raw stream port for the vision recorder: in the PhotonVision UI, toggle Stream Display to show RAW + PROCESSED side by side, inspect the `<img>` src URLs, and confirm `orangepi-vision-recorder.py`'s `CAMERA_STREAM_URL` (currently port 1181) matches the unprocessed feed (see `docs/orangepi-vision-recorder-setup.md` step 1a).

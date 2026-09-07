@@ -1,0 +1,15 @@
+[Unit]
+Description=Orange Pi raw-frame recorder for post-match vision diagnosis
+After=network.target photonvision.service
+Wants=photonvision.service
+
+[Service]
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /home/photon/orangepi-vision-recorder.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
