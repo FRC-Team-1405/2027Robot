@@ -2,6 +2,17 @@
 
 Installs `coprocessor/orangepi-nt-publisher.py` as a systemd service on the PhotonVision Orange Pi, so CPU/RAM/disk/temperature metrics show up in NetworkTables under `/OrangePi/`.
 
+With two Orange Pis, give each publisher a unique namespace. On the board carrying the Left
+camera create `/etc/default/orangepi-nt-publisher` containing:
+
+```text
+ORANGEPI_METRICS_NAME=LeftPi
+```
+
+Use `ORANGEPI_METRICS_NAME=RightPi` on the other board. The topics will then be under
+`/OrangePi/LeftPi/` and `/OrangePi/RightPi/` instead of colliding at `/OrangePi/`. The systemd
+service reads this optional file; a single-board install with no file retains the legacy paths.
+
 **Prerequisite:** the Pi needs internet access once, to install the `pyntcore` Python package (the PyPI package is named `pyntcore`, not `robotpy-ntcore` — that name 404s). The previous install attempt failed because the Pi has no internet route at all (see `notes/6-20/photonVisionSSH.txt`). Follow **`docs/orangepi-internet-access.md`** first, then come back here. Don't skip the "disconnect Wi-Fi when done" step in that doc before the Pi goes back on a robot.
 
 ## 1. Get a Python environment with `ntcore`
@@ -75,7 +86,7 @@ A healthy run prints `Connecting to roboRIO (team 1405)…` once and then stays 
 
 Confirm the data is actually reaching NetworkTables:
 - With the robot/radio powered and the roboRIO running, open **Glass** or **OutlineViewer** pointed at the roboRIO's NT4 server (or check the Driver Station / AdvantageScope NT tab).
-- Look for the `/OrangePi` table with keys: `CPU_Pct`, `RAM_Used_MB`, `RAM_Total_MB`, `RAM_Pct`, `Disk_Used_GB`, `Disk_Total_GB`, `Disk_Pct`, `Temp_C`.
+- Look for the `/OrangePi` table (or `/OrangePi/LeftPi` and `/OrangePi/RightPi` for a named two-board install) with keys: `CPU_Pct`, `RAM_Used_MB`, `RAM_Total_MB`, `RAM_Pct`, `Disk_Used_GB`, `Disk_Total_GB`, `Disk_Pct`, `Temp_C`.
 - Values should update roughly once per second and look sane (e.g. `Temp_C` matches what `cat /sys/class/thermal/thermal_zone0/temp` shows on the Pi, divided by 1000).
 
 ## 6. Clean up internet access

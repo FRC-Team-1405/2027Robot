@@ -3,7 +3,9 @@
 
 Run this on the Orange Pi co-processor alongside PhotonVision.
 It connects to the roboRIO as an NT4 client and publishes CPU, RAM,
-disk usage, and temperature once per second under /OrangePi/.
+disk usage, and temperature once per second under /OrangePi/. Set
+ORANGEPI_METRICS_NAME to give each board its own subtable when more than one
+Orange Pi is installed (for example, /OrangePi/LeftPi/).
 
 Install dependency:
     pip install robotpy-ntcore
@@ -20,6 +22,7 @@ import subprocess
 
 TEAM_NUMBER = 1405
 PUBLISH_INTERVAL_S = 1.0
+METRICS_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip()
 
 
 def read_temp_c():
@@ -75,10 +78,13 @@ def main():
     import ntcore
 
     inst = ntcore.NetworkTableInstance.getDefault()
-    inst.startClient4("OrangePiMetrics")
+    client_name = "OrangePiMetrics" + (f"-{METRICS_NAME}" if METRICS_NAME else "")
+    inst.startClient4(client_name)
     inst.setServerTeam(TEAM_NUMBER)
 
     table = inst.getTable("OrangePi")
+    if METRICS_NAME:
+        table = table.getSubTable(METRICS_NAME)
 
     # Declare all publishers up front so NT knows the types
     cpu_pub       = table.getDoubleTopic("CPU_Pct").publish()
@@ -90,7 +96,8 @@ def main():
     disk_pct_pub  = table.getDoubleTopic("Disk_Pct").publish()
     temp_pub      = table.getDoubleTopic("Temp_C").publish()
 
-    print(f"Connecting to roboRIO (team {TEAM_NUMBER})…")
+    topic_root = f"/OrangePi/{METRICS_NAME}" if METRICS_NAME else "/OrangePi"
+    print(f"Connecting to roboRIO (team {TEAM_NUMBER}); publishing under {topic_root}/…")
 
     while True:
         try:
