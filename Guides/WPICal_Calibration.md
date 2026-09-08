@@ -4,8 +4,10 @@
 
 ![alt text](image.png)
 
+Charuco Board is used to calibration. Same details apply to photon vision camera calibration.
+
 Camera Calibration Details:
-- Square Width (in): 1.1811
-- Marker Width (in): 0.866142
+- Pattern Spacing / Square Width (in): 1.1811
+- Marker Size / Marker Width (in): 0.866142
 - Board Width (squares): 15
 - Board Height (squares): 15
