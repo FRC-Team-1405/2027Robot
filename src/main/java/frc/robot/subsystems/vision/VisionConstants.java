@@ -15,9 +15,12 @@ public class VisionConstants {
                         CameraIntrinsics intrinsics) {
         }
 
-        // TODO(2027): Re-run PhotonVision camera calibration for 2027 robot mounts.
+        // PhotonVision intrinsics procedure and CONFIGS mapping:
+        // docs/photonvision-camera-intrinsics-calibration.md
+        // TODO(2027): Re-run PhotonVision camera calibration for each final physical camera.
+        // The 800x600 modes recorded in notes/9-5.md do not match the 1280x800 values below;
+        // replace each entire CameraIntrinsics together, not just width and height.
         // TODO(2027): Update camera positions/angles to match 2027 physical layout.
-        // TODO(2027): Recalibrate intrinsics (fx, fy, cx, cy, distortion) per camera after mounting.
         public static final CameraConfig[] CONFIGS = {
                         new CameraConfig(
                                         "Left",
@@ -29,12 +32,13 @@ public class VisionConstants {
                                                                         Units.inchesToMeters(28.7)),
                                                         new Rotation3d(0, Math.toRadians(-25), Math.toRadians(-10))),
                                         new CameraIntrinsics(
-                                                        1280.0,
-                                                        800.0,
-                                                        910.28,
-                                                        909.75,
-                                                        654.27,
-                                                        386.21,
+                                                        1280.0, // width: horizontal/X pixels
+                                                        800.0, // height: vertical/Y pixels
+                                                        910.28, // fx
+                                                        909.75, // fy
+                                                        654.27, // cx
+                                                        386.21, // cy
+                                                        // Distortion: [k1, k2, p1, p2, k3, k4, k5, k6]
                                                         new double[] { 0.055, -0.093, 0, 0, 0.03, -0.001, 0.003,
                                                                         -0.003 })),
                         new CameraConfig(
@@ -46,12 +50,13 @@ public class VisionConstants {
                                                                         Units.inchesToMeters(28.7)),
                                                         new Rotation3d(0, Math.toRadians(-25), Math.toRadians(10))),
                                         new CameraIntrinsics(
-                                                        1280.0,
-                                                        800.0,
-                                                        912.02,
-                                                        911.39,
-                                                        635.5,
-                                                        430.50,
+                                                        1280.0, // width: horizontal/X pixels
+                                                        800.0, // height: vertical/Y pixels
+                                                        912.02, // fx
+                                                        911.39, // fy
+                                                        635.5, // cx
+                                                        430.50, // cy
+                                                        // Distortion: [k1, k2, p1, p2, k3, k4, k5, k6]
                                                         new double[] { 0.049, -0.078, 0, 0, 0.018, -0.002, 0.004, 0 }))
         };
 
