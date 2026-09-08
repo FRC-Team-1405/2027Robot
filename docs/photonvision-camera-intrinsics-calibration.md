@@ -53,6 +53,12 @@ They are calibrated results, not values to replace with the exact image center. 
 
 ## Before collecting images
 
+If exposure, brightness, and gain are not settled yet, compare them first with the
+[`tools/camera-tuning`](../tools/camera-tuning/README.md) multi-frame tuner. The current bench
+starting point is manual exposure **100**, brightness **60**, and camera gain **60**. These are
+starting values, not universal constants; record trials under representative lighting and keep the
+winning settings fixed throughout calibration and normal AprilTag use.
+
 1. Put the final camera on its final USB port and confirm its PhotonVision nickname (`Left` or
    `Right`). Keep each physical camera associated with its own calibration.
 2. Select the resolution and image rotation that the AprilTag pipeline will actually use. For the
