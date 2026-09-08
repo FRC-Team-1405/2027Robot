@@ -42,8 +42,8 @@ one. Over time, you will have genuine projects and competition experiences to di
 college applications, interviews, and future work—not simply a club name on a list.
 
 **Come to one meeting and see what it is actually like.** Meet the team, explore the robot,
-and try the simulator. ~~There is no pressure to arrive prepared or to commit before you know
-whether it is right for you.~~
+and try the simulator. There is no pressure to arrive prepared or to commit before you know
+whether it is right for you.
 
 *[Insert: grades/ages served, meeting day/time/location, season dates, cost if any, mentor
 contact, and QR code to visit or sign up]*
@@ -87,32 +87,34 @@ surface.
 
 #### Co-op email — Draft 2 (for homeschool parents)
 
-TODO: alter email to be specifically for signing up for a software course
-
-> Subject: A place for homeschool students to build STEM skills and confidence
+> Subject: Competitive robotics opportunity for homeschool students
 >
 > Hi [name/group],
 >
-> Finding the right group experience for a homeschooled teenager can be difficult. Many
-> parents are looking for more than another class: they want a place where their student
-> can make friends around a shared interest, become more comfortable working with others,
-> and discover that STEM can be creative, practical, and genuinely exciting.
+> Team 1405, the Charles Finney Falcons, is a Webster-based competitive FIRST Robotics
+> Competition team welcoming homeschool students [in grades/ages]. Each year, students
+> work with teammates and adult mentors to design, build, program, and compete with a
+> full-size robot. Homeschool students are already an important part of our team, so
+> students joining from outside a traditional classroom will find others with a similar
+> background.
 >
-> Team 1405, the Charles Finney Falcons, is a Webster based competitive FIRST Robotics Competition team
-> with a large homeschool roster. Each year, students and
-> mentors work together to design, build, program, and compete with a full-size robot.
+> No previous robotics, engineering, or programming experience is required. Depending on
+> their interests, students can explore mechanical design, electronics, software, strategy,
+> data, media, and team organization.
 >
-> **No previous robotics, engineering, or programming experience is required.** Students
-> learn alongside teammates and adult mentors through real projects, with room to explore
-> mechanical design, electronics, software, strategy, data, media, and team organization.
-> This can provide the hands-on STEM instruction and inspiration that is so hard to find.
+> Families often value the program because it gives students:
 >
-> ~~**The benefits go beyond STEM.** Because every student contributes to a shared goal,
-> they have a natural reason to collaborate, solve disagreements, ask for help, and
-> take responsibility. Quieter or less-confident students can begin with a manageable task
-> and build toward presenting an idea, leading a project, or representing the team at a
-> competition. Friendships grow out of doing meaningful work together rather than being
-> forced through a purely social activity.~~
+> - **Hands-on STEM experience:** Students apply what they are learning to real problems
+>   with support from experienced mentors.
+> - **Stronger college applications:** Their work can become concrete projects, competition
+>   experiences, leadership examples, and portfolio material—not just a club name on an
+>   activities list.
+> - **A natural social setting:** Working toward a shared goal makes it easier to form
+>   friendships, communicate, and feel part of a team.
+> - **Growing confidence and independence:** Students can start with a manageable task and
+>   gradually take on more responsibility, present ideas, or lead part of a project.
+> - **Room to discover an interest:** They can try several roles before deciding what they
+>   enjoy most or may want to study in the future.
 >
 > **Your student can visit before deciding.** We would be glad to host interested families
 > at a meeting, show them the robot, and let students [try the simulator/participate in a
@@ -122,6 +124,45 @@ TODO: alter email to be specifically for signing up for a software course
 > Would you be willing to share this invitation with families in [co-op/group name]? I am
 > also happy to answer questions about scheduling, cost, supervision, or what a first-year
 > student can expect.
+>
+> Thank you,
+>
+> Stephen Cerbone<br>
+> Software Mentor, FRC Team 1405 — Finney Falcons<br>
+> importsjc@gmail.com | 585-308-1144 | [website]
+
+#### Co-op email — Draft 3 (software training-session interest)
+
+> Subject: Interested in pre-season software training for your student?
+>
+> Hi [name/group],
+>
+> I am putting together a block of introductory software training sessions for homeschool
+> students who would like to learn the programming side of competitive robotics before the
+> season begins. This is meant to be a hands-on on-ramp, not a commitment to join the full
+> robotics team.
+>
+> Students will learn how software makes a robot move and respond, and will have a chance
+> to write and test code in our robot simulator. No programming or robotics experience is
+> needed. The sessions will be designed for students who are curious about software and
+> want a practical way to try it.
+>
+> **Why robotics?** The training is a practical introduction to STEM: students apply ideas
+> to real problems with support from experienced mentors, while building a concrete project
+> they can include in a future portfolio, college application, or leadership example. It is
+> also a natural social setting—students work toward a shared goal, make friends, and grow
+> more confident and independent as they take on new challenges. For students still
+> exploring, it is a chance to discover whether software, engineering, strategy, data, or
+> another team role is something they enjoy.
+>
+> I am first gauging interest so I can choose dates, times, and the right number of
+> sessions. If your student would be interested in signing up for a block of sessions,
+> please reply directly to this email with their name, age/grade, and any days or times
+> that generally work for your family. An approximate idea of their programming experience
+> is helpful, but absolutely not required.
+>
+> Students who enjoy the sessions may later choose to explore the software subteam or other
+> parts of Team 1405, but the training sessions stand on their own.
 >
 > Thank you,
 >
