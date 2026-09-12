@@ -12,6 +12,9 @@ These aren't configurable guesses — they're facts about a specific PhotonVisio
 
 **a. Confirm the raw stream port.** In the PhotonVision web UI (`http://<pi-ip>:5800`), open the Dashboard tab and toggle "Stream Display" to show RAW alongside PROCESSED. Right-click → Inspect (or use browser devtools) on the two `<img>` elements to read their `src` URLs — the port serving the *unprocessed* feed (no AprilTag overlay drawn) is what `CAMERA_STREAM_URL` in the script must point at. On this team's bench Pi, port `1181` was confirmed as RAW and `1182` as PROCESSED for `Cam1` — but re-verify if cameras are added/reordered, since PhotonVision assigns port pairs per camera index.
 
+Right Cam live raw stream: http://photonvision.local:1181/stream.mjpg
+Left Cam live raw stream: http://photonvision.local:1183/stream.mjpg
+
 **b. Confirm the `/FMSInfo` enabled-bit decoding.** With `./gradlew simulateJava` running and the Driver Station GUI open, use a throwaway NT4 client (or run the real script with extra print statements) to watch the `/FMSInfo/FMSControlData` topic while toggling Enabled/Disabled and Autonomous/Teleop in the DS GUI. The script assumes `enabled = bool(raw_value & 1)` per WPILib's standard `HAL_ControlWord` bit order — confirm this bit actually flips with Enabled before relying on it, since a wrong bit means the recorder either never runs or runs constantly.
 
 ## 2. Copy the script and service file to the Pi

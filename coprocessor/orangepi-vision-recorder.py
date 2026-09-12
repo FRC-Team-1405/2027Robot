@@ -33,7 +33,7 @@ TEAM_NUMBER = 1405
 CAMERA_STREAM_URL = "http://localhost:1181/stream.mjpg"  # PhotonVision RAW (pre-detection) stream for Cam1 — confirmed on bench, re-check if camera config changes
 SAMPLE_HZ = 3.0
 
-RECORDINGS_DIR = "/home/photon/vision-recordings"  # local storage for v1; swap to a USB mount point here once one is attached
+RECORDINGS_DIR = "/home/pi/vision-recordings"  # local storage for v1; swap to a USB mount point here once one is attached
 MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024  # 5GB flat cap
 
 FMS_INFO_TABLE = "FMSInfo"

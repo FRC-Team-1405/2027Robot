@@ -5,7 +5,7 @@ Wants=photonvision.service
 
 [Service]
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/python3 /home/photon/orangepi-vision-recorder.py
+ExecStart=/usr/bin/python3 /home/pi/orangepi-vision-recorder.py
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
