@@ -17,9 +17,10 @@ public class VisionConstants {
 
         // PhotonVision intrinsics procedure and CONFIGS mapping:
         // docs/photonvision-camera-intrinsics-calibration.md
+        // Recalibrated 2026-09-08 at 800x600 (Charuco board, PhotonVision calibrator):
+        // notes/9-8/left_photon_calibration_2a71f56c-10ea-45f0-ae8d-8483c4dcfd7f_800x600.json
+        // notes/9-8/right_photon_calibration_7ad62358-e6fe-4156-972e-6b9c2f831fc4_800x600.json
         // TODO(2027): Re-run PhotonVision camera calibration for each final physical camera.
-        // The 800x600 modes recorded in notes/9-5.md do not match the 1280x800 values below;
-        // replace each entire CameraIntrinsics together, not just width and height.
         // TODO(2027): Update camera positions/angles to match 2027 physical layout.
         public static final CameraConfig[] CONFIGS = {
                         new CameraConfig(
@@ -32,15 +33,15 @@ public class VisionConstants {
                                                                         Units.inchesToMeters(28.7)),
                                                         new Rotation3d(0, Math.toRadians(-25), Math.toRadians(-10))),
                                         new CameraIntrinsics(
-                                                        1280.0, // width: horizontal/X pixels
-                                                        800.0, // height: vertical/Y pixels
-                                                        910.28, // fx
-                                                        909.75, // fy
-                                                        654.27, // cx
-                                                        386.21, // cy
+                                                        800.0, // width: horizontal/X pixels
+                                                        600.0, // height: vertical/Y pixels
+                                                        690.33, // fx
+                                                        689.95, // fy
+                                                        400.09, // cx
+                                                        327.97, // cy
                                                         // Distortion: [k1, k2, p1, p2, k3, k4, k5, k6]
-                                                        new double[] { 0.055, -0.093, 0, 0, 0.03, -0.001, 0.003,
-                                                                        -0.003 })),
+                                                        new double[] { 0.035, -0.026, 0, 0, -0.035, -0.002, 0.001,
+                                                                        0.001 })),
                         new CameraConfig(
                                         "Right",
                                         1.0,
@@ -50,14 +51,15 @@ public class VisionConstants {
                                                                         Units.inchesToMeters(28.7)),
                                                         new Rotation3d(0, Math.toRadians(-25), Math.toRadians(10))),
                                         new CameraIntrinsics(
-                                                        1280.0, // width: horizontal/X pixels
-                                                        800.0, // height: vertical/Y pixels
-                                                        912.02, // fx
-                                                        911.39, // fy
-                                                        635.5, // cx
-                                                        430.50, // cy
+                                                        800.0, // width: horizontal/X pixels
+                                                        600.0, // height: vertical/Y pixels
+                                                        687.70, // fx
+                                                        687.42, // fy
+                                                        417.59, // cx
+                                                        290.14, // cy
                                                         // Distortion: [k1, k2, p1, p2, k3, k4, k5, k6]
-                                                        new double[] { 0.049, -0.078, 0, 0, 0.018, -0.002, 0.004, 0 }))
+                                                        new double[] { 0.047, -0.094, 0, 0, 0.059, -0.001, 0.004,
+                                                                        -0.002 }))
         };
 
         public static final class Filtering {
