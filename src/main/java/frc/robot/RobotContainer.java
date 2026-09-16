@@ -147,7 +147,7 @@ public class RobotContainer {
         public RobotContainer() {
                 configureBindings();
                 // configureBindings_CTReDefault();
-
+                drivetrain.configureAutoBuilder();
                 full_Autos.registerAutos(commandsForAutos);
                 AutoCommands.setupAutoChooser(drivetrain, climber, intake, hopper, indexer, shooter, hood,
                                 swerveFeatures, commandsForAutos);
