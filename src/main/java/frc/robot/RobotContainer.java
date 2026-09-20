@@ -487,5 +487,13 @@ public class RobotContainer {
         public static void publishRobotData() {
                 SmartDashboard.putNumber("Battery/BatteryVoltage", RobotController.getBatteryVoltage());
                 SmartDashboard.putNumber("Battery/BrownoutVoltage", RobotController.getBrownoutVoltage());
+
+                // The roboRIO's system clock is set from the Driver Station laptop on every
+                // connect, so unlike the Orange Pi's batteryless RTC it stays accurate. Publish
+                // it (UTC epoch ms) so coprocessors with no reliable clock of their own — see
+                // coprocessor/orangepi-vision-recorder.py — can sync to it over NT instead of
+                // needing internet access for NTP.
+                NetworkTableInstance.getDefault().getTable("RobotTime").getEntry("WallClockMs")
+                                .setInteger(System.currentTimeMillis());
         }
 }

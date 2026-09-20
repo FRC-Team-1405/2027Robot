@@ -16,10 +16,18 @@ MAX_STORAGE_BYTES by deleting the oldest whole sessions.
 The Pi has no RTC battery, so its wall clock is unreliable across power
 cycles (it can reset to a stale build-image date whenever it loses power
 without reaching NTP). Session folders are therefore named
-"boot<NNNN>-<local timestamp>" where <NNNN> is a counter persisted on
-disk and incremented once per process start — so folders from this
-power-on are always distinguishable from an earlier one even when the
-timestamp portion of the name is wrong.
+"boot<NNNN>-<timestamp>" where <NNNN> is a counter persisted on disk and
+incremented once per process start — so folders from this power-on are
+always distinguishable from an earlier one regardless of the clock.
+
+For the timestamp itself: the roboRIO's clock is set from the Driver
+Station laptop on every connect (a normal, accurate, battery-backed
+clock), so robot code publishes it over NT (RobotContainer.publishRobotData(),
+under RobotTime/WallClockMs) and this script uses the offset to label
+folders with the real date/time in America/New_York, without ever
+touching the Pi's own OS clock. If no robot connection has been made yet,
+folders fall back to the Pi's local (possibly stale) clock — the boot
+counter still makes them unambiguous either way.
 
 Install dependency:
     pip install pyntcore
@@ -35,6 +43,8 @@ import os
 import shutil
 import time
 import urllib.request
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
 
@@ -47,6 +57,15 @@ MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024  # 5GB flat cap
 FMS_INFO_TABLE = "FMSInfo"
 FMS_CONTROL_TOPIC = "FMSControlData"
 ENABLED_BIT = 0  # HAL_ControlWord bit order: enabled, autonomous, test, eStop, fmsAttached, dsAttached — verify on bench (see docs/orangepi-vision-recorder-setup.md)
+
+# The roboRIO's system clock is set from the Driver Station laptop on every connect, so it
+# stays accurate even though it (like this Pi) has no RTC battery. RobotContainer.publishRobotData()
+# publishes it as UTC epoch ms; we read it and use the offset purely to *label* session
+# folders with real dates — we deliberately never touch the Pi's own OS clock (no root needed,
+# no risk of confusing systemd/logs/TLS if this script has a bug).
+ROBOT_TIME_TABLE = "RobotTime"
+ROBOT_TIME_TOPIC = "WallClockMs"
+DISPLAY_TZ = ZoneInfo("America/New_York")
 
 JPEG_SOI = b"\xff\xd8"
 JPEG_EOI = b"\xff\xd9"
@@ -163,9 +182,28 @@ def enforce_storage_cap(base, max_bytes):
         i += 1
 
 
-def new_session_dir(base, boot_id):
+def robot_clock_offset_sec(robot_time_entry):
+    """Offset (seconds) to add to local time.time() to get the roboRIO's
+    synced wall clock. Returns None if we haven't received a value yet
+    (not connected, or robot code hasn't published one this session)."""
+    raw_ms = robot_time_entry.get(0)
+    if not raw_ms:
+        return None
+    return (raw_ms / 1000.0) - time.time()
+
+
+def session_timestamp_str(offset_sec):
+    """Timestamp for session/folder naming, corrected to the roboRIO's
+    synced clock (falls back to the Pi's own possibly-stale local clock
+    if we haven't synced yet), rendered in DISPLAY_TZ regardless of the
+    Pi's own timezone setting."""
+    ts = time.time() + (offset_sec or 0.0)
+    return datetime.fromtimestamp(ts, tz=DISPLAY_TZ).strftime("%Y%m%d-%H%M%S")
+
+
+def new_session_dir(base, boot_id, offset_sec):
     os.makedirs(base, exist_ok=True)
-    session = os.path.join(base, f"boot{boot_id:04d}-{time.strftime('%Y%m%d-%H%M%S')}")
+    session = os.path.join(base, f"boot{boot_id:04d}-{session_timestamp_str(offset_sec)}")
     os.makedirs(session, exist_ok=True)
     return session
 
@@ -178,6 +216,7 @@ def main():
     inst.setServerTeam(TEAM_NUMBER)
 
     control_word_entry = inst.getTable(FMS_INFO_TABLE).getIntegerTopic(FMS_CONTROL_TOPIC).getEntry(0)
+    robot_time_entry = inst.getTable(ROBOT_TIME_TABLE).getIntegerTopic(ROBOT_TIME_TOPIC).getEntry(0)
 
     boot_id = next_boot_id(RECORDINGS_DIR)
 
@@ -197,10 +236,13 @@ def main():
                 enabled = is_enabled(control_word_entry)
 
                 if enabled and not was_enabled:
+                    offset_sec = robot_clock_offset_sec(robot_time_entry)
                     enforce_storage_cap(RECORDINGS_DIR, MAX_STORAGE_BYTES)
-                    session_dir = new_session_dir(RECORDINGS_DIR, boot_id)
+                    session_dir = new_session_dir(RECORDINGS_DIR, boot_id, offset_sec)
                     manifest = open(os.path.join(session_dir, "manifest.jsonl"), "a")
-                    print(f"Enabled — starting session {session_dir}")
+                    sync_note = f"synced to roboRIO, offset {offset_sec:+.1f}s" if offset_sec is not None \
+                        else "NOT synced to roboRIO — using Pi's own possibly-stale clock"
+                    print(f"Enabled — starting session {session_dir} ({sync_note})")
                 elif not enabled and was_enabled:
                     if manifest:
                         manifest.close()
