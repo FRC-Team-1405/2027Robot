@@ -13,6 +13,17 @@ NT-server-synced timestamps (same clock domain as .wpilog files) into a
 per-session directory under RECORDINGS_DIR. Total storage is capped at
 MAX_STORAGE_BYTES by deleting the oldest whole sessions.
 
+Both robot cameras (Left, Right) run through this same script on one Orange
+Pi, as two separate systemd service instances each with their own
+CAMERA_STREAM_URL. Set CAMERA_NAME (env var, mirroring ORANGEPI_METRICS_NAME
+in orangepi-nt-publisher.py) to namespace this instance's sessions under
+RECORDINGS_DIR/<CAMERA_NAME>/ and give it its own boot-id counter at
+RECORDINGS_DIR/<CAMERA_NAME>/.boot_id -- required whenever more than one
+camera is recorded, so two instances never race on the same boot-id file or
+collide on identical session-folder names. When CAMERA_NAME is unset,
+sessions go directly under RECORDINGS_DIR as before (single-camera / legacy
+deployments need no change).
+
 The Pi has no RTC battery, so its wall clock is unreliable across power
 cycles (it can reset to a stale build-image date whenever it loses power
 without reaching NTP). Session folders are therefore named
@@ -35,7 +46,8 @@ Install dependency:
 Run:
     python3 orangepi-vision-recorder.py
 
-To run on boot, add a systemd service (see orangepi-vision-recorder.service).
+To run on boot, add a systemd service instance (see orangepi-vision-recorder@.service
+and docs/orangepi-vision-recorder-setup.md).
 """
 
 import json
@@ -48,11 +60,20 @@ from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
 
-CAMERA_STREAM_URL = "http://localhost:1181/stream.mjpg"  # PhotonVision RAW (pre-detection) stream for Cam1 — confirmed on bench, re-check if camera config changes
+# Default is Cam1's RAW (pre-detection) stream, confirmed on bench — re-check if camera
+# config changes. Each systemd instance overrides this via its own EnvironmentFile so
+# the Left and Right instances tap different streams.
+CAMERA_STREAM_URL = os.environ.get("CAMERA_STREAM_URL", "http://localhost:1181/stream.mjpg")
 SAMPLE_HZ = 3.0
 
-RECORDINGS_DIR = "/home/pi/vision-recordings"  # local storage for v1; swap to a USB mount point here once one is attached
-MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024  # 5GB flat cap
+# Set when more than one camera is recorded on this Pi (see module docstring). Sessions
+# and the boot-id counter are namespaced under RECORDINGS_DIR/<CAMERA_NAME>/ so the Left
+# and Right systemd instances never collide.
+CAMERA_NAME = os.environ.get("CAMERA_NAME", "").strip()
+
+RECORDINGS_DIR = os.environ.get("RECORDINGS_DIR", "/home/photon/vision-recordings")  # local storage for v1; swap to a USB mount point here once one is attached
+RECORDINGS_BASE = os.path.join(RECORDINGS_DIR, CAMERA_NAME) if CAMERA_NAME else RECORDINGS_DIR
+MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024  # 5GB flat cap, per camera instance
 
 FMS_INFO_TABLE = "FMSInfo"
 FMS_CONTROL_TOPIC = "FMSControlData"
@@ -218,9 +239,10 @@ def main():
     control_word_entry = inst.getTable(FMS_INFO_TABLE).getIntegerTopic(FMS_CONTROL_TOPIC).getEntry(0)
     robot_time_entry = inst.getTable(ROBOT_TIME_TABLE).getIntegerTopic(ROBOT_TIME_TOPIC).getEntry(0)
 
-    boot_id = next_boot_id(RECORDINGS_DIR)
+    boot_id = next_boot_id(RECORDINGS_BASE)
 
-    print(f"Connecting to roboRIO (team {TEAM_NUMBER})… [boot {boot_id}, local clock reads {time.strftime('%Y-%m-%d %H:%M:%S')}]")
+    cam_note = f" [camera {CAMERA_NAME}]" if CAMERA_NAME else ""
+    print(f"Connecting to roboRIO (team {TEAM_NUMBER})…{cam_note} [boot {boot_id}, local clock reads {time.strftime('%Y-%m-%d %H:%M:%S')}]")
 
     reader = MjpegFrameReader(CAMERA_STREAM_URL)
     period_s = 1.0 / SAMPLE_HZ
@@ -237,8 +259,8 @@ def main():
 
                 if enabled and not was_enabled:
                     offset_sec = robot_clock_offset_sec(robot_time_entry)
-                    enforce_storage_cap(RECORDINGS_DIR, MAX_STORAGE_BYTES)
-                    session_dir = new_session_dir(RECORDINGS_DIR, boot_id, offset_sec)
+                    enforce_storage_cap(RECORDINGS_BASE, MAX_STORAGE_BYTES)
+                    session_dir = new_session_dir(RECORDINGS_BASE, boot_id, offset_sec)
                     manifest = open(os.path.join(session_dir, "manifest.jsonl"), "a")
                     sync_note = f"synced to roboRIO, offset {offset_sec:+.1f}s" if offset_sec is not None \
                         else "NOT synced to roboRIO — using Pi's own possibly-stale clock"

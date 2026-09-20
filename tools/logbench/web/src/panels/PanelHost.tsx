@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { FieldPanel } from './FieldPanel';
 import { ReadoutPanel } from './ReadoutPanel';
 import { TimeSeriesPanel } from './TimeSeriesPanel';
+import { VisionPanel } from './VisionPanel';
 import { usePlayer } from '../player/PlayerContext';
 import type { Panel } from '../player/types';
 
@@ -33,6 +34,7 @@ const REGISTRY: Record<string, ((props: { panel: Panel }) => React.JSX.Element) 
   field: FieldPanel,
   readout: ReadoutPanel,
   timeseries: TimeSeriesPanel,
+  vision: VisionPanel,
 };
 
 function UnknownPanel({ panel }: { panel: Panel }) {
@@ -55,6 +57,7 @@ export function PanelHost() {
 
   const field = spec.panels.find((p) => p.type === 'field');
   const readout = spec.panels.find((p) => p.type === 'readout');
+  const vision = spec.panels.find((p) => p.type === 'vision');
   const timelines = spec.panels.filter((p) => p.type === 'timeseries');
 
   // The camera-health layout benefits from an analysis workspace, but other specs keep
@@ -81,12 +84,17 @@ export function PanelHost() {
             <div className="analysis-main__head">
               <span>Playback view</span>
               <button className="panel-action" onClick={() => setInspectorOpen((v) => !v)} aria-expanded={inspectorOpen}>
-                {inspectorOpen ? 'Hide chart inspector' : 'Inspect camera timelines'}
+                {inspectorOpen ? 'Hide chart inspector' : 'Show chart inspector'}
               </button>
             </div>
             <div className="analysis-field-row">
               <FieldPanel panel={field} />
             </div>
+            {vision && (
+              <div className="analysis-vision-row">
+                <VisionPanel panel={vision} />
+              </div>
+            )}
           </div>
           {inspectorOpen && (
             <aside className="inspector" aria-label="Camera timeline inspector">

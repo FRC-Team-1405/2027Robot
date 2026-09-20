@@ -5,3 +5,6 @@ web/tsconfig.tsbuildinfo
 #   python server/dump_spec.py <some.wpilog> --out web/public/sample-spec.json
 web/public/sample-spec.json
 __pycache__/
+# Per-machine remote host/user/path config (bench vs. competition vs. home differ) --
+# see server/remote_config.json.example for the committed template.
+server/remote_config.json

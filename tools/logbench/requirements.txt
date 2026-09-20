@@ -3,3 +3,7 @@
 # is why the Streamlit calibration tab can embed the player without installing FastAPI.
 fastapi>=0.115.0
 uvicorn>=0.30.0
+# SFTP to the roboRIO and the Orange Pi for the Fetch Bundle page (server/remote_fetch.py)
+# -- stdlib has no SFTP client. Only needed to use that page; log replay and Compare
+# don't import it.
+paramiko>=3.4.0

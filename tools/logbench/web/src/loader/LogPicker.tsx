@@ -50,10 +50,6 @@ export function LogPicker() {
     <div className="picker">
       <div className="picker__head">
         <h1>Pick a log</h1>
-        <div className="picker__head-links">
-          <a href="?view=compare">Compare two logs →</a>
-          <a href="?view=pit">Pit Check (live) →</a>
-        </div>
       </div>
       <p className="picker__root">{listing.root}</p>
       {listing.logs.length === 0 ? (

@@ -30,7 +30,6 @@ export function PitCheckPage() {
     <div className="pit-page">
       <div className="pit-page__head">
         <h1 className="pit-page__title">Pit Check</h1>
-        <a href={window.location.pathname}>← Back to replay</a>
       </div>
       <p className="pit-page__hint">
         Hold the robot still with a tag in view. This is a calibration diagnostic, not a

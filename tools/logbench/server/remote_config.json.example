@@ -1,0 +1,12 @@
+{
+  "rio": {
+    "host": "roborio-1405-frc.local",
+    "user": "lvuser",
+    "logs_path": "/home/lvuser/logs"
+  },
+  "pi": {
+    "host": "photonvision.local",
+    "user": "pi",
+    "recordings_path": "/home/pi/vision-recordings"
+  }
+}

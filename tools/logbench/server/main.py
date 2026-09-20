@@ -14,14 +14,21 @@ Streamlit tab need nothing from this file (see export.py).
 import argparse
 import collections
 import dataclasses
+import inspect
+import io
 import json
 import pathlib
 import sys
+import zipfile
 from typing import List, Optional
 
 import paths  # noqa: F401  (side effect: sys.path bridges)
 
+import bundles
 import live_nt
+import pairing
+import remote_config
+import remote_fetch
 import specs
 from cli import DEFAULT_METRICS
 from core.compare import WindowSelector, compare, make_run
@@ -31,10 +38,11 @@ from core.metrics import METRICS
 from core.severity import BANDS as SEVERITY_BANDS
 from encode import spec_to_dict
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from vision_analyzer.parser import parse_wpilog
 
@@ -226,7 +234,16 @@ def get_spec(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
         signals = parse_wpilog(str(path))
-        player_spec, data = builder.build(signals, title=path.name)
+        build_kwargs = {'title': path.name}
+        # Not every builder knows about vision bundles (only camera_health does) --
+        # only pass log_path/log_root through to ones that declare them, so this stays
+        # generic as more specs/*.py builders are added.
+        build_params = inspect.signature(builder.build).parameters
+        if 'log_path' in build_params:
+            build_kwargs['log_path'] = path
+        if 'log_root' in build_params:
+            build_kwargs['log_root'] = LOG_ROOT
+        player_spec, data = builder.build(signals, **build_kwargs)
         # Cache one log at a time: these are megabytes each, and the workflow is
         # "look at one log closely", not "flip between twenty".
         _spec_cache.clear()
@@ -248,19 +265,180 @@ def export(log: str = Query(...), spec: str = Query(specs.DEFAULT)) -> HTMLRespo
     )
 
 
-if _DIST.exists():
-    app.mount('/', StaticFiles(directory=str(_DIST), html=True), name='web')
-else:
-    @app.get('/')
-    def _needs_build() -> HTMLResponse:
-        return HTMLResponse(
-            '<pre style="font:13px ui-monospace;padding:24px">'
-            'The front end has not been built yet.\n\n'
-            '  cd tools/logbench/web &amp;&amp; npm install &amp;&amp; npm run build\n\n'
-            'Or run the Vite dev server (npm run dev) and use http://localhost:5173 '
-            'instead -- it proxies /api here.</pre>',
-            status_code=503,
+# ── Remote fetch (RIO + Pi over SFTP) ───────────────────────────────────────────────
+# Every endpoint below is guarded by "no remote_config.json found" -- see
+# remote_config.py. Absence isn't an error: a laptop that only browses locally-copied
+# logs never needs this file, so /api/remote/sessions reports {'configured': False}
+# instead of a 4xx/5xx, and the Fetch Bundle tab shows a setup message for that case
+# while every other tab is unaffected.
+
+class PiSessionRef(BaseModel):
+    camera: str
+    name: str
+
+
+class BundleRequest(BaseModel):
+    rio_log: str
+    pi_sessions: List[PiSessionRef] = []
+    # Echoed back, not otherwise interpreted here -- the manual/auto distinction only
+    # matters to the client (whether to keep showing an auto-suggested pairing or one
+    # the user picked by hand); fetching happens identically either way.
+    manual: bool = False
+
+
+def _iso(d) -> Optional[str]:
+    return d.isoformat() if d is not None else None
+
+
+@app.get('/api/remote/sessions')
+def remote_sessions() -> dict:
+    """RIO logs + Pi sessions + suggested pairings + each RIO log's local bundle status
+    (bundles.local_status, via LOG_ROOT/<name>.vision), so the Fetch Bundle page can
+    render its two lists and the pairing rows in one round trip."""
+    cfg = remote_config.load_remote_config()
+    if cfg is None:
+        return {'configured': False}
+
+    try:
+        rio_raw = remote_fetch.list_rio_logs(cfg.rio)
+        pi_raw = remote_fetch.list_pi_sessions(cfg.pi)
+    except remote_fetch.RemoteFetchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    rio_infos = [pairing.RioLogInfo(name=r['name'], wall_clock=r['wall_clock']) for r in rio_raw]
+    pi_infos = [pairing.PiSessionInfo(camera=s['camera'], name=s['name'], wall_clock=s['wall_clock'])
+                for s in pi_raw]
+    suggestions = pairing.suggest_pairings(rio_infos, pi_infos)
+
+    root = LOG_ROOT.resolve()
+    rio_out = [{
+        'name': r['name'], 'size': r['size'], 'mtime': r['mtime'],
+        'wall_clock': _iso(r['wall_clock']),
+        'status': bundles.local_status(root / r['name']),
+    } for r in rio_raw]
+    pi_out = [{'camera': s['camera'], 'name': s['name'], 'wall_clock': _iso(s['wall_clock'])}
+              for s in pi_raw]
+    pairings_out = [{
+        'rio_log': p.rio_log,
+        'pi_sessions': [{'camera': s.camera, 'name': s.name} for s in p.pi_sessions],
+        'confidence': p.confidence,
+        'reason': p.reason,
+    } for p in suggestions]
+
+    return {'configured': True, 'rio_logs': rio_out, 'pi_sessions': pi_out, 'pairings': pairings_out}
+
+
+@app.post('/api/remote/bundle')
+def remote_bundle(body: BundleRequest) -> dict:
+    """Fetches one RIO log and its paired Pi session(s) into LOG_ROOT, following
+    bundles.py's <name>.vision/<camera>/<session>/ convention -- what "Bundle & Open"
+    calls before navigating to the newly-local log."""
+    cfg = remote_config.load_remote_config()
+    if cfg is None:
+        raise HTTPException(status_code=400, detail='no remote_config.json configured -- see remote_config.json.example')
+
+    try:
+        local_log = remote_fetch.fetch_rio_log(cfg.rio, body.rio_log, LOG_ROOT)
+        fetched: List[dict] = []
+        if body.pi_sessions:
+            vision_dir = bundles.vision_dir_for(local_log)
+            for ref in body.pi_sessions:
+                session_dir = remote_fetch.fetch_pi_session(cfg.pi, ref.camera, ref.name, vision_dir)
+                fetched.append({'camera': ref.camera, 'name': ref.name,
+                                 'path': session_dir.relative_to(LOG_ROOT.resolve()).as_posix()})
+    except remote_fetch.RemoteFetchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {
+        'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
+        'pi_sessions': fetched,
+        'manual': body.manual,
+    }
+
+
+@app.get('/api/remote/bundle-zip')
+def remote_bundle_zip(log: str = Query(..., description='log path relative to the log root')):
+    """Zips the wpilog + its .vision/ dir (if any) on the fly -- the shareable download
+    for a teammate without SSH access, re-imported elsewhere via /api/import/zip."""
+    path = _resolve(log)
+    vision_dir = bundles.vision_dir_for(path)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.write(path, arcname=path.name)
+        if vision_dir.is_dir():
+            for f in sorted(vision_dir.rglob('*')):
+                if f.is_file():
+                    arcname = pathlib.Path(vision_dir.name) / f.relative_to(vision_dir)
+                    zf.write(f, arcname=str(arcname))
+    buf.seek(0)
+
+    return StreamingResponse(buf, media_type='application/zip', headers={
+        'Content-Disposition': 'attachment; filename="%s-bundle.zip"' % path.stem,
+    })
+
+
+@app.post('/api/import/zip')
+async def import_zip(file: UploadFile = File(...)) -> dict:
+    """Multipart upload for teammates without SSH access to the RIO/Pi. Validates the
+    zip has exactly one top-level .wpilog (+ optionally that log's own <name>.vision/
+    tree, matching what /api/remote/bundle-zip produces) and extracts it into LOG_ROOT.
+    409s on a name collision so the client can prompt for a rename rather than silently
+    overwriting someone's existing log."""
+    contents = await file.read()
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(contents))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail='not a valid zip file')
+
+    names = [n for n in zf.namelist() if not n.endswith('/')]
+    top_level_logs = [n for n in names if n.endswith('.wpilog') and '/' not in n]
+    if len(top_level_logs) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail='zip must contain exactly one top-level .wpilog file (found %d)' % len(top_level_logs),
         )
+    wpilog_name = top_level_logs[0]
+    vision_prefix = pathlib.Path(wpilog_name).stem + bundles.VISION_SUFFIX + '/'
+    for n in names:
+        if n != wpilog_name and not n.startswith(vision_prefix):
+            raise HTTPException(
+                status_code=400,
+                detail='unexpected entry in zip: %r (expected only %r and %r*)' % (n, wpilog_name, vision_prefix),
+            )
+
+    dest_log = LOG_ROOT / wpilog_name
+    if dest_log.exists():
+        raise HTTPException(status_code=409, detail='%s already exists in the log root' % wpilog_name)
+
+    zf.extractall(LOG_ROOT, members=names)
+    return {'log': wpilog_name, 'imported': names}
+
+
+def _register_static_mounts() -> None:
+    """The front end bundle and /vision-video, both mounted here (rather than at import
+    time) so /vision-video always serves the real LOG_ROOT the server was started
+    against, never the module-level default. Called once from main().
+
+    /vision-video MUST be registered before the '/' front-end mount: Starlette matches
+    mounted routes in registration order by prefix, and a StaticFiles mount at '/'
+    matches every path underneath it -- registering it first would swallow every
+    /vision-video/* request before this one ever got a chance to match."""
+    app.mount('/vision-video', StaticFiles(directory=str(LOG_ROOT)), name='vision-video')
+
+    if _DIST.exists():
+        app.mount('/', StaticFiles(directory=str(_DIST), html=True), name='web')
+    else:
+        @app.get('/')
+        def _needs_build() -> HTMLResponse:
+            return HTMLResponse(
+                '<pre style="font:13px ui-monospace;padding:24px">'
+                'The front end has not been built yet.\n\n'
+                '  cd tools/logbench/web &amp;&amp; npm install &amp;&amp; npm run build\n\n'
+                'Or run the Vite dev server (npm run dev) and use http://localhost:5173 '
+                'instead -- it proxies /api here.</pre>',
+                status_code=503,
+            )
 
 
 def main(argv: Optional[list] = None) -> int:
@@ -275,6 +453,8 @@ def main(argv: Optional[list] = None) -> int:
     if not LOG_ROOT.is_dir():
         print('not a directory: %s' % LOG_ROOT, file=sys.stderr)
         return 2
+
+    _register_static_mounts()
 
     import uvicorn
 

@@ -111,10 +111,6 @@ export function ComparePage() {
     <div className="compare-page">
       <div className="compare-page__head">
         <h1 className="compare-page__title">Compare two logs</h1>
-        <div className="compare-page__head-links">
-          <a href={window.location.pathname}>← Back to replay</a>
-          <a href="?view=pit">Pit Check (live) →</a>
-        </div>
       </div>
 
       <div className="compare-sides">

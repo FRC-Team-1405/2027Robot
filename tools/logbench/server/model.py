@@ -16,7 +16,7 @@ from typing import Any, Literal, Optional
 # What a track's samples mean, and therefore how panels may draw it.
 TrackKind = Literal['scalar', 'bool', 'string', 'enum', 'pose2d', 'intset']
 
-PanelType = Literal['timeseries', 'field', 'readout', 'events', 'tracktoggle']
+PanelType = Literal['timeseries', 'field', 'readout', 'events', 'tracktoggle', 'vision']
 
 
 @dataclass
