@@ -13,6 +13,14 @@ NT-server-synced timestamps (same clock domain as .wpilog files) into a
 per-session directory under RECORDINGS_DIR. Total storage is capped at
 MAX_STORAGE_BYTES by deleting the oldest whole sessions.
 
+The Pi has no RTC battery, so its wall clock is unreliable across power
+cycles (it can reset to a stale build-image date whenever it loses power
+without reaching NTP). Session folders are therefore named
+"boot<NNNN>-<local timestamp>" where <NNNN> is a counter persisted on
+disk and incremented once per process start — so folders from this
+power-on are always distinguishable from an earlier one even when the
+timestamp portion of the name is wrong.
+
 Install dependency:
     pip install pyntcore
 
@@ -102,6 +110,33 @@ class MjpegFrameReader:
             self._stream = None
 
 
+BOOT_ID_FILE = ".boot_id"  # persisted on disk (survives power loss, unlike the Pi's batteryless RTC) so session folders stay distinguishable across restarts even when the wall clock resets
+
+
+def next_boot_id(base):
+    """Increment and return a counter persisted in BOOT_ID_FILE under base.
+
+    The Orange Pi has no RTC battery, so its wall clock resets to some
+    build-image default on every power cycle until it can reach an NTP
+    server (often never, on a field network). A session folder named only
+    by that clock can't be told apart from one made a month ago. This
+    counter increments once per process start (i.e. once per boot, since
+    the service starts at boot) and gets baked into the session folder
+    name instead, so "this session" vs. "last session" is always clear
+    regardless of what the clock reads.
+    """
+    os.makedirs(base, exist_ok=True)
+    path = os.path.join(base, BOOT_ID_FILE)
+    try:
+        with open(path) as f:
+            boot_id = int(f.read().strip()) + 1
+    except (FileNotFoundError, ValueError):
+        boot_id = 1
+    with open(path, "w") as f:
+        f.write(str(boot_id))
+    return boot_id
+
+
 def session_dirs(base):
     if not os.path.isdir(base):
         return []
@@ -128,9 +163,9 @@ def enforce_storage_cap(base, max_bytes):
         i += 1
 
 
-def new_session_dir(base):
+def new_session_dir(base, boot_id):
     os.makedirs(base, exist_ok=True)
-    session = os.path.join(base, time.strftime("%Y%m%d-%H%M%S"))
+    session = os.path.join(base, f"boot{boot_id:04d}-{time.strftime('%Y%m%d-%H%M%S')}")
     os.makedirs(session, exist_ok=True)
     return session
 
@@ -144,7 +179,9 @@ def main():
 
     control_word_entry = inst.getTable(FMS_INFO_TABLE).getIntegerTopic(FMS_CONTROL_TOPIC).getEntry(0)
 
-    print(f"Connecting to roboRIO (team {TEAM_NUMBER})…")
+    boot_id = next_boot_id(RECORDINGS_DIR)
+
+    print(f"Connecting to roboRIO (team {TEAM_NUMBER})… [boot {boot_id}, local clock reads {time.strftime('%Y-%m-%d %H:%M:%S')}]")
 
     reader = MjpegFrameReader(CAMERA_STREAM_URL)
     period_s = 1.0 / SAMPLE_HZ
@@ -161,7 +198,7 @@ def main():
 
                 if enabled and not was_enabled:
                     enforce_storage_cap(RECORDINGS_DIR, MAX_STORAGE_BYTES)
-                    session_dir = new_session_dir(RECORDINGS_DIR)
+                    session_dir = new_session_dir(RECORDINGS_DIR, boot_id)
                     manifest = open(os.path.join(session_dir, "manifest.jsonl"), "a")
                     print(f"Enabled — starting session {session_dir}")
                 elif not enabled and was_enabled:

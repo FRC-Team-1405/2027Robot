@@ -61,6 +61,8 @@ cat /home/photon/vision-recordings/<latest-session>/manifest.jsonl
 
 You should see JPEGs accumulating at roughly `SAMPLE_HZ` (default 3/sec) and a `manifest.jsonl` line per frame with a `t_sec` timestamp. **Also watch PhotonVision's own dashboard FPS/latency counters while this runs** — they shouldn't visibly regress, since the whole point of tapping the existing MJPEG stream instead of the camera device is to avoid competing with the detection pipeline.
 
+**Session folder names.** This Pi has no RTC battery, so its wall clock can reset to a stale build-image date on any power cycle that doesn't reach NTP (typical on a field network). Folders are named `boot<NNNN>-<local timestamp>`, where `<NNNN>` is a counter in `RECORDINGS_DIR/.boot_id` that increments once per service start — so folders from the current power-on are always distinguishable from an older one even if the timestamp half of the name is wrong or repeats. If you ever need to confirm the clock is actually wrong (vs. genuinely that date), check `boot<NNNN>`'s number against how many times the Pi has been power-cycled today; don't trust the timestamp alone.
+
 ## 6. Storage cap
 
 Total recordings are capped at 5GB (`MAX_STORAGE_BYTES` in the script) by deleting the oldest whole session directories — never partial sessions, so every remaining `manifest.jsonl` stays consistent with the frames next to it. To test this on the bench, temporarily lower `MAX_STORAGE_BYTES` to a few MB, cycle the robot enabled/disabled a few times to generate multiple sessions, and confirm old sessions disappear as the cap is exceeded.
