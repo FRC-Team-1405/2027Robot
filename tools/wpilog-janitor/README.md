@@ -6,8 +6,39 @@ don't need, see what it saves. Per log, by hand — nothing is trimmed automatic
 Plan and design decisions: [`docs/wpilog-janitor-plan.md`](../../docs/wpilog-janitor-plan.md).
 File-format work lives in [`wpilog-utils`](../wpilog-utils); this is the tool on top of it.
 
-**Status:** CLI done (analyze, trim, segmap). The Trim page and Content page (web UI), duplicate detection
-and the LLM extract are planned — see the plan's milestones M3–M5.
+**Status:** CLI and the **Trim page** are done. The Content page (size tree, duplicate detection, choosing entries to
+drop, LLM extract) is planned — see the plan's milestones M4–M5.
+
+## Web UI
+
+```bash
+cd tools/wpilog-janitor/web && npm install && cd ../../..     # first time only
+```
+
+Then run the **Janitor** task in VS Code (builds the front end, serves `logs/`), or by hand:
+
+```bash
+npm --prefix tools/wpilog-janitor/web run build
+python tools/wpilog-janitor/run.py serve --logs logs          # http://127.0.0.1:8767/
+```
+
+**Trim page**
+
+* A timeline shows the log's disabled / auto / teleop bands over a bytes-per-second curve.
+* **Click a band** to keep or drop that period (each autonomous period is its own band). **Drag** across the timeline to keep
+  an arbitrary range. **Drag a highlighted edge** to adjust it, or type exact seconds in the table. Wheel zooms, alt-drag pans,
+  double-click resets. Per-period padding keeps extra real cycles around a period (e.g. the disable→enable edge).
+* **Timing**: *Close the gap* (default, 200 ms of real time kept at each cut) or *Keep original timestamps*.
+* The **Result** panel shows original → trimmed size. It is an instant estimate (within about 1%), and turns *exact* on its
+  own for logs under 40 MB; for bigger logs press *Compute exact size* (one pass over the file).
+* **Export** saves `<log>_trimmed.wpilog` next to the original (never overwriting; a number is added instead) and checks it
+  against the original, or downloads it.
+* Your selection is remembered per log in the browser.
+
+The first open of a big log takes a while (about 10 s for 86 MB, 15 s for 130 MB); after that it is cached and instant.
+
+**Developing the front end:** `cd web && npm run dev` (http://localhost:5174, proxies `/api` to port 8767; run the server
+alongside), `npm test` (unit tests for the timeline geometry and segment operations), `npm run typecheck`.
 
 ## CLI
 
@@ -17,6 +48,7 @@ python -m janitor analyze  match.wpilog                       # modes, sizes, wh
 python -m janitor trim     match.wpilog --modes auto --dry-run  # exact output size, nothing written
 python -m janitor trim     match.wpilog --modes auto            # -> match_trimmed.wpilog, then verifies it
 python -m janitor segmap   match_trimmed.wpilog               # original-time map stored in the output
+python -m janitor serve    --logs logs                         # web UI
 ```
 
 Times are **seconds from the log's first record**, the same clock `analyze` prints.
@@ -55,5 +87,6 @@ the CLI's `--exclude*` will not stop you.
 ## Tests
 
 ```bash
-cd tools/wpilog-janitor && python -m pytest
+cd tools/wpilog-janitor && python -m pytest             # CLI + API (needs fastapi)
+cd web && npm test           # front-end logic
 ```

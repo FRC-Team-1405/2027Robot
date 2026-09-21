@@ -376,3 +376,87 @@ def test_real_log_full_range_is_lossless_in_preserve_mode():
     dst.pop(SEGMENT_MAP_ENTRY.lstrip('/'))
     assert src == dst                                   # every decoded sample identical
     assert st.n_carried == 0
+
+
+# ── estimate_size: instant, index-only, close to the exact dry run ─────────────────────────────
+
+from wpilog_utils.trim import estimate_size   # noqa: E402
+
+
+def _est_and_exact(raw, plan):
+    ix = build_index(raw)
+    res = resolve_plan(ix, plan)
+    return estimate_size(ix, plan, res), dry_run(raw, ix, plan, res).bytes_out
+
+
+@pytest.mark.parametrize('name,plan_of', [
+    ('one auto', lambda ix: TrimPlan(mode_segments(ix, ['auto'], which=[0]))),
+    ('two autos, 200 ms seam', lambda ix: TrimPlan(mode_segments(ix, ['auto']))),
+    ('no gap', lambda ix: TrimPlan(mode_segments(ix, ['auto']), gap_ms=0)),
+    ('preserve', lambda ix: TrimPlan(mode_segments(ix, ['auto']), gap_policy='preserve')),
+    ('everything', lambda ix: TrimPlan([Segment(0, 999)])),
+    ('excluding a vision-like entry', lambda ix: TrimPlan(mode_segments(ix, ['auto']), exclude_prefixes=['/Vision'])),
+])
+def test_estimate_tracks_the_exact_size(name, plan_of):
+    raw, _ = wb.ds_log(TWO_AUTOS, extra_entries=[('/Vision/A', 'double'), ('/Cfg/K', 'double')],
+                       extra_records=[('/Vision/A', c, wb.double(c)) for c in range(0, 400, 3)] + [('/Cfg/K', 0, wb.double(1))])
+    plan = plan_of(build_index(raw))
+    est, exact = _est_and_exact(raw, plan)
+    assert abs(est - exact) <= max(0.04 * exact, 400), (name, est, exact)   # tiny outputs: fixed overhead dominates
+
+
+def test_estimate_is_instant_on_a_real_sized_log():
+    import time
+    raw, _ = wb.ds_log([('disabled', 300.0), ('auto', 15.0), ('disabled', 300.0)])      # ~30k cycles
+    ix = build_index(raw)
+    plan = TrimPlan(mode_segments(ix, ['auto']))
+    t = time.perf_counter()
+    estimate_size(ix, plan)
+    assert time.perf_counter() - t < 0.25
+
+
+@pytest.mark.skipif(not NOTES.exists(), reason='sample logs not present')
+@pytest.mark.parametrize('logname,segs,excl', [
+    ('*decimateBack.wpilog', [(36.8, 52.7)], []),
+    ('*decimateBack.wpilog', [(36.8, 52.7), (100, 110)], []),
+    ('*decimateBack.wpilog', [(36.8, 52.7)], ['/RealOutputs/Vision', '/Vision']),
+    ('*baseline.wpilog', [(0, 999)], []),
+])
+def test_estimate_on_real_logs_is_within_one_percent(logname, segs, excl):
+    raw, ix = load_index(next(NOTES.glob(logname)))
+    plan = TrimPlan([Segment(a, b) for a, b in segs], exclude_prefixes=excl)
+    res = resolve_plan(ix, plan)
+    exact = dry_run(raw, ix, plan, res).bytes_out
+    assert abs(estimate_size(ix, plan, res) - exact) / exact < 0.01
+
+
+def test_index_entry_histograms_add_up():
+    raw, _ = wb.ds_log(TWO_AUTOS)
+    ix = build_index(raw)
+    for eid, e in ix.entries.items():
+        assert sum(ix.entry_hist[eid]) == e.bytes
+    assert sum(ix.cycle_records) == ix.n_records
+    assert [sum(h[b] if b < len(h) else 0 for h in ix.entry_hist.values()) for b in range(len(ix.byte_hist))] == ix.byte_hist
+
+
+# ── a span that ends exactly at the last record includes that record ────────────────────────────
+
+def test_segment_ending_exactly_at_the_last_cycle_includes_it():
+    raw, info = wb.ds_log(TWO_AUTOS)
+    ix = build_index(raw)
+    tail = mode_segments(ix, ['teleop'])[0]                       # the final span: ends AT the last record
+    assert tail.end == pytest.approx(ix.duration_s)
+    res = resolve_plan(ix, TrimPlan([tail]))
+    assert res.ranges[0].last == len(info['cycles_us']) - 1
+
+
+def test_mode_span_bytes_add_up_to_the_whole_log():
+    raw, _ = wb.ds_log(TWO_AUTOS)
+    ix = build_index(raw)
+    assert sum(ix.window_bytes(a, b) for a, b, _ in ix.mode_spans()) == ix.data_bytes
+
+
+@pytest.mark.skipif(not NOTES.exists(), reason='sample logs not present')
+def test_real_log_mode_span_bytes_add_up_to_the_whole_log():
+    _, ix = load_index(next(NOTES.glob('*baseline.wpilog')))
+    assert sum(ix.window_bytes(a, b) for a, b, _ in ix.mode_spans()) == ix.data_bytes

@@ -143,6 +143,8 @@ class ResolvedSegment:
     offset_s: float             # new = orig + offset, in absolute log seconds
     pad_pre_ms: float
     pad_post_ms: float
+    first_cycle: int = 0        # indices into LogIndex.cycles_us of the segment's own first / last cycle
+    last_cycle: int = 0
 
 
 @dataclass
@@ -230,7 +232,7 @@ def resolve_plan(index: LogIndex, plan: TrimPlan) -> ResolvedPlan:
 
     def cycle_range(start_us: int, end_us: int) -> Tuple[int, int]:
         i0 = bisect.bisect_left(cyc, start_us)
-        i1 = n if end_us > t_last else bisect.bisect_left(cyc, end_us)
+        i1 = n if end_us >= t_last else bisect.bisect_left(cyc, end_us)     # a mode span's end IS the last cycle's time
         return i0, i1
 
     padded: List[List[int]] = []
@@ -305,7 +307,8 @@ def resolve_plan(index: LogIndex, plan: TrimPlan) -> ResolvedPlan:
             orig_first_s=(cyc[i0] - t0) / 1e6, orig_last_s=(cyc[i1 - 1] - t0) / 1e6,
             new_first_s=(cyc[i0] + r.offset_us - out_start) / 1e6,
             new_last_s=(cyc[i1 - 1] + r.offset_us - out_start) / 1e6,
-            offset_s=r.offset_us / 1e6, pad_pre_ms=seg.pad_pre_ms, pad_post_ms=seg.pad_post_ms))
+            offset_s=r.offset_us / 1e6, pad_pre_ms=seg.pad_pre_ms, pad_post_ms=seg.pad_post_ms,
+            first_cycle=i0, last_cycle=i1 - 1))
 
     excluded = resolve_excluded_ids(index, plan)
     if index.cycle_entry_id in excluded:
@@ -466,3 +469,60 @@ def trim_log(raw: bytes, index: LogIndex, plan: TrimPlan,
     chunks: List[bytes] = []
     stats = _run(raw, index, plan, resolved, chunks.append)
     return b''.join(chunks), stats
+
+
+def _ts_width(us: int) -> int:
+    return max(1, (max(us, 0).bit_length() + 7) // 8)
+
+
+def _kept_fraction_by_second(index: LogIndex, resolved: ResolvedPlan) -> List[float]:
+    """For each 1 s bucket of the source (from its first record), the fraction of it inside a kept range."""
+    n = len(index.byte_hist)
+    frac = [0.0] * n
+    cyc = index.cycles_us
+    for r in resolved.ranges:
+        t0 = cyc[r.first] - index.t_min_us
+        t1 = (cyc[r.last + 1] if r.last + 1 < len(cyc) else index.t_max_us + 1) - index.t_min_us
+        for b in range(max(0, int(t0 // 1_000_000)), min(n - 1, int(t1 // 1_000_000)) + 1):
+            frac[b] = min(1.0, frac[b] + max(0.0, min(t1, (b + 1) * 1_000_000) - max(t0, b * 1_000_000)) / 1e6)
+    return frac
+
+
+def estimate_size(index: LogIndex, plan: TrimPlan, resolved: Optional[ResolvedPlan] = None) -> int:
+    """Predicted size of `trim_log`'s output, from the index alone (no pass over the file), so it is
+    cheap enough to recompute on every drag of a slider. `dry_run` is the exact answer.
+
+    Sums the bytes of the kept cycles, corrects for re-timing (the writer re-encodes every record with
+    the smallest timestamp field, and shifting a segment to an earlier time usually needs fewer bytes),
+    subtracts each excluded entry's bytes in the seconds that are kept (from the per-entry histogram), and adds the Start
+    records, the segment map, and one restated value per entry that already had state before the first
+    range. Accurate to a few percent on real logs (see tests); never used for anything but display.
+    """
+    resolved = resolved or resolve_plan(index, plan)
+    cyc, cb, cr = index.cycles_us, index.cycle_bytes, index.cycle_records
+    kept = 0
+    retime_saved = 0        # bytes saved by narrower timestamp fields after shifting
+    kept_records = 0
+    for r in resolved.ranges:
+        kept += sum(cb[r.first:r.last + 1])
+        kept_records += sum(cr[r.first:r.last + 1])
+        if r.offset_us:
+            for i in range(r.first, r.last + 1):
+                retime_saved += cr[i] * (_ts_width(cyc[i]) - _ts_width(cyc[i] + r.offset_us))
+    kept -= retime_saved
+    saved_per_record = retime_saved / kept_records if kept_records else 0.0
+    live = [e for i, e in index.entries.items() if i not in resolved.excluded_ids]
+    if resolved.excluded_ids:
+        kept_frac = _kept_fraction_by_second(index, resolved)
+        for i in resolved.excluded_ids:
+            h = index.entry_hist.get(i, ())
+            ex_bytes = sum(h[b] * kept_frac[b] for b in range(min(len(h), len(kept_frac))))
+            e = index.entries[i]
+            # the excluded records never get re-encoded, so they were not part of the retiming saving
+            kept -= ex_bytes - saved_per_record * ex_bytes * e.n_records / max(1, e.bytes)
+    start_bytes = index.control_bytes * (len(live) / max(1, len(index.entries)))
+    first = resolved.ranges[0]
+    n_cyc = max(1, len(cyc))
+    restated = sum(e.bytes / max(1, e.n_records) + 3 for e in live
+                   if e.first_ts_us is not None and e.first_ts_us < first.lo_us and e.n_records / n_cyc < 0.5)
+    return int(index.header_end + kept + start_bytes + restated + 600)

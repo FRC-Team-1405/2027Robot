@@ -4,11 +4,20 @@ A `.wpilog` utility for **making logs smaller on purpose**: cut a log down to th
 you care about, drop the entries you don't, and see exactly what that saves. Two pages over one
 core, same shape as `logbench` (CLI + web UI as two views of one library).
 
-Status: **M0–M2 built** (shared library, index, trim engine + verifier, CLI). Not built yet: the web UI
-(M3), Content page (M4), LLM extract (M5). Still to do for M2's acceptance: open a real trimmed output in
-AdvantageScope (the one thing that can't be checked from code).
+Status: **M0–M3 built** (shared library, index, trim engine + verifier, CLI, FastAPI server, Trim page).
+M2's AdvantageScope acceptance check passed. Not built yet: Content page (M4) and LLM extract (M5).
 
 ### Build notes — where the code differs from the plan below
+
+* **M3 (Trim page):** `dry_run` is 6–10 s on 85–135 MB logs, so the UI shows an instant `estimate_size` (index only; within 0.2% on
+  the sample logs, 0.03% on an 86 MB one) and computes the exact size automatically only under 40 MB, otherwise on a button.
+  The estimate needed a per-record count per cycle and a per-entry bytes-per-second histogram in the index, so that exclusions
+  and the narrower timestamps after re-timing are accounted for.
+* **The verifier now streams the source** (one pass, memory ~ what is kept); before, it held every source record (14 s and
+  gigabytes for a 134 MB log).
+* Found and fixed while building it: a segment ending exactly at the last record (which is how the final mode span ends)
+  dropped the last cycle; and `LogIndex.window_bytes` had the same off-by-one.
+* Ports: server 8767, Vite dev 5174 (logbench uses 8765 / 5173 and `.claude/launch.json` uses 8766).
 
 * **Segment times are seconds from the log's first record** (same clock as `mode_spans()`), not absolute.
 * **Entries are Started lazily**, right before their first written record at that record's new timestamp,

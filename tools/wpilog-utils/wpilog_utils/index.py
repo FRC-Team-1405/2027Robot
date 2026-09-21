@@ -63,7 +63,9 @@ class LogIndex:
     t_max_us: int
     cycles_us: array = field(repr=False)          # 'q': timestamp of each cycle, ascending
     cycle_bytes: array = field(repr=False)        # 'Q': data-record bytes belonging to each cycle
+    cycle_records: array = field(repr=False)      # 'I': data records belonging to each cycle
     byte_hist: List[int] = field(repr=False)      # data-record bytes per 1 s bucket, from t_min
+    entry_hist: Dict[int, array] = field(repr=False)  # entry id -> 'I' array of its data bytes per 1 s bucket
     cycle_entry_id: Optional[int]
     time_ordered: bool
     control_bytes: int
@@ -95,7 +97,7 @@ class LogIndex:
         """Data-record bytes in cycles whose time falls in [start_s, end_s), seconds from the first record."""
         lo = bisect.bisect_left(self.cycles_us, self.t_min_us + round(start_s * 1e6))
         hi = bisect.bisect_left(self.cycles_us, self.t_min_us + round(end_s * 1e6))
-        if end_s * 1e6 + self.t_min_us > self.t_max_us:
+        if self.t_min_us + round(end_s * 1e6) >= self.t_max_us:       # the last span ends AT the last record: include it
             hi = len(self.cycles_us)
         return sum(self.cycle_bytes[lo:hi])
 
@@ -117,8 +119,9 @@ class LogIndex:
 def build_index(raw: bytes) -> LogIndex:
     header_end = wpilog_header_end(raw)
     entries: Dict[int, IndexEntry] = {}
-    cycles, cycle_bytes = array('q'), array('Q')
+    cycles, cycle_bytes, cycle_records = array('q'), array('Q'), array('I')
     hist: Dict[int, int] = {}
+    entry_hist: Dict[int, array] = {}
     ds: Dict[str, List[Tuple[float, bool]]] = {}
     ds_ids: Dict[int, str] = {}
     cycle_entry_id: Optional[int] = None
@@ -162,8 +165,10 @@ def build_index(raw: bytes) -> LogIndex:
         if cur_ts is None or (ts_us != cur_ts and (cycle_entry_id is None or entry_id == cycle_entry_id)):
             cycles.append(ts_us)
             cycle_bytes.append(0)
+            cycle_records.append(0)
             cur_ts = ts_us
         cycle_bytes[-1] += size
+        cycle_records[-1] += 1
 
         ent.n_records += 1
         ent.bytes += size
@@ -176,6 +181,12 @@ def build_index(raw: bytes) -> LogIndex:
 
         bucket = max(0, (ts_us - t_min) // 1_000_000)
         hist[bucket] = hist.get(bucket, 0) + size
+        eh = entry_hist.get(entry_id)
+        if eh is None:
+            eh = entry_hist[entry_id] = array('I')
+        if bucket >= len(eh):
+            eh.extend(array('I', bytes(4 * (bucket + 1 - len(eh)))))
+        eh[bucket] += size
 
         if entry_id in ds_ids:
             v = decode_payload(payload, ent.type)
@@ -187,8 +198,8 @@ def build_index(raw: bytes) -> LogIndex:
     n_buckets = (max(hist) + 1) if hist else 0
     return LogIndex(
         total_bytes=len(raw), header_end=header_end, extra_header=raw[12:header_end], entries=entries,
-        t_min_us=t_min, t_max_us=t_max, cycles_us=cycles, cycle_bytes=cycle_bytes,
-        byte_hist=[hist.get(i, 0) for i in range(n_buckets)], cycle_entry_id=cycle_entry_id,
+        t_min_us=t_min, t_max_us=t_max, cycles_us=cycles, cycle_bytes=cycle_bytes, cycle_records=cycle_records,
+        byte_hist=[hist.get(i, 0) for i in range(n_buckets)], entry_hist=entry_hist, cycle_entry_id=cycle_entry_id,
         time_ordered=ordered, control_bytes=control_bytes, n_control=n_control,
         n_unregistered_records=n_unreg, ds_signals=ds,
     )

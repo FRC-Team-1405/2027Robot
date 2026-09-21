@@ -103,6 +103,35 @@
             "problemMatcher": []
         },
         {
+            "label": "JanitorBuild",
+            "detail": "Build the wpilog-janitor front end (first time on a machine: run `npm install` in tools/wpilog-janitor/web).",
+            "type": "process",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "tools/wpilog-janitor/web",
+                "run",
+                "build"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Janitor",
+            "detail": "Build and serve wpilog-janitor (trim logs to the periods you care about) at http://127.0.0.1:8767 (logs/ picker).",
+            "type": "process",
+            "command": "python",
+            "args": [
+                "tools/wpilog-janitor/run.py",
+                "serve",
+                "--logs",
+                "logs"
+            ],
+            "dependsOn": "JanitorBuild",
+            "dependsOrder": "sequence",
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
             "label": "JanitorAnalyze",
             "detail": "wpilog-janitor: show a log's modes and where its bytes are. Prompts for the log path (relative to the repo root).",
             "type": "process",

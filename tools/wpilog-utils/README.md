@@ -14,7 +14,7 @@ Design and rationale: [`docs/wpilog-janitor-plan.md`](../../docs/wpilog-janitor-
 | `modes` | `compute_mode_spans` (disabled / auto / teleop from `DriverStation/Enabled` + `Autonomous`), `filter_signals_by_time` |
 | `index` | `build_index(raw)` → `LogIndex`: per-entry bytes, loop **cycles**, bytes per second, mode spans. One streaming pass, no payload decoding |
 | `trim` | `trim_wpilog_bytes` (original single window) and the multi-segment engine: `TrimPlan`, `resolve_plan`, `dry_run`, `trim_log` |
-| `verify` | `verify_trim` — independent check of an output against its source and plan |
+| `verify` | `verify_trim` — independent check of an output against its source and plan; streams the source, so memory scales with what is kept, not with the log |
 
 ## Using it
 
@@ -23,12 +23,13 @@ has a `pyproject.toml`, so `pip install -e tools/wpilog-utils` works and makes t
 
 ```python
 from wpilog_utils.index import load_index
-from wpilog_utils.trim import TrimPlan, mode_segments, dry_run, trim_log
+from wpilog_utils.trim import TrimPlan, mode_segments, estimate_size, dry_run, resolve_plan, trim_log
 from wpilog_utils.verify import verify_trim
 
 raw, index = load_index('match.wpilog')
 plan = TrimPlan(mode_segments(index, ['auto']), gap_ms=200)     # keep every auto period
-print(dry_run(raw, index, plan).bytes_out)                       # exact size, nothing built
+print(estimate_size(index, plan))                                # instant, from the index alone (within ~1%)
+print(dry_run(raw, index, plan).bytes_out)                       # exact size, one pass, nothing built
 out, stats = trim_log(raw, index, plan)
 assert verify_trim(out, raw, index, plan, resolve_plan(index, plan)).ok
 ```

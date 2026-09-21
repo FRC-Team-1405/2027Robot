@@ -6,6 +6,7 @@ Command line for wpilog-janitor.
                                [--gap-ms 200] [--pad-pre-ms N] [--pad-post-ms N] [--preserve]
                                [--exclude NAME ...] [--exclude-prefix PREFIX ...] [--dry-run] [--no-verify]
     python -m janitor segmap TRIMMED_LOG
+    python -m janitor serve [--logs DIR] [--port 8767]      # web UI
 
 Times are seconds from the log's first record (the same clock `analyze` prints).
 """
@@ -197,6 +198,21 @@ def cmd_segmap(args) -> int:
     return 0
 
 
+def cmd_serve(args) -> int:
+    root = pathlib.Path(args.logs).resolve()
+    if not root.is_dir():
+        print(f'error: not a directory: {root}', file=sys.stderr)
+        return 2
+    import uvicorn
+    from .server.main import DIST, create_app
+    print(f'log root: {root}')
+    if not DIST.exists():
+        print('note: the front end is not built yet: cd tools/wpilog-janitor/web && npm install && npm run build', file=sys.stderr)
+    print(f'open:     http://{args.host}:{args.port}/')
+    uvicorn.run(create_app(root), host=args.host, port=args.port, log_level='warning')
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog='janitor', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -227,6 +243,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     s.add_argument('log')
     s.add_argument('--json', action='store_true')
     s.set_defaults(fn=cmd_segmap)
+
+    v = sub.add_parser('serve', help='start the web UI')
+    v.add_argument('--logs', default='.', help='directory to search for .wpilog files (default: current directory)')
+    v.add_argument('--port', type=int, default=8767)
+    v.add_argument('--host', default='127.0.0.1')
+    v.set_defaults(fn=cmd_serve)
 
     args = ap.parse_args(argv)
     try:

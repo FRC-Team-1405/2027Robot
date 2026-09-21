@@ -44,7 +44,8 @@ class VerifyReport:
 
 
 def _records(raw: bytes, header_end: int):
-    """(defs {id: (name,type)}, data [(eid, ts_us, payload)], starts [(eid, ts_us)]) in file order."""
+    """(defs {id: (name,type)}, data [(eid, ts_us, payload)], starts [(eid, ts_us)]) in file order.
+    Used for the OUTPUT, which is small; the source is scanned by `_scan_source` instead."""
     defs, data, starts = {}, [], []
     for eid, ts, payload, _s, _e in iter_records(raw, header_end):
         ts_us = int(round(ts * 1e6))
@@ -56,6 +57,43 @@ def _records(raw: bytes, header_end: int):
         else:
             data.append((eid, ts_us, payload))
     return defs, data, starts
+
+
+def _scan_source(raw: bytes, index: LogIndex, resolved: ResolvedPlan, mirror_names):
+    """One streaming pass over the source (memory ~ what is kept, not the whole log). Returns
+    (expected Counter of (name, new_ts, payload) for every record inside a kept range,
+     snapshots: per range, {name: payload} = the source's state at and including the range's first cycle)."""
+    ranges = resolved.ranges
+    excluded = resolved.excluded_ids
+    defs: Dict[int, str] = {}
+    last: Dict[str, bytes] = {}
+    expected: Counter = Counter()
+    snaps: List[Dict[str, bytes]] = [{} for _ in ranges]
+    next_snap = 0
+    ri = 0
+    for eid, ts_sec, payload, _s, _e in iter_records(raw, index.header_end):
+        if eid == 0:
+            c = parse_control(payload)
+            if c is not None and c.kind == 'start':
+                defs[c.entry_id] = c.name
+            continue
+        name = defs.get(eid)
+        if name is None or eid in excluded:
+            continue
+        ts = int(round(ts_sec * 1e6))
+        while next_snap < len(ranges) and ts > ranges[next_snap].lo_us:
+            snaps[next_snap] = dict(last)              # state before this record = state as of the first cycle
+            next_snap += 1
+        last[name] = payload
+        while ri < len(ranges) and ranges[ri].hi_us is not None and ts >= ranges[ri].hi_us:
+            ri += 1
+        if ri < len(ranges) and ts >= ranges[ri].lo_us:
+            new_ts = ts + ranges[ri].offset_us
+            expected[(name, new_ts, struct.pack('<q', new_ts) if name in mirror_names else payload)] += 1
+    while next_snap < len(ranges):
+        snaps[next_snap] = dict(last)
+        next_snap += 1
+    return expected, snaps
 
 
 def verify_trim(out: bytes, raw: bytes, index: LogIndex, plan: TrimPlan, resolved: ResolvedPlan) -> VerifyReport:
@@ -74,7 +112,6 @@ def verify_trim(out: bytes, raw: bytes, index: LogIndex, plan: TrimPlan, resolve
         bad('output timestamps go backwards')
 
     o_defs, o_data, o_starts = _records(out, out_ix.header_end)
-    s_defs, s_data, _ = _records(raw, index.header_end)
 
     # start-before-use, and no timestamp regression across the whole record stream
     first_start = {}
@@ -112,19 +149,7 @@ def verify_trim(out: bytes, raw: bytes, index: LogIndex, plan: TrimPlan, resolve
 
     # every kept source record present (moved), nothing else extra
     mirror_names = {e.name for e in index.entries.values() if e.time_mirror}
-    excluded_ids = resolved.excluded_ids
-    name_to_out_id = {v[0]: k for k, v in o_defs.items()}
-    expected: Counter = Counter()
-    for eid, ts, payload in s_data:
-        if eid in excluded_ids or eid not in s_defs:
-            continue
-        name = s_defs[eid][0]
-        for r in resolved.ranges:
-            if ts >= r.lo_us and (r.hi_us is None or ts < r.hi_us):
-                new_ts = ts + r.offset_us
-                out_payload = struct.pack('<q', new_ts) if name in mirror_names else payload
-                expected[(name, new_ts, out_payload)] += 1
-                break
+    expected, snapshots = _scan_source(raw, index, resolved, mirror_names)
     actual: Counter = Counter((o_defs[eid][0], ts, p) for eid, ts, p in o_data if eid in o_defs)
     lost = expected - actual
     extra = actual - expected
@@ -138,28 +163,20 @@ def verify_trim(out: bytes, raw: bytes, index: LogIndex, plan: TrimPlan, resolve
     rep.info['restated_records'] = sum(c for (n, t, _p), c in extra.items() if n != SEGMENT_MAP_ENTRY)
 
     # value continuity at each range start
-    src_by_name: Dict[str, List[Tuple[int, bytes]]] = defaultdict(list)
-    for eid, ts, p in s_data:
-        if eid in s_defs:
-            src_by_name[s_defs[eid][0]].append((ts, p))
     out_by_name: Dict[str, List[Tuple[int, bytes]]] = defaultdict(list)
     for eid, ts, p in o_data:
         if eid in o_defs:
             out_by_name[o_defs[eid][0]].append((ts, p))
-    src_ts = {n: [t for t, _ in v] for n, v in src_by_name.items()}
     out_ts = {n: [t for t, _ in v] for n, v in out_by_name.items()}
-    for r in resolved.ranges:
+    for r, snap in zip(resolved.ranges, snapshots):
         new_lo = r.lo_us + r.offset_us
-        for name, recs in src_by_name.items():
-            if name in excluded_names or name in mirror_names:
-                continue
-            k = bisect.bisect_right(src_ts[name], r.lo_us) - 1     # source state at (and including) the first cycle
-            if k < 0:
+        for name, want in snap.items():
+            if name in mirror_names:
                 continue
             j = bisect.bisect_right(out_ts.get(name, []), new_lo) - 1
             if j < 0:
                 bad(f'{name}: no value in the output at range start {new_lo} us (source has one)')
-            elif out_by_name[name][j][1] != recs[k][1]:
+            elif out_by_name[name][j][1] != want:
                 bad(f'{name}: value at range start {new_lo} us differs from the source at {r.lo_us} us')
 
     # time-mirroring entries stay equal to their record time
