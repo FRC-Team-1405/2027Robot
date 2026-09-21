@@ -93,6 +93,10 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 `tools/logbench/` is the primary tool: a generic (not vision-specific) metric/composite-score comparison library over `.wpilog`s, with a CLI and a Vite + React + TypeScript / FastAPI web UI as two views over the same core. It's in the process of absorbing `tools/vision-analyzer` and `tools/ab-metrics` (see `tools/logbench/README.md` for migration status) — check there before assuming a tool listed below still owns a piece of functionality.
 
+`tools/wpilog-utils/` — shared, stdlib-only `.wpilog` library (`wpilog_utils`): record reader/writer, payload decoding, DS-mode spans, a per-log `LogIndex` (entry sizes, loop cycles), and the multi-segment trim engine + verifier. The parser and mode-span code moved here from `vision_analyzer`, which keeps a re-exporting shim (`vision_analyzer/parser.py`) so existing callers are unchanged. Reached via `sys.path` bridges like the other tools; `cd tools/wpilog-utils && python -m pytest`.
+
+`tools/wpilog-janitor/` — makes logs smaller on purpose: trim to chosen modes/time ranges (re-timed so the output still plays cleanly in AdvantageScope; original times recoverable from a `/Janitor/SegmentMap` entry) and drop entries. CLI works today (`python -m janitor analyze|trim|segmap`); web UI, duplicate detection and the LLM extract are still planned. Design and status: `docs/wpilog-janitor-plan.md`, `tools/wpilog-janitor/README.md`.
+
 `tools/vision-analyzer/analyze.py` — Streamlit + Plotly dashboard over a `.wpilog`: vision acceptance/rejection, pose estimates, correction magnitudes, and a CSV/Markdown export for comparing two runs. Being migrated into `logbench`; being kept in place until that migration is reviewed for parity. `streamlit run analyze.py`.
 
 `tools/camera-calibration/calibrate.py` — Streamlit app for solving camera mount transforms from a tape-measure calibration run, plus live health monitoring over NetworkTables. Six tabs; Tab 6 (Replay) embeds `logbench`'s player below. Out of scope for the `logbench` migration — it solves a geometry problem (mount transform), not a metrics problem.

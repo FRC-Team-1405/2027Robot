@@ -23,8 +23,8 @@ APRILTAG_POSITIONS: Dict[int, Tuple[float, float]] = {
 
 REEF_TAG_IDS = frozenset({6, 7, 8, 9, 10, 11, 17, 18, 19, 20, 21, 22})
 
-POSE2D_SIZE = 24   # double x, double y, double rotation_radians
-POSE3D_SIZE = 56   # double x,y,z, double qw,qx,qy,qz
+# Struct sizes live with the decoder in wpilog-utils; re-exported here for existing importers.
+from wpilog_utils.decode import POSE2D_SIZE, POSE3D_SIZE  # noqa: E402,F401
 
 # Robot connectivity
 _ROBORIO_HOSTS  = ['roborio-1405-frc.local', '10.14.5.2', '172.22.11.2']

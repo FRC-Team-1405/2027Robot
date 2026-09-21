@@ -80,6 +80,10 @@ def _bridge_vision_analyzer(fh: logging.FileHandler) -> None:
         sys.path.insert(0, str(_VA_PATH))
     import vision_analyzer  # noqa: F401  (import runs its own setup_logging())
 
+    wu_logger = logging.getLogger('wpilog_utils')   # the parser's logger since it moved to wpilog-utils
+    if fh not in wu_logger.handlers:
+        wu_logger.addHandler(fh)
+
     va_logger = logging.getLogger('vision_analyzer')
     if fh not in va_logger.handlers:
         va_logger.addHandler(fh)

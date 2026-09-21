@@ -20,6 +20,16 @@ def ensure_vision_analyzer_on_path() -> pathlib.Path:
     return _VA_PATH
 
 
+_WU_PATH = _HERE.parents[1] / 'wpilog-utils'
+
+
+def ensure_wpilog_utils_on_path() -> pathlib.Path:
+    """The shared .wpilog library (parser, mode spans, trim) that vision_analyzer now re-exports."""
+    if str(_WU_PATH) not in sys.path:
+        sys.path.insert(0, str(_WU_PATH))
+    return _WU_PATH
+
+
 def ensure_server_on_path() -> pathlib.Path:
     """Lets `from model import ...` work when logbench is imported as a library
     from another tool (the Streamlit calibration app) rather than run from this dir."""
@@ -29,4 +39,5 @@ def ensure_server_on_path() -> pathlib.Path:
 
 
 ensure_server_on_path()
+ensure_wpilog_utils_on_path()
 ensure_vision_analyzer_on_path()
