@@ -136,11 +136,12 @@ public class CommandsForAutos {
                         .build();
 
         //
-        // Vision test: orbit the starting point while facing a fixed AprilTag,
-        // ramping speed up to exercise vision under acceleration + rotation.
+        // Vision test: orbit a fixed spot in front of the tag while facing it, ramping speed
+        // up to exercise vision under acceleration + rotation. The robot first drives to that
+        // spot, so where it was hand-placed no longer changes the range to the tag.
         //
         private static final int VISION_CIRCLE_TEST_TAG_ID = 10;
-        Supplier<Command> CircleFacingTag = () -> new CircleFacingTagCommand(drivetrain,
+        Supplier<Command> CircleFacingTag = () -> CircleFacingTagCommand.atFixedStart(drivetrain,
                         VISION_CIRCLE_TEST_TAG_ID);
 
         // endregion Test Commands

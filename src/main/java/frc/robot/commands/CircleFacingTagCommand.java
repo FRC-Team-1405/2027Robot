@@ -4,6 +4,10 @@
 
 package frc.robot.commands;
 
+import java.util.function.Supplier;
+
+import org.littletonrobotics.junction.Logger;
+
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 
@@ -13,6 +17,8 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import frc.robot.commands.PidToPose.PidToPoseCommand;
 import frc.robot.lib.AprilTags;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
@@ -27,6 +33,14 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
  * translating (with increasing speed/acceleration) and rotating, with the
  * tag guaranteed to stay in view the whole time since heading is always
  * pointed at it.
+ *
+ * <p>
+ * Start position: by itself this command orbits wherever the robot was placed,
+ * so a hand-placed robot shifts the whole circle, and with it every range to
+ * the tag, from run to run (9 logged runs started anywhere from 1.53 m to
+ * 1.77 m from tag 10). {@link #atFixedStart} removes that: it first drives to a
+ * fixed spot in front of the tag and orbits <em>that</em> spot, so the geometry
+ * is the same every run regardless of where the robot was set down.
  *
  * <p>
  * A fixed cutoff (rather than running until the DS ends autonomous) keeps the
@@ -58,8 +72,22 @@ public class CircleFacingTagCommand extends Command {
     // `logbench compare --mode auto` (156.48997s -> 174.13185s window).
     private static final double BASELINE_MATCH_DURATION_SECONDS = 17.6419;
 
+    // Where atFixedStart() puts the center of the circle: this far straight out from the tag,
+    // along the direction the tag faces. 1.75 m is where the 9/5 baseline log started
+    // (x=14.271, y=4.050 against tag 10 at x=12.519, y=4.035), the maneuver the TEMPORARY block
+    // above exists to reproduce. Expressed relative to the tag rather than as field coordinates
+    // so it follows the tag if the field layout changes (see the 2027 TODOs).
+    private static final double START_DISTANCE_FROM_TAG_METERS = 1.75;
+    // Positioning is a short move (placement error is a few tens of centimeters). If it has not
+    // settled by then, give up and run from wherever we are rather than sit still all auto.
+    private static final double POSITIONING_TIMEOUT_SECONDS = 4.0;
+    private static final double POSITIONING_TOLERANCE_INCHES = 2.0;
+
     private final CommandSwerveDrivetrain drivetrain;
     private final int tagId;
+    // Where the circle is centered, read once in initialize(). Defaults to the pose the robot
+    // is in at that moment; atFixedStart() supplies a fixed point instead.
+    private final Supplier<Translation2d> centerSource;
 
     // All position/velocity math here works in absolute (blue-origin) field
     // coordinates, so force that frame explicitly. Otherwise this request
@@ -75,16 +103,60 @@ public class CircleFacingTagCommand extends Command {
     private double pathLength;
     private double lastTimestamp;
 
+    /** Orbits wherever the robot is when the command starts. Prefer {@link #atFixedStart}. */
     public CircleFacingTagCommand(CommandSwerveDrivetrain drivetrain, int tagId) {
+        this(drivetrain, tagId, () -> drivetrain.getState().Pose.getTranslation());
+    }
+
+    /** Orbits the point {@code centerSource} returns when the command starts. */
+    public CircleFacingTagCommand(CommandSwerveDrivetrain drivetrain, int tagId,
+            Supplier<Translation2d> centerSource) {
         this.drivetrain = drivetrain;
         this.tagId = tagId;
+        this.centerSource = centerSource;
         addRequirements(drivetrain);
+    }
+
+    /**
+     * The pose the robot is driven to before the circle starts: START_DISTANCE_FROM_TAG_METERS
+     * straight out from the tag along the direction it faces, pointed back at it. Package-private
+     * and a pure function of the tag pose so it can be checked without a robot.
+     */
+    static Pose2d startPoseFor(Pose2d tagPose) {
+        Translation2d spot = tagPose.getTranslation()
+                .plus(new Translation2d(START_DISTANCE_FROM_TAG_METERS, tagPose.getRotation()));
+        return new Pose2d(spot, tagPose.getRotation().plus(Rotation2d.fromDegrees(180)));
+    }
+
+    /**
+     * Drive to the fixed start spot in front of the tag, then run the orbit around that spot. The
+     * circle is centered on the fixed spot itself, not on wherever positioning happened to settle,
+     * so a residual placement error cannot leak into the run.
+     *
+     * <p>
+     * Logs CircleFacingTag/Phase ("Positioning", then "Circle", then "Done") so analysis can trim
+     * the positioning move out of the DS auto window: its length depends on where the robot was
+     * placed, which is exactly the variation this exists to remove from the comparison.
+     */
+    public static Command atFixedStart(CommandSwerveDrivetrain drivetrain, int tagId) {
+        // Looked up when the command runs, not when it is built: the tag layout may not be loaded
+        // yet at robot init (AprilTags.getAprilTagPose returns an empty Pose2d until it is).
+        Supplier<Pose2d> startPose = () -> startPoseFor(AprilTags.getAprilTagPose(tagId));
+
+        return Commands.sequence(
+                Commands.runOnce(() -> Logger.recordOutput("CircleFacingTag/Phase", "Positioning")),
+                new PidToPoseCommand.Builder(startPose, drivetrain, "CircleFacingTag_Start")
+                        .withTolerance(POSITIONING_TOLERANCE_INCHES)
+                        .build()
+                        .withTimeout(POSITIONING_TIMEOUT_SECONDS),
+                new CircleFacingTagCommand(drivetrain, tagId, () -> startPose.get().getTranslation()))
+                .finallyDo(() -> Logger.recordOutput("CircleFacingTag/Phase", "Done"));
     }
 
     @Override
     public void initialize() {
-        Pose2d startPose = drivetrain.getState().Pose;
-        center = startPose.getTranslation();
+        Logger.recordOutput("CircleFacingTag/Phase", "Circle");
+        center = centerSource.get();
         // Leave the center heading toward the tag, so the initial straight-line leg
         // out to the edge doubles as the entry point onto the circle.
         startAngleRadians = AprilTags.getAprilTagPose(tagId).getTranslation().minus(center).getAngle().getRadians();
