@@ -70,3 +70,65 @@ def bounds(signals: Dict) -> Tuple[float, float]:
     if lo is math.inf:
         return 0.0, 0.0
     return lo, hi
+
+
+# --- Time-weighted (sample-and-hold) helpers -------------------------------------------
+#
+# AdvantageKit writes a record only when a logged value *changes*, so a series is a step
+# function, not a stream of equally-spaced samples: a value that held for 480 ms and one that
+# held for 20 ms are one record each. Averaging records therefore weights by how often a
+# value changed, not by how long it lasted -- on a strictly alternating 0/100 series the
+# record-mean is 50 no matter how long the value sat at 100 (docs/adr/0001, Finding 2).
+# Everything here integrates the step function over time instead.
+
+Piece = Tuple[float, float, Any]  # (start, end, value), start < end
+
+
+def hold_intervals(series: List[Tuple[float, Any]], lo: float, hi: float) -> List[Piece]:
+    """The step function `series` describes, as (start, end, value) pieces clipped to
+    [lo, hi]. The value from the last record at or before `lo` is carried in, so a signal that
+    last changed before the window still counts for the whole window. A signal with no record
+    yet at `lo` is undefined until its first record (no piece is emitted for that head)."""
+    out: List[Piece] = []
+    n = len(series)
+    for i, (t, v) in enumerate(series):
+        t_next = series[i + 1][0] if i + 1 < n else hi
+        a, b = max(t, lo), min(t_next, hi)
+        if b > a:
+            out.append((a, b, v))
+    return out
+
+
+def merge_spans(spans: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    """Coalesce touching/overlapping (start, end) spans; input must be sorted by start."""
+    out: List[Tuple[float, float]] = []
+    for a, b in spans:
+        if out and a <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], b))
+        else:
+            out.append((a, b))
+    return out
+
+
+def clip_to_spans(pieces: List[Piece], spans: List[Tuple[float, float]]) -> List[Piece]:
+    """Keep only the parts of `pieces` that fall inside `spans` (both sorted, non-overlapping)."""
+    out: List[Piece] = []
+    j = 0
+    for a, b, v in pieces:
+        while j < len(spans) and spans[j][1] <= a:
+            j += 1
+        k = j
+        while k < len(spans) and spans[k][0] < b:
+            lo, hi = max(a, spans[k][0]), min(b, spans[k][1])
+            if hi > lo:
+                out.append((lo, hi, v))
+            k += 1
+    return out
+
+
+def time_weighted_mean(pieces: List[Piece]) -> Optional[float]:
+    """Duration-weighted mean of piece values; None if the pieces cover no time."""
+    total = sum(b - a for a, b, _ in pieces)
+    if total <= 0:
+        return None
+    return sum((b - a) * v for a, b, v in pieces) / total

@@ -18,6 +18,7 @@ import inspect
 import io
 import json
 import pathlib
+import re
 import sys
 import zipfile
 from typing import List, Optional
@@ -25,12 +26,14 @@ from typing import List, Optional
 import paths  # noqa: F401  (side effect: sys.path bridges)
 
 import bundles
+import compare_export
 import live_nt
 import pairing
 import remote_config
 import remote_fetch
 import specs
 from cli import DEFAULT_METRICS
+from core import categories
 from core.compare import WindowSelector, compare, make_run
 from core.composites import COMPOSITES
 from core.log import Log
@@ -40,7 +43,7 @@ from encode import spec_to_dict
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -130,14 +133,20 @@ def log_info(log: str = Query(..., description='log path relative to the log roo
 def metric_catalog() -> dict:
     """Every registered Metric and Composite, so the compare page's metric picker never
     has to hardcode an id list that can drift from core/metrics.py and core/composites.py."""
+    desc = compare_export.DESCRIPTIONS
     return {
         'defaults': DEFAULT_METRICS,
         'severity': SEVERITY_BANDS,
+        # The category definitions (question, what a low reading means, whether it is scored),
+        # so the page lays out and explains categories from the server's own words.
+        'categories': categories.describe(),
         'metrics': (
             [{'id': m.id, 'label': m.label, 'unit': m.unit, 'lowerIsBetter': m.lower_is_better,
-              'kind': 'metric'} for m in METRICS.values()]
+              'kind': 'metric', 'category': m.category, 'perCamera': m.per_camera,
+              'description': desc.get(m.id, '')} for m in METRICS.values()]
             + [{'id': c.id, 'label': c.label, 'unit': '%', 'lowerIsBetter': c.lower_is_better,
-                'kind': 'composite'} for c in COMPOSITES.values()]
+                'kind': 'composite', 'category': c.category, 'perCamera': True,
+                'description': desc.get(c.id, '')} for c in COMPOSITES.values()]
         ),
     }
 
@@ -153,16 +162,9 @@ def _parse_manual_window(raw: Optional[str]) -> Optional[tuple]:
         raise HTTPException(status_code=400, detail='window must be "lo,hi" in seconds, got %r' % raw)
 
 
-@app.get('/api/compare')
-def compare_logs(
-    log_a: str = Query(...),
-    log_b: str = Query(...),
-    mode: str = Query('whole', description="DS-mode span to select in each log when no manual window is given"),
-    window_a: Optional[str] = Query(None, description='manual "lo,hi" seconds for log A; overrides mode for A only'),
-    window_b: Optional[str] = Query(None, description='manual "lo,hi" seconds for log B; overrides mode for B only'),
-    metric: Optional[List[str]] = Query(None, description='repeatable; default: a standard set'),
-    camera: Optional[List[str]] = Query(None, description='repeatable; default: every camera in either log'),
-) -> dict:
+def _run_comparison(log_a, log_b, mode, window_a, window_b, metric, camera):
+    """The one place a comparison is computed, shared by /api/compare and its export so
+    a downloaded report can never disagree with what the page just showed."""
     path_a = _resolve(log_a)
     path_b = _resolve(log_b)
     log_obj_a = _load_log(path_a)
@@ -178,14 +180,61 @@ def compare_logs(
 
     cameras = camera or sorted(set(log_obj_a.cameras()) | set(log_obj_b.cameras()))
     metric_ids = metric or DEFAULT_METRICS
+    unknown = [m for m in metric_ids if m not in METRICS and m not in COMPOSITES]
+    if unknown:
+        raise HTTPException(status_code=400, detail='unknown metric id(s): %s' % ', '.join(unknown))
     deltas = compare(run_a, run_b, metric_ids, cameras)
+    return run_a, run_b, cameras, metric_ids, deltas
 
+
+@app.get('/api/compare')
+def compare_logs(
+    log_a: str = Query(...),
+    log_b: str = Query(...),
+    mode: str = Query('whole', description="DS-mode span to select in each log when no manual window is given"),
+    window_a: Optional[str] = Query(None, description='manual "lo,hi" seconds for log A; overrides mode for A only'),
+    window_b: Optional[str] = Query(None, description='manual "lo,hi" seconds for log B; overrides mode for B only'),
+    metric: Optional[List[str]] = Query(None, description='repeatable; default: a standard set'),
+    camera: Optional[List[str]] = Query(None, description='repeatable; default: every camera in either log'),
+) -> dict:
+    run_a, run_b, cameras, _, deltas = _run_comparison(
+        log_a, log_b, mode, window_a, window_b, metric, camera)
     return {
         'a': {'log': log_a, 'window': dataclasses.asdict(run_a.window)},
         'b': {'log': log_b, 'window': dataclasses.asdict(run_b.window)},
         'cameras': cameras,
         'deltas': [dataclasses.asdict(d) for d in deltas],
     }
+
+
+@app.get('/api/compare/export')
+def export_comparison(
+    log_a: str = Query(...),
+    log_b: str = Query(...),
+    format: str = Query('html', pattern='^(html|json)$',
+                        description='html for people, json for LLMs (see compare_export.py)'),
+    mode: str = Query('whole'),
+    window_a: Optional[str] = Query(None),
+    window_b: Optional[str] = Query(None),
+    metric: Optional[List[str]] = Query(None),
+    camera: Optional[List[str]] = Query(None),
+) -> Response:
+    """Same parameters as /api/compare, returned as a downloadable file."""
+    run_a, run_b, cameras, metric_ids, deltas = _run_comparison(
+        log_a, log_b, mode, window_a, window_b, metric, camera)
+    report = compare_export.build_report(
+        run_a, run_b, deltas, cameras, metric_ids,
+        mode=mode, manual_a=bool(window_a), manual_b=bool(window_b))
+
+    stem_a = pathlib.PurePosixPath(log_a.replace('\\', '/')).stem
+    stem_b = pathlib.PurePosixPath(log_b.replace('\\', '/')).stem
+    filename = re.sub(r'[^A-Za-z0-9._-]+', '_', 'compare-%s-vs-%s.%s' % (stem_a, stem_b, format))
+    if format == 'json':
+        body, media = compare_export.render_json(report), 'application/json'
+    else:
+        body, media = compare_export.render_html(report), 'text/html'
+    return Response(body, media_type=media,
+                    headers={'Content-Disposition': 'attachment; filename="%s"' % filename})
 
 
 @app.post('/api/live/connect')

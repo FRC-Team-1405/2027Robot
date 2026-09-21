@@ -10,6 +10,7 @@ one picked the boundaries.
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from . import categories as cat
 from . import composites as composites_mod
 from . import metrics as metrics_mod
 from .log import Log
@@ -72,6 +73,26 @@ def _unit(id_: str) -> Optional[str]:
     return metrics_mod.METRICS[id_].unit
 
 
+def category_of(id_: str) -> str:
+    if id_ in composites_mod.COMPOSITES:
+        return composites_mod.COMPOSITES[id_].category
+    return metrics_mod.METRICS[id_].category
+
+
+def _per_camera(id_: str) -> bool:
+    if id_ in composites_mod.COMPOSITES:
+        return True
+    return metrics_mod.METRICS[id_].per_camera
+
+
+# Camera label on the single row a whole-run metric (robot speed) produces.
+RUN_LEVEL = 'All'
+
+# Verdict for a context metric. Context describes the run, not the camera: "less range" or "more
+# speed" is neither better nor worse, so it gets no judgement -- only the numbers, side by side.
+CONTEXT_VERDICT = 'context'
+
+
 def _lower_is_better(id_: str) -> bool:
     if id_ in composites_mod.COMPOSITES:
         return composites_mod.COMPOSITES[id_].lower_is_better
@@ -108,18 +129,26 @@ class MetricDelta:
     b: Optional[float]
     delta: Optional[float]
     verdict: str
+    category: str = cat.LEGACY
 
 
 def compare(run_a: Run, run_b: Run, metric_ids: List[str], cameras: List[str]) -> List[MetricDelta]:
     out: List[MetricDelta] = []
     for metric_id in metric_ids:
         lower_is_better = _lower_is_better(metric_id)
-        for camera in cameras:
+        category = category_of(metric_id)
+        # A whole-run metric is asked once, with no camera, and reported as one 'All' row.
+        for camera in (cameras if _per_camera(metric_id) else [None]):
             a = run_a.value(metric_id, camera)
             b = run_b.value(metric_id, camera)
             delta = (b - a) if (a is not None and b is not None) else None
+            if category == cat.CONTEXT:
+                v = CONTEXT_VERDICT if delta is not None else 'n/a'
+            else:
+                v = verdict(a, b, lower_is_better)
             out.append(MetricDelta(
-                id=metric_id, label=_label(metric_id), unit=_unit(metric_id), camera=camera,
-                a=a, b=b, delta=delta, verdict=verdict(a, b, lower_is_better),
+                id=metric_id, label=_label(metric_id), unit=_unit(metric_id),
+                camera=camera if camera is not None else RUN_LEVEL,
+                a=a, b=b, delta=delta, verdict=v, category=category,
             ))
     return out

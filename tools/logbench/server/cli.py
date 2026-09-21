@@ -21,14 +21,17 @@ import paths  # noqa: F401  (side effect: sys.path bridges)
 from core.compare import WindowSelector, compare, make_run
 from core.log import Log
 
-# A representative default set for a quick look: the robot's own composite, both
-# logbench composites, then the raw per-camera factors and log-derived metrics that feed
-# them, so `--json` output is useful without also passing --metric a dozen times.
+# A representative default set for a quick look, grouped the way the compare page groups it
+# (docs/adr/0001): the three scores, then availability, quality and context metrics. Jitter and
+# the legacy composites (still_score, motion_score, score_pct) stay selectable by id but are not
+# defaults: jitter rises with motion for reasons unrelated to camera quality, and the legacy
+# composites mix categories.
 DEFAULT_METRICS = [
-    'score_pct', 'still_score', 'motion_score',
-    'stillness_pct', 'area_pct', 'ambiguity_pct', 'fps_pct', 'jitter_pct',
-    'acceptance_pct', 'latency_pct', 'multitag_pct',
-    'acceptance_rate', 'fps_mean', 'fps_min', 'conn_uptime_pct', 'latency_mean_ms',
+    'health_score', 'availability_score', 'quality_score',
+    'tag_in_view_pct', 'longest_gap_ms', 'fps_pct', 'latency_pct',
+    'conn_uptime_pct', 'fps_mean', 'fps_min', 'latency_mean_ms',
+    'area_pct', 'ambiguity_pct', 'acceptance_pct', 'multitag_pct', 'acceptance_rate',
+    'stillness_pct', 'range_median_m', 'speed_mean_mps',
 ]
 
 

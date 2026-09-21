@@ -63,6 +63,39 @@ Add `?debug=1` to any of them for an fps counter and a `window.__player` handle.
 Keyboard: `space` play/pause · `←`/`→` 1s · `shift+←`/`→` 10s · `,`/`.` one frame · `0`
 restart.
 
+**Exporting a comparison** — after running one on the Compare tab, *HTML (for people)* and
+*JSON (for LLMs)* download the exact result on screen (`GET /api/compare/export?format=html|json`,
+same parameters as `/api/compare`). The HTML mirrors the page's category layout; the JSON
+(`logbench.compare/v2`, built in `server/compare_export.py`) adds both log file names (names
+only, no paths), each window and DS-mode spans, the category definitions, metric definitions,
+per-camera a/b/delta/% change/verdict, tallies (overall, by camera, by category), and a "how to
+read" guide. Adding a metric? Add its one-line entry to `DESCRIPTIONS` in `compare_export.py` —
+a test fails if you forget.
+
+**Metric categories** (`server/core/categories.py`, rationale in
+`docs/adr/0001-camera-health-metric-gating-aggregation-and-range.md`) — every metric declares
+one of three kinds of question, decided by *whether a low reading tells you what to fix*:
+
+| Category | Answers | Low means look at | Scored? |
+|---|---|---|---|
+| **availability** | Does usable data arrive when it should? | connection, mount / FOV, exposure, USB | yes |
+| **quality** | When a tag is seen, how good is the solution? | calibration, focus, threshold, decimate | yes |
+| **context** | What conditions was this measured under? (speed, range) | nothing — it explains the other two | **never** |
+
+The compare page shows availability and quality as separate score cards and context beside them,
+unscored (its rows get verdict `context`, not improved/regressed). `availability_score` and
+`quality_score` are separate products; `health_score` is their optional product and, like both,
+cannot depend on a context metric (`tests/test_categories.py` enforces that structurally).
+`still_score` / `motion_score` mix categories, so they are filed as `legacy` and kept only so
+existing scripts keep working. Two rules apply to every health-factor average: it is
+**time-weighted** (AdvantageKit only logs a value when it changes, so averaging records weights
+by how often a value changed, not how long it lasted) and it covers **only the times a tag was in
+view** (the robot zeroes every factor on a loop with no tag; that dropout is reported once, as
+`tag_in_view_pct`, not counted inside each factor). A metric that describes the whole run rather
+than one camera (`speed_mean_mps`) is declared `per_camera=False` and appears once, as camera
+`All`. Not yet done (see the ADR): range-normalised tag area, block/bootstrap verdicts, and the
+robot-side `TagInViewFraction` log.
+
 ## Layout
 
 ```

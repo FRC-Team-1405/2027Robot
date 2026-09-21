@@ -737,7 +737,7 @@ body {
 /* ── Compare page ─────────────────────────────────────────────────────────── */
 
 .compare-page {
-  max-width: 980px;
+  max-width: 1120px;
   margin: 24px auto;
   padding: 0 16px 40px;
   display: flex;
@@ -899,7 +899,7 @@ body {
 
 .compare-metrics__content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
   margin-top: 8px;
 }
@@ -945,6 +945,26 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.compare-export {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.compare-export__link {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.compare-export__link:hover {
+  border-color: var(--accent);
 }
 
 .compare-results {
@@ -1001,6 +1021,263 @@ body {
 .compare-verdict--na {
   background: transparent;
   color: #4b5563;
+}
+
+/* A context metric is shown but never judged: dashed and quiet, like its card. */
+.compare-verdict--context {
+  background: transparent;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+}
+
+.compare-table__metric {
+  vertical-align: top;
+  min-width: 190px;
+}
+
+.compare-table__desc {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  max-width: 460px;
+}
+
+/* ── Compare page: availability / quality / context (docs/adr/0001) ────────── */
+
+.cat-panels {
+  --cat-availability: #2dd4bf;
+  --cat-quality: #3987e5;
+  --cat-context: #6b7280;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.cat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--cat-context);
+  border-radius: 8px;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cat-card--availability {
+  border-top-color: var(--cat-availability);
+}
+
+.cat-card--quality {
+  border-top-color: var(--cat-quality);
+}
+
+/* Context reads as an explanation, not a third score: dashed, no fill, quieter type. */
+.cat-card--context {
+  background: transparent;
+  border: 1px dashed #374151;
+  border-top: 3px dashed var(--cat-context);
+  color: var(--muted);
+}
+
+.cat-card__title {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.cat-card--context .cat-card__title {
+  color: #cbd5e1;
+}
+
+.cat-card__question {
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.cat-card--context .cat-card__question {
+  color: var(--muted);
+}
+
+.cat-card__low {
+  margin-top: auto;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.cat-card__empty {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.cat-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 7px;
+  border: 1px dashed #4b5563;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+/* Score rows: one camera, an A bar and a B bar, then the change and its verdict. */
+.cat-score {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.cat-score__camera {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.cat-score__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cat-score__delta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.cat-bar {
+  display: grid;
+  grid-template-columns: 12px 1fr 38px;
+  align-items: center;
+  gap: 6px;
+}
+
+.cat-bar__side {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.cat-bar__track {
+  height: 10px;
+  background: #0b1220;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.cat-bar__fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.cat-bar__fill--a {
+  background: #64748b;
+}
+
+.cat-card--availability .cat-bar__fill--b {
+  background: var(--cat-availability);
+}
+
+.cat-card--quality .cat-bar__fill--b {
+  background: var(--cat-quality);
+}
+
+.cat-bar__value {
+  text-align: right;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Context values: plain numbers, no bars. */
+.cat-context {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cat-context__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.cat-context__camera {
+  color: #6b7280;
+}
+
+.cat-context__values {
+  font-variant-numeric: tabular-nums;
+  color: #cbd5e1;
+  white-space: nowrap;
+}
+
+.cat-overall {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.cat-detail {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cat-context);
+  border-radius: 8px;
+  padding: 8px 12px 4px;
+}
+
+.cat-detail--availability {
+  border-left-color: var(--cat-availability);
+}
+
+.cat-detail--quality {
+  border-left-color: var(--cat-quality);
+}
+
+.cat-detail--context {
+  background: transparent;
+  border-style: dashed;
+  border-left-style: dashed;
+}
+
+.cat-detail__title {
+  margin: 0 0 2px;
+  font-size: 13px;
+}
+
+.cat-legacy {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cat-legacy summary {
+  cursor: pointer;
+}
+
+.compare-metrics__group--context strong,
+.compare-metrics__group--legacy strong {
+  color: var(--muted);
 }
 
 /* ── Pit Check page (live) ────────────────────────────────────────────────── */

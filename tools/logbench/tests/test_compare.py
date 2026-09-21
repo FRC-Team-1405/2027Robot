@@ -82,16 +82,16 @@ def _run_with_metric(value: float, metric_series_key: str, camera: str = 'Left')
 
 
 def test_compare_reports_delta_and_verdict_per_camera():
-    run_a = _run_with_metric(50.0, 'Vision/Left/Health/StillnessPercent')
-    run_b = _run_with_metric(90.0, 'Vision/Left/Health/StillnessPercent')
-    deltas = compare(run_a, run_b, ['stillness_pct'], ['Left'])
+    run_a = _run_with_metric(50.0, 'Vision/Left/Health/FpsPercent')
+    run_b = _run_with_metric(90.0, 'Vision/Left/Health/FpsPercent')
+    deltas = compare(run_a, run_b, ['fps_pct'], ['Left'])
     assert len(deltas) == 1
     d = deltas[0]
     assert (d.a, d.b, d.delta, d.verdict) == (50.0, 90.0, 40.0, 'improved')
 
 
 def test_compare_reports_n_a_when_a_camera_has_no_data():
-    run_a = _run_with_metric(50.0, 'Vision/Left/Health/StillnessPercent')
+    run_a = _run_with_metric(50.0, 'Vision/Left/Health/FpsPercent')
     run_b = make_run(Log(path=pathlib.Path('fake.wpilog'), signals={}), WindowSelector())
-    d = compare(run_a, run_b, ['stillness_pct'], ['Left'])[0]
+    d = compare(run_a, run_b, ['fps_pct'], ['Left'])[0]
     assert (d.a, d.b, d.delta, d.verdict) == (50.0, None, None, 'n/a')

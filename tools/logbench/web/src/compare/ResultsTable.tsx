@@ -1,21 +1,46 @@
 // The delta/verdict table -- one row per (metric, camera) pair, same granularity as the
-// CLI's `logbench compare` text output.
-import type { CompareResult, Verdict } from './types';
+// CLI's `logbench compare` text output. Takes a list of deltas rather than a whole result so
+// the category panels can each show their own slice; `descriptions` (metric id -> plain-language
+// meaning) is optional and, when given, prints under each metric's name once (not per camera).
+import type { MetricDelta, Verdict } from './types';
 
 const VERDICT_LABEL: Record<Verdict, string> = {
   improved: 'improved',
   regressed: 'regressed',
   neutral: 'neutral',
   'n/a': 'n/a',
+  context: 'not judged',
 };
 
-function fmt(v: number | null, unit: string | null): string {
+export function fmt(v: number | null, unit: string | null): string {
   if (v === null) return 'n/a';
   const digits = Math.abs(v) < 10 ? 2 : 1;
   return `${v.toFixed(digits)}${unit ? ` ${unit}` : ''}`;
 }
 
-export function ResultsTable({ result }: { result: CompareResult }) {
+export function VerdictChip({ verdict }: { verdict: Verdict }) {
+  return (
+    <span className={`compare-verdict compare-verdict--${verdict.replace('/', '')}`}>
+      {VERDICT_LABEL[verdict]}
+    </span>
+  );
+}
+
+export function ResultsTable({
+  deltas,
+  descriptions,
+}: {
+  deltas: MetricDelta[];
+  descriptions?: Record<string, string>;
+}) {
+  // rowSpan the metric name over its camera rows, so a description prints once per metric.
+  const firstOfMetric = new Set<number>();
+  const spanFor = new Map<string, number>();
+  deltas.forEach((d, i) => {
+    if (!spanFor.has(d.id)) firstOfMetric.add(i);
+    spanFor.set(d.id, (spanFor.get(d.id) ?? 0) + 1);
+  });
+
   return (
     <div className="compare-results">
       <table className="compare-table">
@@ -30,17 +55,22 @@ export function ResultsTable({ result }: { result: CompareResult }) {
           </tr>
         </thead>
         <tbody>
-          {result.deltas.map((d, i) => (
+          {deltas.map((d, i) => (
             <tr key={`${d.id}-${d.camera}-${i}`}>
-              <td>{d.label}</td>
+              {firstOfMetric.has(i) && (
+                <td rowSpan={spanFor.get(d.id)} className="compare-table__metric">
+                  <div>{d.label}</div>
+                  {descriptions?.[d.id] && (
+                    <div className="compare-table__desc">{descriptions[d.id]}</div>
+                  )}
+                </td>
+              )}
               <td>{d.camera}</td>
               <td className="compare-table__num">{fmt(d.a, d.unit)}</td>
               <td className="compare-table__num">{fmt(d.b, d.unit)}</td>
               <td className="compare-table__num">{fmt(d.delta, d.unit)}</td>
               <td>
-                <span className={`compare-verdict compare-verdict--${d.verdict.replace('/', '')}`}>
-                  {VERDICT_LABEL[d.verdict]}
-                </span>
+                <VerdictChip verdict={d.verdict} />
               </td>
             </tr>
           ))}

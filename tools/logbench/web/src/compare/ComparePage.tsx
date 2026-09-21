@@ -6,24 +6,22 @@
 // here should never disagree with a script's.
 import { useEffect, useMemo, useState } from 'react';
 
+import { CategoryPanels } from './CategoryPanels';
 import { LogSide } from './LogSide';
-import { ResultsTable } from './ResultsTable';
 import type {
-  CompareResult, LogEntry, ManualWindow, MetricCatalog, Mode,
+  CategoryId, CompareResult, LogEntry, ManualWindow, MetricCatalog, MetricDescriptor, Mode,
 } from './types';
 
 const MODES: Mode[] = ['whole', 'auto', 'teleop', 'disabled'];
 
-// The "motion autonomous routine check" use case: window to the auto span and look only
-// at metrics that stay meaningful while the robot is commanded to move -- motion_score
-// and its inputs deliberately exclude stillness/jitter (see core/composites.py), which
-// are expected to look bad during motion for reasons that have nothing to do with camera
-// health. One click sets both the window and the metric selection, rather than a second
-// page duplicating this one's table/verdict logic.
-const AUTO_ROUTINE_PRESET_METRICS = [
-  'motion_score', 'area_pct', 'ambiguity_pct', 'fps_pct', 'acceptance_pct',
-  'latency_pct', 'multitag_pct', 'acceptance_rate', 'fps_mean', 'fps_min',
-];
+// The order metric groups are listed in the picker, and their headings. The first three are the
+// question categories from docs/adr/0001 (their wording comes from the server's catalog, so the
+// page never restates it); 'overall' and 'legacy' only place the composites.
+const PICKER_ORDER: CategoryId[] = ['availability', 'quality', 'context', 'overall', 'legacy'];
+const PICKER_HEADING: Record<string, string> = {
+  overall: 'Overall (optional)',
+  legacy: 'Legacy composites',
+};
 
 function emptyManual(): ManualWindow {
   return { enabled: false, lo: 0, hi: 0 };
@@ -39,6 +37,10 @@ export function ComparePage() {
   const [manualB, setManualB] = useState<ManualWindow>(emptyManual());
   const [metricIds, setMetricIds] = useState<Set<string> | null>(null);
   const [result, setResult] = useState<CompareResult | null>(null);
+  // The query the shown result was computed from. Export links use this, not the live form
+  // state, so a download always matches the table on screen even if the selectors changed
+  // since the last Compare click.
+  const [resultQuery, setResultQuery] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -68,13 +70,15 @@ export function ComparePage() {
     if (manualB.enabled) params.set('window_b', `${manualB.lo},${manualB.hi}`);
     for (const id of metricIds) params.append('metric', id);
 
-    fetch(`/api/compare?${params.toString()}`)
+    const query = params.toString();
+    fetch(`/api/compare?${query}`)
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).detail ?? `${r.status}`);
         return r.json() as Promise<CompareResult>;
       })
       .then((data) => {
         setResult(data);
+        setResultQuery(query);
         setStatus('idle');
       })
       .catch((e) => {
@@ -83,11 +87,16 @@ export function ComparePage() {
       });
   };
 
+  // The "autonomous routine check" use case: window to the auto span and pick the standard metric
+  // set. That set (the server's defaults) scores availability and quality separately and shows
+  // context beside them, and leaves out jitter and the legacy composites: jitter rises with motion
+  // for reasons unrelated to camera quality. One click sets both the window and the metric
+  // selection, rather than a second page duplicating this one's table/verdict logic.
   const applyAutoRoutinePreset = () => {
     setMode('auto');
     setManualA(emptyManual());
     setManualB(emptyManual());
-    setMetricIds(new Set(AUTO_ROUTINE_PRESET_METRICS));
+    if (catalog) setMetricIds(new Set(catalog.defaults));
   };
 
   const toggleMetric = (id: string) => {
@@ -99,12 +108,17 @@ export function ComparePage() {
     });
   };
 
-  const metricsByKind = useMemo(() => {
-    if (!catalog) return { metric: [], composite: [] };
-    return {
-      metric: catalog.metrics.filter((m) => m.kind === 'metric'),
-      composite: catalog.metrics.filter((m) => m.kind === 'composite'),
-    };
+  // Metrics grouped by category, in picker order, each group with the heading the server gave
+  // its category (or the fixed heading for overall/legacy).
+  const pickerGroups = useMemo(() => {
+    if (!catalog) return [];
+    return PICKER_ORDER.map((id) => ({
+      id,
+      heading:
+        PICKER_HEADING[id] ?? catalog.categories.find((c) => c.id === id)?.label ?? id,
+      note: id === 'context' ? 'not scored' : '',
+      members: catalog.metrics.filter((m: MetricDescriptor) => m.category === id),
+    })).filter((g) => g.members.length > 0);
   }, [catalog]);
 
   return (
@@ -138,7 +152,7 @@ export function ComparePage() {
         <button
           className="compare-mode__btn"
           onClick={applyAutoRoutinePreset}
-          title="Window to the auto span in each log and select metrics that stay meaningful during commanded motion (excludes stillness/jitter)"
+          title="Window to the auto span in each log and select the standard metric set: availability and quality scored separately, context shown beside them (jitter and the legacy composites left out)"
         >
           Autonomous routine preset
         </button>
@@ -164,24 +178,20 @@ export function ComparePage() {
         <details className="compare-metrics">
           <summary>Metrics ({metricIds?.size ?? 0} selected)</summary>
           <div className="compare-metrics__content">
-            <div className="compare-metrics__group">
-              <strong>Composites</strong>
-              {metricsByKind.composite.map((m) => (
-                <label key={m.id}>
-                  <input type="checkbox" checked={metricIds?.has(m.id) ?? false} onChange={() => toggleMetric(m.id)} />
-                  {m.label}
-                </label>
-              ))}
-            </div>
-            <div className="compare-metrics__group">
-              <strong>Metrics</strong>
-              {metricsByKind.metric.map((m) => (
-                <label key={m.id}>
-                  <input type="checkbox" checked={metricIds?.has(m.id) ?? false} onChange={() => toggleMetric(m.id)} />
-                  {m.label}
-                </label>
-              ))}
-            </div>
+            {pickerGroups.map((g) => (
+              <div className={`compare-metrics__group compare-metrics__group--${g.id}`} key={g.id}>
+                <strong>
+                  {g.heading}
+                  {g.note && <span className="cat-badge">{g.note}</span>}
+                </strong>
+                {g.members.map((m) => (
+                  <label key={m.id} title={m.description}>
+                    <input type="checkbox" checked={metricIds?.has(m.id) ?? false} onChange={() => toggleMetric(m.id)} />
+                    {m.label}
+                  </label>
+                ))}
+              </div>
+            ))}
           </div>
         </details>
       )}
@@ -197,13 +207,26 @@ export function ComparePage() {
         </div>
       )}
 
-      {result && status !== 'error' && (
+      {result && catalog && status !== 'error' && (
         <>
           <div className="compare-window-summary">
             <div>A: {result.a.log} — window [{result.a.window.lo.toFixed(1)}, {result.a.window.hi.toFixed(1)}]s</div>
             <div>B: {result.b.log} — window [{result.b.window.lo.toFixed(1)}, {result.b.window.hi.toFixed(1)}]s</div>
           </div>
-          <ResultsTable result={result} />
+          <div className="compare-export">
+            <span>Export this comparison:</span>
+            <a className="compare-export__link" href={`/api/compare/export?${resultQuery}&format=html`}>
+              HTML (for people)
+            </a>
+            <a
+              className="compare-export__link"
+              href={`/api/compare/export?${resultQuery}&format=json`}
+              title="One self-describing JSON document: file names, windows, metric definitions, per-camera values, deltas, verdicts and a reading guide"
+            >
+              JSON (for LLMs)
+            </a>
+          </div>
+          <CategoryPanels result={result} catalog={catalog} />
         </>
       )}
     </div>
