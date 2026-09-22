@@ -34,7 +34,23 @@ def test_trim_writes_a_verified_file_next_to_the_source_by_default(log, capsys):
     dest = log.with_name('akit_test_trimmed.wpilog')
     assert dest.exists() and dest.stat().st_size < log.stat().st_size
     assert 'verify: OK' in capsys.readouterr().out
-    assert [m for *_, m in build_index(dest.read_bytes()).mode_spans()] == ['auto', 'disabled', 'auto']
+    # original timestamps by default: the two autos stay apart, with a hole (not a disabled seam) between them
+    assert [m for *_, m in build_index(dest.read_bytes()).mode_spans()] == ['auto']
+    note = json.loads(parse_wpilog_bytes(dest.read_bytes())['Janitor/SegmentMap'][0][1])
+    assert note['gap_policy'] == 'preserve' and all(s['offset'] == 0 for s in note['segments'])
+
+
+def test_compact_flag_re_times_into_short_seams(log, tmp_path):
+    out = tmp_path / 'o.wpilog'
+    assert main(['trim', str(log), '--modes', 'auto', '--compact', '-o', str(out)]) == 0
+    assert [m for *_, m in build_index(out.read_bytes()).mode_spans()] == ['auto', 'disabled', 'auto']
+    note = json.loads(parse_wpilog_bytes(out.read_bytes())['Janitor/SegmentMap'][0][1])
+    assert note['gap_policy'] == 'compact'
+
+
+def test_preserve_and_compact_cannot_be_combined(log, tmp_path):
+    with pytest.raises(SystemExit):
+        main(['trim', str(log), '--modes', 'auto', '--preserve', '--compact', '-o', str(tmp_path / 'o.wpilog')])
 
 
 def test_dry_run_writes_nothing_and_reports_the_size_the_real_run_produces(log, tmp_path, capsys):
@@ -54,7 +70,7 @@ def test_only_selects_among_matching_spans(log, tmp_path):
 
 def test_range_and_gap_options(log, tmp_path):
     out = tmp_path / 'o.wpilog'
-    assert main(['trim', str(log), '--range', '0:1', '--range', '4:5', '--gap-ms', '0', '-o', str(out)]) == 0
+    assert main(['trim', str(log), '--range', '0:1', '--range', '4:5', '--compact', '--gap-ms', '0', '-o', str(out)]) == 0
     assert len(build_index(out.read_bytes()).cycles_us) == 100
 
 

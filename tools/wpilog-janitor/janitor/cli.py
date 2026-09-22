@@ -3,13 +3,17 @@ Command line for wpilog-janitor.
 
     python -m janitor analyze LOG [--depth 2] [--top 15]
     python -m janitor trim LOG [-o OUT] [--modes auto,teleop] [--only 0,2] [--range START:END ...]
-                               [--gap-ms 200] [--pad-pre-ms N] [--pad-post-ms N] [--preserve]
+                               [--compact [--gap-ms 200]] [--pad-pre-ms N] [--pad-post-ms N]
                                [--exclude NAME ...] [--exclude-prefix PREFIX ...] [--dry-run] [--no-verify]
     python -m janitor segmap TRIMMED_LOG
     python -m janitor dupes LOG [--modes auto | --range START:END ...] [--protect replay,logbench] [--weak]
     python -m janitor serve [--logs DIR] [--port 8767]      # web UI
 
 Times are seconds from the log's first record (the same clock `analyze` prints).
+
+trim keeps the original timestamps by default. Vision inputs carry their own capture timestamps
+on the log's clock (e.g. /Vision/*/RawTimestamps); --compact re-times the log without them, which
+breaks anything that compares the two: logbench latency, simulateJava replay, recorder frames.
 """
 import argparse
 import json
@@ -118,7 +122,7 @@ def build_plan(args, ix: LogIndex) -> TrimPlan:
         segs += mode_segments(ix, [m.strip() for m in args.modes.split(',')], which, args.pad_pre_ms, args.pad_post_ms)
     for r in args.range or []:
         segs.append(Segment(r.start, r.end, r.label, args.pad_pre_ms, args.pad_post_ms))
-    return TrimPlan(segs, gap_ms=args.gap_ms, gap_policy='preserve' if args.preserve else 'compact',
+    return TrimPlan(segs, gap_ms=args.gap_ms, gap_policy='compact' if args.compact else 'preserve',
                     exclude=args.exclude or [], exclude_prefixes=args.exclude_prefix or [],
                     source_name=pathlib.Path(args.log).name)
 
@@ -305,10 +309,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     t.add_argument('--modes', help='comma list of disabled/auto/teleop: keep every span of these modes')
     t.add_argument('--only', help='with --modes: keep only these spans (0-based, among the matching ones), e.g. 0,2')
     t.add_argument('--range', type=_parse_range, action='append', help='START:END seconds from log start; repeatable')
-    t.add_argument('--gap-ms', type=float, default=200.0, help='real time kept on each seam (default 200)')
+    t.add_argument('--gap-ms', type=float, default=200.0, help='with --compact: real time kept on each seam (default 200)')
     t.add_argument('--pad-pre-ms', type=float, default=0.0)
     t.add_argument('--pad-post-ms', type=float, default=0.0)
-    t.add_argument('--preserve', action='store_true', help='keep original timestamps (leaves a hole instead of a short gap)')
+    timing = t.add_mutually_exclusive_group()
+    timing.add_argument('--preserve', action='store_true',
+                        help='keep original timestamps (the default; kept for older scripts)')
+    timing.add_argument('--compact', action='store_true',
+                        help='re-time so cuts become short seams. For viewing only: timestamps stored inside the data '
+                             '(vision capture times) are not shifted, so logbench latency and replay break')
     t.add_argument('--exclude', action='append', metavar='NAME', help='drop this entry; repeatable')
     t.add_argument('--exclude-prefix', action='append', metavar='PREFIX', help='drop this entry and everything under it')
     t.add_argument('--dry-run', action='store_true', help='print the exact output size without writing')

@@ -54,7 +54,7 @@ export function ContentPage({ log, onChangeLog, onGoTrim }: { log: string; onCha
       log,
       segments: scope === 'plan' && plan ? toRequestSegments(plan.segs) : [],
       gap_ms: plan?.gapMs ?? 200,
-      gap_policy: plan?.policy ?? 'compact',
+      gap_policy: plan?.timing ?? 'preserve',
       protect,
     }),
     [log, scope, plan, protect],

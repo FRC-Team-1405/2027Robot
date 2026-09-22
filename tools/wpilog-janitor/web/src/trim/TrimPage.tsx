@@ -14,7 +14,7 @@ export function TrimPage({ log, onChangeLog }: { log: string; onChangeLog: () =>
   const [segs, setSegs] = useState<Seg[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [gapMs, setGapMs] = useState(200);
-  const [policy, setPolicy] = useState<'compact' | 'preserve'>('compact');
+  const [policy, setPolicy] = useState<'compact' | 'preserve'>('preserve');
   const [restoredFor, setRestoredFor] = useState<string | null>(null);
 
   // exclusions are chosen on the Content page; here they only feed the savings numbers
@@ -32,15 +32,15 @@ export function TrimPage({ log, onChangeLog }: { log: string; onChangeLog: () =>
     if (saved) {
       setSegs(fitToDuration(saved.segs ?? [], info.duration_s));
       setGapMs(saved.gapMs ?? 200);
-      setPolicy(saved.policy === 'preserve' ? 'preserve' : 'compact');
+      setPolicy(saved.timing === 'compact' ? 'compact' : 'preserve');
     } else {
       setGapMs(200);
-      setPolicy('compact');
+      setPolicy('preserve');
     }
     setRestoredFor(log);
   }, [info, log, restoredFor]);
   useEffect(() => {
-    if (restoredFor === log) saveJson(planKey(log), { segs, gapMs, policy } satisfies SavedPlan);
+    if (restoredFor === log) saveJson(planKey(log), { segs, gapMs, timing: policy } satisfies SavedPlan);
   }, [segs, gapMs, policy, log, restoredFor]);
 
   const previewState = usePreview(log, restoredFor === log ? info : null, segs, gapMs, policy, excl);

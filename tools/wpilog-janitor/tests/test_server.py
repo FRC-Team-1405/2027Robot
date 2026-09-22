@@ -102,7 +102,7 @@ def test_bad_plans_get_a_message_not_a_500(client):
 # ── preview ─────────────────────────────────────────────────────────────────────────────────────
 
 def test_preview_is_an_estimate_with_per_segment_detail(client):
-    r = client.post('/api/preview', json=plan()).json()
+    r = client.post('/api/preview', json=plan(gap_policy='compact')).json()
     assert r['exact'] is False and 0 < r['output_bytes'] < r['source_bytes']
     assert r['saved_bytes'] == r['source_bytes'] - r['output_bytes']
     assert [s['label'] for s in r['segments']] == ['auto', 'auto'] and all(s['bytes'] > 0 for s in r['segments'])
@@ -119,10 +119,10 @@ def test_exact_preview_equals_what_export_writes(client, root):
 
 
 def test_gap_and_policy_flow_through(client):
-    a = client.post('/api/preview', json=plan(gap_ms=0)).json()
-    b = client.post('/api/preview', json=plan(gap_ms=500)).json()
+    a = client.post('/api/preview', json=plan(gap_ms=0, gap_policy='compact')).json()
+    b = client.post('/api/preview', json=plan(gap_ms=500, gap_policy='compact')).json()
     assert a['n_cycles_out'] == 100 and b['n_cycles_out'] == 125
-    c = client.post('/api/preview', json=plan(gap_policy='preserve')).json()
+    c = client.post('/api/preview', json=plan()).json()     # original timestamps are the default
     first = c['segments'][0]['orig_first']            # in preserve mode 'new' is measured from the output's first cycle
     assert all(s['new_first'] == pytest.approx(s['orig_first'] - first) for s in c['segments'])
 
@@ -140,7 +140,7 @@ def test_export_saves_next_to_the_source_and_verifies(client, root):
     assert r['name'] == 'match_trimmed.wpilog' and r['verify']['ok'] is True and r['saved_pct'] > 50
     assert pathlib.Path(r['abs_path']) == (root / 'match_trimmed.wpilog').resolve() and pathlib.Path(r['abs_path']).is_file()
     out = (root / r['path']).read_bytes()
-    assert [m for *_, m in build_index(out).mode_spans()] == ['auto', 'disabled', 'auto']
+    assert [m for *_, m in build_index(out).mode_spans()] == ['auto']        # original timestamps: a hole, no seam
 
 
 def test_export_never_overwrites(client, root):
@@ -293,7 +293,9 @@ def test_content_window_covers_only_the_chosen_periods(cclient):
     assert part['window']['whole_log'] is False and part['window']['cycles'] == 100
     assert part['window']['seconds'] == pytest.approx(2.0, abs=0.05) and part['window']['bytes'] < whole['window']['bytes'] / 2
     assert _by_name(part)['/Other/Wave']['records'] == 100
-    two = cclient.post('/api/content', json={'log': 'c.wpilog', 'segments': [{'start': 0.5, 'end': 1.5}, {'start': 4.0, 'end': 5.0}]}).json()
+    periods = [{'start': 0.5, 'end': 1.5}, {'start': 4.0, 'end': 5.0}]
+    assert cclient.post('/api/content', json={'log': 'c.wpilog', 'segments': periods}).json()['window']['cycles'] == 100
+    two = cclient.post('/api/content', json={'log': 'c.wpilog', 'segments': periods, 'gap_policy': 'compact'}).json()
     assert two['window']['cycles'] == 50 + 5 + 5 + 50                                 # two 50-cycle periods + 5 real cycles kept each side of the cut
     assert _by_name(two)['/Other/Wave']['records'] == two['window']['cycles']
 

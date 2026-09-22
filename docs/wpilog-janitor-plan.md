@@ -63,8 +63,8 @@ Not built yet: the LLM extract (M5), and the "structural / derived" duplicate ki
 |---|---|
 | Name / location | `tools/wpilog-janitor/` |
 | UI stack | FastAPI + Vite/React/TS, like `logbench`. Thin UI over a stdlib-only core + CLI |
-| Time handling | **Re-time** kept segments (fake the times) so gaps are short. The output must look like a log that was really captured that way — clean in **AdvantageScope** (acceptance test is the user opening it there) |
-| Default gap between kept segments | **200 ms** |
+| Time handling | **Keep original timestamps by default** (changed 9/22). Re-timing (`compact`) is opt-in for viewing only: it moves the log's clock but not timestamps stored in the data (`/Vision/*/RawTimestamps`), which broke logbench latency and would mis-time replay. Either way the output must be clean in **AdvantageScope** (acceptance test is the user opening it there) |
+| Default gap between kept segments (`compact` only) | **200 ms** |
 | Recovering original times | A note **inside the output log** maps new ↔ original times (see "Segment map") |
 | Alignment with Pi recorder frames | Not a goal. Noted in the segment map; a later feature can re-stamp the Pi frames from that map |
 | Entry exclusion | **Content page only.** Trim page is only about the timeline |
@@ -343,4 +343,4 @@ Each ends with tests passing and is useful alone.
 ## Still open (small)
 
 - Are you OK with `pyproject.toml` + bridge now, `pip install -e` later? (Assumed yes.)
-- Should `preserve` gap policy exist at all, or is `compact` the only mode? (Assumed: keep as non-default; cheap.)
+- ~~Should `preserve` gap policy exist at all?~~ Settled 9/22: `preserve` is the default, `compact` is opt-in (see Decisions).

@@ -35,7 +35,9 @@ export const NO_EXCLUSIONS: Exclusions = { exclude: [], exclude_prefixes: [] };
 export interface SavedPlan {
   segs: Seg[];
   gapMs: number;
-  policy: 'compact' | 'preserve';
+  // Named `timing`, not `policy` as before: 'compact' used to be the default and was saved for every log
+  // opened, so an old saved choice is not a real one. Plans without `timing` fall back to 'preserve'.
+  timing?: 'compact' | 'preserve';
 }
 
 export const PROTECT_KEY = 'janitor.protect.v1';

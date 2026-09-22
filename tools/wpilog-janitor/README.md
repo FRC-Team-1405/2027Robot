@@ -27,7 +27,7 @@ python tools/wpilog-janitor/run.py serve --logs logs          # http://127.0.0.1
 * **Click a band** to keep or drop that period (each autonomous period is its own band). **Drag** across the timeline to keep
   an arbitrary range. **Drag a highlighted edge** to adjust it, or type exact seconds in the table. Wheel zooms, alt-drag pans,
   double-click resets. Per-period padding keeps extra real cycles around a period (e.g. the disable→enable edge).
-* **Timing**: *Close the gap* (default, 200 ms of real time kept at each cut) or *Keep original timestamps*.
+* **Timing**: *Keep original timestamps* (default) or *Close the gap* (for viewing only; see [Timing](#timing)).
 * The **Result** panel shows original → trimmed size. It is an instant estimate (within about 1%), and turns *exact* on its
   own for logs under 40 MB; for bigger logs press *Compute exact size* (one pass over the file).
 * **Export** saves `<log>_trimmed.wpilog` next to the original (never overwriting; a number is added instead) and checks it
@@ -71,14 +71,14 @@ Times are **seconds from the log's first record**, the same clock `analyze` prin
 | `--modes auto,teleop` | keep every span of these DriverStation modes |
 | `--only 0,2` | with `--modes`: keep only those spans (0-based among the matching ones) |
 | `--range 40:55` | keep an arbitrary range; repeatable, mixes with `--modes` |
-| `--gap-ms 200` | real time kept on each seam between kept segments (default 200 ms ≈ 10 cycles) |
+| `--compact` | re-time so each cut becomes a short seam instead of a hole. For viewing only; see [Timing](#timing) |
+| `--gap-ms 200` | with `--compact`: real time kept on each seam (default 200 ms ≈ 10 cycles) |
 | `--pad-pre-ms` / `--pad-post-ms` | extra real cycles around each segment (e.g. keep the disable→enable edge) |
-| `--preserve` | keep original timestamps (leaves a hole instead of a short seam) |
 | `--exclude NAME` / `--exclude-prefix P` | drop entries (the Content page builds this list for you) |
 | `--dry-run` | print the size the real run would produce, exactly |
 | `-o OUT` | default: `<log>_trimmed.wpilog` next to the source |
 
-Example — keep both autonomous periods with a 200 ms seam between them, drop vision outputs:
+Example — keep both autonomous periods, drop vision outputs:
 
 ```bash
 python -m janitor trim match.wpilog --modes auto --exclude-prefix /RealOutputs/Vision
@@ -86,10 +86,27 @@ python -m janitor trim match.wpilog --modes auto --exclude-prefix /RealOutputs/V
 
 ## What the output is
 
-A normal AdvantageKit log: same header, cycles evenly spaced (a seam is one normal cycle period, built from
-real cycles either side of the cut), `/Timestamp` re-stamped to match, state restated where dropped time had
-changed it. Original times are recoverable from `/Janitor/SegmentMap` (`janitor segmap`).
-The Pi recorder frames and `.hoot` files are **not** re-aligned to the new times (planned, later).
+A normal AdvantageKit log: same header and entries, only the kept cycles, state restated where dropped time had
+changed it. `/Janitor/SegmentMap` (`janitor segmap`) records what was kept.
+
+## Timing
+
+**Default: keep original timestamps.** Every kept record keeps its time, and cut periods become empty holes.
+AdvantageScope plays across the hole without trouble.
+
+**`--compact` / *Close the gap*** re-times what follows each cut so the log plays straight through: cycles are evenly spaced,
+a seam is one normal cycle period built from real cycles either side of the cut, and `/Timestamp` is re-stamped to match.
+It only moves the *log's* clock, though. Values that are themselves times on that clock, such as the camera capture
+times in `/Vision/*/RawTimestamps`, are not moved. So anything that compares the two breaks:
+
+* logbench latency (`latency_mean_ms`) reads **0**, because every sample falls outside its valid range (found 9/22; every
+  other metric matched exactly);
+* `simulateJava` replay hands the pose estimator vision timestamps that no longer match the replayed clock;
+* Pi recorder frames and `.hoot` files no longer line up.
+
+Shifting those values too would need a list of which entries hold times, and it can't reach times inside struct or
+PhotonVision payloads. Keeping the original timestamps costs about 3–8% more file size, so it is the default. Use
+`--compact` only for a copy you just want to watch.
 
 ## Caution: don't drop replay inputs
 

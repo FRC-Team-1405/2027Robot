@@ -13,13 +13,24 @@ export function GapControls({ gapMs, policy, cyclePeriodMs, onGap, onPolicy }: P
   return (
     <fieldset className="gap">
       <legend>Between kept periods</legend>
+      <label className={`radio ${policy === 'preserve' ? 'on' : ''}`}>
+        <input type="radio" name="policy" checked={policy === 'preserve'} onChange={() => onPolicy('preserve')} />
+        <span>
+          <strong>Keep original timestamps</strong> <em>(recommended)</em>
+          <small>
+            Leaves an empty hole where time was cut. Everything that compares times still works: vision latency, replay,
+            and lining up recorder frames or other files that share the log&apos;s clock.
+          </small>
+        </span>
+      </label>
       <label className={`radio ${policy === 'compact' ? 'on' : ''}`}>
         <input type="radio" name="policy" checked={policy === 'compact'} onChange={() => onPolicy('compact')} />
         <span>
-          <strong>Close the gap</strong> <em>(recommended)</em>
+          <strong>Close the gap</strong> <em>(for viewing only)</em>
           <small>
-            Keep a short stretch of the real time on each side of every cut and re-time what follows, so the log plays
-            straight through with no jump. The original times are saved inside the file.
+            Re-times the log so it plays straight through with no jump. Timestamps stored inside the data, such as vision
+            capture times, are not moved, so logbench latency reads 0 and replay mis-times vision. The original times are
+            saved inside the file.
           </small>
         </span>
       </label>
@@ -35,13 +46,6 @@ export function GapControls({ gapMs, policy, cyclePeriodMs, onGap, onPolicy }: P
           </span>
         </div>
       )}
-      <label className={`radio ${policy === 'preserve' ? 'on' : ''}`}>
-        <input type="radio" name="policy" checked={policy === 'preserve'} onChange={() => onPolicy('preserve')} />
-        <span>
-          <strong>Keep original timestamps</strong>
-          <small>Leaves an empty hole where time was cut. Times still line up with other files that share the log&apos;s clock.</small>
-        </span>
-      </label>
     </fieldset>
   );
 }

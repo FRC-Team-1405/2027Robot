@@ -48,7 +48,7 @@ class PlanIn(BaseModel):
     log: str
     segments: List[SegmentIn]
     gap_ms: float = 200.0
-    gap_policy: Literal['compact', 'preserve'] = 'compact'
+    gap_policy: Literal['compact', 'preserve'] = 'preserve'
     exclude: List[str] = []
     exclude_prefixes: List[str] = []
 
@@ -57,7 +57,7 @@ class ContentIn(BaseModel):
     log: str
     segments: List[SegmentIn] = Field([], description='analyse only these periods; empty = the whole log')
     gap_ms: float = 200.0
-    gap_policy: Literal['compact', 'preserve'] = 'compact'
+    gap_policy: Literal['compact', 'preserve'] = 'preserve'
     protect: List[str] = Field(['replay', 'logbench'], description="profiles whose entries are marked protected: 'replay', 'logbench'")
 
 
