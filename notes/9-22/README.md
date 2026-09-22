@@ -18,7 +18,7 @@ The originals in `logs/` (gitignored) are untouched. Each test day now has `trim
 **How they were trimmed:** `python tools/wpilog-janitor/run.py trim <log> --modes auto --preserve`.
 The 9/1 logs use `--modes teleop`, since that day had no autos. No entries were dropped: dropping
 duplicates saved under 1%, so auto-only trimming does all the work. `--preserve` (keep original
-timestamps) is **required**: without it, latency reads 0 in logbench (see todos). A check: the
+timestamps) was **required**, since without it latency reads 0 in logbench. It's now the janitor's default (`c3c1012`). A check: the
 trimmed logs reproduce your three existing comparisons with 0 mismatches out of 222 values.
 
 | Day | Trimmed logs | Before → after |
@@ -49,7 +49,7 @@ Comparisons: your three (9/15 ×2, 9/19 ×1) were copied in as-is, and eight new
 |---|---|---|
 | `testingVision_6-16.md` + `image*.png` | Three tuning-log rows, now backed by `6-16/trimmed/` + `6-16/analysis/` | Yes |
 | `6-20/testingVision_6-20.md`, `*_summary.md`, `*_comparison.md` | Tuning-log rows with numbers | Yes. Keep the `.wpilog`s if you want to re-run the analysis. |
-| `6-20/trimmedTest*`, `trimmedTest2` | Janitor test output, nothing to extract | Yes |
+| ~~`6-20/trimmedTest`, `trimmedTest2`~~ | Deleted 9/22: never committed, output of the old vision-analyzer trim, superseded by the janitor | — |
 | `6-20/photonVisionSSH.txt`, `6-23/sshExport.txt` | SSH guide (the ntcore / no-internet failures) | Yes. **Redact the Wi-Fi password in `sshExport.txt` first** (see todos). |
 | `6-23/notes.md` | Tape-measure runs → tuning log. The DHCP steps → SSH guide | Yes |
 | `7-7/orangePiConnectedToInternet.md` | SSH guide, method 2 | Yes |
