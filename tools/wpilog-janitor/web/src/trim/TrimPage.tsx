@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fmtBytes, fmtDate, fmtDuration } from '../lib/format';
 import { fitToDuration, toggleModes, type Seg } from '../lib/segments';
-import { exclusionsKey, loadJson, NO_EXCLUSIONS, planKey, saveJson, type Exclusions } from '../lib/storage';
+import { exclusionsKey, loadJson, NO_EXCLUSIONS, planKey, saveJson, type Exclusions, type SavedPlan } from '../lib/storage';
 import { ExportPanel } from './ExportPanel';
 import { GapControls } from './GapControls';
 import { usePreview, useLogInfo } from './hooks';
 import { SavingsPanel } from './SavingsPanel';
 import { SegmentTable } from './SegmentTable';
 import { Timeline } from './Timeline';
-
-interface SavedPlan {
-  segs: Seg[];
-  gapMs: number;
-  policy: 'compact' | 'preserve';
-}
 
 export function TrimPage({ log, onChangeLog }: { log: string; onChangeLog: () => void }) {
   const { info, error, loading } = useLogInfo(log);

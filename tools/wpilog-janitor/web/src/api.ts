@@ -157,3 +157,68 @@ export const api = {
     return { blob: await res.blob(), name };
   },
 };
+
+// ── Content page ─────────────────────────────────────────────────────────────────────────────────
+
+export type EntryClass = 'output' | 'replay-input' | 'structural' | 'janitor';
+export type ProtectProfile = 'replay' | 'logbench';
+
+export interface ContentEntry {
+  id: number;
+  name: string;
+  type: string;
+  bytes: number;
+  records: number;
+  hz: number;
+  changes: number;
+  distinct: number;
+  distinct_capped: boolean;
+  constant: boolean;
+  cls: EntryClass;
+  protected: string | null;
+  first_s: number | null;
+  last_s: number | null;
+  sample: string | null;
+  num: { min: number | null; max: number | null; mean: number | null } | null;
+}
+
+export interface DupGroup {
+  id: string;
+  kind: 'identical' | 'values' | 'near';
+  type: string;
+  members: number[];
+  keeper: number;
+  recoverable_bytes: number;
+  evidence: string;
+  blocked: number[];
+  weak: boolean;
+}
+
+export interface Twin {
+  key: string;
+  members: number[];
+  relation: 'near' | 'different' | 'different-length';
+  note: string;
+}
+
+export interface ContentReq {
+  log: string;
+  segments: SegmentReq[];
+  gap_ms: number;
+  gap_policy: 'compact' | 'preserve';
+  protect: ProtectProfile[];
+}
+
+export interface ContentResult {
+  window: { whole_log: boolean; seconds: number; cycles: number; bytes: number };
+  protect: ProtectProfile[];
+  entries: ContentEntry[];
+  constants: { count: number; bytes: number };
+  groups: DupGroup[];
+  twins: Twin[];
+  took_s: number;
+}
+
+export const contentApi = {
+  content: (req: ContentReq, signal?: AbortSignal) => request<ContentResult>('/api/content', post(req, signal)),
+};

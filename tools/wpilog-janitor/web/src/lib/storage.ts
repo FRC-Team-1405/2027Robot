@@ -1,3 +1,5 @@
+import type { Seg } from './segments';
+
 // localStorage that never throws: private windows, blocked storage and quota errors all just mean "no memory".
 
 export function loadJson<T>(key: string, fallback: T): T {
@@ -28,3 +30,12 @@ export interface Exclusions {
 }
 
 export const NO_EXCLUSIONS: Exclusions = { exclude: [], exclude_prefixes: [] };
+
+/** The Trim page's selection for one log; the Content page reads it to analyse just the kept periods. */
+export interface SavedPlan {
+  segs: Seg[];
+  gapMs: number;
+  policy: 'compact' | 'preserve';
+}
+
+export const PROTECT_KEY = 'janitor.protect.v1';

@@ -6,6 +6,7 @@ Command line for wpilog-janitor.
                                [--gap-ms 200] [--pad-pre-ms N] [--pad-post-ms N] [--preserve]
                                [--exclude NAME ...] [--exclude-prefix PREFIX ...] [--dry-run] [--no-verify]
     python -m janitor segmap TRIMMED_LOG
+    python -m janitor dupes LOG [--modes auto | --range START:END ...] [--protect replay,logbench] [--weak]
     python -m janitor serve [--logs DIR] [--port 8767]      # web UI
 
 Times are seconds from the log's first record (the same clock `analyze` prints).
@@ -17,6 +18,9 @@ import sys
 from typing import List, Optional
 
 from . import paths  # noqa: F401  (side effect: wpilog_utils importable)
+from .core import classify as cl
+from .core import content as ct
+from .core import dedupe as dd
 from .core import sizes
 from wpilog_utils.decode import parse_wpilog_bytes
 from wpilog_utils.index import LogIndex, build_index
@@ -198,6 +202,78 @@ def cmd_segmap(args) -> int:
     return 0
 
 
+def cmd_dupes(args) -> int:
+    raw, ix = _read(args.log)
+    protect = [p.strip() for p in args.protect.split(',') if p.strip()] if args.protect else []
+    bad = [p for p in protect if p not in cl.PROFILES]
+    if bad:
+        print(f'error: unknown protection profile {bad}; choose from {", ".join(cl.PROFILES)}', file=sys.stderr)
+        return 2
+    ranges, where = None, 'whole log'
+    segs: List[Segment] = []
+    if args.modes:
+        which = [int(x) for x in args.only.split(',')] if args.only else None
+        segs += mode_segments(ix, [m.strip() for m in args.modes.split(',')], which)
+    segs += [Segment(r.start, r.end, r.label) for r in args.range or []]
+    if segs:
+        try:
+            res = resolve_plan(ix, TrimPlan(segs, gap_ms=args.gap_ms))
+        except ValueError as exc:
+            print(f'error: {exc}', file=sys.stderr)
+            return 2
+        ranges = [(r.lo_us, r.hi_us) for r in res.ranges]
+        where = f'{len(res.segments)} kept period(s), {sum(r.n_cycles for r in res.ranges):,} of {len(ix.cycles_us):,} cycles'
+    elif args.modes or args.range:
+        print('nothing selected: no span matches --modes / --range in this log', file=sys.stderr)
+        return 2
+
+    st = ct.analyze_content(raw, ix.header_end, ranges, ix.entries)
+    total = sum(s.bytes for s in st.values()) or 1
+    h = sizes.human
+    print(args.log)
+    print(f'  analysing: {where}   data {h(total)}   protecting: {", ".join(protect) or "nothing"}')
+
+    const = dd.constants(st)
+    print()
+    print(f'Constants: {len(const)} of {len(st)} entries, {h(sum(st[i].bytes for i in const))} '
+          f'({100 * sum(st[i].bytes for i in const) / total:.2f}% of the data)  -- never reported as duplicates of each other')
+
+    exact = dd.exact_groups(st, protect)
+    near, twins = dd.near_groups_and_twins(raw, ix.header_end, st, exact, protect, ranges)
+    groups = sorted(dd.with_protection(exact + near, st, protect), key=lambda g: (g.weak, -g.recoverable_bytes))
+    strong = [g for g in groups if not g.weak]
+    weak = [g for g in groups if g.weak]
+
+    def show(g):
+        others = [i for i in g.members if i != g.keeper]
+        tag = {'identical': 'identical', 'values': 'same values', 'near': 'near-identical'}[g.kind]
+        print(f'  [{tag}] keep {st[g.keeper].name}   ({g.evidence})')
+        for i in others:
+            note = f'   <- protected: {cl.protection(st[i].name, st[i].type, protect)}' if i in g.blocked else ''
+            print(f'      drop {st[i].name:55s} {h(st[i].bytes):>9s}{note}')
+        print(f'      recoverable {h(g.recoverable_bytes)}' + (f' ({len(g.blocked)} of {len(others)} protected)' if g.blocked else ''))
+
+    print()
+    print(f'Duplicates: {len(strong)} group(s), {h(sum(g.recoverable_bytes for g in strong))} recoverable')
+    for g in strong:
+        show(g)
+    if weak:
+        print()
+        print(f'Weak matches: {len(weak)} group(s) -- members changed fewer than {dd.MIN_CHANGES} times, so they may match by coincidence'
+              + ('' if args.weak else ' (use --weak to list)'))
+        if args.weak:
+            for g in weak:
+                show(g)
+    if twins:
+        differing = [t for t in twins if t.relation != 'identical']
+        if differing:
+            print()
+            print('Same name, different data:')
+            for t in differing:
+                print(f'  {t.key}: {" vs ".join(st[i].name for i in t.members)}  -- {t.note}')
+    return 0
+
+
 def cmd_serve(args) -> int:
     root = pathlib.Path(args.logs).resolve()
     if not root.is_dir():
@@ -243,6 +319,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     s.add_argument('log')
     s.add_argument('--json', action='store_true')
     s.set_defaults(fn=cmd_segmap)
+
+    dp = sub.add_parser('dupes', help='constants, and data that is logged more than once')
+    dp.add_argument('log')
+    dp.add_argument('--modes', help='analyse only spans of these DriverStation modes (default: the whole log)')
+    dp.add_argument('--only', help='with --modes: only these spans (0-based among the matching ones)')
+    dp.add_argument('--range', type=_parse_range, action='append', help='analyse only START:END seconds; repeatable')
+    dp.add_argument('--gap-ms', type=float, default=200.0)
+    dp.add_argument('--protect', default='replay,logbench', help="comma list of profiles to mark protected: replay, logbench ('' for none)")
+    dp.add_argument('--weak', action='store_true', help='also list weak (possibly coincidental) matches')
+    dp.set_defaults(fn=cmd_dupes)
 
     v = sub.add_parser('serve', help='start the web UI')
     v.add_argument('--logs', default='.', help='directory to search for .wpilog files (default: current directory)')

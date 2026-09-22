@@ -4,10 +4,31 @@ A `.wpilog` utility for **making logs smaller on purpose**: cut a log down to th
 you care about, drop the entries you don't, and see exactly what that saves. Two pages over one
 core, same shape as `logbench` (CLI + web UI as two views of one library).
 
-Status: **M0–M3 built** (shared library, index, trim engine + verifier, CLI, FastAPI server, Trim page).
-M2's AdvantageScope acceptance check passed. Not built yet: Content page (M4) and LLM extract (M5).
+Status: **M0–M4 built** (shared library, index, trim engine + verifier, CLI, FastAPI server, Trim page, Content page:
+size tree, duplicate detection, protection, exclusions feeding the Trim savings). M2's AdvantageScope acceptance check passed.
+Not built yet: the LLM extract (M5), and the "structural / derived" duplicate kinds (see M4 notes).
 
 ### Build notes — where the code differs from the plan below
+
+* **M4 (Content page):**
+  * **Evidence floor.** On real logs the plan's warning came true: two-value booleans (`/RadioStatus/Connected`,
+    `/RealOutputs/Intake/AtTarget`, …) hash-match by chance. A group whose members changed fewer than 6 times is marked
+    `weak` and tucked into a collapsed list, never a suggestion. The strong groups found in the sample logs are real:
+    `/Vision/*/VisibleTagIds` is byte-identical to `/Vision/*/RawTagIdsFlat` (~1% of the file), and each `/Pickup|Hopper|Indexer/VelocityRPS`
+    input has a `/RealOutputs/...` copy.
+  * **Protection is a set, not one profile.** Two checkboxes (`replay` inputs, what `logbench` reads) instead of `replay | logbench | none`,
+    because logbench reads *outputs* (`RealOutputs/Vision/...`) that replay does not need. Cycle marker and struct schemas are always protected.
+    `LOGBENCH_PREFIXES` is a hand-kept list, guarded by a test that runs logbench/vision-analyzer's real lookups on a sample log.
+  * **Exclusions are exact entry names** written by the UI (a folder checkbox adds every entry under it); `exclude_prefixes` still works from
+    the CLI and is honoured and preserved by the UI. Stored per log in the browser; the Trim page reads them for its savings.
+  * **The analysis can be limited to the periods being kept** (default when a Trim selection exists): duplicates can appear inside the kept
+    periods that do not exist over the whole log. One pass, cached per (log, window); changing the protection setting reuses it.
+  * **Near-duplicates** exist (>=99.9% of values equal, same type and record count, candidates bucketed) but no real log has produced one yet,
+    so the code is proven only on synthetic data. **Not built:** structural/derived duplicates (a struct logged again as its fields, unit-scaled
+    copies); the plan marked those as a stretch.
+  * `python -m janitor dupes LOG` prints the same analysis on the command line.
+  * Speed: one pass, 1.3 s for 9.8 MB, 4.8 s for 36 MB, 35 s for 134 MB (whole log). With a window, reading stops when the last kept period
+    ends: a period near the start of the 134 MB log takes 0.2 s instead of 10 s.
 
 * **M3 (Trim page):** `dry_run` is 6–10 s on 85–135 MB logs, so the UI shows an instant `estimate_size` (index only; within 0.2% on
   the sample logs, 0.03% on an 86 MB one) and computes the exact size automatically only under 40 MB, otherwise on a button.
@@ -287,7 +308,7 @@ Each ends with tests passing and is useful alone.
 | **M1** | `wpilog_utils.index` + `janitor analyze` CLI (size tree, mode spans, cycle period) — answers "where are my bytes" from the terminal |
 | **M2** | `wpilog_utils.trim` (segments, compact re-timing, cycle-atomic, real-cycle gaps, `/Timestamp` rewrite, seam diffs, segment map, exclusions, `dry_run`) + `verify` + `janitor trim` CLI. **Open in AdvantageScope here** — before any UI exists. Biggest correctness risk |
 | **M3** | FastAPI + Trim page (timeline, segments, gap, live savings, export). Front-end scaffolding from `logbench/web`; single-file build like `player.singlefile.html` |
-| **M4** | `dedupe.py`, `classify.py` + Content page (tree, constants, duplicate groups, exclusions → savings) |
+| **M4** ✅ | `dedupe.py`, `classify.py` + Content page (tree, constants, duplicate groups, exclusions → savings) |
 | **M5** | `extract.py` + export + prompt template; run it on a real log through an LLM and iterate the format on what it gets wrong |
 | **M6** | Docs: READMEs, CLAUDE.md "Tools" entry, note in `logbench` README. Later: repoint callers, remove shim; Pi-recorder re-stamp feature |
 

@@ -589,3 +589,239 @@ fieldset.gap legend {
 table.logs td button {
   width: 100%;
 }
+
+/* ── Content page ─────────────────────────────────────────────────────────────────────────────── */
+.controls {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.controls fieldset {
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 240px;
+}
+.controls legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--c-muted);
+  padding: 0 4px;
+}
+.controls label.disabled {
+  color: var(--c-muted);
+}
+.sticky-summary {
+  position: sticky;
+  top: 50px;
+  z-index: 4;
+  padding: 10px 16px;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.row.tight {
+  margin: 0;
+  align-items: center;
+}
+.confirm {
+  background: var(--c-warn-bg);
+  color: var(--c-text);
+  border: 1px solid var(--c-warn);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.confirm h2 {
+  color: var(--c-warn);
+}
+.subtabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.subtabs button {
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 8px 12px;
+  color: var(--c-muted);
+  cursor: pointer;
+}
+.subtabs button.on {
+  color: var(--c-text);
+  border-bottom-color: var(--c-accent);
+  font-weight: 600;
+}
+.count {
+  background: var(--c-surface-2);
+  border-radius: 10px;
+  padding: 0 7px;
+  font-size: 11px;
+  margin-left: 4px;
+}
+.dimmed {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.row.tight .search {
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+}
+
+/* tree table */
+table.tree td.name,
+table.consts td.name,
+table.members td.name {
+  overflow-wrap: anywhere;
+}
+table.tree tr.folder td {
+  font-weight: 600;
+}
+tr.excluded td {
+  color: var(--c-muted);
+}
+tr.excluded td.name .label {
+  text-decoration: line-through;
+}
+td.check {
+  width: 34px;
+  text-align: center;
+}
+.chev {
+  background: none;
+  border: 0;
+  color: var(--c-muted);
+  cursor: pointer;
+  width: 22px;
+  padding: 0;
+  font-size: 14px;
+}
+.chev:hover {
+  color: var(--c-text);
+}
+.chev-space {
+  display: inline-block;
+  width: 22px;
+}
+.flags {
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.flag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 0 6px;
+  border-radius: 8px;
+  margin-right: 4px;
+  background: var(--c-surface-2);
+  color: var(--c-muted);
+  border: 1px solid var(--c-border);
+}
+.flag.cls-output {
+  color: var(--c-teleop);
+}
+.flag.cls-replay-input {
+  color: var(--c-auto);
+}
+.flag.cls-structural {
+  color: var(--c-warn);
+}
+.flag.keep {
+  background: color-mix(in srgb, var(--c-ok) 20%, transparent);
+  color: var(--c-ok);
+  border-color: transparent;
+}
+.flag.drop {
+  color: var(--c-err);
+}
+.lock {
+  font-size: 12px;
+  cursor: help;
+}
+td.sizecell {
+  white-space: nowrap;
+  min-width: 170px;
+}
+.minibar {
+  display: inline-block;
+  width: 70px;
+  height: 8px;
+  background: var(--c-surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.minibar span {
+  display: block;
+  height: 100%;
+  background: var(--c-accent);
+}
+.num-txt {
+  font-variant-numeric: tabular-nums;
+}
+
+/* duplicates */
+.group {
+  margin: 12px 0;
+  padding: 12px 14px;
+}
+.group.weak {
+  opacity: 0.85;
+}
+.group header,
+.group footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.group footer {
+  margin-top: 8px;
+}
+.badge.kind {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  cursor: help;
+}
+.evidence {
+  color: var(--c-muted);
+}
+table.members {
+  margin: 8px 0 0;
+}
+table.members td {
+  border-bottom: 1px solid var(--c-border);
+}
+.weak-list {
+  margin: 16px 0;
+}
+.weak-list summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+ul.twins {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+ul.twins li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--c-border);
+}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LogPicker } from './LogPicker';
 import { LAST_LOG_KEY, loadJson, saveJson } from './lib/storage';
+import { ContentPage } from './content/ContentPage';
 import { TrimPage } from './trim/TrimPage';
 
 type Tab = 'trim' | 'content';
@@ -20,7 +21,6 @@ export default function App() {
   const open = useCallback((path: string) => {
     setLog(path);
     setPicking(false);
-    setTab('trim');
     saveJson(LAST_LOG_KEY, path);
     window.history.replaceState(null, '', `#log=${encodeURIComponent(path)}`);
   }, []);
@@ -38,24 +38,15 @@ export default function App() {
             Trim
           </button>
           <button type="button" className={`tab ${tab === 'content' ? 'on' : ''}`} onClick={() => setTab('content')} aria-current={tab === 'content' ? 'page' : undefined}>
-            Content <span className="soon">soon</span>
+            Content
           </button>
         </nav>
       </header>
       <main>
-        {tab === 'content' ? (
-          <div className="page">
-            <section className="card">
-              <h1>Content</h1>
-              <p>
-                Coming next: where the bytes are, entries that are logged more than once, choosing entries to drop (which the Trim page then
-                counts in its savings), and an extract you can hand to an LLM to ask which data you do not need.
-              </p>
-              <p className="muted small">Until then, the command line can already drop entries: <code>python -m janitor trim … --exclude-prefix /RealOutputs/Vision</code>.</p>
-            </section>
-          </div>
-        ) : picking || !log ? (
+        {picking || !log ? (
           <LogPicker onPick={open} current={log} />
+        ) : tab === 'content' ? (
+          <ContentPage log={log} onChangeLog={() => setPicking(true)} onGoTrim={() => setTab('trim')} />
         ) : (
           <TrimPage log={log} onChangeLog={() => setPicking(true)} />
         )}

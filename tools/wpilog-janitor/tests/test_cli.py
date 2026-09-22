@@ -142,3 +142,47 @@ def test_modes_that_match_nothing_explain_what_the_log_does_have(tmp_path, capsy
     assert main(['trim', str(p), '--modes', 'auto']) == 2
     err = capsys.readouterr().err
     assert 'no span matches --modes auto' in err and 'disabled, teleop' in err
+
+
+# ── dupes ───────────────────────────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def dup_log(tmp_path):
+    b = wb.LogBuilder()
+    for n in ['/Timestamp', '/Pickup/Velocity', '/RealOutputs/Pickup/Velocity', '/Vision/A/Raw', '/Vision/A/Copy', '/Cfg/Zero']:
+        b.entry(n, 'int64' if n == '/Timestamp' else 'double', 1_000_000)
+    for k in range(400):
+        t = 1_000_000 + k * 20_000
+        v = round(((k * 0.37) % 7) - 3, 3)
+        w = round(((k * 0.11) % 5) - 2, 3)                      # a different series for the Vision pair
+        b.data('/Timestamp', t, wb.int64(t))
+        for n, val in (('/Pickup/Velocity', v), ('/RealOutputs/Pickup/Velocity', v), ('/Vision/A/Raw', w), ('/Vision/A/Copy', w)):
+            b.data(n, t, wb.double(val))
+        b.data('/Cfg/Zero', t, wb.double(0.0))
+    p = tmp_path / 'dups.wpilog'
+    p.write_bytes(b.build())
+    return p
+
+
+def test_dupes_reports_constants_groups_keepers_and_protection(dup_log, capsys):
+    assert main(['dupes', str(dup_log)]) == 0
+    out = capsys.readouterr().out
+    assert 'Constants: 1 of 6 entries' in out and 'Duplicates: 2 group(s)' in out
+    assert 'keep /Pickup/Velocity' in out and 'drop /RealOutputs/Pickup/Velocity' in out
+    assert 'keep /Vision/A/Raw' in out and 'drop /Vision/A/Copy' in out and '<- protected: replay input' in out   # both are replay inputs
+    assert 'Weak matches' not in out
+
+
+def test_dupes_without_protection_and_with_a_window(dup_log, capsys):
+    assert main(['dupes', str(dup_log), '--protect', '']) == 0
+    assert 'protected' not in capsys.readouterr().out.replace('protecting: nothing', '')
+    assert main(['dupes', str(dup_log), '--range', '1:3']) == 0
+    assert '1 kept period(s), 100 of 400 cycles' in capsys.readouterr().out
+
+
+def test_dupes_bad_arguments(dup_log, capsys):
+    assert main(['dupes', str(dup_log), '--protect', 'everything']) == 2
+    assert 'unknown protection profile' in capsys.readouterr().err
+    assert main(['dupes', str(dup_log), '--modes', 'auto']) == 2
+    assert 'nothing selected' in capsys.readouterr().err
+    assert main(['dupes', str(dup_log.parent)]) == 2

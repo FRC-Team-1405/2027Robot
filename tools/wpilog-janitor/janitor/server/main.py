@@ -10,9 +10,11 @@ The API is a thin layer over wpilog_utils -- every number the UI shows comes fro
 from the same writer as `dry_run`.
 """
 import collections
+import json
 import pathlib
 import re
 import threading
+import time
 from typing import Dict, List, Literal, Optional, Tuple
 
 from fastapi import FastAPI, HTTPException, Query
@@ -22,6 +24,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .. import __version__, paths  # noqa: F401  (paths: side effect, wpilog_utils importable)
+from ..core import classify as cl
+from ..core import content as ct
+from ..core import dedupe as dd
 from wpilog_utils.index import LogIndex, build_index
 from wpilog_utils.trim import (Segment, TrimPlan, dry_run, estimate_size, resolve_plan, trim_log)
 from wpilog_utils.verify import verify_trim
@@ -48,6 +53,14 @@ class PlanIn(BaseModel):
     exclude_prefixes: List[str] = []
 
 
+class ContentIn(BaseModel):
+    log: str
+    segments: List[SegmentIn] = Field([], description='analyse only these periods; empty = the whole log')
+    gap_ms: float = 200.0
+    gap_policy: Literal['compact', 'preserve'] = 'compact'
+    protect: List[str] = Field(['replay', 'logbench'], description="profiles whose entries are marked protected: 'replay', 'logbench'")
+
+
 class ExportIn(PlanIn):
     mode: Literal['save', 'download'] = 'save'
     filename: Optional[str] = Field(None, description="save mode: file name (default <log>_trimmed.wpilog); never overwrites")
@@ -61,6 +74,10 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
 
     cache: 'collections.OrderedDict[Tuple[str, float], Tuple[bytes, LogIndex]]' = collections.OrderedDict()
     load_lock = threading.Lock()
+    # The Content analysis is a pass over the whole file (5-25 s on big logs), so keep the results per (log, window).
+    # It does not depend on the protection setting, which is applied to a copy on every request.
+    analyses: 'collections.OrderedDict[tuple, dict]' = collections.OrderedDict()
+    analysis_lock = threading.Lock()
 
     # ── helpers ──────────────────────────────────────────────────────────────────────────────────
     def resolve(rel: str) -> pathlib.Path:
@@ -216,13 +233,71 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
         if body.verify and len(raw) <= VERIFY_MAX_BYTES:
             r = verify_trim(out, raw, ix, plan, res)
             report = {'ok': r.ok, 'issues': r.issues[:25], 'n_issues': len(r.issues)}
-        import json
         return Response(json.dumps({
             'path': dest.relative_to(root).as_posix(), 'abs_path': str(dest), 'name': dest.name, 'bytes': st.bytes_out,
             'source_bytes': st.source_bytes, 'saved_bytes': st.saved_bytes, 'saved_pct': st.saved_pct,
             'verify': report, 'verify_skipped': report is None,
             'warnings': res.warnings,
         }), media_type='application/json')
+
+    @app.post('/api/content')
+    def content(body: ContentIn) -> dict:
+        """What is in the log and where the bytes are: per-entry sizes and statistics, constants, duplicates."""
+        p, raw, ix = load(body.log)
+        protect = [x for x in body.protect if x in cl.PROFILES]
+        ranges = None
+        n_cycles = len(ix.cycles_us)
+        window_s = ix.duration_s
+        if body.segments:
+            plan = to_plan(PlanIn(log=body.log, segments=body.segments, gap_ms=body.gap_ms, gap_policy=body.gap_policy), p.name)
+            res = resolved(ix, plan)
+            ranges = [(r.lo_us, r.hi_us) for r in res.ranges]
+            n_cycles = sum(r.n_cycles for r in res.ranges)
+            window_s = sum((ix.cycles_us[r.last] - ix.cycles_us[r.first]) / 1e6 + res.nominal_period_us / 1e6 for r in res.ranges)
+        key = (str(p), p.stat().st_mtime, tuple(ranges) if ranges else None)
+        with analysis_lock:                    # one analysis at a time; a second request for the same window waits, then hits the cache
+            cached = analyses.get(key)
+            if cached is None:
+                t0 = time.time()
+                stats = ct.analyze_content(raw, ix.header_end, ranges, ix.entries)
+                exact = dd.exact_groups(stats, ())
+                near, twins = dd.near_groups_and_twins(raw, ix.header_end, stats, exact, (), ranges)
+                cached = {'stats': stats, 'exact': exact, 'near': near, 'twins': twins, 'took_s': time.time() - t0}
+                analyses[key] = cached
+                while len(analyses) > 4:
+                    analyses.popitem(last=False)
+            else:
+                analyses.move_to_end(key)
+        stats = cached['stats']
+        t_min = ix.t_min_us
+
+        entries = []
+        for s in stats.values():
+            num = {'min': s.num_min, 'max': s.num_max, 'mean': s.num_mean} if s.num_n else None
+            entries.append({
+                'id': s.id, 'name': s.name, 'type': s.type, 'bytes': s.bytes, 'records': s.n_records,
+                'hz': s.n_records / window_s if window_s > 0 else 0.0, 'changes': s.n_changes,
+                'distinct': s.distinct, 'distinct_capped': s.distinct_capped, 'constant': s.constant,
+                'cls': cl.classify(s.name, s.type), 'protected': cl.protection(s.name, s.type, protect),
+                'first_s': (s.first_ts_us - t_min) / 1e6 if s.first_ts_us is not None else None,
+                'last_s': (s.last_ts_us - t_min) / 1e6 if s.last_ts_us is not None else None,
+                'sample': ct.preview_value(s.samples[0], s.type) if s.samples else None, 'num': num,
+            })
+        const_ids = dd.constants(stats)
+        groups = [{
+            'id': g.id, 'kind': g.kind, 'type': g.type, 'members': g.members, 'keeper': g.keeper,
+            'recoverable_bytes': g.recoverable_bytes, 'evidence': g.evidence, 'blocked': g.blocked, 'weak': g.weak,
+        } for g in dd.with_protection(cached['exact'] + cached['near'], stats, protect)]
+        groups.sort(key=lambda g: (g['weak'], -g['recoverable_bytes']))
+        return {
+            'window': {'whole_log': ranges is None, 'seconds': window_s, 'cycles': n_cycles, 'bytes': sum(s.bytes for s in stats.values())},
+            'protect': protect, 'entries': entries,
+            'constants': {'count': len(const_ids), 'bytes': sum(stats[i].bytes for i in const_ids)},
+            'groups': groups,
+            'twins': [{'key': t.key, 'members': t.members, 'relation': t.relation, 'note': t.note}
+                      for t in cached['twins'] if t.relation != 'identical'],
+            'took_s': cached['took_s'],
+        }
 
     if dist is not None and dist.exists():
         app.mount('/', StaticFiles(directory=str(dist), html=True), name='web')
