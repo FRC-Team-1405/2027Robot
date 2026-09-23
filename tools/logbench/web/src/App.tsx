@@ -8,6 +8,7 @@ import { PitCheckPage } from './pit/PitCheckPage';
 import { TransportBar } from './controls/TransportBar';
 import { TabNav } from './nav/TabNav';
 import { LogPicker } from './loader/LogPicker';
+import { OrderNotice } from './loader/OrderNotice';
 import { useSpec } from './loader/useSpec';
 
 export function App() {
@@ -72,6 +73,7 @@ function ReplayView({ debug }: { debug: boolean }) {
           </div>
         </header>
 
+        <OrderNotice order={spec.order} />
         {spec.warnings.map((w, i) => (
           !dismissedWarnings.has(i) && <div className="warning" key={i}>
             <span>{w}</span>

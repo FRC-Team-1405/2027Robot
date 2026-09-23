@@ -46,6 +46,7 @@ export function usePreview(
   gapMs: number,
   policy: 'compact' | 'preserve',
   excl: Exclusions,
+  keepContext: boolean,
 ): PreviewState {
   const request = useMemo<PlanReq | null>(
     () =>
@@ -58,8 +59,9 @@ export function usePreview(
             gap_policy: policy,
             exclude: excl.exclude,
             exclude_prefixes: excl.exclude_prefixes,
+            keep_context: keepContext,
           },
-    [log, segs, gapMs, policy, excl],
+    [log, segs, gapMs, policy, excl, keepContext],
   );
   const key = useMemo(() => JSON.stringify(request), [request]);
 

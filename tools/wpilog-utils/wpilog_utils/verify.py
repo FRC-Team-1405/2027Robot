@@ -65,6 +65,7 @@ def _scan_source(raw: bytes, index: LogIndex, resolved: ResolvedPlan, mirror_nam
      snapshots: per range, {name: payload} = the source's state at and including the range's first cycle)."""
     ranges = resolved.ranges
     excluded = resolved.excluded_ids
+    everywhere = resolved.kept_everywhere_ids
     defs: Dict[int, str] = {}
     last: Dict[str, bytes] = {}
     expected: Counter = Counter()
@@ -90,6 +91,8 @@ def _scan_source(raw: bytes, index: LogIndex, resolved: ResolvedPlan, mirror_nam
         if ri < len(ranges) and ts >= ranges[ri].lo_us:
             new_ts = ts + ranges[ri].offset_us
             expected[(name, new_ts, struct.pack('<q', new_ts) if name in mirror_names else payload)] += 1
+        elif eid in everywhere:                        # kept for the whole log, at its own time
+            expected[(name, ts, struct.pack('<q', ts) if name in mirror_names else payload)] += 1
     while next_snap < len(ranges):
         snaps[next_snap] = dict(last)
         next_snap += 1
@@ -137,9 +140,14 @@ def verify_trim(out: bytes, raw: bytes, index: LogIndex, plan: TrimPlan, resolve
     # cycle timeline
     cyc = index.cycles_us
     expected_cycles = [cyc[i] + r.offset_us for r in resolved.ranges for i in range(r.first, r.last + 1)]
-    if list(out_ix.cycles_us) != expected_cycles:
-        n_o, n_e = len(out_ix.cycles_us), len(expected_cycles)
-        first_diff = next((k for k, (a, b) in enumerate(zip(out_ix.cycles_us, expected_cycles)) if a != b), None)
+    out_cycles = list(out_ix.cycles_us)
+    if resolved.kept_everywhere_ids:
+        # records kept for the whole log add cycles outside the ranges; the ranges themselves must match
+        spans = [(r.lo_us + r.offset_us, (r.hi_us + r.offset_us) if r.hi_us is not None else None) for r in resolved.ranges]
+        out_cycles = [c for c in out_cycles if any(a <= c and (b is None or c < b) for a, b in spans)]
+    if out_cycles != expected_cycles:
+        n_o, n_e = len(out_cycles), len(expected_cycles)
+        first_diff = next((k for k, (a, b) in enumerate(zip(out_cycles, expected_cycles)) if a != b), None)
         bad(f'cycle timeline differs from the plan: {n_o} cycles vs {n_e} expected, first difference at index {first_diff}')
     period = resolved.nominal_period_us
     for a, b in zip(resolved.ranges, resolved.ranges[1:]):

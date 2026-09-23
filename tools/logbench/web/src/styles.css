@@ -688,7 +688,6 @@ body {
   margin: 0 0 4px;
 }
 
-.picker__root,
 .picker__hint {
   color: var(--muted);
   font-size: 11px;
@@ -732,6 +731,48 @@ body {
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
+}
+
+/* ── Log folder switcher (LogRootButton) ─────────────────────────────────── */
+
+.log-root {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 11px;
+}
+
+.log-root__path {
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.log-root__btn {
+  flex: none;
+  padding: 4px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.log-root__btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.log-root__btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.log-root__error {
+  flex-basis: 100%;
+  color: #f2b8b5;
 }
 
 /* ── Compare page ─────────────────────────────────────────────────────────── */

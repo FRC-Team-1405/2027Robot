@@ -8,8 +8,8 @@ import pytest
 import wpilog_builder as wb
 from wpilog_utils.decode import parse_wpilog_bytes
 from wpilog_utils.index import build_index, load_index
-from wpilog_utils.trim import (SEGMENT_MAP_ENTRY, Segment, TrimPlan, dry_run, mode_segments, resolve_plan,
-                               trim_log)
+from wpilog_utils.trim import (MATCH_CONTEXT_ENTRIES, MATCH_CONTEXT_PREFIXES, SEGMENT_MAP_ENTRY, Segment, TrimPlan,
+                               dry_run, estimate_size, mode_segments, resolve_plan, trim_log)
 from wpilog_utils.verify import verify_trim
 
 NOTES = pathlib.Path(__file__).resolve().parents[3] / 'notes' / '6-20'
@@ -460,3 +460,46 @@ def test_mode_span_bytes_add_up_to_the_whole_log():
 def test_real_log_mode_span_bytes_add_up_to_the_whole_log():
     _, ix = load_index(next(NOTES.glob('*baseline.wpilog')))
     assert sum(ix.window_bytes(a, b) for a, b, _ in ix.mode_spans()) == ix.data_bytes
+
+
+# ── entries kept for the whole log (the match context) ──────────────────────────────────────────
+
+def context_plan(ix, policy='preserve', **kw):
+    return TrimPlan(mode_segments(ix, ['auto'], which=[0]), gap_policy=policy,
+                    keep_everywhere=MATCH_CONTEXT_ENTRIES, keep_everywhere_prefixes=MATCH_CONTEXT_PREFIXES, **kw)
+
+
+def test_kept_everywhere_entries_survive_outside_the_segments_and_verify():
+    raw, _ = wb.ds_log(TWO_AUTOS)
+    ix = build_index(raw)
+    _, res, out, _st, _rep = run(raw, context_plan(ix))
+    assert {ix.entries[i].name.lstrip('/') for i in res.kept_everywhere_ids} == {'DriverStation/Enabled', 'DriverStation/Autonomous'}
+    before, after = parse_wpilog_bytes(raw), parse_wpilog_bytes(out)
+    assert after['DriverStation/Enabled'] == before['DriverStation/Enabled']          # every record, every time
+    assert len(after['Timestamp']) == res.ranges[0].n_cycles                          # everything else: the auto only
+    assert build_index(out).mode_spans()[:-1] == ix.mode_spans()[:-1]
+    note = json.loads(after[SEGMENT_MAP_ENTRY.lstrip('/')][0][1])
+    assert note['kept_everywhere'] == ['/DriverStation/Autonomous', '/DriverStation/Enabled']
+
+
+def test_kept_everywhere_is_ignored_with_a_warning_when_closing_gaps():
+    raw, _ = wb.ds_log(TWO_AUTOS)
+    ix = build_index(raw)
+    _, res, _out, _st, _rep = run(raw, context_plan(ix, 'compact'))
+    assert not res.kept_everywhere_ids and any('original timestamps' in w for w in res.warnings)
+
+
+def test_excluding_wins_over_keeping_everywhere():
+    raw, _ = wb.ds_log(TWO_AUTOS)
+    ix = build_index(raw)
+    _, res, out, _st, _rep = run(raw, context_plan(ix, exclude=['DriverStation/Autonomous']))
+    assert 'DriverStation/Autonomous' not in parse_wpilog_bytes(out)
+
+
+def test_estimate_counts_kept_everywhere_bytes():
+    raw, _ = wb.ds_log(TWO_AUTOS)
+    ix = build_index(raw)
+    plan = context_plan(ix)
+    res = resolve_plan(ix, plan)
+    exact = dry_run(raw, ix, plan, res).bytes_out
+    assert abs(estimate_size(ix, plan, res) - exact) / exact < 0.05

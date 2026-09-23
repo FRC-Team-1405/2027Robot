@@ -825,3 +825,47 @@ ul.twins li {
   padding: 6px 0;
   border-bottom: 1px solid var(--c-border);
 }
+
+/* Log picker: current folder + "Change folder…" */
+.root-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.root-line code {
+  overflow-wrap: anywhere;
+}
+
+/* Order page */
+table.order-buckets td.bar-cell {
+  width: 50%;
+}
+table.order-buckets .bar {
+  display: block;
+  height: 10px;
+  min-width: 2px;
+  border-radius: 3px;
+  background: var(--c-density);
+}
+.order-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Trim page: keep the match context */
+.context-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 12px;
+}
+.context-check small {
+  display: block;
+  color: var(--c-muted);
+  margin-top: 2px;
+}

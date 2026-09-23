@@ -11,9 +11,10 @@ Design and rationale: [`docs/wpilog-janitor-plan.md`](../../docs/wpilog-janitor-
 |---|---|
 | `records` | header, `iter_records` (with byte ranges), `encode_record` (minimal-width headers), `parse_control` (Start / Finish / SetMetadata) |
 | `decode` | `parse_wpilog(path)` → `{signal: [(t, value), ...]}` (moved verbatim from `vision_analyzer.parser`) |
-| `modes` | `compute_mode_spans` (disabled / auto / teleop from `DriverStation/Enabled` + `Autonomous`), `filter_signals_by_time` |
+| `modes` | `compute_mode_spans` (disabled / auto / teleop), `filter_signals_by_time`. Mode comes from the first source a log has: AdvantageKit `DriverStation/Enabled` + `Autonomous`, WPILib `DS:enabled` + `DS:autonomous`, or the NT-mirrored FMS control word `NT:/FMSInfo/FMSControlData` (plain DataLogManager `FRC_*.wpilog`, e.g. competition logs) — see `mode_signals` |
 | `index` | `build_index(raw)` → `LogIndex`: per-entry bytes, loop **cycles**, bytes per second, mode spans. One streaming pass, no payload decoding |
-| `trim` | `trim_wpilog_bytes` (original single window) and the multi-segment engine: `TrimPlan`, `resolve_plan`, `dry_run`, `trim_log` |
+| `trim` | `trim_wpilog_bytes` (original single window) and the multi-segment engine: `TrimPlan`, `resolve_plan`, `dry_run`, `trim_log`. `TrimPlan.keep_everywhere` keeps chosen entries for the whole log, not just the segments (original timestamps only); `MATCH_CONTEXT_ENTRIES` is the battery/mode/match-info set the WPILog Janitor keeps by default |
+| `reorder` | `order_report` (what is out of time order, one pass), `reorder_log` (stable sort by timestamp: a time-ordered copy with nothing dropped or changed), `verify_reorder` (independent check) — for plain WPILib logs, whose NT mirroring writes records late |
 | `verify` | `verify_trim` — independent check of an output against its source and plan; streams the source, so memory scales with what is kept, not with the log |
 
 ## Using it
@@ -53,7 +54,7 @@ cd tools/wpilog-utils && python -m pytest
 
 `tests/test_characterization.py` holds the moved parser/mode/trim code to fingerprints captured from the
 original `vision_analyzer` code on the `notes/6-20` logs (skipped if those logs are absent).
-`tests/wpilog_builder.py` builds synthetic logs; the janitor's tests reuse it.
+`tests/wpilog_builder.py` builds synthetic logs; the WPILog Janitor's tests reuse it.
 
 ## Logging
 

@@ -16,3 +16,6 @@
 .battery-state-timeline{position:relative;height:38px;margin:12px 0;background:#0b1320;border-radius:4px;overflow:hidden}.battery-state-timeline button{position:absolute;height:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#234568}
 @media(max-width:850px){.battery-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.battery-page{padding:16px}.battery-selectors select{max-width:85vw}}
 @media(max-width:420px){.battery-metrics{grid-template-columns:1fr}}
+.battery-findings{background:#182b3e;border-left:3px solid #60a5fa;padding:12px 16px 12px 34px;margin:14px 0;line-height:1.6}
+.battery-findings li{margin:3px 0}.battery-muted{color:#8aa0bb}
+.battery-page tr.battery-brownout td:nth-child(3){color:#f87171}

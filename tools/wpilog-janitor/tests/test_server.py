@@ -136,7 +136,7 @@ def test_exclusions_reduce_the_size_and_are_reported(client):
 # ── export ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_export_saves_next_to_the_source_and_verifies(client, root):
-    r = client.post('/api/export', json={**plan(), 'mode': 'save'}).json()
+    r = client.post('/api/export', json={**plan(keep_context=False), 'mode': 'save'}).json()
     assert r['name'] == 'match_trimmed.wpilog' and r['verify']['ok'] is True and r['saved_pct'] > 50
     assert pathlib.Path(r['abs_path']) == (root / 'match_trimmed.wpilog').resolve() and pathlib.Path(r['abs_path']).is_file()
     out = (root / r['path']).read_bytes()
@@ -305,3 +305,100 @@ def test_content_bad_requests(cclient):
     r = cclient.post('/api/content', json={'log': 'c.wpilog', 'segments': [{'start': 500, 'end': 600}]})
     assert r.status_code == 400 and 'any data' in r.json()['detail']
     assert cclient.post('/api/content', json={}).status_code == 422
+
+
+# ── changing the log folder ─────────────────────────────────────────────────────────────────────
+
+def test_changing_the_log_root_changes_listing_and_resolution(client, root):
+    r = client.post('/api/log-root', json={'path': str(root / 'sub')})
+    assert r.status_code == 200
+    assert r.json() == {'root': str((root / 'sub').resolve()), 'cancelled': False}
+    listing = client.get('/api/logs').json()
+    assert listing['root'] == str((root / 'sub').resolve())
+    assert [l['path'] for l in listing['logs']] == ['other.wpilog']
+    assert client.get('/api/index', params={'log': 'other.wpilog'}).status_code == 200
+    assert client.get('/api/index', params={'log': 'match.wpilog'}).status_code == 404
+
+
+def test_a_missing_log_root_is_rejected_and_the_old_one_kept(client, root):
+    assert client.post('/api/log-root', json={'path': str(root / 'nope')}).status_code == 400
+    assert client.get('/api/logs').json()['root'] == str(root.resolve())
+
+
+# ── plain WPILib DataLogManager logs (FRC_*.wpilog) ─────────────────────────────────────────────
+
+def test_fms_control_word_gives_mode_bands(tmp_path):
+    """No DriverStation/* and no /Timestamp, like the Albany 2026 match logs: the bands come from the
+    NT-mirrored FMS control word (bit 0 enabled, bit 1 autonomous)."""
+    words = [(1_000_000, 0x30), (2_000_000, 0x33), (4_000_000, 0x32), (5_000_000, 0x31), (9_000_000, 0x30)]
+    raw = wb.header('') + wb.start(1, 'NT:/FMSInfo/FMSControlData', 'int64', '') + wb.start(2, 'NT:/x', 'double', '')
+    for i, (ts, w) in enumerate(words):
+        raw += wb.record(1, ts, wb.int64(w)) + wb.record(2, ts + 10, wb.double(i))
+    raw += wb.record(2, 10_000_000, wb.double(9))
+    (tmp_path / 'FRC_20260416_174046_NYTR_P9.wpilog').write_bytes(raw)
+    r = TestClient(server.create_app(tmp_path, dist=None)).get('/api/index', params={'log': 'FRC_20260416_174046_NYTR_P9.wpilog'}).json()
+    assert r['mode_source'] == 'NT:/FMSInfo/FMSControlData'
+    assert [(s['start'], s['end'], s['mode']) for s in r['spans']] == [
+        (0.0, 1.0, 'disabled'), (1.0, 3.0, 'auto'), (3.0, 4.0, 'disabled'), (4.0, 8.0, 'teleop'), (8.0, 9.0, 'disabled')]
+
+
+# ── Order page: out-of-order logs ───────────────────────────────────────────────────────────────
+
+def late_log() -> bytes:
+    """Like a plain WPILib log's NT mirroring: entry 2's records land 5 ms behind entry 1's newer ones."""
+    raw = wb.header('') + wb.start(1, '/Loop', 'double', '') + wb.start(2, 'NT:/DriveState/Pose', 'double', '')
+    for i in range(10):
+        raw += wb.record(1, 1_000 + 20_000 * i, wb.double(i))
+        if i:
+            raw += wb.record(2, 1_000 + 20_000 * i - 5_000, wb.double(100 + i))
+    return raw
+
+
+@pytest.fixture
+def late_client(tmp_path):
+    (tmp_path / 'FRC_late.wpilog').write_bytes(late_log())
+    return TestClient(server.create_app(tmp_path, dist=None)), tmp_path
+
+
+def test_index_flags_out_of_order_logs(late_client):
+    client, _ = late_client
+    r = client.get('/api/index', params={'log': 'FRC_late.wpilog'}).json()
+    assert r['time_ordered'] is False and r['order']['n_late'] == 9 and r['order']['max_late_ms'] == 5.0
+    assert any('Order page' in w for w in r['warnings'])
+
+
+def test_order_report_and_reorder_save(late_client):
+    client, root = late_client
+    rep = client.get('/api/order', params={'log': 'FRC_late.wpilog'}).json()
+    assert rep['n_late'] == 9 and rep['n_backwards'] == 0 and rep['default_name'] == 'FRC_late_ordered'
+    assert [e['name'] for e in rep['entries']] == ['NT:/DriveState/Pose']
+
+    saved = client.post('/api/reorder', json={'log': 'FRC_late.wpilog'}).json()
+    assert saved['path'] == 'FRC_late_ordered.wpilog' and saved['verify']['ok'] and saved['n_moved'] == 9
+    again = client.post('/api/reorder', json={'log': 'FRC_late.wpilog'}).json()
+    assert again['path'] == 'FRC_late_ordered_2.wpilog'                        # never overwrites
+
+    idx = client.get('/api/index', params={'log': 'FRC_late_ordered.wpilog'}).json()
+    assert idx['time_ordered'] and idx['order']['n_late'] == 0
+    body = {'log': 'FRC_late_ordered.wpilog', 'segments': [{'start': 0.0, 'end': 0.1, 'label': 'x'}]}
+    assert client.post('/api/preview', json=body).status_code == 200               # the copy trims
+
+
+def test_trimming_an_out_of_order_log_points_at_reorder(late_client):
+    client, _ = late_client
+    r = client.post('/api/preview', json={'log': 'FRC_late.wpilog', 'segments': [{'start': 0.0, 'end': 0.1, 'label': 'x'}]})
+    assert r.status_code == 400 and 'reorder' in r.json()['detail']
+
+
+def test_match_context_is_kept_for_the_whole_log_and_checked(client, root):
+    r = client.post('/api/preview/exact', json=plan()).json()
+    assert any('DriverStation/Enabled' in n for n in r['kept_everywhere'])
+    off = client.post('/api/preview/exact', json=plan(keep_context=False)).json()
+    assert off['kept_everywhere'] == [] and off['output_bytes'] < r['output_bytes']
+    saved = client.post('/api/export', json={**plan(), 'mode': 'save', 'filename': 'ctx'}).json()
+    assert saved['verify']['ok'] is True
+    src = build_index((root / 'match.wpilog').read_bytes())
+    got, want = build_index((root / saved['path']).read_bytes()).mode_spans(), src.mode_spans()
+    assert got[:-1] == want[:-1] and got[-1][2] == want[-1][2]          # same modes; the copy just ends sooner
+    compact = client.post('/api/preview', json=plan(gap_policy='compact')).json()
+    assert compact['kept_everywhere'] == [] and any('original timestamps' in w for w in compact['warnings'])

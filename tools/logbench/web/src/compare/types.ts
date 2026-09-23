@@ -1,3 +1,5 @@
+import type { OrderInfo } from '../loader/OrderNotice';
+
 // Shapes returned by server/main.py's /api/log-info, /api/metric-catalog, /api/compare.
 // Kept separate from player/types.ts (the replay wire format) -- this page never touches
 // a PlayerSpec at all, it only talks to these three endpoints.
@@ -26,6 +28,7 @@ export interface LogInfo {
   duration: number;
   cameras: string[];
   mode_spans: ModeSpan[];
+  order: OrderInfo | null;
 }
 
 // availability / quality / context are the three kinds of question a metric can answer

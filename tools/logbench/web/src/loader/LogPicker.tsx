@@ -3,7 +3,8 @@
 // Only reachable when the page was served by server/main.py with no ?log= chosen. The
 // standalone export never renders this -- its data is already inlined.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { LogRootButton } from './LogRootButton';
 
 interface LogEntry {
   path: string;
@@ -26,12 +27,13 @@ export function LogPicker() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch('/api/logs')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
       .then(setListing)
       .catch((e) => setError(String(e)));
   }, []);
+  useEffect(load, [load]);
 
   if (error) {
     return (
@@ -51,7 +53,7 @@ export function LogPicker() {
       <div className="picker__head">
         <h1>Pick a log</h1>
       </div>
-      <p className="picker__root">{listing.root}</p>
+      <LogRootButton root={listing.root} onChanged={load} />
       {listing.logs.length === 0 ? (
         <div className="status">No .wpilog files under that directory.</div>
       ) : (

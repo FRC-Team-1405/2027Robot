@@ -64,7 +64,7 @@ as of 9/22 (branch `logbench-migration`). Source note in brackets.
 
 | Item | Where it landed |
 |---|---|
-| Janitor "Close the gap" breaks latency, replay and recorder alignment (found 9/22) | Commit `c3c1012`: original timestamps are now the default; `--compact` is opt-in for viewing only |
+| WPILog Janitor "Close the gap" breaks latency, replay and recorder alignment (found 9/22) | Commit `c3c1012`: original timestamps are now the default; `--compact` is opt-in for viewing only |
 | Analyze the 9/15 recorder runs [9-15] | Your logbench comparisons in `notes/9-15/analysis/`, plus the 9/12→9/15 intrinsics comparison added 9/22. Decimate 1 is much worse; new intrinsics and left exposure changes are better |
 | Analyze the 9/19 pose-strategy runs and pick one [9-19] | `notes/9-19/analysis/`: keep `MULTI_TAG_PNP_ON_COPROCESSOR`. On the rio, the loop overran (~32 ms); `LOWEST_AMBIGUITY` lost tags |
 | 6/16 feature-switch and high-resolution tests (screenshots only until now) | `notes/6-16/analysis/`: switches slightly better, high resolution −40% FPS |

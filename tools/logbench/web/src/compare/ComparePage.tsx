@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { CategoryPanels } from './CategoryPanels';
 import { LogSide } from './LogSide';
+import { LogRootButton } from '../loader/LogRootButton';
 import type {
   CategoryId, CompareResult, LogEntry, ManualWindow, MetricCatalog, MetricDescriptor, Mode,
 } from './types';
@@ -29,6 +30,7 @@ function emptyManual(): ManualWindow {
 
 export function ComparePage() {
   const [logs, setLogs] = useState<LogEntry[] | null>(null);
+  const [root, setRoot] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<MetricCatalog | null>(null);
   const [logA, setLogA] = useState<string | null>(null);
   const [logB, setLogB] = useState<string | null>(null);
@@ -44,10 +46,26 @@ export function ComparePage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadLogs = () => {
     fetch('/api/logs')
       .then((r) => r.json())
-      .then((d) => setLogs(d.logs));
+      .then((d) => {
+        setLogs(d.logs);
+        setRoot(d.root);
+      });
+  };
+
+  // A new folder means the old selections (and any result computed from them) are gone.
+  const changeRoot = () => {
+    setLogA(null);
+    setLogB(null);
+    setResult(null);
+    setResultQuery(null);
+    loadLogs();
+  };
+
+  useEffect(() => {
+    loadLogs();
     fetch('/api/metric-catalog')
       .then((r) => r.json())
       .then((d: MetricCatalog) => {
@@ -126,6 +144,7 @@ export function ComparePage() {
       <div className="compare-page__head">
         <h1 className="compare-page__title">Compare two logs</h1>
       </div>
+      <LogRootButton root={root} onChanged={changeRoot} />
 
       <div className="compare-sides">
         <LogSide

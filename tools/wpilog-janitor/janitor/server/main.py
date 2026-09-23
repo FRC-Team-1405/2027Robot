@@ -13,6 +13,8 @@ import collections
 import json
 import pathlib
 import re
+import subprocess
+import sys
 import threading
 import time
 from typing import Dict, List, Literal, Optional, Tuple
@@ -28,7 +30,9 @@ from ..core import classify as cl
 from ..core import content as ct
 from ..core import dedupe as dd
 from wpilog_utils.index import LogIndex, build_index
-from wpilog_utils.trim import (Segment, TrimPlan, dry_run, estimate_size, resolve_plan, trim_log)
+from wpilog_utils.reorder import order_report, reorder_log, verify_reorder
+from wpilog_utils.trim import (MATCH_CONTEXT_ENTRIES, MATCH_CONTEXT_PREFIXES, Segment, TrimPlan, dry_run, estimate_size,
+                               resolve_plan, trim_log)
 from wpilog_utils.verify import verify_trim
 
 DIST = pathlib.Path(__file__).resolve().parents[2] / 'web' / 'dist'
@@ -51,6 +55,7 @@ class PlanIn(BaseModel):
     gap_policy: Literal['compact', 'preserve'] = 'preserve'
     exclude: List[str] = []
     exclude_prefixes: List[str] = []
+    keep_context: bool = Field(True, description='keep battery voltage and match info for the whole log (original timestamps only)')
 
 
 class ContentIn(BaseModel):
@@ -59,6 +64,35 @@ class ContentIn(BaseModel):
     gap_ms: float = 200.0
     gap_policy: Literal['compact', 'preserve'] = 'preserve'
     protect: List[str] = Field(['replay', 'logbench'], description="profiles whose entries are marked protected: 'replay', 'logbench'")
+
+
+class LogRootIn(BaseModel):
+    path: str
+
+
+# The picker's "Change folder" button: the server runs on the same laptop as the browser, and a
+# browser can only hand back the files inside a folder, never its path -- so the native dialog opens
+# here. It runs in a child Python so tkinter gets its own main thread (FastAPI runs sync endpoints on
+# worker threads, which Tk dislikes).
+PICK_FOLDER_SCRIPT = r'''
+import sys
+import tkinter
+from tkinter import filedialog
+root = tkinter.Tk()
+root.withdraw()
+root.attributes('-topmost', True)
+path = filedialog.askdirectory(parent=root, initialdir=sys.argv[1], mustexist=True,
+                               title='Choose a folder to search for .wpilog files')
+root.destroy()
+sys.stdout.write(path or '')
+'''
+
+
+class ReorderIn(BaseModel):
+    log: str
+    mode: Literal['save', 'download'] = 'save'
+    filename: Optional[str] = Field(None, description="save mode: file name (default <log>_ordered.wpilog); never overwrites")
+    verify: bool = True
 
 
 class ExportIn(PlanIn):
@@ -78,12 +112,15 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
     # It does not depend on the protection setting, which is applied to a copy on every request.
     analyses: 'collections.OrderedDict[tuple, dict]' = collections.OrderedDict()
     analysis_lock = threading.Lock()
+    pick_lock = threading.Lock()
+    orders: 'collections.OrderedDict[Tuple[str, float], dict]' = collections.OrderedDict()   # order reports per (path, mtime)
 
     # ── helpers ──────────────────────────────────────────────────────────────────────────────────
     def resolve(rel: str) -> pathlib.Path:
-        p = (root / rel).resolve()
+        base = root                                       # one snapshot: the folder can change mid-request (Change folder)
+        p = (base / rel).resolve()
         try:
-            p.relative_to(root)
+            p.relative_to(base)
         except ValueError:
             raise HTTPException(400, 'path outside the log directory')
         if not p.is_file():
@@ -112,7 +149,10 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
         return TrimPlan(
             segments=[Segment(s.start, s.end, s.label, s.pad_pre_ms, s.pad_post_ms) for s in body.segments],
             gap_ms=body.gap_ms, gap_policy=body.gap_policy, exclude=body.exclude,
-            exclude_prefixes=body.exclude_prefixes, source_name=source_name)
+            exclude_prefixes=body.exclude_prefixes,
+            keep_everywhere=MATCH_CONTEXT_ENTRIES if body.keep_context else (),
+            keep_everywhere_prefixes=MATCH_CONTEXT_PREFIXES if body.keep_context else (),
+            source_name=source_name)
 
     def resolved(ix: LogIndex, plan: TrimPlan):
         try:
@@ -120,15 +160,56 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
         except ValueError as exc:
             raise HTTPException(400, str(exc))
 
+    def set_root(path: pathlib.Path) -> pathlib.Path:
+        nonlocal root
+        new_root = path.expanduser().resolve()
+        if not new_root.is_dir():
+            raise HTTPException(400, f'not a directory: {new_root}')
+        root = new_root                                   # every endpoint reads `root` at call time
+        with load_lock:
+            cache.clear()
+        with analysis_lock:
+            analyses.clear()
+            orders.clear()
+        return new_root
+
     # ── endpoints ────────────────────────────────────────────────────────────────────────────────
+    @app.post('/api/log-root')
+    def set_log_root(body: LogRootIn) -> dict:
+        """Search a different folder for logs, until the server restarts."""
+        return {'root': str(set_root(pathlib.Path(body.path))), 'cancelled': False}
+
+    @app.post('/api/log-root/pick')
+    def pick_log_root() -> dict:
+        """Opens the OS folder picker on this machine and, unless it was cancelled, makes the chosen
+        folder the new log root. Blocks until the dialog closes."""
+        if not pick_lock.acquire(blocking=False):
+            raise HTTPException(409, 'a folder dialog is already open')
+        try:
+            try:
+                done = subprocess.run([sys.executable, '-c', PICK_FOLDER_SCRIPT, str(root)],
+                                      capture_output=True, text=True)
+            except OSError as exc:
+                raise HTTPException(501, f'could not open a folder dialog: {exc}')
+            if done.returncode != 0:
+                raise HTTPException(501, 'could not open a folder dialog (is tkinter installed?): '
+                                    + done.stderr.strip()[-500:])
+            chosen = done.stdout.strip()
+            if not chosen:
+                return {'root': str(root), 'cancelled': True}
+            return {'root': str(set_root(pathlib.Path(chosen))), 'cancelled': False}
+        finally:
+            pick_lock.release()
+
     @app.get('/api/logs')
     def list_logs() -> dict:
+        base = root                                       # one snapshot: the folder can change mid-scan (Change folder)
         logs = []
-        for p in root.rglob('*.wpilog'):
+        for p in base.rglob('*.wpilog'):
             st = p.stat()
-            logs.append({'path': p.relative_to(root).as_posix(), 'name': p.name, 'size': st.st_size, 'mtime': st.st_mtime})
+            logs.append({'path': p.relative_to(base).as_posix(), 'name': p.name, 'size': st.st_size, 'mtime': st.st_mtime})
         logs.sort(key=lambda d: d['mtime'], reverse=True)
-        return {'root': str(root), 'logs': logs}
+        return {'root': str(base), 'logs': logs}
 
     @app.get('/api/index')
     def log_index(log: str = Query(..., description='log path relative to the log root')) -> dict:
@@ -139,11 +220,13 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
         if trailing > 0:
             warnings.append(f'{trailing} trailing bytes are not a complete record (the log ended mid-write); they are dropped on trim')
         if not ix.time_ordered:
-            warnings.append('records are not in time order; trimming is not supported for this log')
+            warnings.append(f'{ix.n_late_records:,} records are out of time order (worst {ix.max_late_us / 1000:.1f} ms behind), '
+                            'so this log cannot be trimmed as it is: make a time-ordered copy on the Order page')
         if ix.n_unregistered_records:
             warnings.append(f'{ix.n_unregistered_records} data records belong to entries that were never started; they are dropped')
         if not spans:
-            warnings.append('no DriverStation/Enabled data in this log: there are no mode bands, so pick times by dragging')
+            warnings.append('no driver-station mode data in this log (no DriverStation/*, DS:* or NT:/FMSInfo/FMSControlData): '
+                            'there are no mode bands, so pick times by dragging')
         if ix.cycle_entry_id is None:
             warnings.append('no /Timestamp entry: every distinct timestamp is treated as a cycle')
         return {
@@ -151,7 +234,9 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
             'duration_s': ix.duration_s, 'n_records': ix.n_records, 'n_entries': len(ix.entries),
             'n_cycles': len(ix.cycles_us), 'cycle_period_ms': ix.cycle_period_us() / 1000.0,
             'header': ix.extra_header.decode('utf-8', 'replace'), 'time_ordered': ix.time_ordered,
-            'has_cycle_marker': ix.cycle_entry_id is not None,
+            'has_cycle_marker': ix.cycle_entry_id is not None, 'mode_source': ix.mode_source,
+            'order': {'n_late': ix.n_late_records, 'max_late_ms': ix.max_late_us / 1000.0,
+                      'late_pct': 100.0 * ix.n_late_records / max(1, ix.n_records)},
             'data_bytes': ix.data_bytes, 'control_bytes': ix.control_bytes,
             'spans': spans, 'byte_hist': ix.byte_hist, 'warnings': warnings,
             'time_mirrors': sorted(e.name for e in ix.entries.values() if e.time_mirror),
@@ -174,6 +259,7 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
             'seams': res.seams, 'gap_cycles': res.gap_cycles,
             'cycle_period_ms': res.nominal_period_us / 1000.0,
             'warnings': res.warnings, 'n_excluded_entries': len(res.excluded_ids),
+            'kept_everywhere': sorted(ix.entries[i].name for i in res.kept_everywhere_ids),
         }
 
     @app.post('/api/preview')
@@ -223,11 +309,7 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
             return Response(out, media_type='application/octet-stream',
                             headers={'Content-Disposition': f'attachment; filename="{stem}.wpilog"'})
 
-        dest = p.with_name(stem + '.wpilog')
-        n = 2
-        while dest.exists():                                  # never overwrite anything
-            dest = p.with_name(f'{stem}_{n}.wpilog')
-            n += 1
+        dest = unique_dest(p, stem)
         dest.write_bytes(out)
         report = None
         if body.verify and len(raw) <= VERIFY_MAX_BYTES:
@@ -238,6 +320,50 @@ def create_app(log_root: pathlib.Path, dist: Optional[pathlib.Path] = DIST) -> F
             'source_bytes': st.source_bytes, 'saved_bytes': st.saved_bytes, 'saved_pct': st.saved_pct,
             'verify': report, 'verify_skipped': report is None,
             'warnings': res.warnings,
+        }), media_type='application/json')
+
+    def unique_dest(p: pathlib.Path, stem: str) -> pathlib.Path:
+        dest = p.with_name(stem + '.wpilog')
+        n = 2
+        while dest.exists():                                  # never overwrite anything
+            dest = p.with_name(f'{stem}_{n}.wpilog')
+            n += 1
+        return dest
+
+    @app.get('/api/order')
+    def order(log: str = Query(..., description='log path relative to the log root')) -> dict:
+        """How out of time order the log is: counts, how far behind, and which entries."""
+        p, raw, _ix = load(log)
+        key = (str(p), p.stat().st_mtime)
+        with analysis_lock:
+            if key not in orders:
+                orders[key] = order_report(raw).as_dict()
+                while len(orders) > 4:
+                    orders.popitem(last=False)
+            return {'log': log, 'name': p.name, 'size': len(raw), 'default_name': p.stem + '_ordered', **orders[key]}
+
+    @app.post('/api/reorder')
+    def reorder(body: ReorderIn) -> Response:
+        """The time-ordered copy: saved next to the original (never overwriting) and checked, or downloaded."""
+        p, raw, _ix = load(body.log)
+        try:
+            out, st = reorder_log(raw, p.name)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+        stem = pathlib.PurePath(safe_name(body.filename)).stem if body.filename else p.stem + '_ordered'
+        if body.mode == 'download':
+            return Response(out, media_type='application/octet-stream',
+                            headers={'Content-Disposition': f'attachment; filename="{stem}.wpilog"'})
+        dest = unique_dest(p, stem)
+        dest.write_bytes(out)
+        report = None
+        if body.verify and len(raw) <= VERIFY_MAX_BYTES:
+            chk = verify_reorder(out, raw)
+            report = {'ok': chk.ok, 'issues': chk.issues[:25], 'n_issues': len(chk.issues)}
+        return Response(json.dumps({
+            'path': dest.relative_to(root).as_posix(), 'abs_path': str(dest), 'name': dest.name, 'bytes': st.bytes_out,
+            'source_bytes': st.source_bytes, 'n_moved': st.n_moved, 'n_records': st.n_records,
+            'verify': report, 'verify_skipped': report is None,
         }), media_type='application/json')
 
     @app.post('/api/content')

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type LogEntry } from './api';
 import { fmtBytes, fmtDate } from './lib/format';
 
@@ -7,16 +7,37 @@ export function LogPicker({ onPick, current }: { onPick: (path: string) => void;
   const [root, setRoot] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [choosing, setChoosing] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api
       .logs()
       .then((r) => {
         setLogs(r.logs);
         setRoot(r.root);
+        setError(null);
       })
       .catch((e: Error) => setError(e.message));
   }, []);
+  useEffect(load, [load]);
+
+  // The server opens the native folder dialog (a browser can't hand back a folder's path) and
+  // switches its log root until it restarts; then this list is re-fetched.
+  const changeFolder = async () => {
+    setChoosing(true);
+    setError(null);
+    try {
+      const r = await api.pickLogRoot();
+      if (!r.cancelled) {
+        setQuery('');
+        load();
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setChoosing(false);
+    }
+  };
 
   const shown = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -27,18 +48,23 @@ export function LogPicker({ onPick, current }: { onPick: (path: string) => void;
     <div className="page">
       <section className="card">
         <h1>Choose a log</h1>
-        {root && (
-          <p className="muted small">
-            Looking in <code>{root}</code>
-          </p>
-        )}
+        <p className="muted small root-line">
+          {root && (
+            <span>
+              Looking in <code>{root}</code>
+            </span>
+          )}
+          <button type="button" className="btn small" onClick={changeFolder} disabled={choosing}>
+            {choosing ? 'Choose a folder in the dialog…' : 'Change folder…'}
+          </button>
+        </p>
         {error && (
           <p className="error" role="alert">
             {error}
           </p>
         )}
         {logs === null && !error && <p className="status">Looking for logs…</p>}
-        {logs && logs.length === 0 && <p className="empty">No .wpilog files found under that folder. Start the server with <code>--logs &lt;folder&gt;</code>.</p>}
+        {logs && logs.length === 0 && <p className="empty">No .wpilog files found under that folder. Pick another with <em>Change folder…</em>.</p>}
         {logs && logs.length > 0 && (
           <>
             <input

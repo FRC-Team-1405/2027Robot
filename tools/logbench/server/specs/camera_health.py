@@ -148,7 +148,10 @@ def build(signals: dict, title: str = 'Camera Health Replay', log_path=None, log
     # ── Position sources (all optional) ────────────────────────────────────────────
     field_tracks: list = []
 
-    odometry = flatten_pose_signal(find_signal(signals, 'Drivetrain/Pose') or [])
+    # NT:/DriveState/Pose is CTRE swerve telemetry, the same odometry pose -- what a plain WPILib
+    # DataLogManager log (FRC_*.wpilog, e.g. from competition) has instead of AdvantageKit's.
+    odometry = flatten_pose_signal(find_signal(signals, 'Drivetrain/Pose')
+                                   or find_signal(signals, 'NT:/DriveState/Pose') or [])
     if odometry:
         groups.append(Group(id='Drivetrain', label='Odometry', color=_ODOMETRY_COLOR))
         tracks.append(Track(id='pose/odometry', label='Odometry', kind='pose2d',
@@ -289,7 +292,10 @@ def build(signals: dict, title: str = 'Camera Health Replay', log_path=None, log
     # ── Warnings: same graceful-degradation messages the old tab showed ────────────
     has_health = any(k.startswith('health/') for k in data)
     has_pose = bool(field_tracks)
-    if not cameras:
+    if not cameras and odometry and 'Drivetrain/Pose' not in signals and 'RealOutputs/Drivetrain/Pose' not in signals:
+        warnings.append('This is a plain WPILib log (no AdvantageKit Vision/*/ signals): only the robot '
+                        'odometry from NT:/DriveState/Pose can be replayed.')
+    elif not cameras:
         warnings.append('No Vision/*/ signals in this log — nothing to replay here.')
     if not has_health:
         warnings.append(

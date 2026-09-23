@@ -4,13 +4,13 @@ No resampling is used for metrics. Motor phase currents never enter battery tota
 Unknown data is null, including limiting in logs that predate controller fault logging.
 """
 import bisect
-import html
 import json
 import math
 import re
 
 from model import PlayerSpec, Track, Panel
 from encode import spec_to_dict
+import battery_insights
 
 SCHEMA = 'logbench.battery/v1'
 COLORS = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb923c']
@@ -42,7 +42,7 @@ def lookup(signals, *names):
 
 
 def segments(log):
-    """Honor both compacted and original-time Janitor seams."""
+    """Honor both compacted and original-time WPILog Janitor trim seams."""
     kept = [log.bounds()]
     raw = lookup(log.signals, '/Janitor/SegmentMap').samples
     if raw:
@@ -84,6 +84,12 @@ def windows(log):
             session = None
     if session:
         out.append(session)
+    # A real match is auto, a short disabled gap, then teleop: sessions (rightly) stay split across that
+    # gap, so offer the whole match as one window too.
+    enabled = [(lo, hi, mode) for lo, hi, mode in log.mode_spans() if mode in ('auto', 'teleop')]
+    for (a_lo, _a_hi, a_mode), (_t_lo, t_hi, t_mode) in zip(enabled, enabled[1:]):
+        if a_mode == 'auto' and t_mode == 'teleop':
+            out.append({'label': f'Match {a_lo:.1f}–{t_hi:.1f}s', 'lo': a_lo, 'hi': t_hi})
     return out
 
 
@@ -115,6 +121,7 @@ def motor_sources(signals):
             names = [f'{base}/{part}{field}']
             if base == 'Pickup':
                 names.append('Intake/Pickup' + field)
+                names.append('Intake/Pickup' + field.removesuffix('Amps'))   # SmartDashboard spelling, 2026 season
             if base == 'Shooter' and field == 'OutputVoltage':
                 names = [f'{base}/{part}OutputVoltage']
             if base == 'Shooter' and part == 'Motor1' and field in ('ClosedLoopError', 'ClosedLoopReference'):
@@ -191,11 +198,13 @@ def analyze(log, window=None, low_voltage=8.0):
     intervals = [(max(a, t0+lo), min(b, t0+hi)) for a, b in segments(log)
                  if max(a, t0+lo) < min(b, t0+hi)]
     s = log.signals
-    rio = lookup(s, 'SystemStats/BatteryVoltage')
+    # Plain WPILib DataLogManager logs (FRC_*.wpilog, e.g. from competition) carry no SystemStats/ -- only
+    # what robot code put on SmartDashboard, mirrored under NT:/SmartDashboard/ (lookup() tries that prefix).
+    rio = lookup(s, 'SystemStats/BatteryVoltage', 'Battery/BatteryVoltage')
     pdv = lookup(s, 'PowerDistribution/Voltage')
     pdi = lookup(s, 'PowerDistribution/TotalCurrent')
     health = lookup(s, 'Power/Distribution/Valid')
-    threshold = lookup(s, 'SystemStats/BrownoutVoltage')
+    threshold = lookup(s, 'SystemStats/BrownoutVoltage', 'Battery/BrownoutVoltage')
     brown = lookup(s, 'SystemStats/BrownedOut')
     state = lookup(s, 'Power/State/Active')
     motors = motor_sources(s)
@@ -211,7 +220,13 @@ def analyze(log, window=None, low_voltage=8.0):
     if missing_motors:
         warnings.append('No current telemetry for: ' + ', '.join(missing_motors) + '. These motors are not included in the instrumented sum.')
     if not threshold.samples:
-        warnings.append('Brownout threshold is unavailable; the warning threshold is not a brownout detector.')
+        warnings.append(f'The brownout threshold is not in this log; using the roboRIO 2 default of '
+                        f'{battery_insights.DEFAULT_BROWNOUT_V:.2f} V.')
+
+    def brownout_threshold(t):
+        v = threshold.at(t)
+        return v if number(v) else (threshold.samples[0][1] if threshold.samples and number(threshold.samples[0][1])
+                                    else battery_insights.DEFAULT_BROWNOUT_V)
     # Build at actual sample/change boundaries, not an interpolated time grid.
     boundaries = {t0+lo, t0+hi}
     for a, b in intervals:
@@ -248,16 +263,21 @@ def analyze(log, window=None, low_voltage=8.0):
                 limit_data[m['id'] + '/' + flag].append((t, f.get(flag, Series()).at(t) if valid else None))
         # Require all registered motors to be valid for the measured motor sum.
         summed = sum(currents) if motors and len(currents) == len(motors) else None
+        # A brownout is the roboRIO's flag, or the battery voltage below the brownout threshold: at that
+        # voltage the roboRIO browns out whether or not the log recorded its flag.
+        flag = brown.at(t)
+        browned = (True if flag is True or (r is not None and r < brownout_threshold(t))
+                   else False if (r is not None or flag is False) else None)
         vals = [r, v, i, summed, i-summed if i is not None and summed is not None else None,
-                threshold.at(t) if inside else None, low_voltage if inside else None,
-                brown.at(t) if inside else None, r < low_voltage if r is not None else None,
+                brownout_threshold(t) if inside else None, low_voltage if inside else None,
+                browned if inside else None, r < low_voltage if r is not None else None,
                 bool(suspect) if inside else None]
         for key, value in zip(data, vals):
             data[key].append((t, value))
     voltage = Series(data['pdh_voltage'])
     stats = summarize(data['total_current'], intervals, voltage)
     volts = summarize(data['rio_voltage'], intervals)
-    ev = events(data['brownout'], intervals, 'Confirmed brownout', 'roboRIO')
+    ev = events(data['brownout'], intervals, 'Brownout', 'roboRIO')
     ev += events(data['low_voltage'], intervals, 'Low voltage', 'roboRIO')
     ev += events(data['suspect_pdh'], intervals, 'Suspect PDH telemetry', 'PDH')
     if any(v for _, v in data['suspect_pdh']):
@@ -318,10 +338,25 @@ def analyze(log, window=None, low_voltage=8.0):
             samples.append((t, sum(values) if all(number(v) for v in values) else None))
         data['subsystem/' + group] = samples
         subsystem_rows.append({'name': group, 'stats': summarize(samples, intervals, voltage)})
+    motor_sum = summarize(data['motor_sum'], intervals)
+    measured = ({'motors': len(motors), 'peak': motor_sum['peak'], 'average': motor_sum['average'], 'ah': motor_sum['ah'],
+                 'coverage': motor_sum['coverage']} if motors and motor_sum['valid_seconds'] else None)
+    insights = battery_insights.build(log, lo, hi, intervals, rio.samples, rio.source, threshold.samples,
+                                      brown.samples, low_voltage, measured)
+    # The largest current draws by signal (any subsystem, supply/stator/torque as named) -- what the dips
+    # are attributed to. Change-only samples inside the window.
+    load_keys = []
+    by_key = {ld['key']: ld for ld in battery_insights.current_signals(s)}
+    for row in insights['loads'][:8]:
+        ld = by_key[row['source']]
+        key = 'load/' + row['name']
+        data[key] = [(t, v) for t, v in ld['series'].samples if t0+lo <= t <= t0+hi]
+        load_keys.append(key)
     # Full timeline data is shared with the existing player. Keep gaps as NaN for encoder.
     spec = PlayerSpec(title='Battery Insights — ' + log.path.name, t0=t0, t1=t1)
     spec.static['staleness_sec'] = t1-t0+1
     plots = [('voltage', 'Voltage (V)', ['rio_voltage', 'pdh_voltage', 'brownout_threshold', 'low_voltage_threshold']),
+             ('loads', 'Largest current draws by signal (A; supply, stator or torque as named)', load_keys),
              ('current', 'PDH total, instrumented motor sum, and unaccounted difference (A)', ['total_current', 'motor_sum', 'difference']),
              ('subsystems', 'Subsystem supply current (A)', ['subsystem/' + g for g in groups])]
     for flag in ('SupplyLimited', 'StatorLimited'):
@@ -382,6 +417,8 @@ def analyze(log, window=None, low_voltage=8.0):
             continue
         label = key.rsplit('/', 1)[-1] if key.startswith(('motor/', 'Power/')) else key.replace('subsystem/', '')
         label = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', label).replace('_', ' ')
+        if key.startswith('load/'):
+            label = key[len('load/'):]
         if key.startswith('Power/Allocation/'):
             label = key.split('/')[2] + ' · ' + label
         elif key.startswith('Power/State/Definitions/'):
@@ -390,7 +427,7 @@ def analyze(log, window=None, low_voltage=8.0):
             label = 'Active state'
         elif key == 'Power/State/Reason':
             label = 'State reason'
-        unit = 'A' if key.endswith('Amps') or key in ('total_current', 'motor_sum', 'difference') or key.startswith(('subsystem/', 'channel/')) else 'V' if 'voltage' in key.lower() and 'seconds' not in key.lower() and key != 'low_voltage' else None
+        unit = 'A' if key.endswith('Amps') or key in ('total_current', 'motor_sum', 'difference') or key.startswith(('subsystem/', 'channel/', 'load/')) else 'V' if 'voltage' in key.lower() and 'seconds' not in key.lower() and key != 'low_voltage' else None
         spec.tracks.append(Track(key, label, kind, unit=unit, color=COLORS[n % len(COLORS)]))
     for identity, title, keys in plots:
         values = [v for key in keys for _, v in data[key] if number(v)]
@@ -400,14 +437,19 @@ def analyze(log, window=None, low_voltage=8.0):
                                  {'domain': [low, max(low+1, high*1.1)], 'step': True, 'view': [lo, hi]}))
         spec.layout.append([identity])
     kinds = {tr.id: tr.kind for tr in spec.tracks}
-    encoded = {k: [(t, ('Unknown' if kinds[k] == 'string' else float('nan')) if v is None else v) for t, v in samples]
+    encoded = {k: _changes_only([(t, ('Unknown' if kinds[k] == 'string' else float('nan')) if v is None else v)
+                                 for t, v in samples])
                for k, samples in data.items() if k in {tr.id for tr in spec.tracks}}
     brown_coverage = summarize([(t, int(v) if isinstance(v, bool) else None) for t, v in data['brownout']], intervals)
     summary = {**stats, 'min_voltage': volts['minimum'], 'voltage_coverage': volts['coverage'],
                'brownout_coverage': brown_coverage['coverage'],
-               'brownout_count': len([e for e in ev if e['kind'] == 'Confirmed brownout']) if brown_coverage['valid_seconds'] else None,
-               'brownout_seconds': sum(e['end']-e['start'] for e in ev if e['kind'] == 'Confirmed brownout') if brown_coverage['valid_seconds'] else None,
-               'low_voltage_seconds': sum(e['end']-e['start'] for e in ev if e['kind'] == 'Low voltage') if volts['valid_seconds'] else None}
+               # counts are episodes: dips closer than battery_insights.EPISODE_MERGE_S are one
+               'brownout_count': insights['brownouts']['count'] if brown_coverage['valid_seconds'] else None,
+               'brownout_seconds': sum(e['end']-e['start'] for e in ev if e['kind'] == 'Brownout') if brown_coverage['valid_seconds'] else None,
+               'low_voltage_count': insights['low_voltage']['count'] if volts['valid_seconds'] else None,
+               'low_voltage_seconds': sum(e['end']-e['start'] for e in ev if e['kind'] == 'Low voltage') if volts['valid_seconds'] else None,
+               'measured_motor_peak': measured['peak'] if measured else None,
+               'measured_motor_average': measured['average'] if measured else None}
     for e in ev:
         e['start'] -= t0
         e['end'] -= t0
@@ -420,16 +462,24 @@ def analyze(log, window=None, low_voltage=8.0):
             'acquisition_basis': lookup(s, 'Power/Distribution/ValidityBasis').at(t0+lo) or 'Legacy / unavailable',
             'low_voltage_warning': low_voltage, 'intervals': [[a-t0, b-t0] for a, b in intervals],
             'provenance': {'total_current': pdi.source, 'voltage': rio.source, 'state': state.source},
+            'insights': insights,
             'spec': spec_to_dict(spec, encoded, allow_decimation=False)}
     return finite_json(report)
 
 
-def comparison(a, b):
-    keys = ('min_voltage', 'peak', 'average', 'ah', 'wh', 'brownout_count', 'brownout_seconds', 'low_voltage_seconds')
-    return {'schema': 'logbench.battery-comparison/v1', 'a': a, 'b': b,
-            'deltas': {k: b['summary'][k] - a['summary'][k]
-                       if number(a['summary'][k]) and number(b['summary'][k]) else None for k in keys},
-            'interpretation': 'Observed B minus A. Different battery, activity, state and policy can confound these changes; not causal savings.'}
+def _changes_only(samples):
+    """Drop samples that repeat the previous value (NaN repeating NaN included). The timeline is built on
+    every change of every power signal, so each series would otherwise restate itself tens of thousands
+    of times; the player holds a value until the next sample, so nothing is lost."""
+    out = []
+    for t, v in samples:
+        if out:
+            prev = out[-1][1]
+            same = prev == v or (isinstance(prev, float) and isinstance(v, float) and math.isnan(prev) and math.isnan(v))
+            if same:
+                continue
+        out.append((t, v))
+    return out
 
 
 def finite_json(value):
@@ -440,44 +490,3 @@ def finite_json(value):
     if isinstance(value, (list, tuple)):
         return [finite_json(v) for v in value]
     return value
-
-
-def render_html(report):
-    """Portable report with exact analysis payload, escaped as text (never executable)."""
-    def display(value):
-        if value is None:
-            return 'Unknown'
-        if isinstance(value, float):
-            return f'{value:.4g}'
-        return html.escape(str(value))
-    def table(items):
-        return '<table>' + ''.join('<tr><th>' + html.escape(str(k)) + '</th><td>' +
-                                  display(v) + '</td></tr>' for k, v in items.items()) + '</table>'
-    def content(r):
-        out = '<h2>' + html.escape(r['log']) + '</h2><p>Window: ' + html.escape(str(r['window'])) + ' seconds · Battery: ' + html.escape(r['battery_id']) + '</p>'
-        out += '<h3>Summary</h3>' + table(r['summary'])
-        out += '<p>Current: A; voltage: V; charge: Ah; energy: Wh; durations: seconds; coverage: fraction 0–1. Integrals cover valid samples only.</p>'
-        out += '<h3>Coverage notes</h3>' + ''.join('<p>' + html.escape(w) + '</p>' for w in r['warnings'])
-        out += '<h3>Subsystems</h3>'
-        for group in r['subsystems']:
-            out += '<h4>' + html.escape(group['name']) + '</h4>' + table(group['stats'])
-        out += '<h3>Physical motors</h3>'
-        for m in r['motors']:
-            out += '<details><summary>' + html.escape(m['name']) + '</summary><h4>Supply current and energy</h4>' + table(m['stats'])
-            out += '<h4>Limiting seconds and coverage</h4>' + table(m['limiting_seconds'])
-            out += '<h4>Stator current</h4>' + table(m['stator_stats']) + '<h4>Absolute tracking error (native units)</h4>' + table(m['tracking_error'])
-            out += '<h4>Configuration at interval start</h4>' + table(m['configuration']) + '<h4>Sources</h4>' + table(m['sources']) + '</details>'
-        out += '<h3>Events and state / policy changes</h3><table><tr><th>Start (s)</th><th>End (s)</th><th>Evidence</th><th>Source</th></tr>'
-        out += ''.join('<tr>' + ''.join('<td>' + display(e[k]) + '</td>' for k in ('start', 'end', 'kind', 'entity')) + '</tr>' for e in r['events']) + '</table>'
-        out += '<details><summary>PDH channel measurements (not added to motor totals)</summary>'
-        for channel in r['channels']:
-            out += '<h4>Channel ' + str(channel['channel']) + ' — ' + html.escape(channel['mapping']) + '</h4>' + table(channel['stats'])
-        return out + '</details>'
-    sections = '<h1>Battery Insights</h1><p>Observed measurements only. Unrestricted current demand and causal savings are unknown.</p>'
-    if report['schema'] == 'logbench.battery-comparison/v1':
-        sections += '<h2>Observed B − A</h2><p>' + html.escape(report['interpretation']) + '</p>' + table(report['deltas'])
-        sections += '<h2>Window A</h2>' + content(report['a']) + '<h2>Window B</h2>' + content(report['b'])
-    else:
-        sections += content(report)
-    sections += '<details><summary>Complete report, configuration and timeline data</summary><pre>' + html.escape(json.dumps(report, indent=2, allow_nan=False)) + '</pre></details>'
-    return '<!doctype html><meta charset="utf-8"><title>Battery Insights</title><style>body{font:16px system-ui;max-width:1000px;margin:40px auto;padding:20px}td,th{padding:5px 16px;text-align:left;border-bottom:1px solid #ddd}pre{white-space:pre-wrap}</style>' + sections

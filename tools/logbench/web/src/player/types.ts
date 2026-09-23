@@ -1,3 +1,4 @@
+import type { OrderInfo } from '../loader/OrderNotice';
 // Mirrors server/model.py and the wire format produced by server/encode.py.
 // Keep the two in step: the Python tests in tests/test_encode.py pin the shapes below.
 
@@ -76,6 +77,8 @@ export interface WireSpec {
     vision?: Record<string, VisionCameraStatic>;
   };
   warnings: string[];
+  /** Set by the server when the log's records are out of time order; see loader/OrderNotice. */
+  order?: OrderInfo | null;
   data: Record<string, WireSeries>;
 }
 

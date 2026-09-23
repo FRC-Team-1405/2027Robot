@@ -30,10 +30,12 @@ Measured on a 5.5-minute log with 26 tracks and 199k samples:
 
 ## Running it
 
-**Battery Insights** (`?view=battery`) analyzes match power, voltage dips, physical
-motor/subsystem draw, and reported current limiting. It supports legacy logs,
-recorded robot states and future allocation telemetry, window comparisons, and
-HTML/JSON reports. See [the operating and telemetry guide](../../docs/battery-insights.md)
+**Battery Insights** (`?view=battery`) analyzes match power: brownouts and dips below a
+configurable warning level, what was drawing current in each dip, every current signal in
+the log, physical motor/subsystem draw, and reported current limiting. It supports legacy
+logs (including plain WPILib competition logs), recorded robot states and future
+allocation telemetry, window comparisons, and small HTML (people) / JSON (LLMs) insight
+exports. See [the operating and telemetry guide](../../docs/battery-insights.md)
 for interpretation, battery practices, and hardware commissioning checks.
 
 Three ways, one codebase.
@@ -53,6 +55,11 @@ python server/main.py --logs ../../logs
 ```
 
 Install NPM if you see an error indicating NPM missing: `winget install OpenJS.NodeJS.LTS`
+
+`--logs` is only the starting folder. The pages that list logs (Vision Logs, Compare,
+Battery Insights) have a **Change folder…** button that opens the OS folder picker and
+re-lists the logs under whatever you choose. The dialog opens on the machine running the
+server (needs tkinter). The new folder lasts until the server restarts.
 
 ### Fetch Bundle diagnostics
 

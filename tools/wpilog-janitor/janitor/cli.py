@@ -6,6 +6,7 @@ Command line for wpilog-janitor.
                                [--compact [--gap-ms 200]] [--pad-pre-ms N] [--pad-post-ms N]
                                [--exclude NAME ...] [--exclude-prefix PREFIX ...] [--dry-run] [--no-verify]
     python -m janitor segmap TRIMMED_LOG
+    python -m janitor reorder LOG [-o OUT] [--report] [--no-verify]   # time-ordered copy of an out-of-order log
     python -m janitor dupes LOG [--modes auto | --range START:END ...] [--protect replay,logbench] [--weak]
     python -m janitor serve [--logs DIR] [--port 8767]      # web UI
 
@@ -28,8 +29,9 @@ from .core import dedupe as dd
 from .core import sizes
 from wpilog_utils.decode import parse_wpilog_bytes
 from wpilog_utils.index import LogIndex, build_index
-from wpilog_utils.trim import (SEGMENT_MAP_ENTRY, Segment, TrimPlan, dry_run, mode_segments, resolve_plan,
-                               trim_log)
+from wpilog_utils.reorder import order_report, reorder_log, verify_reorder
+from wpilog_utils.trim import (MATCH_CONTEXT_ENTRIES, MATCH_CONTEXT_PREFIXES, SEGMENT_MAP_ENTRY, Segment, TrimPlan,
+                               dry_run, mode_segments, resolve_plan, trim_log)
 from wpilog_utils.verify import verify_trim
 
 
@@ -82,15 +84,18 @@ def cmd_analyze(args) -> int:
     if tail > 0:
         print(f'  note        {tail} trailing bytes are not a complete record (log ended mid-write); they are dropped on trim')
     if not ix.time_ordered:
-        print('  WARNING     records are not in time order; trimming is not supported for this log')
+        print(f'  WARNING     {ix.n_late_records:,} records are out of time order (worst {ix.max_late_us / 1000:.1f} ms '
+              'behind); trimming needs a time-ordered copy: `python -m janitor reorder LOG`')
     if ix.n_unregistered_records:
         print(f'  WARNING     {ix.n_unregistered_records} data records belong to entries that were never started')
 
     spans = ix.mode_spans()
     print('\nModes (seconds from log start)')
     if not spans:
-        print('  no DriverStation/Enabled data in this log; use --range to pick times')
+        print('  no driver-station mode data in this log (no DriverStation/*, DS:* or NT:/FMSInfo/FMSControlData); '
+              'use --range to pick times')
     else:
+        print(f'  (from {ix.mode_source})')
         counts = {}
         for i, (a, b, m) in enumerate(spans):
             counts[m] = counts.get(m, -1) + 1
@@ -124,6 +129,8 @@ def build_plan(args, ix: LogIndex) -> TrimPlan:
         segs.append(Segment(r.start, r.end, r.label, args.pad_pre_ms, args.pad_post_ms))
     return TrimPlan(segs, gap_ms=args.gap_ms, gap_policy='compact' if args.compact else 'preserve',
                     exclude=args.exclude or [], exclude_prefixes=args.exclude_prefix or [],
+                    keep_everywhere=() if args.no_context else MATCH_CONTEXT_ENTRIES,
+                    keep_everywhere_prefixes=() if args.no_context else MATCH_CONTEXT_PREFIXES,
                     source_name=pathlib.Path(args.log).name)
 
 
@@ -146,6 +153,9 @@ def cmd_trim(args) -> int:
         return 2
     for w in res.warnings:
         print(f'warning: {w}', file=sys.stderr)
+    if res.kept_everywhere_ids:
+        print(f'  keeping {len(res.kept_everywhere_ids)} match-context entries for the whole log (battery voltage, mode, '
+              'match info); --no-context to drop them')
 
     h = sizes.human
     for s in res.segments:
@@ -180,6 +190,44 @@ def _print_stats(st, h, dest) -> None:
         print(f'  note: {st.control_records_dropped} Finish/late-metadata control record(s) were not reproduced')
     if dest:
         print(f'  wrote {dest}')
+
+
+def cmd_reorder(args) -> int:
+    raw = _read_file(args.log)
+    rep = order_report(raw)
+    print(f'{args.log}: {rep.n_late:,} of {rep.n_records:,} records out of time order '
+          f'({100 * rep.n_late / max(1, rep.n_records):.1f}%), worst {rep.max_late_us / 1000:.1f} ms behind')
+    for bucket, n in rep.lateness.items():
+        print(f'  {bucket:>11s} behind  {n:9,}')
+    if rep.n_backwards:
+        print(f'  note: {rep.n_backwards:,} records are out of order within their own entry; those entries are sorted by time')
+    if args.report:
+        for e in rep.entries[:15]:
+            print(f'  {e.n_late:9,} late / {e.n_records:9,}  worst {e.max_late_us / 1000:7.1f} ms  {e.name}')
+        return 0
+    if rep.ordered:
+        print('already in time order: nothing to do')
+        return 0
+    try:
+        out, st = reorder_log(raw, pathlib.Path(args.log).name)
+    except ValueError as exc:
+        raise CliError(str(exc))
+    src = pathlib.Path(args.log)
+    dest = pathlib.Path(args.output) if args.output else src.with_name(src.stem + '_ordered.wpilog')
+    if dest.exists():
+        raise CliError(f'{dest} already exists; pass -o to choose another name')
+    dest.write_bytes(out)
+    print(f'  wrote {dest} ({sizes.human(st.bytes_out)}, {st.n_moved:,} records moved)')
+    if not args.no_verify:
+        chk = verify_reorder(out, raw)
+        if chk.ok:
+            print('  verify: OK')
+        else:
+            print(f'  verify: {len(chk.issues)} ISSUE(S)')
+            for i in chk.issues[:25]:
+                print(f'  - {i}')
+        return 0 if chk.ok else 1
+    return 0
 
 
 def cmd_segmap(args) -> int:
@@ -320,9 +368,19 @@ def main(argv: Optional[List[str]] = None) -> int:
                              '(vision capture times) are not shifted, so logbench latency and replay break')
     t.add_argument('--exclude', action='append', metavar='NAME', help='drop this entry; repeatable')
     t.add_argument('--exclude-prefix', action='append', metavar='PREFIX', help='drop this entry and everything under it')
+    t.add_argument('--no-context', action='store_true',
+                   help='do not keep battery voltage and match info outside the kept periods (kept by default, for the '
+                        'battery at rest before a match and its recovery after; well under 1 MB)')
     t.add_argument('--dry-run', action='store_true', help='print the exact output size without writing')
     t.add_argument('--no-verify', action='store_true')
     t.set_defaults(fn=cmd_trim)
+
+    r = sub.add_parser('reorder', help='write a time-ordered copy of an out-of-order log (plain WPILib FRC_*.wpilog)')
+    r.add_argument('log')
+    r.add_argument('-o', '--output', help='default: <log>_ordered.wpilog next to the source; never overwrites')
+    r.add_argument('--report', action='store_true', help='only print what is out of order, per entry')
+    r.add_argument('--no-verify', action='store_true')
+    r.set_defaults(fn=cmd_reorder)
 
     s = sub.add_parser('segmap', help='show the original-time map stored in a trimmed log')
     s.add_argument('log')

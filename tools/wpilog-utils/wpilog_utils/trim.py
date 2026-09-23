@@ -92,6 +92,20 @@ def trim_wpilog_bytes(raw: bytes, t_lo: float, t_hi: float) -> bytes:
 
 # ═══ Multi-segment trim engine ════════════════════════════════════════════════════════════════
 
+# Small entries worth keeping for the WHOLE log even when only some periods are kept: battery voltage
+# and brownout state, driver-station mode and match info. They cost well under 1 MB and keep what
+# happened before and after the kept periods -- the battery at rest before a match and its recovery
+# after, and the mode spans those are measured against. Both AdvantageKit and plain WPILib names.
+MATCH_CONTEXT_ENTRIES = (
+    'SystemStats/BatteryVoltage', 'SystemStats/BrownoutVoltage', 'SystemStats/BrownedOut', 'PowerDistribution/Voltage',
+    'NT:/SmartDashboard/Battery/BatteryVoltage', 'NT:/SmartDashboard/Battery/BrownoutVoltage',
+    'DriverStation/Enabled', 'DriverStation/Autonomous', 'DriverStation/Test', 'DriverStation/EmergencyStop',
+    'DriverStation/FMSAttached', 'DriverStation/DSAttached', 'DriverStation/EventName', 'DriverStation/MatchNumber',
+    'DriverStation/MatchType', 'DriverStation/AllianceStation',
+    'DS:enabled', 'DS:autonomous', 'DS:test', 'DS:estop',
+)
+MATCH_CONTEXT_PREFIXES = ('NT:/FMSInfo',)
+
 SEGMENT_MAP_ENTRY = '/Janitor/SegmentMap'
 SEGMENT_MAP_SCHEMA = 'wpilog-janitor.segmap/v1'
 _JANITOR_METADATA = '{"source":"wpilog-janitor"}'
@@ -116,6 +130,9 @@ class TrimPlan:
     gap_policy: str = 'compact'           # 'compact': re-time so seams are short | 'preserve': keep original timestamps
     exclude: Sequence[str] = ()           # entry names to drop entirely ('/' prefix optional)
     exclude_prefixes: Sequence[str] = ()  # drop these entries and everything beneath them
+    # Entries kept for the whole log, not just the segments ('preserve' only; see MATCH_CONTEXT_ENTRIES).
+    keep_everywhere: Sequence[str] = ()
+    keep_everywhere_prefixes: Sequence[str] = ()
     source_name: str = ''                 # recorded in the segment map only
 
 
@@ -157,6 +174,7 @@ class ResolvedPlan:
     gap_cycles: int
     excluded_ids: Set[int]
     warnings: List[str] = field(default_factory=list)
+    kept_everywhere_ids: Set[int] = field(default_factory=set)   # records outside the ranges are kept too
 
 
 @dataclass
@@ -203,6 +221,12 @@ def resolve_excluded_ids(index: LogIndex, plan: TrimPlan) -> Set[int]:
     return {e.id for e in index.entries.values() if _matches(e.name, exact, prefixes)}
 
 
+def resolve_kept_everywhere_ids(index: LogIndex, plan: TrimPlan) -> Set[int]:
+    exact = {x.lstrip('/') for x in plan.keep_everywhere}
+    prefixes = [x.strip('/') for x in plan.keep_everywhere_prefixes]
+    return {e.id for e in index.entries.values() if _matches(e.name, exact, prefixes)}
+
+
 def resolve_plan(index: LogIndex, plan: TrimPlan) -> ResolvedPlan:
     """Turn user segments into whole-cycle ranges and decide where each lands in the output clock.
 
@@ -217,7 +241,8 @@ def resolve_plan(index: LogIndex, plan: TrimPlan) -> ResolvedPlan:
     if plan.gap_policy not in ('compact', 'preserve'):
         raise ValueError(f"gap_policy must be 'compact' or 'preserve', got {plan.gap_policy!r}")
     if not index.time_ordered:
-        raise ValueError('log records are not in time order; trimming that is not supported yet')
+        raise ValueError('log records are not in time order; make a time-ordered copy first '
+                         '(the WPILog Janitor\'s Order page, or `python -m janitor reorder LOG`) and trim that')
     cyc = index.cycles_us
     n = len(cyc)
     if n == 0:
@@ -313,8 +338,14 @@ def resolve_plan(index: LogIndex, plan: TrimPlan) -> ResolvedPlan:
     excluded = resolve_excluded_ids(index, plan)
     if index.cycle_entry_id in excluded:
         warnings.append(f'{index.entries[index.cycle_entry_id].name} is excluded; the output has no cycle marker')
+    everywhere = resolve_kept_everywhere_ids(index, plan) - excluded - {index.cycle_entry_id}
+    if everywhere and plan.gap_policy != 'preserve':
+        warnings.append('entries kept for the whole log need original timestamps: with the gaps closed there is no '
+                        'time outside the kept periods to put them at, so they are kept only inside them')
+        everywhere = set()
     return ResolvedPlan(ranges=ranges, segments=segs, seams=seams, nominal_period_us=period,
-                        out_start_us=out_start, gap_cycles=budget, excluded_ids=excluded, warnings=warnings)
+                        out_start_us=out_start, gap_cycles=budget, excluded_ids=excluded, warnings=warnings,
+                        kept_everywhere_ids=everywhere)
 
 
 def segment_map(index: LogIndex, plan: TrimPlan, resolved: ResolvedPlan) -> dict:
@@ -343,6 +374,7 @@ def segment_map(index: LogIndex, plan: TrimPlan, resolved: ResolvedPlan) -> dict
         'seams': resolved.seams,
         'rewritten_time_entries': sorted(e.name for e in index.entries.values() if e.time_mirror),
         'excluded_entries': sorted(index.entries[i].name for i in resolved.excluded_ids),
+        'kept_everywhere': sorted(index.entries[i].name for i in resolved.kept_everywhere_ids),
     }
 
 
@@ -357,6 +389,7 @@ def _run(raw: bytes, index: LogIndex, plan: TrimPlan, resolved: ResolvedPlan,
     """
     ranges = resolved.ranges
     excluded = resolved.excluded_ids
+    everywhere = resolved.kept_everywhere_ids
     mirror_ids = {e.id for e in index.entries.values() if e.time_mirror}
 
     seg_map_id = max(index.entries, default=0) + 1
@@ -446,6 +479,8 @@ def _run(raw: bytes, index: LogIndex, plan: TrimPlan, resolved: ResolvedPlan,
                 pending.append((entry_id, payload))
             else:
                 emit_data(entry_id, ts_us + ranges[ri].offset_us, payload)
+        elif entry_id in everywhere:                          # outside the ranges, at its own time ('preserve')
+            emit_data(entry_id, ts_us, payload)
         last_src[entry_id] = payload
     if ri < len(ranges):
         flush_pending()
@@ -520,6 +555,11 @@ def estimate_size(index: LogIndex, plan: TrimPlan, resolved: Optional[ResolvedPl
             e = index.entries[i]
             # the excluded records never get re-encoded, so they were not part of the retiming saving
             kept -= ex_bytes - saved_per_record * ex_bytes * e.n_records / max(1, e.bytes)
+    if resolved.kept_everywhere_ids:
+        kept_frac = _kept_fraction_by_second(index, resolved)
+        for i in resolved.kept_everywhere_ids:
+            h = index.entry_hist.get(i, ())
+            kept += sum(h[b] * (1 - kept_frac[b]) for b in range(min(len(h), len(kept_frac))))
     start_bytes = index.control_bytes * (len(live) / max(1, len(index.entries)))
     first = resolved.ranges[0]
     n_cyc = max(1, len(cyc))

@@ -5,7 +5,7 @@ implementation of either -- see the module docstring in core/__init__.py.
 """
 import pathlib
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from vision_analyzer import metrics as va_metrics
 from vision_analyzer.parser import parse_wpilog
@@ -17,11 +17,16 @@ from . import signals as sig
 class Log:
     path: pathlib.Path
     signals: Dict = field(repr=False)
+    # {'n_records', 'n_late', 'max_late_s'} from the parser: records written behind a newer one (a plain
+    # WPILib log's NT mirroring). Harmless here -- every signal is read on its own -- but the WPILog
+    # Janitor cannot trim such a log until it has made a time-ordered copy. None when not known.
+    order_stats: Optional[Dict] = field(default=None, repr=False)
 
     @classmethod
     def load(cls, path) -> 'Log':
         p = pathlib.Path(path)
-        return cls(path=p, signals=parse_wpilog(str(p)))
+        stats: Dict = {}
+        return cls(path=p, signals=parse_wpilog(str(p), stats), order_stats=stats)
 
     def bounds(self) -> Tuple[float, float]:
         """(earliest, latest) timestamp across every signal, absolute log seconds."""

@@ -24,12 +24,14 @@ def client(tmp_path, monkeypatch):
     return TestClient(main.app)
 
 
-def test_analysis_export_parity(client):
+def test_export_is_the_insights_of_the_same_analysis(client):
     params = {'log': 'match.wpilog', 'window': '2,8'}
     result = client.get('/api/battery', params=params)
     assert result.status_code == 200
-    exported = client.get('/api/battery/export', params={**params, 'format': 'json'})
-    assert exported.json() == result.json()
+    exported = client.get('/api/battery/export', params={**params, 'format': 'json'}).json()
+    assert 'spec' not in exported and exported['schema'] == 'logbench.battery-insights/v2'
+    assert exported['window_s'] == [2, 8]
+    assert exported['findings'] == result.json()['insights']['findings']
     html = client.get('/api/battery/export', params={**params, 'format': 'html'})
     assert html.status_code == 200
     assert 'Battery Insights' in html.text
@@ -41,10 +43,10 @@ def test_comparison_export_preserves_both_windows(client):
                                                       'window': '0,10', 'window_b': '0,5', 'format': 'json'})
     assert result.status_code == 200
     body = result.json()
-    assert body['schema'] == 'logbench.battery-comparison/v1'
-    assert body['b']['window'] == [0, 5]
-    assert body['deltas']['average'] == 0
-    assert body['deltas']['ah'] < 0
+    assert body['schema'] == 'logbench.battery-insights-comparison/v2'
+    assert body['b']['window_s'] == [0, 5]
+    assert body['deltas']['pdh_average_a'] == 0
+    assert body['deltas']['pdh_ah'] < 0
 
 
 @pytest.mark.parametrize('params,status', [

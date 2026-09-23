@@ -6,7 +6,7 @@ don't need, see what it saves. Per log, by hand — nothing is trimmed automatic
 Plan and design decisions: [`docs/wpilog-janitor-plan.md`](../../docs/wpilog-janitor-plan.md).
 File-format work lives in [`wpilog-utils`](../wpilog-utils); this is the tool on top of it.
 
-**Status:** CLI, the **Trim page** and the **Content page** are done. The LLM extract is planned — see the plan's milestone M5.
+**Status:** CLI, the **Trim page**, the **Content page** and the **Order page** are done. The LLM extract is planned — see the plan's milestone M5.
 
 ## First Time install
 
@@ -22,12 +22,15 @@ cd tools/wpilog-janitor/web && npm install
 cd tools/wpilog-janitor/web && npm install && cd ../../..     # first time only
 ```
 
-Then run the **Janitor** task in VS Code (builds the front end, serves `logs/`), or by hand:
+Then run the **WPILogJanitor** task in VS Code (builds the front end, serves `logs/`), or by hand:
 
 ```bash
 npm --prefix tools/wpilog-janitor/web run build
 python tools/wpilog-janitor/run.py serve --logs logs          # http://127.0.0.1:8767/
 ```
+
+`--logs` is only the starting folder: **Change folder…** on the log picker opens the OS folder dialog (on the machine
+running the server; needs tkinter) and lists the logs under the folder you choose, until the server restarts.
 
 **Trim page**
 
@@ -36,11 +39,29 @@ python tools/wpilog-janitor/run.py serve --logs logs          # http://127.0.0.1
   an arbitrary range. **Drag a highlighted edge** to adjust it, or type exact seconds in the table. Wheel zooms, alt-drag pans,
   double-click resets. Per-period padding keeps extra real cycles around a period (e.g. the disable→enable edge).
 * **Timing**: *Keep original timestamps* (default) or *Close the gap* (for viewing only; see [Timing](#timing)).
+* **Keep battery voltage and match info for the whole log** (on by default): the match context — battery voltage and
+  brownout state, driver-station mode, FMS match info — is kept outside the kept periods too, so a trimmed match still
+  shows the battery at rest before it and its recovery after (logbench Battery Insights measures both). Usually well under
+  1 MB (0.24 MB on an Albany match). Needs original timestamps. The list is `MATCH_CONTEXT_ENTRIES` in
+  `wpilog_utils/trim.py`; CLI `--no-context` turns it off.
 * The **Result** panel shows original → trimmed size. It is an instant estimate (within about 1%), and turns *exact* on its
   own for logs under 40 MB; for bigger logs press *Compute exact size* (one pass over the file).
 * **Export** saves `<log>_trimmed.wpilog` next to the original (never overwriting; a number is added instead) and checks it
   against the original, or downloads it.
 * Your selection is remembered per log in the browser.
+
+**Order page** — for logs whose records are out of time order, which the trimmer can't handle. Plain WPILib
+DataLogManager logs (`FRC_*.wpilog`, e.g. every competition log) copy NetworkTables values stamped with their publish time,
+and values published off the main loop (swerve telemetry, PhotonVision) land a few ms after newer records — over half the
+records in the Albany 2026 match logs.
+
+* Opening such a log jumps here once; afterwards the Trim page shows a banner linking back.
+* It shows how many records are out of order, how far behind (bucketed), and which entries. When no entry's *own* records go
+  backwards (the normal case), reordering changes no signal's values or sequence — only how entries interleave.
+* **Reorder & save** writes `<log>_ordered.wpilog` next to the original (never overwriting), checks it against the original
+  (every record present, in time order, values and timestamps unchanged), and offers to open the copy for trimming. A
+  `/Janitor/Reorder` entry in the copy records what was done. CLI: `python -m janitor reorder LOG [--report]`.
+* logbench shows a notice when it opens an out-of-order log, saying it can be cleaned up here.
 
 **Content page** — where the bytes are, and what you can leave out. Exclusions made here are counted in the Trim page's savings.
 
@@ -69,6 +90,7 @@ python -m janitor trim     match.wpilog --modes auto --dry-run  # exact output s
 python -m janitor trim     match.wpilog --modes auto            # -> match_trimmed.wpilog, then verifies it
 python -m janitor segmap   match_trimmed.wpilog               # original-time map stored in the output
 python -m janitor dupes    match.wpilog                        # constants and duplicate entries (add --modes auto to look at just those periods)
+python -m janitor reorder  FRC_match.wpilog                    # -> FRC_match_ordered.wpilog, time-ordered and verified (--report: just the summary)
 python -m janitor serve    --logs logs                         # web UI
 ```
 
@@ -83,6 +105,7 @@ Times are **seconds from the log's first record**, the same clock `analyze` prin
 | `--gap-ms 200` | with `--compact`: real time kept on each seam (default 200 ms ≈ 10 cycles) |
 | `--pad-pre-ms` / `--pad-post-ms` | extra real cycles around each segment (e.g. keep the disable→enable edge) |
 | `--exclude NAME` / `--exclude-prefix P` | drop entries (the Content page builds this list for you) |
+| `--no-context` | don't keep battery voltage and match info outside the kept periods (kept by default) |
 | `--dry-run` | print the size the real run would produce, exactly |
 | `-o OUT` | default: `<log>_trimmed.wpilog` next to the source |
 

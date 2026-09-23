@@ -103,8 +103,8 @@
             "problemMatcher": []
         },
         {
-            "label": "JanitorBuild",
-            "detail": "Build the wpilog-janitor front end (first time on a machine: run `npm install` in tools/wpilog-janitor/web).",
+            "label": "WPILogJanitorBuild",
+            "detail": "Build the WPILog Janitor front end (first time on a machine: run `npm install` in tools/wpilog-janitor/web).",
             "type": "process",
             "command": "npm",
             "args": [
@@ -116,8 +116,8 @@
             "problemMatcher": []
         },
         {
-            "label": "Janitor",
-            "detail": "Build and serve wpilog-janitor (trim logs to the periods you care about) at http://127.0.0.1:8767 (logs/ picker).",
+            "label": "WPILogJanitor",
+            "detail": "Build and serve the WPILog Janitor (trim logs to the periods you care about) at http://127.0.0.1:8767 (logs/ picker).",
             "type": "process",
             "command": "python",
             "args": [
@@ -126,21 +126,21 @@
                 "--logs",
                 "logs"
             ],
-            "dependsOn": "JanitorBuild",
+            "dependsOn": "WPILogJanitorBuild",
             "dependsOrder": "sequence",
             "isBackground": true,
             "problemMatcher": []
         },
         {
-            "label": "JanitorAnalyze",
-            "detail": "wpilog-janitor: show a log's modes and where its bytes are. Prompts for the log path (relative to the repo root).",
+            "label": "WPILogJanitorAnalyze",
+            "detail": "WPILog Janitor: show a log's modes and where its bytes are. Prompts for the log path (relative to the repo root).",
             "type": "process",
             "command": "python",
             "args": [
                 "-m",
                 "janitor",
                 "analyze",
-                "${input:janitorLog}"
+                "${input:wpilogJanitorLog}"
             ],
             "options": {
                 "env": {
@@ -150,17 +150,17 @@
             "problemMatcher": []
         },
         {
-            "label": "JanitorTrim",
-            "detail": "wpilog-janitor: trim a log to chosen DS modes (default: auto) and write <log>_trimmed.wpilog next to it. Prompts for log + modes.",
+            "label": "WPILogJanitorTrim",
+            "detail": "WPILog Janitor: trim a log to chosen DS modes (default: auto) and write <log>_trimmed.wpilog next to it. Prompts for log + modes.",
             "type": "process",
             "command": "python",
             "args": [
                 "-m",
                 "janitor",
                 "trim",
-                "${input:janitorLog}",
+                "${input:wpilogJanitorLog}",
                 "--modes",
-                "${input:janitorModes}"
+                "${input:wpilogJanitorModes}"
             ],
             "options": {
                 "env": {
@@ -172,13 +172,13 @@
     ],
     "inputs": [
         {
-            "id": "janitorLog",
+            "id": "wpilogJanitorLog",
             "type": "promptString",
             "description": "Path to a .wpilog, relative to the repo root (give a folder to list the logs inside it)",
             "default": "logs\\"
         },
         {
-            "id": "janitorModes",
+            "id": "wpilogJanitorModes",
             "type": "promptString",
             "description": "DriverStation modes to keep, comma-separated: disabled, auto, teleop",
             "default": "auto"

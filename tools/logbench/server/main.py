@@ -20,7 +20,9 @@ import json
 import logging
 import pathlib
 import re
+import subprocess
 import sys
+import threading
 import time
 import zipfile
 from typing import List, Optional
@@ -31,6 +33,7 @@ import bundles
 import app_logging
 import compare_export
 import battery
+import battery_export as insight_export
 import live_nt
 import pairing
 import remote_config
@@ -64,6 +67,18 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # Set by main(); a module-level default keeps `uvicorn server.main:app` usable.
 LOG_ROOT: pathlib.Path = pathlib.Path.cwd()
+
+def _order_notice(stats: Optional[dict]) -> Optional[dict]:
+    """For a log with records out of time order (plain WPILib FRC_*.wpilog): how many. None when the log is
+    in order. logbench reads each signal separately, so nothing here is affected; the notice only tells the
+    user the WPILog Janitor can clean the log up (a time-ordered copy, which it needs before trimming)."""
+    if not stats or not stats.get('n_late'):
+        return None
+    return {
+        'n_late': stats['n_late'],
+        'late_pct': 100.0 * stats['n_late'] / max(1, stats.get('n_records', 0)),
+        'max_late_ms': 1000.0 * stats.get('max_late_s', 0.0),
+    }
 
 _spec_cache: dict = {}
 
@@ -138,6 +153,77 @@ def list_logs() -> dict:
     return {'root': str(root), 'logs': out, 'specs': specs.listing()}
 
 
+# ── Changing the log root at runtime ───────────────────────────────────────────────
+# The pages that list logs have a "Change folder" button. The server runs on the same
+# laptop as the browser, so the native folder dialog is opened *here* -- a browser can
+# only hand back the files inside a folder, never its path, and every other endpoint
+# needs a path. The dialog runs in a child Python so tkinter gets its own main thread
+# (FastAPI runs sync endpoints on a worker thread, which Tk dislikes).
+
+_PICK_FOLDER_SCRIPT = r'''
+import sys
+import tkinter
+from tkinter import filedialog
+root = tkinter.Tk()
+root.withdraw()
+root.attributes('-topmost', True)
+path = filedialog.askdirectory(parent=root, initialdir=sys.argv[1], mustexist=True,
+                               title='Choose a folder to search for .wpilog files')
+root.destroy()
+sys.stdout.write(path or '')
+'''
+
+_pick_lock = threading.Lock()
+_vision_static: Optional[StaticFiles] = None
+
+
+class LogRootRequest(BaseModel):
+    path: str
+
+
+def _set_log_root(path: pathlib.Path) -> pathlib.Path:
+    global LOG_ROOT
+    new_root = path.expanduser().resolve()
+    if not new_root.is_dir():
+        raise HTTPException(status_code=400, detail='not a directory: %s' % new_root)
+    LOG_ROOT = new_root
+    _spec_cache.clear()
+    _log_cache.clear()
+    if _vision_static is not None:
+        _vision_static.directory = str(new_root)
+        _vision_static.all_directories = _vision_static.get_directories(str(new_root), None)
+    log.info('log root changed to %s', new_root)
+    return new_root
+
+
+@app.post('/api/log-root')
+def set_log_root(body: LogRootRequest) -> dict:
+    return {'root': str(_set_log_root(pathlib.Path(body.path))), 'cancelled': False}
+
+
+@app.post('/api/log-root/pick')
+def pick_log_root() -> dict:
+    """Opens the OS folder picker on this machine and, unless it was cancelled, makes
+    the chosen folder the new log root. Blocks until the dialog closes."""
+    if not _pick_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail='a folder dialog is already open')
+    try:
+        try:
+            done = subprocess.run([sys.executable, '-c', _PICK_FOLDER_SCRIPT, str(LOG_ROOT)],
+                                  capture_output=True, text=True)
+        except OSError as exc:
+            raise HTTPException(status_code=501, detail='could not open a folder dialog: %s' % exc)
+        if done.returncode != 0:
+            raise HTTPException(status_code=501, detail='could not open a folder dialog '
+                                '(is tkinter installed?): %s' % done.stderr.strip()[-500:])
+        chosen = done.stdout.strip()
+        if not chosen:
+            return {'root': str(LOG_ROOT), 'cancelled': True}
+        return {'root': str(_set_log_root(pathlib.Path(chosen))), 'cancelled': False}
+    finally:
+        _pick_lock.release()
+
+
 @app.get('/api/log-info')
 def log_info(log: str = Query(..., description='log path relative to the log root')) -> dict:
     """Bounds, cameras, and DS-mode spans for one log -- what the compare page's window
@@ -154,6 +240,7 @@ def log_info(log: str = Query(..., description='log path relative to the log roo
         'mode_spans': [
             {'lo': lo, 'hi': hi, 'mode': mode} for lo, hi, mode in parsed.mode_spans()
         ],
+        'order': _order_notice(parsed.order_stats),
     }
 
 
@@ -183,8 +270,10 @@ def metric_catalog() -> dict:
 def battery_analysis(log: str = Query(...), window: Optional[str] = Query(None),
                      low_voltage: float = Query(8.0)) -> dict:
     try:
-        result = battery.analyze(_load_log(_resolve(log)), _parse_manual_window(window), low_voltage)
+        loaded = _load_log(_resolve(log))
+        result = battery.analyze(loaded, _parse_manual_window(window), low_voltage)
         result['source_log'] = log
+        result['order'] = _order_notice(loaded.order_stats)
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -197,8 +286,10 @@ def battery_export(log: str = Query(...), window: Optional[str] = Query(None),
                    low_voltage_b: float = Query(8.0)):
     report = battery_analysis(log, window, low_voltage)
     if log_b:
-        report = battery.comparison(report, battery_analysis(log_b, window_b, low_voltage_b))
-    body = json.dumps(report, allow_nan=False) if format == 'json' else battery.render_html(report)
+        report = insight_export.comparison(report, battery_analysis(log_b, window_b, low_voltage_b))
+        body = insight_export.dumps(report) if format == 'json' else insight_export.render_html(report)
+    else:                     # the insights and their evidence -- never the page's timeline
+        body = insight_export.dumps(insight_export.export_json(report)) if format == 'json' else insight_export.render_html(report)
     return Response(body, media_type='application/json' if format == 'json' else 'text/html',
                     headers={'Content-Disposition': f'attachment; filename="battery-insights.{format}"'})
 
@@ -334,7 +425,8 @@ def get_spec(
             builder = specs.get(spec)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
-        signals = parse_wpilog(str(path))
+        order_stats: dict = {}
+        signals = parse_wpilog(str(path), order_stats)
         build_kwargs = {'title': path.name}
         # Not every builder knows about vision bundles (only camera_health does) --
         # only pass log_path/log_root through to ones that declare them, so this stays
@@ -349,6 +441,7 @@ def get_spec(
         # "look at one log closely", not "flip between twenty".
         _spec_cache.clear()
         _spec_cache[key] = spec_to_dict(player_spec, data)
+        _spec_cache[key]['order'] = _order_notice(order_stats)
     return JSONResponse(_spec_cache[key])
 
 
@@ -635,7 +728,10 @@ def _register_static_mounts() -> None:
     mounted routes in registration order by prefix, and a StaticFiles mount at '/'
     matches every path underneath it -- registering it first would swallow every
     /vision-video/* request before this one ever got a chance to match."""
-    app.mount('/vision-video', StaticFiles(directory=str(LOG_ROOT)), name='vision-video')
+    global _vision_static
+    # Kept so _set_log_root can repoint it when the log root changes at runtime.
+    _vision_static = StaticFiles(directory=str(LOG_ROOT))
+    app.mount('/vision-video', _vision_static, name='vision-video')
 
     if _DIST.exists():
         app.mount('/', StaticFiles(directory=str(_DIST), html=True), name='web')

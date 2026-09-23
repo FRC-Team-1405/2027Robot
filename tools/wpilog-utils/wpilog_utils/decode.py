@@ -9,7 +9,7 @@ import pathlib
 import struct
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .records import iter_records, wpilog_header_end
 
@@ -19,9 +19,13 @@ POSE2D_SIZE = 24   # double x, double y, double rotation_radians
 POSE3D_SIZE = 56   # double x,y,z, double qw,qx,qy,qz
 
 
-def parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
+def parse_wpilog_bytes(raw: bytes, stats: Optional[dict] = None) -> Dict[str, List[Tuple[float, Any]]]:
     """
     Parse raw WPILog bytes.
+
+    If `stats` is given it is filled with 'n_records', 'n_late' (data records behind the newest record
+    before them -- a plain WPILib log's NT mirroring does this; reorder.py fixes it) and 'max_late_s'.
+    Each signal's samples are returned in file order either way.
 
     Returns a dict mapping signal name -> list of (timestamp_seconds, value) tuples.
     Values are decoded based on the type string registered in the log:
@@ -44,10 +48,18 @@ def parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
     unregistered_ids: Dict[int, int] = defaultdict(int)
 
     t0 = time.monotonic()
+    n_records = n_late = 0
+    newest = max_late = 0.0
     for entry_id, ts_sec, payload, _start, _end in iter_records(raw, pos):
         if entry_id == 0:
             handle_control(payload, entries)
         else:
+            n_records += 1
+            if ts_sec < newest:
+                n_late += 1
+                max_late = max(max_late, newest - ts_sec)
+            else:
+                newest = ts_sec
             entry = entries.get(entry_id)
             if entry is None:
                 # No control record ever registered this entry id — normally
@@ -76,17 +88,19 @@ def parse_wpilog_bytes(raw: bytes) -> Dict[str, List[Tuple[float, Any]]]:
             sum(unregistered_ids.values()), len(unregistered_ids),
             sorted(unregistered_ids)[:5],
         )
+    if stats is not None:
+        stats.update(n_records=n_records, n_late=n_late, max_late_s=max_late)
     return dict(signals)
 
 
-def parse_wpilog(path: str) -> Dict[str, List[Tuple[float, Any]]]:
-    """Parse a WPILib DataLog (.wpilog) file by path."""
+def parse_wpilog(path: str, stats: Optional[dict] = None) -> Dict[str, List[Tuple[float, Any]]]:
+    """Parse a WPILib DataLog (.wpilog) file by path. See parse_wpilog_bytes for `stats`."""
     p = pathlib.Path(path)
     size_kb = p.stat().st_size / 1024 if p.exists() else 0
     log.info('Reading %s (%.1f KB)', p.name, size_kb)
     raw = p.read_bytes()
     try:
-        signals = parse_wpilog_bytes(raw)
+        signals = parse_wpilog_bytes(raw, stats)
         log.info('Parsed %s — %d signals total', p.name, len(signals))
         return signals
     except ValueError as exc:

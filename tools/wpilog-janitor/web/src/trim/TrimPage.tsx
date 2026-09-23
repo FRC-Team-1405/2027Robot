@@ -9,12 +9,19 @@ import { SavingsPanel } from './SavingsPanel';
 import { SegmentTable } from './SegmentTable';
 import { Timeline } from './Timeline';
 
-export function TrimPage({ log, onChangeLog }: { log: string; onChangeLog: () => void }) {
+export function TrimPage({ log, onChangeLog, onOutOfOrder }: { log: string; onChangeLog: () => void; onOutOfOrder: (jump: boolean) => void }) {
   const { info, error, loading } = useLogInfo(log);
+  const outOfOrder = !!info && info.log === log && !info.time_ordered;
+
+  // An out-of-order log cannot be trimmed: the first time one is opened, take the user to the Order page.
+  useEffect(() => {
+    if (outOfOrder) onOutOfOrder(true);
+  }, [outOfOrder, onOutOfOrder]);
   const [segs, setSegs] = useState<Seg[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [gapMs, setGapMs] = useState(200);
   const [policy, setPolicy] = useState<'compact' | 'preserve'>('preserve');
+  const [keepContext, setKeepContext] = useState(true);
   const [restoredFor, setRestoredFor] = useState<string | null>(null);
 
   // exclusions are chosen on the Content page; here they only feed the savings numbers
@@ -33,17 +40,20 @@ export function TrimPage({ log, onChangeLog }: { log: string; onChangeLog: () =>
       setSegs(fitToDuration(saved.segs ?? [], info.duration_s));
       setGapMs(saved.gapMs ?? 200);
       setPolicy(saved.timing === 'compact' ? 'compact' : 'preserve');
+      setKeepContext(saved.context !== false);
     } else {
       setGapMs(200);
       setPolicy('preserve');
+      setKeepContext(true);
     }
     setRestoredFor(log);
   }, [info, log, restoredFor]);
   useEffect(() => {
-    if (restoredFor === log) saveJson(planKey(log), { segs, gapMs, timing: policy } satisfies SavedPlan);
-  }, [segs, gapMs, policy, log, restoredFor]);
+    if (restoredFor === log) saveJson(planKey(log), { segs, gapMs, timing: policy, context: keepContext } satisfies SavedPlan);
+  }, [segs, gapMs, policy, keepContext, log, restoredFor]);
 
-  const previewState = usePreview(log, restoredFor === log ? info : null, segs, gapMs, policy, excl);
+  const previewState = usePreview(log, restoredFor === log ? info : null, segs, gapMs, policy, excl, keepContext);
+  const keptEverywhere = previewState.preview?.kept_everywhere ?? [];
 
   if (loading) {
     return (
@@ -106,11 +116,24 @@ export function TrimPage({ log, onChangeLog }: { log: string; onChangeLog: () =>
             </dd>
           </div>
         </dl>
-        {info.warnings.map((w) => (
-          <p key={w} className="warn small" role="status">
-            {w}
-          </p>
-        ))}
+        {outOfOrder && (
+          <div className="warn order-banner" role="status">
+            <span>
+              {info.order.n_late.toLocaleString()} records ({info.order.late_pct.toFixed(1)}%) are out of time order, so this log can't be
+              trimmed as it is.
+            </span>
+            <button type="button" className="btn small primary" onClick={() => onOutOfOrder(false)}>
+              Fix on the Order page
+            </button>
+          </div>
+        )}
+        {info.warnings
+          .filter((w) => !(outOfOrder && w.includes('Order page')))
+          .map((w) => (
+            <p key={w} className="warn small" role="status">
+              {w}
+            </p>
+          ))}
       </section>
 
       <section className="card">
@@ -157,6 +180,19 @@ export function TrimPage({ log, onChangeLog }: { log: string; onChangeLog: () =>
           <section className="card">
             <h2>Timing</h2>
             <GapControls gapMs={gapMs} policy={policy} cyclePeriodMs={info.cycle_period_ms} onGap={setGapMs} onPolicy={setPolicy} />
+            <label className="check context-check">
+              <input type="checkbox" checked={keepContext} onChange={(e) => setKeepContext(e.target.checked)} />
+              <span>
+                <strong>Keep battery voltage and match info for the whole log</strong>
+                <small>
+                  Keeps the battery at rest before the match and its recovery after it, plus the mode and match info they are
+                  measured against, even outside the kept periods. Usually well under 1 MB.
+                  {keepContext && policy === 'compact' && ' Needs original timestamps: with the gaps closed there is nowhere to put it.'}
+                  {keepContext && policy === 'preserve' && keptEverywhere.length > 0 && ` ${keptEverywhere.length} entries in this log.`}
+                  {keepContext && policy === 'preserve' && previewState.preview && keptEverywhere.length === 0 && ' None of those entries are in this log.'}
+                </small>
+              </span>
+            </label>
           </section>
           <ExportPanel log={log} request={previewState.request} />
         </div>

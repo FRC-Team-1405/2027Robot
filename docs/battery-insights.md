@@ -1,8 +1,24 @@
 # Battery Insights
 
 Open **Battery Insights** in Log Bench (`?view=battery`). Choose a log, then an enabled
-session, autonomous/teleop interval, or a custom time range. The default warning is
-8 V; it is an analysis warning, not a motor-control setting or a claimed brownout threshold.
+session, autonomous/teleop interval, the whole match, or a custom time range. The default
+warning is 8 V and is configurable: it is the margin we want to keep above a brownout, not a
+motor-control setting.
+
+The page opens with **findings**: a few sentences on how the battery held up and what was
+drawing when it dipped, then the match context (event, match, alliance), brownout and dip
+counts, and time spent below 10/9/8/7 V. **Battery at rest and recovery** gives the voltage at rest
+(disabled) before the match, under the last load, and 10/30/60/120 s after the match; the
+drop is measured at the latest of those (the battery keeps recovering for a minute or two,
+so a drop measured 10 s after overstates it — about 0.41 V vs 0.25 V at 2 min on an Albany
+match). A fitted recovery curve V(t) = V_rest − A·e^(−t/τ) gives a time constant and a
+projected resting voltage. That is exploratory: internal resistance is the established
+battery-health measure, recovery rate may also track charge and health, so it is recorded
+to compare across batteries and matches. Logs trimmed by the WPILog Janitor keep the battery
+voltage and match info for the whole log by default, so trimming does not lose these. **Dips below the warning level** lists each episode
+(dips less than 1 s apart are one) with its game period and the current signals peaking
+during it. **Current by signal** lists every current signal in the log, found by name, so
+legacy logs (including plain WPILib `FRC_*.wpilog` competition logs) get the same analysis.
 
 The page shows PDH power, motor supply current, subsystem totals, sampled limiting
 events, motor requests and response, and recorded state/allocation changes on a shared
@@ -24,16 +40,23 @@ downloads retain each selected window and its coverage.
   and stator fault signals are sampled evidence of limiting. Sticky flags mean it
   occurred previously; they do not establish a duration or exact time. Brief events
   can occur between samples. Missing flags mean unknown, not zero limiting.
-- A roboRIO brownout is established by the recorded `SystemStats/BrownedOut` flag.
-  Low voltage alone is shown separately. The actual recorded brownout threshold is
-  plotted when available; it is not guessed from the robot generation.
+- A **brownout** is the battery voltage below the brownout threshold, or the roboRIO's
+  `SystemStats/BrownedOut` flag where the log has it: at that voltage the roboRIO browns out.
+  The recorded threshold is used when the log has one (`SystemStats/BrownoutVoltage` or
+  SmartDashboard `Battery/BrownoutVoltage`); otherwise the roboRIO 2 default, 6.75 V, and
+  the page says so. Counts are episodes: dips less than 1 s apart count once.
+- **What drove a dip** is each current signal's peak from 0.5 s before the dip to its
+  end. Stator and torque current are reported by size (they include braking); supply
+  current keeps its sign. Signals of different kinds are never added together. A reading
+  logged more than 0.5 s before the lowest point is marked old: SmartDashboard telemetry in
+  legacy logs is often logged only a few times a second.
 - Ah and Wh are timestamp-integrated over valid recorded intervals. Wh uses PDH
   bus voltage, including for subsystem battery-energy attribution. Neither is a
   state-of-charge estimate. Coverage below 100% means consumption may be understated.
   Motor totals represent only instrumented motors; the PDH-minus-motor difference
   includes missing motors, other loads, sensor error, and timing differences.
 - Values persist through change-only AdvantageKit records. Explicit invalidity,
-  loop-heartbeat gaps over 250 ms, and Janitor trim seams prevent false integration.
+  loop-heartbeat gaps over 250 ms, and WPILog Janitor trim seams prevent false integration.
   Legacy acquisition health is unknown. PDH zero voltage while the roboRIO remains
   powered is excluded as inconsistent evidence. PDH packet age is not exposed by
   the captured API, so a plausible PDH sample does not prove freshness.
@@ -172,6 +195,11 @@ establish electrical performance or prove that brownouts are solved.
 API: `GET /api/battery?log=...&window=lo,hi&low_voltage=8` uses seconds relative to
 the log start. Omitting `window` selects the whole log. Exports add `format=html|json`
 at `/api/battery/export`; comparison exports also supply `log_b`, `window_b` and
-`low_voltage_b`. JSON schemas are `logbench.battery/v1` and
-`logbench.battery-comparison/v1`. All numerical unknowns are JSON null. Source keys
-and exact, gap-preserving timeline samples accompany the summaries.
+`low_voltage_b`. The page's `/api/battery` response (`logbench.battery/v1`) carries the
+timeline it draws; the **exports carry the insights, not the data**: JSON
+(`logbench.battery-insights/v2`, or `logbench.battery-insights-comparison/v2`) for LLMs, with
+the findings, context, summary, a 1 s minimum-voltage profile, each dip episode with its
+contributors and about a second of evidence either side, the current-by-signal table and a
+`how_to_read` guide; HTML for people, with the findings, a voltage chart and close-ups of
+the worst dips. A match export is tens of KB. All numerical unknowns are JSON null.
+Built in `tools/logbench/server/battery_insights.py` and `battery_export.py`.

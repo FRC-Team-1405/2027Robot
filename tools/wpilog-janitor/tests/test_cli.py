@@ -30,7 +30,7 @@ def test_analyze_lists_modes_and_sizes(log, capsys):
 
 
 def test_trim_writes_a_verified_file_next_to_the_source_by_default(log, capsys):
-    assert main(['trim', str(log), '--modes', 'auto']) == 0
+    assert main(['trim', str(log), '--modes', 'auto', '--no-context']) == 0
     dest = log.with_name('akit_test_trimmed.wpilog')
     assert dest.exists() and dest.stat().st_size < log.stat().st_size
     assert 'verify: OK' in capsys.readouterr().out
@@ -64,8 +64,17 @@ def test_dry_run_writes_nothing_and_reports_the_size_the_real_run_produces(log, 
 
 def test_only_selects_among_matching_spans(log, tmp_path):
     out = tmp_path / 'o.wpilog'
-    assert main(['trim', str(log), '--modes', 'auto', '--only', '1', '-o', str(out)]) == 0
+    assert main(['trim', str(log), '--modes', 'auto', '--only', '1', '-o', str(out), '--no-context']) == 0
     assert [m for *_, m in build_index(out.read_bytes()).mode_spans()] == ['auto']
+
+
+def test_match_context_is_kept_for_the_whole_log_by_default(log, tmp_path, capsys):
+    out = tmp_path / 'o.wpilog'
+    assert main(['trim', str(log), '--modes', 'auto', '-o', str(out)]) == 0
+    assert 'verify: OK' in capsys.readouterr().out
+    # DriverStation/* is kept outside the autos too, so the trimmed log still knows the whole match's modes
+    got, want = build_index(out.read_bytes()).mode_spans(), build_index(log.read_bytes()).mode_spans()
+    assert got[:-1] == want[:-1] and got[-1][:1] + got[-1][2:] == want[-1][:1] + want[-1][2:]   # the log ends sooner
 
 
 def test_range_and_gap_options(log, tmp_path):

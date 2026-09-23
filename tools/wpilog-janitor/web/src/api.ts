@@ -27,7 +27,11 @@ export interface LogInfo {
   cycle_period_ms: number;
   header: string;
   time_ordered: boolean;
+  /** Entry the mode bands come from: DriverStation/Enabled (AdvantageKit), DS:enabled or NT:/FMSInfo/FMSControlData (plain WPILib). */
+  mode_source: string | null;
   has_cycle_marker: boolean;
+  /** Records written behind a newer record (plain WPILib logs' NT mirroring). Nonzero: the log needs the Order page before trimming. */
+  order: { n_late: number; max_late_ms: number; late_pct: number };
   data_bytes: number;
   control_bytes: number;
   spans: SpanInfo[];
@@ -51,6 +55,8 @@ export interface PlanReq {
   gap_policy: 'compact' | 'preserve';
   exclude: string[];
   exclude_prefixes: string[];
+  /** Keep battery voltage and match info for the whole log, not just the kept periods (original timestamps only). */
+  keep_context: boolean;
 }
 
 export interface SegmentPreview {
@@ -84,6 +90,8 @@ export interface Preview {
   cycle_period_ms: number;
   warnings: string[];
   n_excluded_entries: number;
+  /** Entries kept for the whole log (the match context), empty when off or when closing the gaps. */
+  kept_everywhere: string[];
   // exact only
   n_carried?: number;
   n_excluded_records?: number;
@@ -101,6 +109,43 @@ export interface ExportResult {
   verify: { ok: boolean; issues: string[]; n_issues: number } | null;
   verify_skipped: boolean;
   warnings: string[];
+}
+
+export interface OrderEntry {
+  name: string;
+  records: number;
+  late: number;
+  max_late_ms: number;
+  backwards: number;
+}
+
+export interface OrderReport {
+  log: string;
+  name: string;
+  size: number;
+  default_name: string;
+  ordered: boolean;
+  n_records: number;
+  n_late: number;
+  late_pct: number;
+  max_late_ms: number;
+  lateness: { bucket: string; records: number }[];
+  /** Records out of order within their own entry. 0 means reordering keeps every signal's sequence exactly. */
+  n_backwards: number;
+  n_entries_late: number;
+  entries: OrderEntry[];
+}
+
+export interface ReorderResult {
+  path: string;
+  abs_path: string;
+  name: string;
+  bytes: number;
+  source_bytes: number;
+  n_moved: number;
+  n_records: number;
+  verify: { ok: boolean; issues: string[]; n_issues: number } | null;
+  verify_skipped: boolean;
 }
 
 export class ApiError extends Error {
@@ -143,11 +188,21 @@ const post = (body: unknown, signal?: AbortSignal): RequestInit => ({
 
 export const api = {
   logs: () => request<{ root: string; logs: LogEntry[] }>('/api/logs'),
+  /** Opens the OS folder dialog on the server's machine; blocks until it closes. */
+  pickLogRoot: () => request<{ root: string; cancelled: boolean }>('/api/log-root/pick', { method: 'POST' }),
   index: (log: string, signal?: AbortSignal) => request<LogInfo>(`/api/index?log=${encodeURIComponent(log)}`, { signal }),
   preview: (plan: PlanReq, signal?: AbortSignal) => request<Preview>('/api/preview', post(plan, signal)),
   previewExact: (plan: PlanReq, signal?: AbortSignal) => request<Preview>('/api/preview/exact', post(plan, signal)),
   exportSave: (plan: PlanReq, filename: string | undefined, verify: boolean) =>
     request<ExportResult>('/api/export', post({ ...plan, mode: 'save', filename, verify })),
+  order: (log: string, signal?: AbortSignal) => request<OrderReport>(`/api/order?log=${encodeURIComponent(log)}`, { signal }),
+  reorderSave: (log: string, filename: string | undefined) => request<ReorderResult>('/api/reorder', post({ log, mode: 'save', filename, verify: true })),
+  reorderDownload: async (log: string, filename: string | undefined) => {
+    const res = await fetch('/api/reorder', post({ log, mode: 'download', filename }));
+    if (!res.ok) throw new ApiError((await res.json().catch(() => ({ detail: res.statusText }))).detail, res.status);
+    const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'ordered.wpilog';
+    return { blob: await res.blob(), name };
+  },
   /** Returns the file as a Blob plus the name the server suggested. */
   exportDownload: async (plan: PlanReq, filename: string | undefined) => {
     const res = await fetch('/api/export', post({ ...plan, mode: 'download', filename }));

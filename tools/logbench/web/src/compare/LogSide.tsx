@@ -1,6 +1,7 @@
 // One side (A or B) of the comparison: pick a log, see its DS-mode timeline, and
 // optionally override the shared --mode selection with a manual [lo, hi] slice for this
 // log specifically. Two of these render side by side in ComparePage.
+import { OrderNotice } from '../loader/OrderNotice';
 import { useLogInfo } from './useLogInfo';
 import type { LogEntry, ManualWindow, Mode } from './types';
 
@@ -53,6 +54,7 @@ export function LogSide({
           <div className="compare-side__meta">
             {info.duration.toFixed(1)}s · {info.cameras.join(', ') || 'no cameras found'}
           </div>
+          <OrderNotice order={info.order} />
           {info.mode_spans.length > 0 && (
             <div className="compare-timeline" title="Disabled / autonomous / teleop over this log">
               {info.mode_spans.map((s, i) => (
