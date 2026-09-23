@@ -95,7 +95,7 @@ def _decimate_scalar(samples: list, target: int) -> list:
     return out
 
 
-def encode_series(samples: list, kind: str, t0: float) -> Optional[dict]:
+def encode_series(samples: list, kind: str, t0: float, *, allow_decimation=True) -> Optional[dict]:
     """samples: list[(timestamp_seconds, value)] in ascending time order.
 
     Returns None for an empty track so the caller can drop it from the payload
@@ -110,7 +110,7 @@ def encode_series(samples: list, kind: str, t0: float) -> Optional[dict]:
         return None
 
     decimated = False
-    if kind == 'scalar' and len(samples) > DECIMATE_THRESHOLD:
+    if allow_decimation and kind == 'scalar' and len(samples) > DECIMATE_THRESHOLD:
         samples = _decimate_scalar(samples, DECIMATE_TARGET)
         decimated = True
 
@@ -157,7 +157,7 @@ def encode_series(samples: list, kind: str, t0: float) -> Optional[dict]:
     return out
 
 
-def spec_to_dict(spec, data: dict) -> dict:
+def spec_to_dict(spec, data: dict, *, allow_decimation=True) -> dict:
     """spec: PlayerSpec. data: track_id -> raw list[(t, value)].
 
     Tracks whose data encodes to nothing are dropped from BOTH the track list and
@@ -165,7 +165,7 @@ def spec_to_dict(spec, data: dict) -> dict:
     track."""
     encoded: dict = {}
     for track in spec.tracks:
-        series = encode_series(data.get(track.id, []), track.kind, spec.t0)
+        series = encode_series(data.get(track.id, []), track.kind, spec.t0, allow_decimation=allow_decimation)
         if series is not None:
             encoded[track.id] = series
 

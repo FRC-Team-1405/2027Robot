@@ -30,6 +30,12 @@ Measured on a 5.5-minute log with 26 tracks and 199k samples:
 
 ## Running it
 
+**Battery Insights** (`?view=battery`) analyzes match power, voltage dips, physical
+motor/subsystem draw, and reported current limiting. It supports legacy logs,
+recorded robot states and future allocation telemetry, window comparisons, and
+HTML/JSON reports. See [the operating and telemetry guide](../../docs/battery-insights.md)
+for interpretation, battery practices, and hardware commissioning checks.
+
 Three ways, one codebase.
 
 **Standalone file** — no server, no Node, no network. Hand it to a teammate on a USB stick.

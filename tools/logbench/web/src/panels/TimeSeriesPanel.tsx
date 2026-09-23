@@ -45,7 +45,7 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
   const { canvasRef, size } = useCanvas(height);
   const offscreen = useOffscreen();
   const staticKey = useRef('');
-  const [view, setView] = useState<[number, number]>([0, spec.duration]);
+  const [view, setView] = useState<[number, number]>((panel.options.view as [number, number] | undefined) ?? [0, spec.duration]);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [tagSamplesOnly, setTagSamplesOnly] = useState(false);
   const [movingAverage, setMovingAverage] = useState(true);
@@ -93,7 +93,7 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
           else held = values[i];
         }
       }
-      if (!movingAverage) {
+      if (!movingAverage || panel.options.step) {
         byTrack[tr.id] = values;
         continue;
       }
@@ -124,7 +124,7 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
       byTrack[tr.id] = averaged;
     }
     return byTrack;
-  }, [tracks, tagSamplesOnly, movingAverage, reasonSeries]);
+  }, [tracks, tagSamplesOnly, movingAverage, reasonSeries, panel.options.step]);
 
   useRepaintOn([size, hidden, view, tagSamplesOnly, movingAverage]);
 
@@ -181,6 +181,21 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
         b.strokeStyle = tr.color;
         b.lineWidth = tr.weight;
         b.lineJoin = 'round';
+        if (panel.options.step) {
+          // Power data is held until the next acquisition/change, never interpolated.
+          for (let i = 0; i < t.length; i++) {
+            const left = Math.max(view[0], t[i]);
+            const right = Math.min(view[1], i + 1 < t.length ? t[i + 1] : spec.duration);
+            if (!Number.isFinite(v[i]) || right <= left) continue;
+            b.moveTo(tx(left), vy(v[i]));
+            b.lineTo(tx(right), vy(v[i]));
+            if (i + 1 < t.length && t[i + 1] <= view[1] && Number.isFinite(v[i + 1])) {
+              b.lineTo(tx(right), vy(v[i + 1]));
+            }
+          }
+          b.stroke();
+          continue;
+        }
         let pen = false;
         for (let i = 0; i < t.length; i++) {
           const value = v[i];
@@ -278,7 +293,7 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
   return (
     <div className={`panel panel--timeseries${expanded ? ' panel--timeseries-expanded' : ''}`}>
       <div className="panel__title">{panel.title}</div>
-      {expanded && <div className="chart-controls" aria-label={`${panel.title} display mode`}>
+      {expanded && !panel.options.step && <div className="chart-controls" aria-label={`${panel.title} display mode`}>
         <button
           className={tagSamplesOnly ? 'chart-controls__mode chart-controls__mode--active' : 'chart-controls__mode'}
           onClick={() => setTagSamplesOnly((value) => !value)}
@@ -312,7 +327,7 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
           <div className="chart-tooltip">
             <strong>{hoverTime.toFixed(1)}s</strong>
             {unavailable(hoverReason) && <span className="chart-tooltip__status">Status: {hoverReason}</span>}
-            {sampleAt.map((sample) => <span key={sample.id}><i style={{ background: sample.color }} />{sample.label}: {sample.value.toFixed(2)}%</span>)}
+            {sampleAt.map((sample) => <span key={sample.id}><i style={{ background: sample.color }} />{sample.label}: {sample.value.toFixed(2)}{spec.trackById[sample.id].unit ?? (panel.options.step ? '' : '%')}</span>)}
           </div>
         )}
       </div>

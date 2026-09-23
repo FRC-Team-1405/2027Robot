@@ -16,6 +16,7 @@ public class PickupIOTalonFX implements PickupIO {
     private final NeutralOut neutralRequest = new NeutralOut();
 
     public PickupIOTalonFX() {
+        frc.robot.power.PowerTelemetry.register(motor, "Pickup", "Pickup");
         TalonFXConfiguration config = new TalonFXConfiguration();
         config.Slot0.kP = IntakePreferences.PICKUP_KP;
         config.Slot0.kI = IntakePreferences.PICKUP_KI;
@@ -37,6 +38,7 @@ public class PickupIOTalonFX implements PickupIO {
             status = motor.getConfigurator().apply(config);
             if (status.isOK()) break;
         }
+        frc.robot.power.PowerTelemetry.recordConfigurationApplication(motor, status);
         if (!status.isOK()) {
             System.out.println("Could not configure pickup motor. Error: " + status);
         }
@@ -53,11 +55,11 @@ public class PickupIOTalonFX implements PickupIO {
 
     @Override
     public void setVelocity(double velocityRPS) {
-        motor.setControl(velocityVoltage.withVelocity(velocityRPS));
+        motor.setControl(frc.robot.power.PowerTelemetry.request(motor, velocityVoltage.withVelocity(velocityRPS)));
     }
 
     @Override
     public void stop() {
-        motor.setControl(neutralRequest);
+        motor.setControl(frc.robot.power.PowerTelemetry.request(motor, neutralRequest));
     }
 }

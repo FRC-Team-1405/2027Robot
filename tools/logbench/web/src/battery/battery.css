@@ -1,0 +1,18 @@
+.battery-page{max-width:1500px;margin:auto;padding:28px;color:var(--text,#e2e8f0)}
+.battery-page h1{font-size:32px;margin:6px 0}.battery-eyebrow{color:#60a5fa;letter-spacing:.14em;font-size:12px}
+.battery-page p{line-height:1.6;color:#aebdd0}.battery-slot{margin-top:28px;border-top:1px solid #334155;padding-top:16px}
+.battery-note{background:#182b3e;border-left:3px solid #60a5fa;padding:12px 16px;margin:14px 0}
+.battery-selectors{display:flex;flex-wrap:wrap;gap:14px;align-items:end;margin:18px 0}
+.battery-selectors label{display:grid;gap:6px}.battery-selectors select{max-width:650px}.battery-selectors input{width:110px}
+.battery-page select,.battery-page input,.battery-page button{background:#172334;color:#e2e8f0;border:1px solid #415570;border-radius:5px;padding:7px}
+.battery-page button{cursor:pointer}.battery-page button:hover{background:#28415f}.battery-page a{color:#93c5fd}
+.battery-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+.battery-card{background:#111d2c;border:1px solid #2c3e55;border-radius:8px;padding:16px;margin:12px 0;overflow:auto}
+.battery-metrics .battery-card{display:grid;gap:12px}.battery-metrics strong{font-size:25px;font-variant-numeric:tabular-nums}
+.battery-page table{width:100%;border-collapse:collapse;font-size:13px}.battery-page td,.battery-page th{text-align:left;padding:10px;border-bottom:1px solid #293c51}
+.battery-page summary{cursor:pointer;padding:12px 0}.battery-page pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}
+.battery-readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.battery-readouts dt{font-size:12px;color:#9bb0ca;overflow-wrap:anywhere}.battery-readouts dd{margin:4px 0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.battery-slot>.panel{margin:16px 0;min-height:240px}
+.battery-state-timeline{position:relative;height:38px;margin:12px 0;background:#0b1320;border-radius:4px;overflow:hidden}.battery-state-timeline button{position:absolute;height:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#234568}
+@media(max-width:850px){.battery-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.battery-page{padding:16px}.battery-selectors select{max-width:85vw}}
+@media(max-width:420px){.battery-metrics{grid-template-columns:1fr}}

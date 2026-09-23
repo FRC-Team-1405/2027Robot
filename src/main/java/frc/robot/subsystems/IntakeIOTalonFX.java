@@ -21,6 +21,8 @@ public class IntakeIOTalonFX implements IntakeIO {
     private final NeutralOut neutralRequest = new NeutralOut();
 
     public IntakeIOTalonFX() {
+        frc.robot.power.PowerTelemetry.register(deployMotor, "Intake Deploy", "Intake");
+        frc.robot.power.PowerTelemetry.register(pickupMotor, "Intake Pickup", "Pickup");
         setupDeployMotor();
         setupPickupMotor();
     }
@@ -83,6 +85,7 @@ public class IntakeIOTalonFX implements IntakeIO {
             status = motor.getConfigurator().apply(cfg);
             if (status.isOK()) break;
         }
+        frc.robot.power.PowerTelemetry.recordConfigurationApplication(motor, status);
         if (!status.isOK()) {
             System.out.println("Could not configure " + name + ". Error: " + status);
         }
@@ -107,22 +110,22 @@ public class IntakeIOTalonFX implements IntakeIO {
 
     @Override
     public void setDeployPosition(double positionRots) {
-        deployMotor.setControl(deployPositionRequest.withPosition(positionRots));
+        deployMotor.setControl(frc.robot.power.PowerTelemetry.request(deployMotor, deployPositionRequest.withPosition(positionRots)));
     }
 
     @Override
     public void setPickupVelocity(double velocityRPS) {
-        pickupMotor.setControl(pickupVelocityRequest.withVelocity(velocityRPS));
+        pickupMotor.setControl(frc.robot.power.PowerTelemetry.request(pickupMotor, pickupVelocityRequest.withVelocity(velocityRPS)));
     }
 
     @Override
     public void stopDeploy() {
-        deployMotor.setControl(neutralRequest);
+        deployMotor.setControl(frc.robot.power.PowerTelemetry.request(deployMotor, neutralRequest));
     }
 
     @Override
     public void stopPickup() {
-        pickupMotor.setControl(neutralRequest);
+        pickupMotor.setControl(frc.robot.power.PowerTelemetry.request(pickupMotor, neutralRequest));
     }
 
     @Override

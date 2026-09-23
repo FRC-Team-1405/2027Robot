@@ -71,6 +71,23 @@ public class Robot extends LoggedRobot {
 
         m_robotContainer = new RobotContainer();
 
+        var modules = m_robotContainer.drivetrain.getModules();
+        for (int i = 0; i < modules.length; i++) {
+            frc.robot.power.PowerTelemetry.register(modules[i].getDriveMotor(), "Drive " + i, "Drivetrain");
+            frc.robot.power.PowerTelemetry.register(modules[i].getSteerMotor(), "Steer " + i, "Drivetrain");
+        }
+        // Declarations let replay consume new power inputs without creating mechanism hardware.
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.INTAKE_MOTOR, "Intake Deploy", "Intake");
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.PICKUP_MOTOR, "Pickup", "Pickup");
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.HOPPER_MOTOR, "Hopper", "Hopper");
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.INDEXER_MOTOR, "Indexer", "Indexer");
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.CLIMBER_MOTOR, "Climber Climber", "Climber");
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.CLIMBER_GRABBER, "Climber Grabber", "Climber");
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.SHOOTER_MOTOR_1, "Shooter Motor1", "Shooter");
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.SHOOTER_MOTOR_2, "Shooter Motor2", "Shooter");
+        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.SHOOTER_MOTOR_3, "Shooter Motor3", "Shooter");
+        frc.robot.power.PowerTelemetry.initialize();
+
         GamePeriod.elasticInit();
     }
 
@@ -95,6 +112,7 @@ public class Robot extends LoggedRobot {
         m_timeAndJoystickReplay.update();
         m_robotContainer.correctOdometry();
         CommandScheduler.getInstance().run();
+        frc.robot.power.PowerTelemetry.periodic();
         RobotContainer.updateNT();
         RobotContainer.publishRobotData();
         m_robotContainer.drivetrain.publishDriveOutputVoltage();

@@ -30,6 +30,7 @@ import paths  # noqa: F401  (side effect: sys.path bridges)
 import bundles
 import app_logging
 import compare_export
+import battery
 import live_nt
 import pairing
 import remote_config
@@ -176,6 +177,30 @@ def metric_catalog() -> dict:
                 'description': desc.get(c.id, '')} for c in COMPOSITES.values()]
         ),
     }
+
+
+@app.get('/api/battery')
+def battery_analysis(log: str = Query(...), window: Optional[str] = Query(None),
+                     low_voltage: float = Query(8.0)) -> dict:
+    try:
+        result = battery.analyze(_load_log(_resolve(log)), _parse_manual_window(window), low_voltage)
+        result['source_log'] = log
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get('/api/battery/export')
+def battery_export(log: str = Query(...), window: Optional[str] = Query(None),
+                   low_voltage: float = Query(8.0), format: str = Query('html', pattern='^(html|json)$'),
+                   log_b: Optional[str] = Query(None), window_b: Optional[str] = Query(None),
+                   low_voltage_b: float = Query(8.0)):
+    report = battery_analysis(log, window, low_voltage)
+    if log_b:
+        report = battery.comparison(report, battery_analysis(log_b, window_b, low_voltage_b))
+    body = json.dumps(report, allow_nan=False) if format == 'json' else battery.render_html(report)
+    return Response(body, media_type='application/json' if format == 'json' else 'text/html',
+                    headers={'Content-Disposition': f'attachment; filename="battery-insights.{format}"'})
 
 
 def _parse_manual_window(raw: Optional[str]) -> Optional[tuple]:
