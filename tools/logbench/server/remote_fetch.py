@@ -15,11 +15,13 @@ photon@...` from a bench laptop for the first time.
 """
 import dataclasses
 import datetime as dt
+import logging
 import pathlib
 import posixpath
 import re
 import stat
-from typing import List, Optional
+import time
+from typing import Callable, List, Optional
 
 from remote_config import HostConfig
 
@@ -39,20 +41,30 @@ class RemoteFetchError(Exception):
     timed out, path doesn't exist, etc. server/main.py maps this to a 502."""
 
 
+log = logging.getLogger('logbench.remote_fetch')
+ProgressCallback = Callable[[str, int, int], None]
+
+
 def _connect(cfg: HostConfig):
     import paramiko
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
+        started = time.monotonic()
+        log.info('connecting to %s@%s:%d', cfg.user, cfg.host, cfg.port)
         client.connect(
             cfg.host, port=cfg.port, username=cfg.user,
             password=cfg.password, key_filename=cfg.key_filename,
             look_for_keys=True, allow_agent=True, timeout=10,
         )
-        return client, client.open_sftp()
+        sftp = client.open_sftp()
+        log.info('connected to %s@%s:%d in %.2fs', cfg.user, cfg.host, cfg.port,
+                 time.monotonic() - started)
+        return client, sftp
     except Exception as exc:
         client.close()
+        log.warning('connection to %s@%s:%d failed: %s', cfg.user, cfg.host, cfg.port, exc)
         raise RemoteFetchError('could not connect to %s@%s:%d -- %s'
                                 % (cfg.user, cfg.host, cfg.port, exc)) from exc
 
@@ -101,6 +113,7 @@ def list_rio_logs(cfg: HostConfig) -> List[dict]:
                 'wall_clock': _parse_rio_wall_clock(entry.filename),
             })
         out.sort(key=lambda r: r['mtime'], reverse=True)
+        log.info('listed %d RoboRIO logs from %s', len(out), cfg.host)
         return out
     finally:
         sftp.close()
@@ -148,13 +161,69 @@ def list_pi_sessions(cfg: HostConfig) -> List[dict]:
                         'wall_clock': _parse_pi_session_wall_clock(entry.filename),
                     })
         out.sort(key=lambda s: s['name'], reverse=True)
+        log.info('listed %d Pi recording sessions from %s', len(out), cfg.host)
         return out
     finally:
         sftp.close()
         client.close()
 
 
-def fetch_rio_log(cfg: HostConfig, name: str, dest_dir: pathlib.Path) -> pathlib.Path:
+def rio_log_size(cfg: HostConfig, name: str) -> int:
+    """Return the remote size of a log so the UI can show a real byte total."""
+    client, sftp = _connect(cfg)
+    try:
+        try:
+            return int(sftp.stat(posixpath.join(cfg.path, name)).st_size)
+        except (OSError, IOError) as exc:
+            raise RemoteFetchError('could not stat %s on %s -- %s' % (name, cfg.host, exc)) from exc
+    finally:
+        sftp.close()
+        client.close()
+
+
+def pi_session_files(cfg: HostConfig, camera: str, session_name: str) -> List[dict]:
+    """List flat Pi session files, including their sizes, without downloading them."""
+    remote_session = posixpath.join(cfg.path, camera, session_name) if camera else \
+        posixpath.join(cfg.path, session_name)
+    client, sftp = _connect(cfg)
+    try:
+        try:
+            entries = sftp.listdir_attr(remote_session)
+        except (OSError, IOError) as exc:
+            raise RemoteFetchError('could not list %s on %s -- %s' %
+                                   (remote_session, cfg.host, exc)) from exc
+        return [
+            {'name': entry.filename, 'size': int(entry.st_size)}
+            for entry in entries if not stat.S_ISDIR(entry.st_mode or 0)
+        ]
+    finally:
+        sftp.close()
+        client.close()
+
+
+def _set_idle_timeout(sftp, idle_timeout_seconds: Optional[int]) -> None:
+    """Make a silent SFTP socket fail after the configured no-progress interval."""
+    if idle_timeout_seconds is None:
+        return
+    try:
+        sftp.get_channel().settimeout(idle_timeout_seconds)
+    except (AttributeError, OSError) as exc:
+        log.warning('could not set SFTP idle timeout: %s', exc)
+
+
+def _download_error(remote_path: str, cfg: HostConfig, exc: Exception,
+                    idle_timeout_seconds: Optional[int]) -> RemoteFetchError:
+    message = str(exc).lower()
+    if idle_timeout_seconds is not None and ('timed out' in message or 'timeout' in message):
+        return RemoteFetchError(
+            'download of %s from %s made no progress for %d seconds' %
+            (remote_path, cfg.host, idle_timeout_seconds))
+    return RemoteFetchError('could not fetch %s from %s -- %s' % (remote_path, cfg.host, exc))
+
+
+def fetch_rio_log(cfg: HostConfig, name: str, dest_dir: pathlib.Path,
+                  progress: Optional[ProgressCallback] = None,
+                  idle_timeout_seconds: Optional[int] = None) -> pathlib.Path:
     """Downloads <logs_path>/<name> into dest_dir (typically LOG_ROOT). Returns the local
     path."""
     dest_dir = pathlib.Path(dest_dir)
@@ -165,16 +234,30 @@ def fetch_rio_log(cfg: HostConfig, name: str, dest_dir: pathlib.Path) -> pathlib
     client, sftp = _connect(cfg)
     try:
         try:
-            sftp.get(remote_path, str(local_path))
+            _set_idle_timeout(sftp, idle_timeout_seconds)
+            started = time.monotonic()
+
+            def callback(done: int, total: int) -> None:
+                if progress:
+                    progress(name, done, total)
+
+            if progress:
+                sftp.get(remote_path, str(local_path), callback=callback)
+            else:
+                sftp.get(remote_path, str(local_path))
+            log.info('downloaded RIO log %s (%d bytes) in %.2fs', name, local_path.stat().st_size,
+                     time.monotonic() - started)
         except (OSError, IOError) as exc:
-            raise RemoteFetchError('could not fetch %s from %s -- %s' % (remote_path, cfg.host, exc)) from exc
+            raise _download_error(remote_path, cfg, exc, idle_timeout_seconds) from exc
     finally:
         sftp.close()
         client.close()
     return local_path
 
 
-def fetch_pi_session(cfg: HostConfig, camera: str, session_name: str, dest_dir: pathlib.Path) -> pathlib.Path:
+def fetch_pi_session(cfg: HostConfig, camera: str, session_name: str, dest_dir: pathlib.Path,
+                     progress: Optional[ProgressCallback] = None,
+                     idle_timeout_seconds: Optional[int] = None) -> pathlib.Path:
     """Recursively downloads <recordings_path>/<camera>/<session_name>/ (or
     <recordings_path>/<session_name>/ when camera is '') into
     dest_dir/<camera>/<session_name>/ (or dest_dir/<session_name>/), matching
@@ -188,6 +271,7 @@ def fetch_pi_session(cfg: HostConfig, camera: str, session_name: str, dest_dir: 
 
     client, sftp = _connect(cfg)
     try:
+        _set_idle_timeout(sftp, idle_timeout_seconds)
         try:
             entries = sftp.listdir_attr(remote_session)
         except (OSError, IOError) as exc:
@@ -198,10 +282,21 @@ def fetch_pi_session(cfg: HostConfig, camera: str, session_name: str, dest_dir: 
                 continue  # sessions are flat: manifest.jsonl + frame_*.jpg, no subdirs
             remote_file = posixpath.join(remote_session, entry.filename)
             try:
-                sftp.get(remote_file, str(local_session / entry.filename))
+                display_name = '%s/%s' % (camera or 'vision', entry.filename)
+                started = time.monotonic()
+
+                def callback(done: int, total: int, display_name=display_name) -> None:
+                    if progress:
+                        progress(display_name, done, total)
+
+                if progress:
+                    sftp.get(remote_file, str(local_session / entry.filename), callback=callback)
+                else:
+                    sftp.get(remote_file, str(local_session / entry.filename))
+                log.info('downloaded Pi file %s (%d bytes) in %.2fs', display_name,
+                         entry.st_size, time.monotonic() - started)
             except (OSError, IOError) as exc:
-                raise RemoteFetchError(
-                    'could not fetch %s from %s -- %s' % (remote_file, cfg.host, exc)) from exc
+                raise _download_error(remote_file, cfg, exc, idle_timeout_seconds) from exc
     finally:
         sftp.close()
         client.close()

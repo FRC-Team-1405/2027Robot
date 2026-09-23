@@ -189,6 +189,11 @@ tools/vision-analyzer/logs/*
 tools/camera-calibration/logs/*
 !tools/camera-calibration/logs/.gitkeep
 
+# Logbench keeps its local diagnostics here; retain only the empty directory in Git.
+!tools/logbench/logs/
+tools/logbench/logs/*
+!tools/logbench/logs/.gitkeep
+
 # Folder that has CTRE Phoenix Sim device config storage
 ctre_sim/
 

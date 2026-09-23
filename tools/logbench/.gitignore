@@ -8,3 +8,7 @@ __pycache__/
 # Per-machine remote host/user/path config (bench vs. competition vs. home differ) --
 # see server/remote_config.json.example for the committed template.
 server/remote_config.json
+
+# Per-server-run diagnostic logs. Keep the directory and its .gitkeep in the repo.
+logs/*
+!logs/.gitkeep

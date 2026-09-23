@@ -17,20 +17,24 @@ import dataclasses
 import inspect
 import io
 import json
+import logging
 import pathlib
 import re
 import sys
+import time
 import zipfile
 from typing import List, Optional
 
 import paths  # noqa: F401  (side effect: sys.path bridges)
 
 import bundles
+import app_logging
 import compare_export
 import live_nt
 import pairing
 import remote_config
 import remote_fetch
+from remote_jobs import RemoteJobs
 import specs
 from cli import DEFAULT_METRICS
 from core import categories
@@ -41,7 +45,7 @@ from core.metrics import METRICS
 from core.severity import BANDS as SEVERITY_BANDS
 from encode import spec_to_dict
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -67,6 +71,29 @@ _spec_cache: dict = {}
 # switching which pair you're comparing doesn't re-parse one you already had loaded.
 _LOG_CACHE_SIZE = 4
 _log_cache: 'collections.OrderedDict[tuple, Log]' = collections.OrderedDict()
+remote_jobs = RemoteJobs()
+log = logging.getLogger('logbench.server')
+
+
+@app.on_event('startup')
+def _configure_app_logging() -> None:
+    app_logging.configure()
+
+
+@app.middleware('http')
+async def _log_requests(request: Request, call_next):
+    request_id = request.headers.get('X-Request-ID', '') or __import__('uuid').uuid4().hex[:8]
+    started = time.monotonic()
+    try:
+        response = await call_next(request)
+    except Exception:
+        log.exception('%s %s request=%s failed after %.3fs', request.method, request.url.path,
+                      request_id, time.monotonic() - started)
+        raise
+    response.headers['X-Request-ID'] = request_id
+    log.info('%s %s request=%s status=%d duration=%.3fs', request.method, request.url.path,
+             request_id, response.status_code, time.monotonic() - started)
+    return response
 
 
 def _load_log(path: pathlib.Path) -> Log:
@@ -339,21 +366,8 @@ def _iso(d) -> Optional[str]:
     return d.isoformat() if d is not None else None
 
 
-@app.get('/api/remote/sessions')
-def remote_sessions() -> dict:
-    """RIO logs + Pi sessions + suggested pairings + each RIO log's local bundle status
-    (bundles.local_status, via LOG_ROOT/<name>.vision), so the Fetch Bundle page can
-    render its two lists and the pairing rows in one round trip."""
-    cfg = remote_config.load_remote_config()
-    if cfg is None:
-        return {'configured': False}
-
-    try:
-        rio_raw = remote_fetch.list_rio_logs(cfg.rio)
-        pi_raw = remote_fetch.list_pi_sessions(cfg.pi)
-    except remote_fetch.RemoteFetchError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
-
+def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict]) -> dict:
+    """Build the stable wire shape shared by the legacy and tracked list endpoints."""
     rio_infos = [pairing.RioLogInfo(name=r['name'], wall_clock=r['wall_clock']) for r in rio_raw]
     pi_infos = [pairing.PiSessionInfo(camera=s['camera'], name=s['name'], wall_clock=s['wall_clock'])
                 for s in pi_raw]
@@ -373,8 +387,131 @@ def remote_sessions() -> dict:
         'confidence': p.confidence,
         'reason': p.reason,
     } for p in suggestions]
-
     return {'configured': True, 'rio_logs': rio_out, 'pi_sessions': pi_out, 'pairings': pairings_out}
+
+
+def _job_or_404(job_id: str) -> dict:
+    snapshot = remote_jobs.snapshot(job_id)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail='remote job not found or has expired')
+    return snapshot
+
+
+@app.post('/api/remote/sessions/jobs', status_code=202)
+def start_remote_sessions_job() -> dict:
+    """Start remote metadata discovery; polling exposes real connection/list phases."""
+    cfg = remote_config.load_remote_config()
+    if cfg is None:
+        return {'configured': False}
+
+    def work(job_id: str) -> dict:
+        from concurrent.futures import ThreadPoolExecutor
+        remote_jobs.set_phase(job_id, 'Connecting to roboRIO and Orange Pi')
+        # These independent hosts are intentionally listed in parallel.  On a weak
+        # robot network this removes the avoidable serial wait from page load.
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            rio_future = executor.submit(remote_fetch.list_rio_logs, cfg.rio)
+            pi_future = executor.submit(remote_fetch.list_pi_sessions, cfg.pi)
+            remote_jobs.set_phase(job_id, 'Reading remote log and vision directories')
+            rio_raw = rio_future.result()
+            pi_raw = pi_future.result()
+        if remote_jobs.cancelled(job_id):
+            raise RuntimeError('cancelled by user')
+        remote_jobs.set_phase(job_id, 'Matching logs and sessions')
+        result = _remote_sessions_result(cfg, rio_raw, pi_raw)
+        log.info('remote session job %s found %d RIO logs and %d Pi sessions', job_id,
+                 len(rio_raw), len(pi_raw))
+        return result
+
+    job_id = remote_jobs.start('list-sessions', work)
+    return {'configured': True, 'job_id': job_id}
+
+
+@app.get('/api/remote/jobs/{job_id}')
+def remote_job_status(job_id: str) -> dict:
+    return _job_or_404(job_id)
+
+
+@app.delete('/api/remote/jobs/{job_id}', status_code=202)
+def cancel_remote_job(job_id: str) -> dict:
+    _job_or_404(job_id)
+    return {'cancelled': remote_jobs.cancel(job_id)}
+
+
+@app.post('/api/remote/bundle/jobs', status_code=202)
+def start_remote_bundle_job(body: BundleRequest) -> dict:
+    """Start a bundled download and expose byte/file/throughput progress by polling."""
+    cfg = remote_config.load_remote_config()
+    if cfg is None:
+        raise HTTPException(status_code=400, detail='no remote_config.json configured -- see remote_config.json.example')
+
+    def work(job_id: str) -> dict:
+        remote_jobs.set_phase(job_id, 'Inspecting selected remote files')
+        rio_size = remote_fetch.rio_log_size(cfg.rio, body.rio_log)
+        pi_files: list[tuple[PiSessionRef, list[dict]]] = []
+        inventory = [(body.rio_log, rio_size)]
+        for ref in body.pi_sessions:
+            files = remote_fetch.pi_session_files(cfg.pi, ref.camera, ref.name)
+            pi_files.append((ref, files))
+            inventory.extend((f'{ref.camera or "vision"}/{ref.name}/{item["name"]}', item['size'])
+                             for item in files)
+        remote_jobs.set_inventory(job_id, inventory)
+        log.info('bundle job %s inventory: %d files, %d bytes', job_id, len(inventory),
+                 sum(size for _, size in inventory))
+
+        def rio_progress(name: str, done: int, total: int) -> None:
+            remote_jobs.file_progress(job_id, name, done, total)
+
+        remote_jobs.set_phase(job_id, 'Downloading RoboRIO log', body.rio_log)
+        local_log = remote_fetch.fetch_rio_log(
+            cfg.rio, body.rio_log, LOG_ROOT, progress=rio_progress,
+            idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
+        remote_jobs.file_complete(job_id, body.rio_log)
+
+        fetched: List[dict] = []
+        if body.pi_sessions:
+            vision_dir = bundles.vision_dir_for(local_log)
+            for ref, files in pi_files:
+                remote_jobs.set_phase(job_id, 'Downloading Orange Pi vision session', ref.name)
+
+                def pi_progress(name: str, done: int, total: int, ref=ref) -> None:
+                    filename = name.rsplit('/', 1)[-1]
+                    remote_jobs.file_progress(job_id, f'{ref.camera or "vision"}/{ref.name}/{filename}', done, total)
+
+                session_dir = remote_fetch.fetch_pi_session(
+                    cfg.pi, ref.camera, ref.name, vision_dir, progress=pi_progress,
+                    idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
+                # Empty files do not produce an SFTP byte callback; mark every file
+                # idempotently so the completed count stays accurate in that case too.
+                for item in files:
+                    remote_jobs.file_complete(job_id,
+                                              f'{ref.camera or "vision"}/{ref.name}/{item["name"]}')
+                fetched.append({'camera': ref.camera, 'name': ref.name,
+                                'path': session_dir.relative_to(LOG_ROOT.resolve()).as_posix()})
+        remote_jobs.set_phase(job_id, 'Finalizing bundle')
+        return {'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
+                'pi_sessions': fetched, 'manual': body.manual}
+
+    job_id = remote_jobs.start('bundle', work)
+    return {'job_id': job_id}
+
+
+@app.get('/api/remote/sessions')
+def remote_sessions() -> dict:
+    """RIO logs + Pi sessions + suggested pairings + each RIO log's local bundle status
+    (bundles.local_status, via LOG_ROOT/<name>.vision), so the Fetch Bundle page can
+    render its two lists and the pairing rows in one round trip."""
+    cfg = remote_config.load_remote_config()
+    if cfg is None:
+        return {'configured': False}
+
+    try:
+        rio_raw = remote_fetch.list_rio_logs(cfg.rio)
+        pi_raw = remote_fetch.list_pi_sessions(cfg.pi)
+    except remote_fetch.RemoteFetchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return _remote_sessions_result(cfg, rio_raw, pi_raw)
 
 
 @app.post('/api/remote/bundle')

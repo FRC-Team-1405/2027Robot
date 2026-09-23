@@ -5,6 +5,14 @@ systemd service. Full bench-verification/install walkthroughs live in
 `docs/orangepi-nt-publisher-setup.md` and `docs/orangepi-vision-recorder-setup.md` — this
 file is just "what's in this folder and why."
 
+## `sync-to-orangepi.bat`
+
+On Windows, double-click this batch file (or run it from a Command Prompt) to copy every
+other file in this folder, including subfolders, into the Orange Pi user's home directory.
+It defaults to `photon@photonvision.local`; supply a target such as
+`sync-to-orangepi.bat photon@192.168.1.252` when the Pi uses a different address. It
+checks the SSH connection first and reports a clear error if the Pi cannot be reached.
+
 ## `orangepi-nt-publisher.py` / `orangepi-nt-publisher.service`
 
 Publishes the Pi's CPU/RAM/disk/temp to NT4 under `/OrangePi/` once a second. One process,

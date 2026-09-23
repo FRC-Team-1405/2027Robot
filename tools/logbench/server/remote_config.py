@@ -39,6 +39,7 @@ class RemoteConfig:
     rio: HostConfig
     pi: HostConfig
     source_path: pathlib.Path
+    transfer_idle_timeout_seconds: int = 60
 
 
 def _host_config(raw: dict, path_key: str) -> HostConfig:
@@ -68,8 +69,13 @@ def load_remote_config(path: Optional[pathlib.Path] = None) -> Optional[RemoteCo
     if 'rio' not in raw or 'pi' not in raw:
         raise ValueError('remote_config.json must have both "rio" and "pi" entries')
 
+    idle_timeout = int(raw.get('transfer_idle_timeout_seconds', 60))
+    if idle_timeout <= 0:
+        raise ValueError('transfer_idle_timeout_seconds must be greater than zero')
+
     return RemoteConfig(
         rio=_host_config(raw['rio'], 'logs_path'),
         pi=_host_config(raw['pi'], 'recordings_path'),
         source_path=cfg_path,
+        transfer_idle_timeout_seconds=idle_timeout,
     )

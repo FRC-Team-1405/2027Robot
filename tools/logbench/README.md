@@ -48,6 +48,17 @@ python server/main.py --logs ../../logs
 
 Install NPM if you see an error indicating NPM missing: `winget install OpenJS.NodeJS.LTS`
 
+### Fetch Bundle diagnostics
+
+The Fetch Bundle page runs remote directory discovery and downloads as tracked jobs. It
+shows the current remote phase, elapsed time, bytes/files transferred, rolling throughput,
+and ETA when a byte total is known. A transfer that receives no data for 60 seconds fails
+instead of appearing stalled; set the optional top-level
+`"transfer_idle_timeout_seconds"` value in the ignored
+`server/remote_config.json` to adjust that per network. Each server run writes a detailed
+diagnostic log under `tools/logbench/logs/`; the newest ten runs are retained locally and
+the folder is ignored by Git.
+
 **Inside the calibration app** — Tab 6 of `tools/camera-calibration/calibrate.py` embeds
 the player and offers the standalone file as a download. Needs no npm: the built bundle is
 committed at `server/assets/player.singlefile.html`.

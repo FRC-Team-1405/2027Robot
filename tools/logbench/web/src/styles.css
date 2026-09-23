@@ -1561,6 +1561,85 @@ body {
   margin-top: 6px;
 }
 
+.fetch-progress {
+  background: #111a27;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.fetch-progress--compact {
+  font-size: 11px;
+}
+
+.fetch-progress__head,
+.fetch-progress__details {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  justify-content: space-between;
+}
+
+.fetch-progress__head {
+  font-size: 12px;
+}
+
+.fetch-progress__head > span,
+.fetch-progress__details,
+.fetch-progress__file {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.fetch-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 7px;
+}
+
+.fetch-cancel:hover {
+  border-color: #f2b8b5;
+}
+
+.fetch-progress__bar {
+  background: #273142;
+  border-radius: 99px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.fetch-progress__fill {
+  background: var(--accent);
+  border-radius: inherit;
+  height: 100%;
+  transition: width 180ms ease-out;
+}
+
+.fetch-progress__bar--indeterminate .fetch-progress__fill {
+  animation: fetch-progress-indeterminate 1.15s ease-in-out infinite;
+  width: 35%;
+}
+
+.fetch-progress__file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes fetch-progress-indeterminate {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(320%); }
+}
+
 .fetch-row__body {
   border-top: 1px solid var(--border);
   margin-top: 8px;

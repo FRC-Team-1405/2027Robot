@@ -45,6 +45,23 @@ export interface BundleResult {
   manual: boolean;
 }
 
+export interface RemoteJob {
+  id: string;
+  kind: string;
+  status: 'queued' | 'running' | 'complete' | 'error' | 'cancelled';
+  phase: string;
+  elapsed_seconds: number;
+  bytes_done: number;
+  bytes_total: number | null;
+  files_done: number;
+  files_total: number | null;
+  active_file: string | null;
+  bytes_per_second: number;
+  eta_seconds: number | null;
+  error: string | null;
+  result: unknown;
+}
+
 export interface ImportResult {
   log: string;
   imported: string[];
