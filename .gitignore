@@ -201,3 +201,10 @@ compile_commands.json
 
 **/__pycache__
 .claude/
+
+notes/*/*/*.jpg
+notes/*/*/manifest.jsonl
+
+node_modules/
+package-lock.json
+package.json

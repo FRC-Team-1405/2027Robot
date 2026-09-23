@@ -7,3 +7,4 @@ uvicorn>=0.30.0
 # -- stdlib has no SFTP client. Only needed to use that page; log replay and Compare
 # don't import it.
 paramiko>=3.4.0
+python-multipart

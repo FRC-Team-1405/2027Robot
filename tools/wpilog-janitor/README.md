@@ -8,6 +8,14 @@ File-format work lives in [`wpilog-utils`](../wpilog-utils); this is the tool on
 
 **Status:** CLI, the **Trim page** and the **Content page** are done. The LLM extract is planned — see the plan's milestone M5.
 
+## First Time install
+
+Install typescript:
+````
+npm install typescript
+cd tools/wpilog-janitor/web && npm install
+```
+
 ## Web UI
 
 ```bash
