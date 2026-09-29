@@ -3,9 +3,9 @@ setlocal
 
 rem Copies this folder's contents to the Orange Pi user's home directory.
 rem Usage: sync-to-orangepi.bat [user@host]
-rem Example: sync-to-orangepi.bat photon@192.168.1.252
+rem Example: sync-to-orangepi.bat pi@192.168.1.252
 
-set "DEFAULT_TARGET=photon@photonvision.local"
+set "DEFAULT_TARGET=pi@photonvision.local"
 set "TARGET=%~1"
 if "%TARGET%"=="" set "TARGET=%DEFAULT_TARGET%"
 
@@ -29,7 +29,7 @@ if errorlevel 1 (
     echo ERROR: Could not connect to %TARGET%.
     echo Verify the Orange Pi is powered, connected to the robot network, and that the SSH user/host is correct.
     echo You can specify a different target, for example:
-    echo   %~nx0 photon@192.168.1.252
+    echo   %~nx0 pi@192.168.1.252
     exit /b 1
 )
 
