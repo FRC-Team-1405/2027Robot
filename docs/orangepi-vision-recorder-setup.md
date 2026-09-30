@@ -5,23 +5,27 @@ Installs `coprocessor/orangepi-vision-recorder.py` as a systemd service on the P
 ## Recommended: guided installer
 
 Copy the entire `coprocessor` folder to the Pi and run `bash setup-orangepi.sh` from
-that folder, as your normal SSH account without sudo. Choose recorders or both services.
+that folder, as SSH user `pi` without sudo. Choose recorders or both services.
 It shares the publisher venv, asks for confirmed raw-stream URLs, preserves existing
-camera env files, and renders the unit using your actual home directory. New camera
-configs explicitly set `RECORDINGS_DIR` there, so the `pi` account from the September 29
-notes works as well as the `photon` account in the earlier bench procedure below.
+camera env files, and renders the unit using your actual home directory. The correct account is `pi`; the installer requires that login. New camera
+configs explicitly set `RECORDINGS_DIR` to `/home/pi/vision-recordings`.
 
 Use `bash setup-orangepi.sh --status` / `--logs` to diagnose the services. These checks
 cannot prove raw-stream selection, enabled-bit decoding, or NT connectivity; retain
 the bench checks below. The installer adds `RECORDINGS_DIR` for the current login to
 existing camera env files if missing, preserving any explicit custom storage path.
-Without the installer/override, the script defaults to `/home/photon/vision-recordings`.
+Without the installer/override, the script defaults to `/home/pi/vision-recordings`.
 
 This shares the `pyntcore` dependency and venv already set up for `orangepi-nt-publisher` — see `docs/orangepi-nt-publisher-setup.md` first if that hasn't been installed yet. No new Python packages are required.
 
-**Current bench Pi reference:** `photon@192.168.1.252`, password `vision` (shown in the SSH banner), `/home/photon/.venv-ntpublisher`. If this is a different Pi/image, confirm the SSH user and venv path match before following these steps literally.
+**Pi reference:** SSH as `pi` (`pi@photonvision.local`, or `pi@192.168.1.252` at the bench address). The shared venv is `/home/pi/.venv-ntpublisher`.
 
-**Path convention.** Everything below uses the `photon` account (`/home/photon/...`), matching this Pi's actual login and confirmed bench free space (~11GB) — not `/home/pi`, which was a leftover from an earlier draft and does not exist on this image. `RECORDINGS_DIR` in the script defaults to `/home/photon/vision-recordings` and can be overridden per instance via `RECORDINGS_DIR=` in that instance's `EnvironmentFile` (see step 3) if a future Pi/image uses a different account. This is also the path `tools/logbench/server/remote_config.json` must point its `pi.recordings_path` at when fetching bundles remotely — keep the two in sync.
+**Path convention.** Use the `pi` account and `/home/pi/...` paths throughout.
+`RECORDINGS_DIR` defaults to `/home/pi/vision-recordings` and can be overridden per
+instance via `RECORDINGS_DIR=` in that instance's `EnvironmentFile` for a custom
+storage mount. `tools/logbench/server/remote_config.json` must use SSH user `pi` and
+point `pi.recordings_path` at the same recordings directory when fetching bundles.
+
 
 ## Two cameras, one Pi, two service instances
 
@@ -45,16 +49,16 @@ Re-verify if cameras are added/reordered, since PhotonVision assigns port pairs 
 From the laptop, in the repo root:
 
 ```bash
-scp coprocessor/orangepi-vision-recorder.py photon@192.168.1.252:/home/photon/
-scp "coprocessor/orangepi-vision-recorder@.service" photon@192.168.1.252:/tmp/
+scp coprocessor/orangepi-vision-recorder.py pi@192.168.1.252:/home/pi/
+scp "coprocessor/orangepi-vision-recorder@.service" pi@192.168.1.252:/tmp/
 ```
 
-If team number ever changes from 1405, also update `TEAM_NUMBER` in `/home/photon/orangepi-vision-recorder.py`.
+If team number ever changes from 1405, also update `TEAM_NUMBER` in `/home/pi/orangepi-vision-recorder.py`.
 
 ## 3. Point the unit at the venv's Python and create per-instance env files
 
 ```bash
-sudo sed -i 's|/usr/bin/python3|/home/photon/.venv-ntpublisher/bin/python3|' "/tmp/orangepi-vision-recorder@.service"
+sudo sed -i 's|/usr/bin/python3|/home/pi/.venv-ntpublisher/bin/python3|' "/tmp/orangepi-vision-recorder@.service"
 sudo mkdir -p /etc/orangepi-vision-recorder
 ```
 
@@ -93,9 +97,9 @@ You want `Active: active (running)` for both. A healthy run prints `Connecting t
 While the robot is enabled (sim or real), confirm on the Pi:
 
 ```bash
-ls /home/photon/vision-recordings/left/
-ls /home/photon/vision-recordings/right/
-cat /home/photon/vision-recordings/left/<latest-session>/manifest.jsonl
+ls /home/pi/vision-recordings/left/
+ls /home/pi/vision-recordings/right/
+cat /home/pi/vision-recordings/left/<latest-session>/manifest.jsonl
 ```
 
 You should see JPEGs accumulating at roughly `SAMPLE_HZ` (default 3/sec) per camera and a `manifest.jsonl` line per frame with a `t_sec` timestamp. **Also watch PhotonVision's own dashboard FPS/latency counters while this runs** — they shouldn't visibly regress, since the whole point of tapping the existing MJPEG stream instead of the camera device is to avoid competing with the detection pipeline.

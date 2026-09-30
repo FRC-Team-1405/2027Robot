@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run on the Orange Pi as the normal SSH user, from any working directory.
+# Run on the Orange Pi as SSH user pi, from any working directory.
 set -Eeuo pipefail
 
 SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,7 +14,7 @@ usage() {
 Usage: bash setup-orangepi.sh [--status | --logs | --help]
 
 Without options, walks through installing metrics, camera recorders, or both.
-Run as your normal SSH user (pi, photon, etc.), NOT with sudo. The installer
+Run as SSH user pi, NOT with sudo. The installer
 uses sudo only for OS packages, systemd units, and /etc configuration.
 Python packages go into ~/.venv-ntpublisher; system Python is never pip-installed.
 
@@ -163,12 +163,13 @@ MODE=${1:-install}
 case "$MODE" in install|--status|--logs) ;; --help|-h) usage; exit 0 ;; *) usage; exit 2 ;; esac
 command -v systemctl >/dev/null || die 'This script requires a systemd-based Orange Pi image.'
 command -v sudo >/dev/null || die 'sudo is required; run this from the normal SSH account.'
+[[ $EUID -ne 0 ]] || die 'Run bash setup-orangepi.sh as SSH user pi, without sudo.'
+[[ "$(id -un)" == pi ]] || die 'The correct SSH account is pi. Reconnect with ssh pi@photonvision.local.'
 case "$MODE" in
     --status) if status_check; then exit 0; else exit 1; fi ;;
     --logs) show_logs; exit 0 ;;
 esac
 
-[[ $EUID -ne 0 ]] || die 'Run bash setup-orangepi.sh as your normal SSH user, without sudo.'
 [[ -t 0 ]] || die 'Installation is interactive; run in an SSH terminal. Use --status for diagnostics.'
 # These paths are rendered into ExecStart and EnvironmentFile values.
 [[ "$HOME" =~ ^/[a-zA-Z0-9_./-]+$ ]] || die 'Home path contains unsupported characters for generated systemd units.'

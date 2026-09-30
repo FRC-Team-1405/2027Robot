@@ -8,7 +8,7 @@ file is just "what's in this folder and why."
 ## `setup-orangepi.sh`
 
 After copying this folder to the Pi, run the installer **on the Pi**, from your normal
-SSH account (do not run the whole script with `sudo`):
+SSH account `pi` (do not run the whole script with `sudo`):
 
 ```bash
 cd ~/coprocessor   # or cd ~ if sync-to-orangepi.bat copied the files there
@@ -27,8 +27,8 @@ For each new camera configuration, enter a **confirmed raw MJPEG URL** (bench re
 left 1183, right 1181). Blank skips that camera. Existing camera env files and metrics
 namespaces are preserved. New camera env files set `RECORDINGS_DIR` to your account's
 `vision-recordings` directory; existing files get this setting only if it is missing,
-so both `pi` and `photon` accounts work. A bounded HTTP
-check tests whether the stream responds; it cannot distinguish raw from processed video.
+and the installer requires the `pi` login for installation and diagnostics. A bounded
+HTTP check tests whether the stream responds; it cannot distinguish raw from processed video.
 Existing recordings and venv packages are retained on reruns. Existing env files with
 custom storage paths remain authoritative; ensure those paths exist and have space.
 
@@ -48,7 +48,7 @@ Each camera has a 5GB storage cap. Remove temporary internet/Wi-Fi access when f
 On Windows, double-click this batch file (or run it from a Command Prompt) to copy every
 other file in this folder, including subfolders, into the Orange Pi user's home directory.
 It defaults to `pi@photonvision.local`; supply a target such as
-`sync-to-orangepi.bat photon@192.168.1.252` when the Pi uses a different account/address. It
+`sync-to-orangepi.bat pi@192.168.1.252` when the Pi uses a different address. It
 checks the SSH connection first and reports a clear error if the Pi cannot be reached.
 
 ## `orangepi-nt-publisher.py` / `orangepi-nt-publisher.service`
@@ -96,7 +96,7 @@ mean something to you — `left`/`right` here, but it could as easily be `cam0`/
   setting `CAMERA_STREAM_URL` to that camera's confirmed *raw* (pre-detection) MJPEG port
   — bench-verify this per camera, ports are not guaranteed stable across PhotonVision
   reconfigs.
-- `RECORDINGS_DIR` (default `/home/photon/vision-recordings`) needs to actually exist and
+- `RECORDINGS_DIR` (default `/home/pi/vision-recordings`) needs to actually exist and
   have free space; override per-instance via the same `.env` file if needed.
 - The `/FMSInfo` enabled-bit decoding the script relies on should be bench-verified once
   (shared across both instances, not per-camera).

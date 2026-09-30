@@ -9,7 +9,7 @@
 |---|---|
 | Hostname | `photonvision.local` |
 | Web UI | `http://photonvision.local:5800` |
-| SSH user / password | `photon` / `vision` (PhotonVision image default, current image). The **old** image used `pi`. |
+| SSH user | `pi` (confirmed September 29; use this account for all coprocessor setup). |
 | Address on the robot | DHCP from the radio, `10.14.5.x`. The old image was static at `10.14.5.202`. |
 | Board | Orange Pi 5, Ubuntu 24.04 (Rockchip, aarch64), Ethernet interface `end1` |
 | Our services | `photonvision`, `orangepi-nt-publisher` (metrics), `orangepi-vision-recorder@left` / `@right` |
@@ -20,7 +20,7 @@
 Connect the laptop to the robot radio, over Wi-Fi or Ethernet, then run:
 
 ```bash
-ssh photon@photonvision.local
+ssh pi@photonvision.local
 ```
 
 If `.local` doesn't resolve, get the IP from the PhotonVision UI or the radio's DHCP list.
@@ -37,7 +37,7 @@ Use this when the Pi needs `apt` or `pip` and isn't on the robot. Worked on 7/7.
    arp -d *
    arp -a | Select-String "192.168.137"
    ```
-4. Connect with `ssh photon@192.168.137.<n>`.
+4. Connect with `ssh pi@192.168.137.<n>`.
 5. When you're done, untick the sharing box. Otherwise the laptop won't talk to the robot normally.
 
 ## 3. Direct cable from a Linux box (for example `piclaw`), with DHCP and NAT
@@ -86,7 +86,7 @@ sudo ping -c 3 8.8.8.8                      # ping needs sudo on this image
 
 Copy vision recordings to the laptop. Run this from the repo root on the laptop:
 ```bash
-scp -r photon@photonvision.local:/home/photon/vision-recordings/left/<session> ./recordings/
+scp -r pi@photonvision.local:/home/pi/vision-recordings/left/<session> ./recordings/
 ```
 The logbench **Fetch bundle** page does this for you, together with the matching rio log.
 
@@ -105,6 +105,6 @@ The logbench **Fetch bundle** page does this for you, together with the matching
 - **SSH drops during an upgrade of `openssh-server`.** The upgrade keeps running on the Pi. Wait a
   few minutes and reconnect. Don't start a second `apt`; it will fail on the dpkg lock.
 - **Python packages.** The ntcore package on PyPI is `pyntcore`; `robotpy-ntcore` returns a 404.
-  Install it in a venv (`/home/photon/.venv-ntpublisher`). Older images don't ship `pip`.
+  Install it in a venv (`/home/pi/.venv-ntpublisher`). Older images don't ship `pip`.
 - **If you turn on the Pi's own Wi-Fi, turn it off before the Pi goes back on the robot.** FRC
   doesn't allow unauthorized radios on the field.

@@ -30,6 +30,8 @@ if name == "sudo":
         sys.exit(0 if pathlib.Path(mapped(args[-1])).is_file() else 1)
     sys.exit(subprocess.call([mapped(x) for x in args]))
 if name == "apt-get" or name == "sleep": sys.exit(0)
+if name == "id":
+    print(os.environ.get("MOCK_LOGIN", "pi")); sys.exit(0)
 if name == "journalctl":
     print("MOCK JOURNAL: " + " ".join(args)); sys.exit(0)
 if name == "systemctl":
@@ -85,7 +87,7 @@ class InstallerTests(unittest.TestCase):
         # isolated fixture; production refusal is tested separately below.
         if os.getuid() == 0:
             fixture = self.source / SCRIPT.name
-            guard = "[[ $EUID -ne 0 ]] || die 'Run bash setup-orangepi.sh as your normal SSH user, without sudo.'"
+            guard = "[[ $EUID -ne 0 ]] || die 'Run bash setup-orangepi.sh as SSH user pi, without sudo.'"
             self.assertIn(guard, fixture.read_text())
             fixture.write_text(fixture.read_text().replace(guard, ": # root-only test fixture"))
         self.bin = self.root / "bin"
@@ -93,7 +95,7 @@ class InstallerTests(unittest.TestCase):
         mock = self.bin / "mock"
         mock.write_text(MOCK)
         mock.chmod(0o755)
-        for command in ("sudo", "apt-get", "python3", "systemctl", "journalctl", "sleep"):
+        for command in ("sudo", "apt-get", "python3", "systemctl", "journalctl", "sleep", "id"):
             (self.bin / command).symlink_to(mock)
         self.env = dict(os.environ, HOME=str(self.root), TEST_ROOT=str(self.root),
                         PATH=f"{self.bin}:/usr/bin:/bin")
@@ -178,6 +180,14 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("ERROR during Python virtual environment", out)
         self.assertIn("MOCK JOURNAL", out)
         self.assertNotIn("systemctl restart", self.commands())
+
+    def test_other_login_is_rejected_before_installation(self):
+        self.env["MOCK_LOGIN"] = "photon"
+        rc, out = self.run_script()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("correct SSH account is pi", out)
+        self.assertNotIn("sudo ", self.commands())
+        self.assertNotIn("apt-get", self.commands())
 
     def test_legacy_camera_config_gets_current_home_without_changing_url(self):
         folder = self.root / "etc/orangepi-vision-recorder"

@@ -12,8 +12,8 @@ path, preserves existing environment files, and renders the service interpreter 
 use the shared venv. See `coprocessor/README.md` for details.
 
 Run `bash setup-orangepi.sh --status` or `--logs` for diagnostics without reinstalling.
-The manual procedure below remains available. Replace `pi` with your actual SSH user
-if this image uses `photon` or another account.
+The manual procedure below remains available. The correct SSH account is `pi`, and
+the installer requires that login.
 
 With two Orange Pis, give each publisher a unique namespace. On the board carrying the Left
 camera create `/etc/default/orangepi-nt-publisher` containing:

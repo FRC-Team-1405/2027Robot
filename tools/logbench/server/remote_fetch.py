@@ -11,7 +11,7 @@ optionally overridden per host by `key_filename` or `password` in remote_config.
 Host keys are trusted on first use (`AutoAddPolicy`) rather than checked against a known
 hosts file -- this tool runs on a private bench/competition network talking to two boxes
 the team owns, not over the open internet, so this matches the trust model of `ssh
-photon@...` from a bench laptop for the first time.
+pi@...` from a bench laptop for the first time.
 """
 import dataclasses
 import datetime as dt

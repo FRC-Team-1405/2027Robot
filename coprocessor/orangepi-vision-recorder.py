@@ -71,7 +71,7 @@ SAMPLE_HZ = 3.0
 # and Right systemd instances never collide.
 CAMERA_NAME = os.environ.get("CAMERA_NAME", "").strip()
 
-RECORDINGS_DIR = os.environ.get("RECORDINGS_DIR", "/home/photon/vision-recordings")  # local storage for v1; swap to a USB mount point here once one is attached
+RECORDINGS_DIR = os.environ.get("RECORDINGS_DIR", "/home/pi/vision-recordings")  # local storage for v1; swap to a USB mount point here once one is attached
 RECORDINGS_BASE = os.path.join(RECORDINGS_DIR, CAMERA_NAME) if CAMERA_NAME else RECORDINGS_DIR
 MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024  # 5GB flat cap, per camera instance
 
