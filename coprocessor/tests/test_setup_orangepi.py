@@ -199,6 +199,28 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("CAMERA_STREAM_URL=http://localhost:1193/stream.mjpg", content)
         self.assertIn(f"RECORDINGS_DIR={self.root}/vision-recordings", content)
 
+    def test_rerun_installs_changed_scripts_and_units_then_reloads_and_restarts(self):
+        rc, out = self.install("3", [("URL for left", "http://localhost:1183/stream.mjpg"),
+                                     ("URL for right", "http://localhost:1181/stream.mjpg")])
+        self.assertEqual(rc, 0, out)
+        for name in ("orangepi-nt-publisher", "orangepi-vision-recorder"):
+            script = self.source / f"{name}.py"
+            script.write_text(script.read_text() + "\n# Updated deployment revision\n")
+            unit = self.source / (f"{name}@.service" if "recorder" in name else f"{name}.service")
+            unit.write_text(unit.read_text().replace("[Service]", "[Service]\nEnvironment=DEPLOYMENT_REVISION=2"))
+        (self.root / "commands").write_text("")
+        rc, out = self.install("3")
+        self.assertEqual(rc, 0, out)
+        for name in ("orangepi-nt-publisher", "orangepi-vision-recorder"):
+            self.assertEqual((self.root / f"{name}.py").read_text(), (self.source / f"{name}.py").read_text())
+            filename = f"{name}@.service" if "recorder" in name else f"{name}.service"
+            self.assertIn("Environment=DEPLOYMENT_REVISION=2", (self.root / "etc/systemd/system" / filename).read_text())
+        commands = self.commands()
+        reload_at = commands.index("systemctl daemon-reload")
+        for unit in ("orangepi-nt-publisher", "orangepi-vision-recorder@left", "orangepi-vision-recorder@right"):
+            self.assertGreater(commands.index(f"systemctl restart {unit}.service"), reload_at)
+        self.assertNotIn("pip install", commands)
+
     def test_service_failure_reports_journal(self):
         self.env["FAIL_UNIT"] = "orangepi-nt-publisher.service"
         rc, out = self.install()

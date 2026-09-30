@@ -11,7 +11,7 @@ After copying this folder to the Pi, run the installer **on the Pi**, from your 
 SSH account `pi` (do not run the whole script with `sudo`):
 
 ```bash
-cd ~/coprocessor   # or cd ~ if sync-to-orangepi.bat copied the files there
+cd ~/coprocessor
 bash setup-orangepi.sh
 ```
 
@@ -22,6 +22,11 @@ systemd units with that interpreter and home path. It enables/restarts the selec
 services and checks for immediate crashes/restarts. It uses `sudo` for OS installation
 and `/etc` only. Internet is needed if OS/Python dependencies are missing; an existing
 working venv can be reused offline.
+
+Rerunning setup copies the latest selected Python scripts and rendered service units,
+then calls `systemctl daemon-reload`, enables them at boot, and restarts them. Existing
+working dependencies are reused; this is not a forced package upgrade. Copy updated
+repo files to the Pi first, then select the services you want to update.
 
 For each new camera configuration, enter a **confirmed raw MJPEG URL** (bench references:
 left 1183, right 1181). Blank skips that camera. Existing camera env files and metrics
@@ -45,11 +50,27 @@ Each camera has a 5GB storage cap. Remove temporary internet/Wi-Fi access when f
 
 ## `sync-to-orangepi.bat`
 
-On Windows, double-click this batch file (or run it from a Command Prompt) to copy every
-other file in this folder, including subfolders, into the Orange Pi user's home directory.
-It defaults to `pi@photonvision.local`; supply a target such as
-`sync-to-orangepi.bat pi@192.168.1.252` when the Pi uses a different address. It
-checks the SSH connection first and reports a clear error if the Pi cannot be reached.
+On Windows, double-click this batch file (or run it from a Command Prompt) to copy the
+entire `coprocessor` folder, including subfolders, to `/home/pi/coprocessor` using SCP.
+It needs the Windows OpenSSH Client (`ssh` and `scp`); no archive utility is required.
+It defaults to `pi@photonvision.local` and requires the `pi` user. It checks SSH access
+and that `/home/pi` is writable before transferring. Matching remote files are replaced;
+extra remote files are retained. You can run it from any working directory, including
+when the repository path contains spaces. After copying, it normalizes the Bash
+installer's line endings on the Pi so an older Windows checkout can run it.
+
+```bat
+sync-to-orangepi.bat
+sync-to-orangepi.bat pi@192.168.1.252
+sync-to-orangepi.bat pi@192.168.1.252 --setup
+```
+
+Copying alone does not reload or restart services. Add `--setup` to open the guided
+Pi-side installer over SSH after a successful transfer. Select the services to update;
+the installer applies their latest files and restarts/checks them. If copying fails,
+the installer does not run. Without `--setup`, SSH in as `pi` and run
+`cd ~/coprocessor && bash setup-orangepi.sh` afterward. A fresh install may still need
+temporary internet for dependencies; updating an existing working venv can be offline.
 
 ## `orangepi-nt-publisher.py` / `orangepi-nt-publisher.service`
 

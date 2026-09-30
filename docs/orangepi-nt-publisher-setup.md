@@ -5,9 +5,11 @@ Installs `coprocessor/orangepi-nt-publisher.py` as a systemd service on the Phot
 ## Recommended: guided installer
 
 Copy the entire `coprocessor` folder to the Pi, SSH in as its normal account, and run
-`bash setup-orangepi.sh` from the copied folder (or `bash ~/setup-orangepi.sh` after
-using `sync-to-orangepi.bat`). Choose metrics, recorders, or both. Do not launch the
-installer with sudo; it requests sudo only where needed. It uses your actual home
+`cd ~/coprocessor && bash setup-orangepi.sh` after using `sync-to-orangepi.bat`.
+Alternatively, run `sync-to-orangepi.bat pi@photonvision.local --setup` on Windows
+to copy the folder with SCP and open the installer over SSH. Choose metrics, recorders,
+or both. Do not launch the installer with sudo; it requests sudo only where needed.
+It uses your actual home
 path, preserves existing environment files, and renders the service interpreter to
 use the shared venv. See `coprocessor/README.md` for details.
 
