@@ -2,6 +2,21 @@
 
 Installs `coprocessor/orangepi-vision-recorder.py` as a systemd service on the PhotonVision Orange Pi. It samples PhotonVision's raw (pre-AprilTag-processing) camera stream at low rate while the robot is enabled, and saves timestamped JPEGs locally — so a missed detection in a match can be looked up and inspected visually afterward, instead of guessed at.
 
+## Recommended: guided installer
+
+Copy the entire `coprocessor` folder to the Pi and run `bash setup-orangepi.sh` from
+that folder, as your normal SSH account without sudo. Choose recorders or both services.
+It shares the publisher venv, asks for confirmed raw-stream URLs, preserves existing
+camera env files, and renders the unit using your actual home directory. New camera
+configs explicitly set `RECORDINGS_DIR` there, so the `pi` account from the September 29
+notes works as well as the `photon` account in the earlier bench procedure below.
+
+Use `bash setup-orangepi.sh --status` / `--logs` to diagnose the services. These checks
+cannot prove raw-stream selection, enabled-bit decoding, or NT connectivity; retain
+the bench checks below. The installer adds `RECORDINGS_DIR` for the current login to
+existing camera env files if missing, preserving any explicit custom storage path.
+Without the installer/override, the script defaults to `/home/photon/vision-recordings`.
+
 This shares the `pyntcore` dependency and venv already set up for `orangepi-nt-publisher` — see `docs/orangepi-nt-publisher-setup.md` first if that hasn't been installed yet. No new Python packages are required.
 
 **Current bench Pi reference:** `photon@192.168.1.252`, password `vision` (shown in the SSH banner), `/home/photon/.venv-ntpublisher`. If this is a different Pi/image, confirm the SSH user and venv path match before following these steps literally.
@@ -31,8 +46,7 @@ From the laptop, in the repo root:
 
 ```bash
 scp coprocessor/orangepi-vision-recorder.py photon@192.168.1.252:/home/photon/
-scp "coprocessor/orangepi-vision-recorder@.service" /tmp/orangepi-vision-recorder@.service
-scp /tmp/orangepi-vision-recorder@.service photon@192.168.1.252:/tmp/
+scp "coprocessor/orangepi-vision-recorder@.service" photon@192.168.1.252:/tmp/
 ```
 
 If team number ever changes from 1405, also update `TEAM_NUMBER` in `/home/photon/orangepi-vision-recorder.py`.

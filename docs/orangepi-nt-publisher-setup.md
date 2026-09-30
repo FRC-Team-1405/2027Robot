@@ -2,6 +2,19 @@
 
 Installs `coprocessor/orangepi-nt-publisher.py` as a systemd service on the PhotonVision Orange Pi, so CPU/RAM/disk/temperature metrics show up in NetworkTables under `/OrangePi/`.
 
+## Recommended: guided installer
+
+Copy the entire `coprocessor` folder to the Pi, SSH in as its normal account, and run
+`bash setup-orangepi.sh` from the copied folder (or `bash ~/setup-orangepi.sh` after
+using `sync-to-orangepi.bat`). Choose metrics, recorders, or both. Do not launch the
+installer with sudo; it requests sudo only where needed. It uses your actual home
+path, preserves existing environment files, and renders the service interpreter to
+use the shared venv. See `coprocessor/README.md` for details.
+
+Run `bash setup-orangepi.sh --status` or `--logs` for diagnostics without reinstalling.
+The manual procedure below remains available. Replace `pi` with your actual SSH user
+if this image uses `photon` or another account.
+
 With two Orange Pis, give each publisher a unique namespace. On the board carrying the Left
 camera create `/etc/default/orangepi-nt-publisher` containing:
 
@@ -27,15 +40,15 @@ ssh pi@photonvision.local
 sudo apt update
 sudo apt install -y python3-venv
 
-python3 -m venv /home/pi/.venv-ntpublisher
-/home/pi/.venv-ntpublisher/bin/pip install --upgrade pip
-/home/pi/.venv-ntpublisher/bin/pip install -U pyntcore
+python3 -m venv "$HOME/.venv-ntpublisher"
+"$HOME/.venv-ntpublisher/bin/python3" -m pip install --upgrade pip
+"$HOME/.venv-ntpublisher/bin/python3" -m pip install -U pyntcore
 ```
 
 Confirm it imports cleanly:
 
 ```bash
-/home/pi/.venv-ntpublisher/bin/python3 -c "import ntcore; print('ok')"
+"$HOME/.venv-ntpublisher/bin/python3" -c "import ntcore; print('ok')"
 ```
 
 ## 2. Copy the script and service file to the Pi
@@ -52,8 +65,10 @@ scp coprocessor/orangepi-nt-publisher.service pi@photonvision.local:/tmp/
 The checked-in `orangepi-nt-publisher.service` uses `/usr/bin/python3`, which won't have `ntcore` installed. On the Pi, edit the copy in `/tmp` before installing it:
 
 ```bash
-sudo sed -i 's|/usr/bin/python3|/home/pi/.venv-ntpublisher/bin/python3|' /tmp/orangepi-nt-publisher.service
+sudo sed -i "s|^ExecStart=.*|ExecStart=$HOME/.venv-ntpublisher/bin/python3 $HOME/orangepi-nt-publisher.py|" /tmp/orangepi-nt-publisher.service
 ```
+
+This changes both the interpreter and script path to your login account.
 
 (Alternatively open it with `nano /tmp/orangepi-nt-publisher.service` and change the `ExecStart=` line by hand.)
 

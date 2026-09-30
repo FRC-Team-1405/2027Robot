@@ -7,11 +7,11 @@ disk usage, and temperature once per second under /OrangePi/. Set
 ORANGEPI_METRICS_NAME to give each board its own subtable when more than one
 Orange Pi is installed (for example, /OrangePi/LeftPi/).
 
-Install dependency:
-    pip install robotpy-ntcore
+Install dependency and service (creates a shared venv with pyntcore):
+    bash setup-orangepi.sh
 
 Run:
-    python3 orangepi-nt-publisher.py
+    ~/.venv-ntpublisher/bin/python3 orangepi-nt-publisher.py
 
 To run on boot, add a systemd service (see orangepi-nt-publisher.service).
 """

@@ -5,12 +5,50 @@ systemd service. Full bench-verification/install walkthroughs live in
 `docs/orangepi-nt-publisher-setup.md` and `docs/orangepi-vision-recorder-setup.md` — this
 file is just "what's in this folder and why."
 
+## `setup-orangepi.sh`
+
+After copying this folder to the Pi, run the installer **on the Pi**, from your normal
+SSH account (do not run the whole script with `sudo`):
+
+```bash
+cd ~/coprocessor   # or cd ~ if sync-to-orangepi.bat copied the files there
+bash setup-orangepi.sh
+```
+
+Choose metrics, recorders, or both. The installer creates/reuses
+`$HOME/.venv-ntpublisher`, installs `pyntcore` through that venv's Python, checks the
+import, copies the selected Python scripts to your home directory, and renders both
+systemd units with that interpreter and home path. It enables/restarts the selected
+services and checks for immediate crashes/restarts. It uses `sudo` for OS installation
+and `/etc` only. Internet is needed if OS/Python dependencies are missing; an existing
+working venv can be reused offline.
+
+For each new camera configuration, enter a **confirmed raw MJPEG URL** (bench references:
+left 1183, right 1181). Blank skips that camera. Existing camera env files and metrics
+namespaces are preserved. New camera env files set `RECORDINGS_DIR` to your account's
+`vision-recordings` directory; existing files get this setting only if it is missing,
+so both `pi` and `photon` accounts work. A bounded HTTP
+check tests whether the stream responds; it cannot distinguish raw from processed video.
+Existing recordings and venv packages are retained on reruns. Existing env files with
+custom storage paths remain authoritative; ensure those paths exist and have space.
+
+```bash
+bash setup-orangepi.sh --status  # Python import, disk, PhotonVision and installed services
+bash setup-orangepi.sh --logs    # recent journal entries, no live tail
+```
+
+Diagnostics do not change configuration or restart services. An install failure reports
+the failed step and journal entries; fix the issue and rerun. Checks show service health,
+not proof of roboRIO connectivity or recording correctness: bench-verify NT metrics,
+enabled-bit decoding, raw frames, and PhotonVision FPS/latency using the setup guides.
+Each camera has a 5GB storage cap. Remove temporary internet/Wi-Fi access when finished.
+
 ## `sync-to-orangepi.bat`
 
 On Windows, double-click this batch file (or run it from a Command Prompt) to copy every
 other file in this folder, including subfolders, into the Orange Pi user's home directory.
-It defaults to `photon@photonvision.local`; supply a target such as
-`sync-to-orangepi.bat photon@192.168.1.252` when the Pi uses a different address. It
+It defaults to `pi@photonvision.local`; supply a target such as
+`sync-to-orangepi.bat photon@192.168.1.252` when the Pi uses a different account/address. It
 checks the SSH connection first and reports a clear error if the Pi cannot be reached.
 
 ## `orangepi-nt-publisher.py` / `orangepi-nt-publisher.service`
@@ -52,7 +90,8 @@ mean something to you — `left`/`right` here, but it could as easily be `cam0`/
 
 ### Pi-side setup this needs before it'll work
 
-- `pip install pyntcore` (shared venv with `orangepi-nt-publisher`, see its setup doc).
+- `"$HOME/.venv-ntpublisher/bin/python3" -m pip install pyntcore` (shared venv
+  with `orangepi-nt-publisher`; create it with the installer or its setup doc first).
 - One `/etc/orangepi-vision-recorder/<instance>.env` file per camera instance, at minimum
   setting `CAMERA_STREAM_URL` to that camera's confirmed *raw* (pre-detection) MJPEG port
   — bench-verify this per camera, ports are not guaranteed stable across PhotonVision

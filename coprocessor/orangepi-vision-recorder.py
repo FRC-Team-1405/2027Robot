@@ -40,11 +40,11 @@ touching the Pi's own OS clock. If no robot connection has been made yet,
 folders fall back to the Pi's local (possibly stale) clock — the boot
 counter still makes them unambiguous either way.
 
-Install dependency:
-    pip install pyntcore
+Install dependency and service instances (creates a shared venv with pyntcore):
+    bash setup-orangepi.sh
 
 Run:
-    python3 orangepi-vision-recorder.py
+    ~/.venv-ntpublisher/bin/python3 orangepi-vision-recorder.py
 
 To run on boot, add a systemd service instance (see orangepi-vision-recorder@.service
 and docs/orangepi-vision-recorder-setup.md).
