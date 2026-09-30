@@ -101,6 +101,87 @@
             "dependsOrder": "sequence",
             "isBackground": true,
             "problemMatcher": []
+        },
+        {
+            "label": "JanitorBuild",
+            "detail": "Build the wpilog-janitor front end (first time on a machine: run `npm install` in tools/wpilog-janitor/web).",
+            "type": "process",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "tools/wpilog-janitor/web",
+                "run",
+                "build"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Janitor",
+            "detail": "Build and serve wpilog-janitor (trim logs to the periods you care about) at http://127.0.0.1:8767 (logs/ picker).",
+            "type": "process",
+            "command": "python",
+            "args": [
+                "tools/wpilog-janitor/run.py",
+                "serve",
+                "--logs",
+                "logs"
+            ],
+            "dependsOn": "JanitorBuild",
+            "dependsOrder": "sequence",
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "JanitorAnalyze",
+            "detail": "wpilog-janitor: show a log's modes and where its bytes are. Prompts for the log path (relative to the repo root).",
+            "type": "process",
+            "command": "python",
+            "args": [
+                "-m",
+                "janitor",
+                "analyze",
+                "${input:janitorLog}"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/tools/wpilog-janitor"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "JanitorTrim",
+            "detail": "wpilog-janitor: trim a log to chosen DS modes (default: auto) and write <log>_trimmed.wpilog next to it. Prompts for log + modes.",
+            "type": "process",
+            "command": "python",
+            "args": [
+                "-m",
+                "janitor",
+                "trim",
+                "${input:janitorLog}",
+                "--modes",
+                "${input:janitorModes}"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/tools/wpilog-janitor"
+                }
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "janitorLog",
+            "type": "promptString",
+            "description": "Path to a .wpilog, relative to the repo root (give a folder to list the logs inside it)",
+            "default": "logs\\"
+        },
+        {
+            "id": "janitorModes",
+            "type": "promptString",
+            "description": "DriverStation modes to keep, comma-separated: disabled, auto, teleop",
+            "default": "auto"
         }
     ]
 }

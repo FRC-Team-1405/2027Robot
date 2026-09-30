@@ -17,6 +17,7 @@ port:
     a third camera on the 2027 robot shows up without a code change.
 """
 import math
+import pathlib
 
 from vision_analyzer.constants import (
     APRILTAG_POSITIONS,
@@ -25,6 +26,7 @@ from vision_analyzer.constants import (
     _cam_color,
 )
 
+import bundles
 from core.severity import BANDS as SEVERITY
 from core.signals import discover_cameras, find_signal, flatten_pose_signal
 from model import Group, Panel, PlayerSpec, Track
@@ -69,11 +71,72 @@ def _time_bounds(data: dict) -> tuple:
     return lo, hi
 
 
-def build(signals: dict, title: str = 'Camera Health Replay') -> tuple:
+def _session_overlapping(sessions: list, t0: float, t1: float):
+    """First session directory (already load_manifest()-loaded) whose frame span
+    overlaps [t0, t1], plus its loaded frames -- or (None, None). Sessions from
+    different boots don't overlap each other, so "first that overlaps" is unambiguous
+    in practice; this doesn't try to pick a *best* overlap."""
+    for session_dir in sessions:
+        frames = bundles.load_manifest(session_dir)
+        if not frames:
+            continue
+        first_t, last_t = frames[0][0], frames[-1][0]
+        if last_t >= t0 and first_t <= t1:
+            return session_dir, frames
+    return None, None
+
+
+def _attach_vision(spec, log_path, log_root, data: dict, warnings: list) -> None:
+    """Populates spec.static['vision'] with one {video, t0} entry per camera that has a
+    session overlapping this log's time span -- just a URL and one offset per camera,
+    not a per-frame array, per the "render a video, don't swap JPEGs" design (see
+    ensure_preview_video's docstring for why). Building the video can fail (missing
+    ffmpeg, an empty/corrupt manifest); that degrades to a warning, same as every other
+    optional signal this builder handles, rather than failing the whole spec."""
+    log_path = pathlib.Path(log_path)
+    root = pathlib.Path(log_root) if log_root is not None else log_path.parent
+    vision_sessions = bundles.list_vision_sessions(log_path)
+    vision_static: dict = {}
+
+    for cam, sessions in vision_sessions.items():
+        if not cam:
+            # Legacy, non-namespaced recordings (from before the CAMERA_NAME fix) have
+            # no camera identity to key a dropdown entry on -- they still bundle/zip
+            # fine, they just don't get a video panel.
+            continue
+        session_dir, frames = _session_overlapping(sessions, spec.t0, spec.t1)
+        if session_dir is None:
+            continue
+        try:
+            preview_path = bundles.ensure_preview_video(session_dir, camera=cam)
+        except (bundles.FfmpegNotFoundError, FileNotFoundError, ValueError, RuntimeError) as exc:
+            warnings.append('Vision preview for the %s camera could not be built: %s' % (cam, exc))
+            continue
+        try:
+            rel = preview_path.relative_to(root).as_posix()
+        except ValueError:
+            warnings.append(
+                'Vision preview for the %s camera is outside the log root -- cannot '
+                'build a /vision-video URL for it.' % cam
+            )
+            continue
+        vision_static[cam] = {'video': '/vision-video/%s' % rel, 't0': frames[0][0]}
+
+    if vision_static:
+        spec.static['vision'] = vision_static
+
+
+def build(signals: dict, title: str = 'Camera Health Replay', log_path=None, log_root=None) -> tuple:
     """Returns (PlayerSpec, data) where data maps track id -> raw [(t, value)].
 
     The two are kept separate so encode.py owns the wire format and this module owns
-    only the domain mapping."""
+    only the domain mapping.
+
+    log_path (optional): the .wpilog's own path on disk. When given, attaches
+    spec.static['vision'] for any camera with a vision recording (see bundles.py)
+    overlapping this log's time span. log_root defaults to log_path's own parent
+    directory; server/main.py passes LOG_ROOT explicitly since that's where
+    /vision-video is mounted and video URLs must resolve relative to it."""
     cameras = discover_cameras(signals)
     data: dict = {}
     tracks: list = []
@@ -202,6 +265,14 @@ def build(signals: dict, title: str = 'Camera Health Replay') -> tuple:
     ))
     layout.append(['field', 'readout'])
 
+    # Purely static.vision-driven -- no tracks of its own. Always added (even with no
+    # vision recording available) so the Streamlit tab / standalone export's layout has
+    # a stable place for it; the front end shows a "no vision recording" placeholder
+    # when static.vision is absent or empty for the current camera/window.
+    panels.append(Panel(id='vision', type='vision', title='Camera Feed',
+                        options={'cameras': cameras}))
+    layout.append(['vision'])
+
     for cam in cameras:
         cam_tracks = [f'health/{cam}/score'] + [
             f'health/{cam}/{suffix}' for suffix, _, _, _ in FACTORS
@@ -260,4 +331,6 @@ def build(signals: dict, title: str = 'Camera Health Replay') -> tuple:
         },
         warnings=warnings,
     )
+    if log_path is not None:
+        _attach_vision(spec, log_path, log_root, data, warnings)
     return spec, data

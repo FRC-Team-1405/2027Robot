@@ -13,13 +13,41 @@ NT-server-synced timestamps (same clock domain as .wpilog files) into a
 per-session directory under RECORDINGS_DIR. Total storage is capped at
 MAX_STORAGE_BYTES by deleting the oldest whole sessions.
 
+Both robot cameras (Left, Right) run through this same script on one Orange
+Pi, as two separate systemd service instances each with their own
+CAMERA_STREAM_URL. Set CAMERA_NAME (env var, mirroring ORANGEPI_METRICS_NAME
+in orangepi-nt-publisher.py) to namespace this instance's sessions under
+RECORDINGS_DIR/<CAMERA_NAME>/ and give it its own boot-id counter at
+RECORDINGS_DIR/<CAMERA_NAME>/.boot_id -- required whenever more than one
+camera is recorded, so two instances never race on the same boot-id file or
+collide on identical session-folder names. When CAMERA_NAME is unset,
+sessions go directly under RECORDINGS_DIR as before (single-camera / legacy
+deployments need no change).
+
+The Pi has no RTC battery, so its wall clock is unreliable across power
+cycles (it can reset to a stale build-image date whenever it loses power
+without reaching NTP). Session folders are therefore named
+"boot<NNNN>-<timestamp>" where <NNNN> is a counter persisted on disk and
+incremented once per process start — so folders from this power-on are
+always distinguishable from an earlier one regardless of the clock.
+
+For the timestamp itself: the roboRIO's clock is set from the Driver
+Station laptop on every connect (a normal, accurate, battery-backed
+clock), so robot code publishes it over NT (RobotContainer.publishRobotData(),
+under RobotTime/WallClockMs) and this script uses the offset to label
+folders with the real date/time in America/New_York, without ever
+touching the Pi's own OS clock. If no robot connection has been made yet,
+folders fall back to the Pi's local (possibly stale) clock — the boot
+counter still makes them unambiguous either way.
+
 Install dependency:
     pip install pyntcore
 
 Run:
     python3 orangepi-vision-recorder.py
 
-To run on boot, add a systemd service (see orangepi-vision-recorder.service).
+To run on boot, add a systemd service instance (see orangepi-vision-recorder@.service
+and docs/orangepi-vision-recorder-setup.md).
 """
 
 import json
@@ -27,18 +55,38 @@ import os
 import shutil
 import time
 import urllib.request
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
 
-CAMERA_STREAM_URL = "http://localhost:1181/stream.mjpg"  # PhotonVision RAW (pre-detection) stream for Cam1 — confirmed on bench, re-check if camera config changes
+# Default is Cam1's RAW (pre-detection) stream, confirmed on bench — re-check if camera
+# config changes. Each systemd instance overrides this via its own EnvironmentFile so
+# the Left and Right instances tap different streams.
+CAMERA_STREAM_URL = os.environ.get("CAMERA_STREAM_URL", "http://localhost:1181/stream.mjpg")
 SAMPLE_HZ = 3.0
 
-RECORDINGS_DIR = "/home/pi/vision-recordings"  # local storage for v1; swap to a USB mount point here once one is attached
-MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024  # 5GB flat cap
+# Set when more than one camera is recorded on this Pi (see module docstring). Sessions
+# and the boot-id counter are namespaced under RECORDINGS_DIR/<CAMERA_NAME>/ so the Left
+# and Right systemd instances never collide.
+CAMERA_NAME = os.environ.get("CAMERA_NAME", "").strip()
+
+RECORDINGS_DIR = os.environ.get("RECORDINGS_DIR", "/home/photon/vision-recordings")  # local storage for v1; swap to a USB mount point here once one is attached
+RECORDINGS_BASE = os.path.join(RECORDINGS_DIR, CAMERA_NAME) if CAMERA_NAME else RECORDINGS_DIR
+MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024  # 5GB flat cap, per camera instance
 
 FMS_INFO_TABLE = "FMSInfo"
 FMS_CONTROL_TOPIC = "FMSControlData"
 ENABLED_BIT = 0  # HAL_ControlWord bit order: enabled, autonomous, test, eStop, fmsAttached, dsAttached — verify on bench (see docs/orangepi-vision-recorder-setup.md)
+
+# The roboRIO's system clock is set from the Driver Station laptop on every connect, so it
+# stays accurate even though it (like this Pi) has no RTC battery. RobotContainer.publishRobotData()
+# publishes it as UTC epoch ms; we read it and use the offset purely to *label* session
+# folders with real dates — we deliberately never touch the Pi's own OS clock (no root needed,
+# no risk of confusing systemd/logs/TLS if this script has a bug).
+ROBOT_TIME_TABLE = "RobotTime"
+ROBOT_TIME_TOPIC = "WallClockMs"
+DISPLAY_TZ = ZoneInfo("America/New_York")
 
 JPEG_SOI = b"\xff\xd8"
 JPEG_EOI = b"\xff\xd9"
@@ -102,6 +150,33 @@ class MjpegFrameReader:
             self._stream = None
 
 
+BOOT_ID_FILE = ".boot_id"  # persisted on disk (survives power loss, unlike the Pi's batteryless RTC) so session folders stay distinguishable across restarts even when the wall clock resets
+
+
+def next_boot_id(base):
+    """Increment and return a counter persisted in BOOT_ID_FILE under base.
+
+    The Orange Pi has no RTC battery, so its wall clock resets to some
+    build-image default on every power cycle until it can reach an NTP
+    server (often never, on a field network). A session folder named only
+    by that clock can't be told apart from one made a month ago. This
+    counter increments once per process start (i.e. once per boot, since
+    the service starts at boot) and gets baked into the session folder
+    name instead, so "this session" vs. "last session" is always clear
+    regardless of what the clock reads.
+    """
+    os.makedirs(base, exist_ok=True)
+    path = os.path.join(base, BOOT_ID_FILE)
+    try:
+        with open(path) as f:
+            boot_id = int(f.read().strip()) + 1
+    except (FileNotFoundError, ValueError):
+        boot_id = 1
+    with open(path, "w") as f:
+        f.write(str(boot_id))
+    return boot_id
+
+
 def session_dirs(base):
     if not os.path.isdir(base):
         return []
@@ -128,9 +203,28 @@ def enforce_storage_cap(base, max_bytes):
         i += 1
 
 
-def new_session_dir(base):
+def robot_clock_offset_sec(robot_time_entry):
+    """Offset (seconds) to add to local time.time() to get the roboRIO's
+    synced wall clock. Returns None if we haven't received a value yet
+    (not connected, or robot code hasn't published one this session)."""
+    raw_ms = robot_time_entry.get(0)
+    if not raw_ms:
+        return None
+    return (raw_ms / 1000.0) - time.time()
+
+
+def session_timestamp_str(offset_sec):
+    """Timestamp for session/folder naming, corrected to the roboRIO's
+    synced clock (falls back to the Pi's own possibly-stale local clock
+    if we haven't synced yet), rendered in DISPLAY_TZ regardless of the
+    Pi's own timezone setting."""
+    ts = time.time() + (offset_sec or 0.0)
+    return datetime.fromtimestamp(ts, tz=DISPLAY_TZ).strftime("%Y%m%d-%H%M%S")
+
+
+def new_session_dir(base, boot_id, offset_sec):
     os.makedirs(base, exist_ok=True)
-    session = os.path.join(base, time.strftime("%Y%m%d-%H%M%S"))
+    session = os.path.join(base, f"boot{boot_id:04d}-{session_timestamp_str(offset_sec)}")
     os.makedirs(session, exist_ok=True)
     return session
 
@@ -143,8 +237,12 @@ def main():
     inst.setServerTeam(TEAM_NUMBER)
 
     control_word_entry = inst.getTable(FMS_INFO_TABLE).getIntegerTopic(FMS_CONTROL_TOPIC).getEntry(0)
+    robot_time_entry = inst.getTable(ROBOT_TIME_TABLE).getIntegerTopic(ROBOT_TIME_TOPIC).getEntry(0)
 
-    print(f"Connecting to roboRIO (team {TEAM_NUMBER})…")
+    boot_id = next_boot_id(RECORDINGS_BASE)
+
+    cam_note = f" [camera {CAMERA_NAME}]" if CAMERA_NAME else ""
+    print(f"Connecting to roboRIO (team {TEAM_NUMBER})…{cam_note} [boot {boot_id}, local clock reads {time.strftime('%Y-%m-%d %H:%M:%S')}]")
 
     reader = MjpegFrameReader(CAMERA_STREAM_URL)
     period_s = 1.0 / SAMPLE_HZ
@@ -160,10 +258,13 @@ def main():
                 enabled = is_enabled(control_word_entry)
 
                 if enabled and not was_enabled:
-                    enforce_storage_cap(RECORDINGS_DIR, MAX_STORAGE_BYTES)
-                    session_dir = new_session_dir(RECORDINGS_DIR)
+                    offset_sec = robot_clock_offset_sec(robot_time_entry)
+                    enforce_storage_cap(RECORDINGS_BASE, MAX_STORAGE_BYTES)
+                    session_dir = new_session_dir(RECORDINGS_BASE, boot_id, offset_sec)
                     manifest = open(os.path.join(session_dir, "manifest.jsonl"), "a")
-                    print(f"Enabled — starting session {session_dir}")
+                    sync_note = f"synced to roboRIO, offset {offset_sec:+.1f}s" if offset_sec is not None \
+                        else "NOT synced to roboRIO — using Pi's own possibly-stale clock"
+                    print(f"Enabled — starting session {session_dir} ({sync_note})")
                 elif not enabled and was_enabled:
                     if manifest:
                         manifest.close()

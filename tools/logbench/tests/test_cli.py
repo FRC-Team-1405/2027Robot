@@ -21,12 +21,12 @@ def _log(signals: dict) -> Log:
 
 FIXTURES = {
     'a.wpilog': _log({
-        'Vision/Left/Health/StillnessPercent': [(10.0, 50.0)],
+        'Vision/Left/Health/FpsPercent': [(10.0, 50.0)],
         'DriverStation/Enabled': [(10.0, True), (10.5, True)],
         'DriverStation/Autonomous': [(10.0, True)],
     }),
     'b.wpilog': _log({
-        'Vision/Left/Health/StillnessPercent': [(10.0, 90.0)],
+        'Vision/Left/Health/FpsPercent': [(10.0, 90.0)],
         'DriverStation/Enabled': [(10.0, True), (10.5, True)],
         'DriverStation/Autonomous': [(10.0, True)],
     }),
@@ -39,26 +39,26 @@ def _stub_log_load(monkeypatch):
 
 
 def test_metrics_json_shape(capsys):
-    rc = cli.main(['metrics', 'a.wpilog', '--metric', 'stillness_pct', '--camera', 'Left', '--json'])
+    rc = cli.main(['metrics', 'a.wpilog', '--metric', 'fps_pct', '--camera', 'Left', '--json'])
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload['log'] == 'a.wpilog'
     assert payload['cameras'] == ['Left']
-    assert payload['metrics'] == [{'metric': 'stillness_pct', 'camera': 'Left', 'value': 50.0}]
+    assert payload['metrics'] == [{'metric': 'fps_pct', 'camera': 'Left', 'value': 50.0}]
 
 
 def test_metrics_text_output_lists_every_requested_metric(capsys):
-    rc = cli.main(['metrics', 'a.wpilog', '--metric', 'stillness_pct', '--camera', 'Left'])
+    rc = cli.main(['metrics', 'a.wpilog', '--metric', 'fps_pct', '--camera', 'Left'])
     assert rc == 0
     out = capsys.readouterr().out
-    assert 'stillness_pct' in out
+    assert 'fps_pct' in out
     assert '50.00' in out
 
 
 def test_compare_json_shape(capsys):
     rc = cli.main([
         'compare', 'a.wpilog', 'b.wpilog',
-        '--metric', 'stillness_pct', '--camera', 'Left', '--json',
+        '--metric', 'fps_pct', '--camera', 'Left', '--json',
     ])
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
@@ -71,7 +71,7 @@ def test_compare_json_shape(capsys):
 def test_compare_supports_independent_manual_windows_per_log(capsys):
     rc = cli.main([
         'compare', 'a.wpilog', 'b.wpilog',
-        '--metric', 'stillness_pct', '--camera', 'Left',
+        '--metric', 'fps_pct', '--camera', 'Left',
         '--window-a', '0', '1', '--window-b', '0', '1', '--json',
     ])
     assert rc == 0
@@ -81,7 +81,7 @@ def test_compare_supports_independent_manual_windows_per_log(capsys):
 
 
 def test_mode_selection_via_cli(capsys):
-    rc = cli.main(['metrics', 'a.wpilog', '--metric', 'stillness_pct', '--mode', 'auto', '--json'])
+    rc = cli.main(['metrics', 'a.wpilog', '--metric', 'fps_pct', '--mode', 'auto', '--json'])
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload['window']['lo'] == pytest.approx(10.0)

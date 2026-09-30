@@ -2,7 +2,7 @@
 // Keep the two in step: the Python tests in tests/test_encode.py pin the shapes below.
 
 export type TrackKind = 'scalar' | 'bool' | 'string' | 'enum' | 'pose2d' | 'intset';
-export type PanelType = 'timeseries' | 'field' | 'readout' | 'events' | 'tracktoggle';
+export type PanelType = 'timeseries' | 'field' | 'readout' | 'events' | 'tracktoggle' | 'vision';
 
 export interface Group {
   id: string;
@@ -54,6 +54,12 @@ export interface FieldStatic {
   tags: Record<string, [number, number]>;
 }
 
+/** One entry per camera that has a Pi vision recording overlapping this log's window. */
+export interface VisionCameraStatic {
+  video: string;
+  t0: number;
+}
+
 export interface WireSpec {
   title: string;
   t0: number;
@@ -67,6 +73,7 @@ export interface WireSpec {
     field?: FieldStatic;
     severity?: SeverityBand[];
     staleness_sec?: number;
+    vision?: Record<string, VisionCameraStatic>;
   };
   warnings: string[];
   data: Record<string, WireSeries>;

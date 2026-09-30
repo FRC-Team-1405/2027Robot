@@ -82,6 +82,7 @@ public class Intake extends SubsystemBase {
 
     private void setIntakePosition(double position) {
         if (FeatureSwitches.INTAKE_SAFTEY_MODE_NO_DEPLOY) return;
+        if (FeatureSwitches.DISABLE_INTAKE) return;
         if (isIntakeMovementDisabled) return;
 
         io.setDeployPosition(position);
