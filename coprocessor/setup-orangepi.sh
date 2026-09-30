@@ -5,7 +5,8 @@ set -Eeuo pipefail
 SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 VENV="$HOME/.venv-ntpublisher"
 PHASE="startup"
-UNITS=(orangepi-nt-publisher.service orangepi-vision-recorder@left.service orangepi-vision-recorder@right.service)
+UNITS=(orangepi-nt-publisher.service)
+INSTALLED_RECORDERS=()
 SELECTED=()
 WORK_DIR=""
 
@@ -14,18 +15,30 @@ usage() {
 Usage: bash setup-orangepi.sh [--status | --logs | --help]
 
 Without options, walks through installing metrics, camera recorders, or both.
+Asks for a unique board name and the camera instances on THIS board; no board
+count or left/right camera layout is assumed.
 Run as SSH user pi, NOT with sudo. The installer
 uses sudo only for OS packages, systemd units, and /etc configuration.
 Python packages go into ~/.venv-ntpublisher; system Python is never pip-installed.
 
 --status  Check PhotonVision, installed coprocessor services, Python, and disk.
---logs    Show recent journal entries for PhotonVision and all three services.
+--logs    Show recent journal entries for PhotonVision and installed services.
 These diagnostic modes do not install, restart, or change configuration.
 EOF
 }
 
 cleanup() { [[ -z "$WORK_DIR" ]] || rm -rf -- "$WORK_DIR"; }
 trap cleanup EXIT
+
+refresh_units() {
+    # Include enabled instances and loaded instances, even if not enabled at boot.
+    mapfile -t INSTALLED_RECORDERS < <(
+        { systemctl list-unit-files --no-legend --no-pager 'orangepi-vision-recorder@*.service' || true
+          systemctl list-units --all --plain --no-legend --no-pager 'orangepi-vision-recorder@*.service' || true; } |
+        awk '$1 ~ /^orangepi-vision-recorder@[A-Za-z0-9_-]+\.service$/ {print $1}' | sort -u
+    )
+    UNITS=(orangepi-nt-publisher.service "${INSTALLED_RECORDERS[@]}")
+}
 
 show_logs() {
     local unit
@@ -67,8 +80,16 @@ check_unit() {
     fi
 }
 
+board_name_from_env() {
+    local name
+    name=$(sed -n 's/^[[:space:]]*ORANGEPI_METRICS_NAME=//p' | tail -n 1 | tr -d '\r')
+    name=${name#\"}; name=${name%\"}
+    name=${name#\'}; name=${name%\'}
+    printf '%s\n' "$name"
+}
+
 status_check() {
-    local result=0 unit
+    local result=0 unit board
     echo "Python environment: $VENV"
     if [[ -x "$VENV/bin/python3" ]] && "$VENV/bin/python3" -c 'import ntcore; print("ntcore import: OK")'; then
         :
@@ -77,6 +98,18 @@ status_check() {
         result=1
     fi
     df -h "$HOME"
+    if sudo test -f /etc/default/orangepi-nt-publisher; then
+        board=$(sudo cat /etc/default/orangepi-nt-publisher | board_name_from_env)
+        if [[ "$board" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "Board identity: $board; metrics topics: /OrangePi/$board/"
+        else
+            echo 'FAIL: board name missing/invalid; rerun setup to configure its identity.'
+            result=1
+        fi
+    else
+        echo 'FAIL: board name not configured; run setup to avoid shared metrics topics.'
+        result=1
+    fi
     check_unit photonvision.service || result=1
     for unit in "${UNITS[@]}"; do
         if [[ "$(systemctl show "$unit" -p LoadState --value)" == not-found ]]; then
@@ -92,6 +125,31 @@ status_check() {
     done
     echo 'Active services do not prove NT connectivity, raw-camera correctness, or enabled-bit decoding.'
     return "$result"
+}
+
+configure_board() {
+    local current="" name file=/etc/default/orangepi-nt-publisher
+    sudo install -d -m 755 /etc/default
+    if sudo test -f "$file"; then
+        sudo cat "$file" > "$WORK_DIR/board.env"
+        current=$(board_name_from_env < "$WORK_DIR/board.env")
+    else
+        : > "$WORK_DIR/board.env"
+    fi
+    echo 'Every board on the robot must have a DISTINCT NetworkTables name.'
+    echo 'Examples only: LeftPi, RightPi, VisionFront, PracticePi. No board count is assumed.'
+    read -r -p "Board NT name (letters, digits, _ or -)${current:+ [$current]}: " name
+    name=${name:-$current}
+    [[ "$name" =~ ^[A-Za-z0-9_-]+$ ]] || die 'A nonempty board name is required; use only letters, digits, _ or -.'
+    sed '/^[[:space:]]*ORANGEPI_METRICS_NAME=/d' "$WORK_DIR/board.env" > "$WORK_DIR/board-updated.env"
+    printf '\nORANGEPI_METRICS_NAME=%s\n' "$name" >> "$WORK_DIR/board-updated.env"
+    sudo install -m 644 "$WORK_DIR/board-updated.env" "$file"
+    echo "Metrics namespace: /OrangePi/$name/"
+    echo 'Setup cannot compare names on other boards; use a different name on each.'
+    if [[ "$name" != "$current" ]] && systemctl is-active --quiet orangepi-nt-publisher.service; then
+        echo 'Board name changed; the existing metrics service will also be restarted.'
+        SELECTED+=(orangepi-nt-publisher.service)
+    fi
 }
 
 # Do not source systemd EnvironmentFiles as shell code.
@@ -134,7 +192,7 @@ configure_camera() {
         fi
     else
         echo "Confirm the $camera camera RAW stream in PhotonVision's dashboard first."
-        echo 'Bench reference only: left=1183, right=1181; ports can change.'
+        echo 'Use the RAW stream on THIS board; ports depend on its camera configuration.'
         read -r -p "Confirmed raw MJPEG URL for $camera (no default; blank skips camera): " url
         [[ -n "$url" ]] || { echo "Skipping $camera recorder."; return; }
         [[ "$url" =~ ^https?://[^[:space:]\"\'\\]+$ ]] || die 'Enter an HTTP(S) URL without spaces, quotes, or backslashes.'
@@ -165,6 +223,7 @@ command -v systemctl >/dev/null || die 'This script requires a systemd-based Ora
 command -v sudo >/dev/null || die 'sudo is required; run this from the normal SSH account.'
 [[ $EUID -ne 0 ]] || die 'Run bash setup-orangepi.sh as SSH user pi, without sudo.'
 [[ "$(id -un)" == pi ]] || die 'The correct SSH account is pi. Reconnect with ssh pi@photonvision.local.'
+refresh_units
 case "$MODE" in
     --status) if status_check; then exit 0; else exit 1; fi ;;
     --logs) show_logs; exit 0 ;;
@@ -181,7 +240,7 @@ done
 
 echo 'Orange Pi setup: team 1405; shared Python venv; systemd services.'
 echo "Login: $(id -un); home: $HOME; source: $SOURCE_DIR"
-echo '1) Metrics publisher  2) Camera recorders (left/right)  3) Both  4) Quit'
+echo '1) Metrics publisher  2) Camera recorders  3) Both  4) Quit'
 read -r -p 'Install which services? [3] ' choice
 choice=${choice:-3}
 case "$choice" in 1|2|3) ;; 4) exit 0 ;; *) die 'Choose 1, 2, 3, or 4.' ;; esac
@@ -189,6 +248,9 @@ confirm 'Install/update selected scripts and units, and restart selected service
 PHASE='sudo access'
 sudo -v
 WORK_DIR=$(mktemp -d)
+
+PHASE='board NetworkTables identity'
+configure_board
 
 PHASE='Python virtual environment'
 if [[ ! -x "$VENV/bin/python3" ]] || ! "$VENV/bin/python3" -m pip --version >/dev/null 2>&1; then
@@ -204,14 +266,21 @@ fi
 if [[ "$choice" == 1 || "$choice" == 3 ]]; then
     PHASE='metrics publisher installation'
     install_unit orangepi-nt-publisher.service orangepi-nt-publisher.py
-    echo 'Keeping /etc/default/orangepi-nt-publisher if present (metrics namespace).'
-    SELECTED+=(orangepi-nt-publisher.service)
+    [[ " ${SELECTED[*]} " == *' orangepi-nt-publisher.service '* ]] || SELECTED+=(orangepi-nt-publisher.service)
 fi
 if [[ "$choice" == 2 || "$choice" == 3 ]]; then
     PHASE='camera recorder configuration'
     sudo install -d -m 755 /etc/orangepi-vision-recorder
-    configure_camera left
-    configure_camera right
+    echo 'Choose only the camera instances hosted on THIS board.'
+    echo "Existing installed recorder instances: ${INSTALLED_RECORDERS[*]:-(none)}"
+    echo 'Examples: left  OR  right  OR  front rear  OR  left right. Blank skips recorders.'
+    read -r -a CAMERAS -p 'Camera instances to install/update (space separated): '
+    for camera in "${CAMERAS[@]}"; do
+        [[ "$camera" =~ ^[A-Za-z0-9_-]+$ ]] || die 'Camera instance names must contain only letters, digits, _ or -.'
+    done
+    for camera in "${CAMERAS[@]}"; do
+        [[ " ${SELECTED[*]} " == *" orangepi-vision-recorder@$camera.service "* ]] || configure_camera "$camera"
+    done
     if [[ " ${SELECTED[*]} " == *'orangepi-vision-recorder@'* ]]; then
         install_unit orangepi-vision-recorder@.service orangepi-vision-recorder.py
         mkdir -p "$HOME/vision-recordings"
@@ -236,7 +305,10 @@ if [[ ${#SELECTED[@]} -gt 0 ]]; then
     done
 fi
 PHASE='final status check'
+refresh_units
 status_check
+echo 'Recorder instances not selected for update are kept; to retire one, use:'
+echo 'sudo systemctl disable --now orangepi-vision-recorder@<instance>.service'
 echo 'Setup checks passed. Verify /OrangePi updates in NT, raw frames while enabled,'
 echo 'FMSInfo enabled-bit decoding, and PhotonVision FPS/latency on the bench.'
 echo 'Recorder storage cap is 5GB PER camera; check free space for both cameras.'

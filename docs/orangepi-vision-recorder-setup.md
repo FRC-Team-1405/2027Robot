@@ -7,7 +7,10 @@ Installs `coprocessor/orangepi-vision-recorder.py` as a systemd service on the P
 Copy the entire `coprocessor` folder to the Pi and run `bash setup-orangepi.sh` from
 that folder, as SSH user `pi` without sudo. Choose recorders or both services.
 It shares the publisher venv, asks for confirmed raw-stream URLs, preserves existing
-camera env files, and renders the unit using your actual home directory. The correct account is `pi`; the installer requires that login. New camera
+camera env files, and renders the unit using your actual home directory. Setup also
+asks for a unique board NT name and the camera instances hosted on that board; it
+assumes no board count or camera layout. The correct account is `pi`; the installer
+requires that login. New camera
 configs explicitly set `RECORDINGS_DIR` to `/home/pi/vision-recordings`.
 
 Use `bash setup-orangepi.sh --status` / `--logs` to diagnose the services. These checks
@@ -27,15 +30,29 @@ storage mount. `tools/logbench/server/remote_config.json` must use SSH user `pi`
 point `pi.recordings_path` at the same recordings directory when fetching bundles.
 
 
-## Two cameras, one Pi, two service instances
+## One recorder instance per camera, on any number of boards
 
-Both robot cameras (`Left`, `Right`) run through PhotonVision on this **same** Orange Pi — there is only one Pi, not one per camera. So this script runs as two systemd service *instances* of one templated unit, `orangepi-vision-recorder@.service`, each pointed at its own raw MJPEG stream via `%i` (the instance name, `left` or `right`) and an `EnvironmentFile`. Each instance gets `CAMERA_NAME` set automatically from `%i`, which namespaces its session folders and boot-id counter under `RECORDINGS_DIR/<CAMERA_NAME>/` so the two instances never race on the same `.boot_id` file or collide on an identical session folder name (see the script's module docstring). Running only one camera? Everything below still works with a single instance — just skip the other `.env` file and `systemctl enable/start` call.
+The generic setup supports one or several camera instances per board, with any number
+of boards. Each `orangepi-vision-recorder@<instance>.service` reads that camera's env
+file and gets `CAMERA_NAME` from `%i`. Local recordings and boot counters live under
+`RECORDINGS_DIR/<CAMERA_NAME>/`.
+
+The current robot has two Orange Pis: the Left board runs `@left` and the Right board
+runs `@right`. Choose `LeftPi`/`left` in setup on the Left board and `RightPi`/`right`
+on the Right board. These names describe this robot, not a required layout. Another
+board could run `front rear`, for example.
+
+The template reads `ORANGEPI_METRICS_NAME` from `/etc/default/orangepi-nt-publisher`,
+making the NT client identity `OrangePiVisionRecorder-<board-name>-<camera-instance>`.
+Recorders read the shared `/FMSInfo` and `/RobotTime` topics without publishing to
+them. The metrics publisher writes only under `/OrangePi/<board-name>/`. All boards
+connect to the same team 1405 roboRIO NT server; choose a distinct board name for each.
 
 ## 1. Two things to verify on the bench before trusting this script
 
 These aren't configurable guesses — they're facts about a specific PhotonVision install and WPILib version, and both are easy to get wrong silently:
 
-**a. Confirm the raw stream port for each camera.** In the PhotonVision web UI (`http://<pi-ip>:5800`), open the Dashboard tab and toggle "Stream Display" to show RAW alongside PROCESSED. Right-click → Inspect (or use browser devtools) on the two `<img>` elements to read their `src` URLs — the port serving the *unprocessed* feed (no AprilTag overlay drawn) is what each instance's `CAMERA_STREAM_URL` must point at. On this team's bench Pi, these were confirmed:
+**a. Confirm the raw stream port for each camera.** In the PhotonVision web UI (`http://<pi-ip>:5800`), open the Dashboard tab and toggle "Stream Display" to show RAW alongside PROCESSED. Right-click → Inspect (or use browser devtools) on the two `<img>` elements to read their `src` URLs — the port serving the *unprocessed* feed (no AprilTag overlay drawn) is what each instance's `CAMERA_STREAM_URL` must point at. An earlier one-board bench configuration used these ports:
 
 Right Cam live raw stream: http://photonvision.local:1181/stream.mjpg
 Left Cam live raw stream: http://photonvision.local:1183/stream.mjpg
@@ -74,9 +91,12 @@ Create `/etc/orangepi-vision-recorder/right.env`:
 CAMERA_STREAM_URL=http://localhost:1181/stream.mjpg
 ```
 
-(Substitute the ports confirmed in step 1a if they differ. Add `RECORDINGS_DIR=...` to either file to override the storage location for that camera specifically — not normally needed, since both cameras share one Pi and namespace under the same base directory by `CAMERA_NAME`.)
+Create only the env files for cameras hosted on this board. For the current robot,
+create `left.env` on the Left board and `right.env` on the Right board. Substitute each
+board's own confirmed raw port; both single-camera boards may use the same local port.
+Use `RECORDINGS_DIR=...` for a custom storage mount.
 
-## 4. Install and start both instances
+## 4. Install and start the instances hosted on this board
 
 ```bash
 sudo cp "/tmp/orangepi-vision-recorder@.service" /etc/systemd/system/
@@ -85,6 +105,10 @@ sudo systemctl enable --now orangepi-vision-recorder@left.service
 sudo systemctl enable --now orangepi-vision-recorder@right.service
 ```
 
+Enable only the instances hosted on this board. The two commands above illustrate a
+board hosting both cameras; for the current robot, run only the `@left` command on the
+Left board and only the `@right` command on the Right board.
+
 ## 5. Verify it's working
 
 ```bash
@@ -92,14 +116,13 @@ sudo systemctl status orangepi-vision-recorder@left.service orangepi-vision-reco
 sudo journalctl -u "orangepi-vision-recorder@*.service" -f
 ```
 
-You want `Active: active (running)` for both. A healthy run prints `Connecting to roboRIO (team 1405)… [camera left] ...` once per instance, then `Enabled — starting session ...` / `Disabled — session ended` as the robot state changes — it should otherwise stay quiet.
+Check only the instances on this board; each should report `Active: active (running)`. A healthy run prints `Connecting to roboRIO (team 1405)… [camera left] ...` once per instance, then `Enabled — starting session ...` / `Disabled — session ended` as the robot state changes — it should otherwise stay quiet.
 
 While the robot is enabled (sim or real), confirm on the Pi:
 
 ```bash
-ls /home/pi/vision-recordings/left/
-ls /home/pi/vision-recordings/right/
-cat /home/pi/vision-recordings/left/<latest-session>/manifest.jsonl
+ls /home/pi/vision-recordings/<instance>/
+cat /home/pi/vision-recordings/<instance>/<latest-session>/manifest.jsonl
 ```
 
 You should see JPEGs accumulating at roughly `SAMPLE_HZ` (default 3/sec) per camera and a `manifest.jsonl` line per frame with a `t_sec` timestamp. **Also watch PhotonVision's own dashboard FPS/latency counters while this runs** — they shouldn't visibly regress, since the whole point of tapping the existing MJPEG stream instead of the camera device is to avoid competing with the detection pipeline.

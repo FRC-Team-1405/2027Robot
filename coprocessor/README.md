@@ -23,14 +23,43 @@ services and checks for immediate crashes/restarts. It uses `sudo` for OS instal
 and `/etc` only. Internet is needed if OS/Python dependencies are missing; an existing
 working venv can be reused offline.
 
+Setup asks for a **unique board name**, stored as `ORANGEPI_METRICS_NAME` in
+`/etc/default/orangepi-nt-publisher`. The metrics topics are
+`/OrangePi/<board-name>/CPU_Pct`, `Temp_C`, etc. Use a distinct name on every board
+connected to the same roboRIO; changing only the NT client name does not separate
+topic paths. Setup defaults to the existing board name on reruns and preserves other
+settings in the file. It cannot compare names with other boards on the network.
+
+When installing recorders, enter the camera instance names on **this board**, separated
+by spaces. Names may contain letters, digits, `_` or `-`; there is no default camera
+selection or assumed board count. One board may record `front`, another `rear`, or one
+board may record several cameras. Existing instances not selected for update are kept;
+retire an unwanted instance with:
+
+```bash
+sudo systemctl disable --now orangepi-vision-recorder@<instance>.service
+```
+
+Example for the current robot (two boards, one camera each):
+
+| Board | Board NT name | Camera instances | Metrics topics |
+|---|---|---|---|
+| Left camera board | `LeftPi` | `left` | `/OrangePi/LeftPi/*` |
+| Right camera board | `RightPi` | `right` | `/OrangePi/RightPi/*` |
+
+The recorder clients become `OrangePiVisionRecorder-LeftPi-left` and
+`OrangePiVisionRecorder-RightPi-right`. Both read `/FMSInfo` and `/RobotTime`; they do
+not publish values there. Recording files stay on each board's own disk.
+
 Rerunning setup copies the latest selected Python scripts and rendered service units,
 then calls `systemctl daemon-reload`, enables them at boot, and restarts them. Existing
 working dependencies are reused; this is not a forced package upgrade. Copy updated
 repo files to the Pi first, then select the services you want to update.
 
-For each new camera configuration, enter a **confirmed raw MJPEG URL** (bench references:
-left 1183, right 1181). Blank skips that camera. Existing camera env files and metrics
-namespaces are preserved. New camera env files set `RECORDINGS_DIR` to your account's
+For each new camera configuration, enter a **confirmed raw MJPEG URL on that board**.
+Port numbers depend on each board's PhotonVision configuration; do not reuse the old
+one-board left/right port mapping without checking it. Blank skips that camera.
+Existing camera env files are preserved. New camera env files set `RECORDINGS_DIR` to your account's
 `vision-recordings` directory; existing files get this setting only if it is missing,
 and the installer requires the `pi` login for installation and diagnostics. A bounded
 HTTP check tests whether the stream responds; it cannot distinguish raw from processed video.
@@ -38,7 +67,7 @@ Existing recordings and venv packages are retained on reruns. Existing env files
 custom storage paths remain authoritative; ensure those paths exist and have space.
 
 ```bash
-bash setup-orangepi.sh --status  # Python import, disk, PhotonVision and installed services
+bash setup-orangepi.sh --status  # board identity, Python, disk, PhotonVision, installed instances
 bash setup-orangepi.sh --logs    # recent journal entries, no live tail
 ```
 
@@ -75,8 +104,10 @@ temporary internet for dependencies; updating an existing working venv can be of
 ## `orangepi-nt-publisher.py` / `orangepi-nt-publisher.service`
 
 Publishes the Pi's CPU/RAM/disk/temp to NT4 under `/OrangePi/` once a second. One process,
-one plain (non-templated) systemd service. `ORANGEPI_METRICS_NAME` env var namespaces the
-NT table if you ever run more than one Orange Pi on the same robot.
+one plain (non-templated) systemd service on each board. The installer sets
+`ORANGEPI_METRICS_NAME` to separate each board's topics and metrics client identity.
+Launching the Python script outside this setup with no name still uses the legacy
+`/OrangePi/*` topics; multiple unnamed publishers would share those topics.
 
 ## `orangepi-vision-recorder.py` / `orangepi-vision-recorder@.service`
 
@@ -88,9 +119,9 @@ script's own module docstring for how session folders are named and clock-synced
 
 `orangepi-vision-recorder@.service` is a **systemd template unit**, not a typo or a
 version number placeholder. The `@` marks the file as a template — you never install or
-run it under that literal name. Both robot cameras (Left, Right) run through this same
-script on the *same* Pi, as two separate instances, so it's templated once and
-instantiated twice.
+run it under that literal name. Install one instance per camera hosted on that board.
+The same template supports one camera on each of several boards, or multiple cameras
+on one board.
 
 To use it, install the file as-is (still named `orangepi-vision-recorder@.service`) to
 `/etc/systemd/system/`, then enable/start it with an **instance name** appended after the
@@ -101,9 +132,13 @@ sudo systemctl enable --now orangepi-vision-recorder@left.service
 sudo systemctl enable --now orangepi-vision-recorder@right.service
 ```
 
+These are examples: enable only `left` on the Left board and only `right` on the Right
+board for the current robot. A different setup can choose its own names.
+
 Whatever you put after the `@` (here, `left`/`right`) is substituted for every `%i` inside
 the unit file — see `Environment=CAMERA_NAME=%i` and
-`EnvironmentFile=/etc/orangepi-vision-recorder/%i.env`. `CAMERA_NAME` namespaces that
+`EnvironmentFile=/etc/orangepi-vision-recorder/%i.env`. The template also reads the board
+name from `/etc/default/orangepi-nt-publisher`. `CAMERA_NAME` namespaces that
 instance's session folders and boot-id counter (`RECORDINGS_DIR/<CAMERA_NAME>/...`) so the
 two instances never collide, and the per-instance `.env` file is where you set that
 instance's `CAMERA_STREAM_URL` (which raw MJPEG port it taps). Pick instance names that

@@ -13,16 +13,18 @@ NT-server-synced timestamps (same clock domain as .wpilog files) into a
 per-session directory under RECORDINGS_DIR. Total storage is capped at
 MAX_STORAGE_BYTES by deleting the oldest whole sessions.
 
-Both robot cameras (Left, Right) run through this same script on one Orange
-Pi, as two separate systemd service instances each with their own
-CAMERA_STREAM_URL. Set CAMERA_NAME (env var, mirroring ORANGEPI_METRICS_NAME
-in orangepi-nt-publisher.py) to namespace this instance's sessions under
+Run one service instance per camera hosted on a board, on any number of
+Orange Pis. Each instance has its own CAMERA_STREAM_URL. Set CAMERA_NAME
+(env var) to namespace this instance's sessions under
 RECORDINGS_DIR/<CAMERA_NAME>/ and give it its own boot-id counter at
 RECORDINGS_DIR/<CAMERA_NAME>/.boot_id -- required whenever more than one
-camera is recorded, so two instances never race on the same boot-id file or
+camera is recorded on a board, so two instances never race on the same boot-id file or
 collide on identical session-folder names. When CAMERA_NAME is unset,
 sessions go directly under RECORDINGS_DIR as before (single-camera / legacy
-deployments need no change).
+deployments need no change). The service also reads ORANGEPI_METRICS_NAME
+from the board configuration: its NT client name includes both the board
+name and camera instance. It only reads the shared robot-state/clock topics;
+the separate metrics publisher writes under /OrangePi/<board-name>/.
 
 The Pi has no RTC battery, so its wall clock is unreliable across power
 cycles (it can reset to a stale build-image date whenever it loses power
@@ -53,6 +55,7 @@ and docs/orangepi-vision-recorder-setup.md).
 import json
 import os
 import shutil
+import socket
 import time
 import urllib.request
 from datetime import datetime
@@ -60,9 +63,8 @@ from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
 
-# Default is Cam1's RAW (pre-detection) stream, confirmed on bench — re-check if camera
-# config changes. Each systemd instance overrides this via its own EnvironmentFile so
-# the Left and Right instances tap different streams.
+# Fallback only: each instance's EnvironmentFile must specify its confirmed RAW
+# stream on this board. Ports depend on that board's PhotonVision camera config.
 CAMERA_STREAM_URL = os.environ.get("CAMERA_STREAM_URL", "http://localhost:1181/stream.mjpg")
 SAMPLE_HZ = 3.0
 
@@ -70,6 +72,7 @@ SAMPLE_HZ = 3.0
 # and the boot-id counter are namespaced under RECORDINGS_DIR/<CAMERA_NAME>/ so the Left
 # and Right systemd instances never collide.
 CAMERA_NAME = os.environ.get("CAMERA_NAME", "").strip()
+BOARD_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip() or socket.gethostname()
 
 RECORDINGS_DIR = os.environ.get("RECORDINGS_DIR", "/home/pi/vision-recordings")  # local storage for v1; swap to a USB mount point here once one is attached
 RECORDINGS_BASE = os.path.join(RECORDINGS_DIR, CAMERA_NAME) if CAMERA_NAME else RECORDINGS_DIR
@@ -233,7 +236,7 @@ def main():
     import ntcore
 
     inst = ntcore.NetworkTableInstance.getDefault()
-    inst.startClient4("OrangePiVisionRecorder")
+    inst.startClient4(f"OrangePiVisionRecorder-{BOARD_NAME}-{CAMERA_NAME or 'default'}")
     inst.setServerTeam(TEAM_NUMBER)
 
     control_word_entry = inst.getTable(FMS_INFO_TABLE).getIntegerTopic(FMS_CONTROL_TOPIC).getEntry(0)

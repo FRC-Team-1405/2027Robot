@@ -17,8 +17,13 @@ Run `bash setup-orangepi.sh --status` or `--logs` for diagnostics without reinst
 The manual procedure below remains available. The correct SSH account is `pi`, and
 the installer requires that login.
 
-With two Orange Pis, give each publisher a unique namespace. On the board carrying the Left
-camera create `/etc/default/orangepi-nt-publisher` containing:
+Every board needs its own namespace when sharing a roboRIO. The installer asks for a
+unique board name and writes `/etc/default/orangepi-nt-publisher` automatically,
+regardless of how many boards or cameras you use. Reruns default to the previous name.
+Setup cannot detect a duplicate name chosen on another board; keep the names distinct.
+
+For manual installation, create that file with your chosen name. Example for the current
+robot's Left camera board:
 
 ```text
 ORANGEPI_METRICS_NAME=LeftPi
@@ -26,7 +31,11 @@ ORANGEPI_METRICS_NAME=LeftPi
 
 Use `ORANGEPI_METRICS_NAME=RightPi` on the other board. The topics will then be under
 `/OrangePi/LeftPi/` and `/OrangePi/RightPi/` instead of colliding at `/OrangePi/`. The systemd
-service reads this optional file; a single-board install with no file retains the legacy paths.
+service reads this optional file; a manually installed publisher with no file retains
+the legacy paths. Multiple unnamed publishers would write the same topics.
+
+Client identities are `OrangePiMetrics-<board-name>`. The topic namespace is what
+separates values; different client names alone do not prevent topic collisions.
 
 **Prerequisite:** the Pi needs internet access once, to install the `pyntcore` Python package (the PyPI package is named `pyntcore`, not `robotpy-ntcore` — that name 404s). The previous install attempt failed because the Pi has no internet route at all (see `notes/6-20/photonVisionSSH.txt`). Follow **`docs/orangepi-internet-access.md`** first, then come back here. Don't skip the "disconnect Wi-Fi when done" step in that doc before the Pi goes back on a robot.
 

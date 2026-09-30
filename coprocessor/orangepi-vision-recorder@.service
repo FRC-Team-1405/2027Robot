@@ -6,6 +6,7 @@ Wants=photonvision.service
 [Service]
 Environment=PYTHONUNBUFFERED=1
 Environment=CAMERA_NAME=%i
+EnvironmentFile=-/etc/default/orangepi-nt-publisher
 EnvironmentFile=/etc/orangepi-vision-recorder/%i.env
 ExecStart=/usr/bin/python3 /home/pi/orangepi-vision-recorder.py
 Restart=on-failure

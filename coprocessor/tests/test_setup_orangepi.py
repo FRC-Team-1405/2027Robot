@@ -35,6 +35,10 @@ if name == "id":
 if name == "journalctl":
     print("MOCK JOURNAL: " + " ".join(args)); sys.exit(0)
 if name == "systemctl":
+    if args[0] in ("list-unit-files", "list-units"):
+        for path in sorted((root / "enabled").glob("orangepi-vision-recorder@*.service")):
+            print(path.name + " enabled")
+        sys.exit(0)
     unit = next((x for x in args if x.endswith(".service")), "")
     template = "orangepi-vision-recorder@.service" if "recorder@" in unit else unit
     installed = unit == "photonvision.service" or (root / "etc/systemd/system" / template).is_file()
@@ -52,6 +56,9 @@ if name == "systemctl":
         sys.exit(0 if installed and not failed else 3)
     elif "status" in args:
         print("Active: " + ("failed" if failed else "active (running)"))
+    elif args[0] == "enable":
+        (root / "enabled").mkdir(exist_ok=True)
+        (root / "enabled" / unit).touch()
     sys.exit(0)
 if name == "python3":
     if args[:2] == ["-m", "venv"]:
@@ -138,9 +145,11 @@ class InstallerTests(unittest.TestCase):
         finally:
             os.close(master)
 
-    def install(self, choice="1", cameras=()):
+    def install(self, choice="1", cameras=(), board="TestPi", instances="left right"):
         replies = [("Install which services?", choice),
-                   ("restart selected services?", "y")]
+                   ("restart selected services?", "y"), ("Board NT name", board)]
+        if choice in ("2", "3"):
+            replies.append(("Camera instances to install/update", instances))
         replies.extend(cameras)
         return self.run_script(replies=replies)
 
@@ -155,6 +164,50 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("apt-get install -y python3-venv", self.commands())
         self.assertIn("python3 -m pip install pyntcore", self.commands())
         self.assertIn("systemctl enable orangepi-nt-publisher.service", self.commands())
+        self.assertIn("ORANGEPI_METRICS_NAME=TestPi", (self.root / "etc/default/orangepi-nt-publisher").read_text())
+
+    def test_single_arbitrary_camera_on_arbitrary_board(self):
+        rc, out = self.install("3", [("URL for front", "http://localhost:1181/stream.mjpg")],
+                               board="PracticeVision7", instances="front")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("/OrangePi/PracticeVision7/", out)
+        self.assertIn("systemctl restart orangepi-vision-recorder@front.service", self.commands())
+        self.assertNotIn("orangepi-vision-recorder@left.service", self.commands())
+        self.assertNotIn("orangepi-vision-recorder@right.service", self.commands())
+        self.assertIn("EnvironmentFile=-/etc/default/orangepi-nt-publisher",
+                      (self.root / "etc/systemd/system/orangepi-vision-recorder@.service").read_text())
+        (self.root / "commands").write_text("")
+        rc, out = self.run_script(("--status",))
+        self.assertEqual(rc, 0, out)
+        self.assertIn("orangepi-vision-recorder@front.service", out)
+
+    def test_rerun_keeps_board_name_and_other_environment_settings(self):
+        rc, out = self.install(board="VisionFront")
+        self.assertEqual(rc, 0, out)
+        envfile = self.root / "etc/default/orangepi-nt-publisher"
+        envfile.write_text(envfile.read_text() + "OTHER_SETTING=keep_me\n")
+        rc, out = self.install(board="")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("/OrangePi/VisionFront/", out)
+        self.assertIn("OTHER_SETTING=keep_me", envfile.read_text())
+        self.assertEqual(envfile.read_text().count("ORANGEPI_METRICS_NAME="), 1)
+
+    def test_missing_or_invalid_board_identity_is_rejected_before_dependencies(self):
+        for name in ("", "left/right"):
+            rc, out = self.install(board=name)
+            self.assertNotEqual(rc, 0, out)
+            self.assertIn("nonempty board name is required", out)
+            self.assertNotIn("apt-get", self.commands())
+
+    def test_only_selected_cameras_are_updated_on_rerun(self):
+        rc, out = self.install("3", [("URL for left", "http://localhost:1183/stream.mjpg"),
+                                     ("URL for right", "http://localhost:1181/stream.mjpg")])
+        self.assertEqual(rc, 0, out)
+        (self.root / "commands").write_text("")
+        rc, out = self.install("3", instances="left")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("systemctl restart orangepi-vision-recorder@left.service", self.commands())
+        self.assertNotIn("systemctl restart orangepi-vision-recorder@right.service", self.commands())
 
     def test_both_cameras_then_rerun_preserves_configuration_and_works_offline(self):
         rc, out = self.install("3", [("URL for left", "http://localhost:1183/stream.mjpg"),
