@@ -3,9 +3,9 @@
 # Based on Orange Pi's rk3588s-orangepi-5.dts: PWM12, pwm12m1, 50000 ns.
 # Usage: sudo bash coprocessor/enable-fan.sh [--install|--remove]
 # No argument validates only. --install changes boot configuration, never reboots.
-# Version: 2026-10-03.3 — compatible with older u-boot-update.
+# Version: 2026-10-03.5 — compatible with older u-boot-update.
 set -euo pipefail
-SCRIPT_VERSION=2026-10-03.3
+SCRIPT_VERSION=2026-10-03.5
 printf 'enable-fan.sh version %s\n' "$SCRIPT_VERSION"
 printf 'Running file: %s\n' "$(readlink -f "${BASH_SOURCE[0]}")"
 if [ "${1:-}" = --version ]; then exit 0; fi
@@ -90,7 +90,7 @@ cat > "$tempdir/fan.dts" <<'DTS'
         target = <&pwm12>;
         __overlay__ {
             status = "okay";
-            pinctrl-names = "default";
+            pinctrl-names = "active";
             pinctrl-0 = <&pwm12m1_pins>;
         };
     };
