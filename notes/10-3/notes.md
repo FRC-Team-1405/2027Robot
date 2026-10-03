@@ -73,3 +73,9 @@ sudo reboot
 ```
 
 Missing tools: `sudo apt install device-tree-compiler u-boot-menu` (requires internet). After reconnecting, confirm the fan spins and rerun `check-fan.sh` if it does not. Undo with `sudo bash coprocessor/enable-fan.sh --remove`, then reboot. If boot fails, restore the saved extlinux.conf on the SD card and remove the script's configuration fragment; the script prints the paths.
+
+## Post-reboot diagnosis — checkFanOutput2.txt
+
+The overlay loaded and `pwm_fan` is loaded. PWM12 fails to initialize with `rockchip-pwm febf0000.pwm: No active pinctrl state`; the fan then remains deferred with `supplier febf0000.pwm not ready`. This is an overlay configuration error, not evidence of a defective fan.
+
+Installer **2026-10-03.5** changes PWM12's `pinctrl-names` from `default` to `active`, matching Orange Pi's vendor configuration and the installed driver's error. Pull, sync, rerun `sudo bash ~/coprocessor/enable-fan.sh --install`, and reboot only after Installed. Hardware operation after this correction remains to be confirmed.
