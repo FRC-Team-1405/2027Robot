@@ -1,3 +1,18 @@
+# Coprocessor fan diagnosis — 2026-10-03
+
+## Confirmed hardware and setup
+
+- Physical board marking reported by Stephen: **`OPi V1.3.2`**. Preserve this exact marking; it does not by itself establish a Plus/Pro/Max model.
+- Fans are plugged into the dedicated **two-pin fan port**, as reported by Stephen, one fan per coprocessor. Neither fan is spinning; reported temperature is approximately **67 °C**.
+- Coprocessor names: `Left` and `Right`; hostnames: `LeftPi` and `RightPi`; PhotonVision camera nicknames: `LeftCam` and `RightCam`.
+- Updating the robot's VisionConstants camera names to match `LeftCam` and `RightCam` restored vision updates to odometry (confirmed by Stephen).
+- Diagnostic output below is from **RightPi**. Its loaded device tree reports **`Orange Pi 5`**; this is a software-reported model, recorded separately from the physical board marking.
+- RightPi exposes `pwmchip0` and `pwmchip1`, but the captured cooling-device/hwmon listings show no registered fan controller. The mapping of these PWM controllers to the fan port remains unverified.
+- Pending checks: `uname -r` and `readlink -f /sys/class/pwm/pwmchip*/device`. Do not assume either PWM controller drives the fan port solely from its presence.
+
+## Captured command output
+
+```text
 pi@RightPi:~$ grep . /sys/class/thermal/cooling_device*/type
 /sys/class/thermal/cooling_device0/type:cpufreq-cpu0
 /sys/class/thermal/cooling_device1/type:cpufreq-cpu4
@@ -32,3 +47,4 @@ pi@RightPi:~$ uname -r
 pi@RightPi:~$ readlink -f /sys/class/pwm/pwmchip*
 /sys/devices/platform/fd8b0020.pwm/pwm/pwmchip0
 /sys/devices/platform/febd0020.pwm/pwm/pwmchip1
+```
