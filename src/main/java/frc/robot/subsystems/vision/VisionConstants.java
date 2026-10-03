@@ -24,7 +24,7 @@ public class VisionConstants {
         // TODO(2027): Update camera positions/angles to match 2027 physical layout.
         public static final CameraConfig[] CONFIGS = {
                         new CameraConfig(
-                                        "Left",
+                                        "LeftCam",
                                         1.0,
                                         new Transform3d(
                                                         new Translation3d(
@@ -43,7 +43,7 @@ public class VisionConstants {
                                                         new double[] { 0.035, -0.026, 0, 0, -0.035, -0.002, 0.001,
                                                                         0.001 })),
                         new CameraConfig(
-                                        "Right",
+                                        "RightCam",
                                         1.0,
                                         new Transform3d(
                                                         new Translation3d(Units.inchesToMeters(2.19),
