@@ -24,3 +24,11 @@ pci_bus/      power_supply/ ptp/
 phy/          pps/          pwm/
 pi@RightPi:~$ ls /sys/class/pwm/
 pwmchip0  pwmchip1
+
+pi@RightPi:~$ uname -r
+6.1.0-1025-rockchip
+
+
+pi@RightPi:~$ readlink -f /sys/class/pwm/pwmchip*
+/sys/devices/platform/fd8b0020.pwm/pwm/pwmchip0
+/sys/devices/platform/febd0020.pwm/pwm/pwmchip1
