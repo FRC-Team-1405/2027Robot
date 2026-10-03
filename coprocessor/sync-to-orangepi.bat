@@ -1,5 +1,7 @@
 @echo off
 setlocal
+rem Version: 2026-10-03.3
+ echo sync-to-orangepi version 2026-10-03.3
 
 rem Copies the coprocessor folder with SCP to /home/pi/coprocessor.
 rem Usage: sync-to-orangepi.bat [pi@host] [--setup]
@@ -65,10 +67,16 @@ if not "%COPY_RESULT%"=="0" (
 )
 
 echo Copy complete. Files with matching names have been overwritten; extra remote files are retained.
-rem Windows checkouts can contain CRLF; normalize the Bash entry point on the Pi.
-ssh -o ConnectTimeout=5 "%TARGET%" "sed -i 's/\r$//' /home/pi/coprocessor/setup-orangepi.sh"
+rem Windows checkouts can contain CRLF; normalize all copied Bash scripts.
+ssh -o ConnectTimeout=5 "%TARGET%" "sed -i 's/\r$//' /home/pi/coprocessor/*.sh"
 if errorlevel 1 (
     echo ERROR: Files copied, but preparing the Bash installer failed. Services were not restarted.
+    exit /b 1
+)
+echo Checking copied fan installer version...
+ssh -o ConnectTimeout=5 "%TARGET%" "bash /home/pi/coprocessor/enable-fan.sh --version"
+if errorlevel 1 (
+    echo ERROR: Could not verify the copied fan installer. Review the output above.
     exit /b 1
 )
 if /I "%MODE%"=="--setup" (
