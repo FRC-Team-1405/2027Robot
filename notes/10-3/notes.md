@@ -48,3 +48,28 @@ pi@RightPi:~$ readlink -f /sys/class/pwm/pwmchip*
 /sys/devices/platform/fd8b0020.pwm/pwm/pwmchip0
 /sys/devices/platform/febd0020.pwm/pwm/pwmchip1
 ```
+
+## Diagnosis from checkFanOutput.txt
+
+- Ubuntu 24.04.4, kernel `6.1.0-1025-rockchip`.
+- `CONFIG_SENSORS_PWM_FAN=m`: the fan driver is built as a module, but not loaded in the captured output.
+- Both exposed PWM channels are requested by LCD backlight drivers. They are not available for a fan test.
+- The installed device tree has a `pwm12` symbol pointing at `/pwm@febf0000`, but PWM12 is not registered as an active PWM controller in the output.
+- Orange Pi's vendor Pi 5 configuration uses PWM12 with `pwm12m1_pins` for the fan: https://github.com/orangepi-xunlong/linux-orangepi/blob/orange-pi-6.1-rk35xx/arch/arm64/boot/dts/rockchip/rk3588s-orangepi-5.dts
+- Likely cause: installed device-tree configuration does not enable the dedicated fan controller. Physical fan operation remains unverified.
+- User reports the purchased fan is advertised as Orange Pi 5 Plus compatible. Exact fan model, voltage label, and connector polarity have not been verified.
+
+### Prepared test
+
+`coprocessor/enable-fan.sh` compiles a PWM12 overlay, validates that it applies to the installed Pi 5 DTB, and (with `--install`) enables it through a u-boot-menu configuration fragment. It preserves existing overlay selection, backs up boot settings, and does not reboot automatically. Initial test runs the fan at full speed; no temperature policy is installed. Shell syntax checked; not hardware-tested.
+
+Run on RightPi first, from the repo root:
+
+```bash
+git pull
+sudo bash coprocessor/enable-fan.sh --install
+# Only after the script reports Installed:
+sudo reboot
+```
+
+Missing tools: `sudo apt install device-tree-compiler u-boot-menu` (requires internet). After reconnecting, confirm the fan spins and rerun `check-fan.sh` if it does not. Undo with `sudo bash coprocessor/enable-fan.sh --remove`, then reboot. If boot fails, restore the saved extlinux.conf on the SD card and remove the script's configuration fragment; the script prints the paths.
