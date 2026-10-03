@@ -15,3 +15,12 @@ pi@RightPi:~$ grep . /sys/class/hwmon/hwmon*/name
 /sys/class/hwmon/hwmon5/name:gpu_thermal
 /sys/class/hwmon/hwmon6/name:npu_thermal
 /sys/class/hwmon/hwmon7/name:tcpm_source_psy_6_0022
+
+
+pi@RightPi:~$ cat /proc/device-tree/model
+Orange Pi 5pi@RightPi:~$
+pi@RightPi:~$ ls /sys/class/p
+pci_bus/      power_supply/ ptp/
+phy/          pps/          pwm/
+pi@RightPi:~$ ls /sys/class/pwm/
+pwmchip0  pwmchip1
