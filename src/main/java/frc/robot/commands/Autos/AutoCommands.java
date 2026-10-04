@@ -135,6 +135,7 @@ public class AutoCommands {
                 //                 NamedCommands.getCommand("Right_Path"));
                 commandsToAddToChooser.put("PP_Right_Path",
                                     new PathPlannerAuto("PP_Right_Test"));
+                
                 // Add all commands in Map to chooser
                 commandsToAddToChooser.keySet().stream()
                                 .forEach(name -> chooser.addOption(name, commandsToAddToChooser.get(name)));

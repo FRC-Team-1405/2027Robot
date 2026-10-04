@@ -13,7 +13,13 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Right_Start_Center_Harvest"
+            "pathName": "Right_Bump_To_Alliance"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Right_Bump_To_Field_Towards_Hub"
           }
         }
       ]
