@@ -34,12 +34,14 @@ class SharedTable:
         path = f"{self.path}/{name}"
         return SimpleNamespace(publish=lambda: SimpleNamespace(set=lambda value: self.values.__setitem__(path, value)))
 
+    getStringTopic = getDoubleTopic
+
 
 class NetworkTablesIdentityTests(unittest.TestCase):
     def test_two_boards_publish_independent_values_to_the_same_server(self):
         values = {}
         clients = []
-        for board, cpu in (("LeftPi", 11.0), ("RightPi", 29.0)):
+        for board, cpu, ip in (("LeftPi", 11.0, "10.14.5.21"), ("RightPi", 29.0, "10.14.5.22")):
             module = load_script("orangepi-nt-publisher.py", board)
             instance = MagicMock()
             instance.getTable.side_effect = lambda name: SharedTable(values, f"/{name}")
@@ -48,7 +50,7 @@ class NetworkTablesIdentityTests(unittest.TestCase):
                  patch.object(module, "read_cpu_pct", return_value=cpu), \
                  patch.object(module, "read_ram", return_value=(100, 200, 50)), \
                  patch.object(module, "read_disk", return_value=(1, 10, 10)), \
-                 patch.object(module, "read_temp_c", return_value=40), \
+                 patch.object(module, "read_temp_c", return_value=40),                  patch.object(module, "read_ip", return_value=ip),                  patch.object(module, "read_host", return_value=f"{board.lower()}.local"), \
                  patch.object(module.time, "sleep", side_effect=StopLoop), patch("builtins.print"):
                 with self.assertRaises(StopLoop):
                     module.main()
@@ -56,7 +58,10 @@ class NetworkTablesIdentityTests(unittest.TestCase):
             clients.append(instance.startClient4.call_args.args[0])
         self.assertEqual(values["/OrangePi/LeftPi/CPU_Pct"], 11.0)
         self.assertEqual(values["/OrangePi/RightPi/CPU_Pct"], 29.0)
-        self.assertEqual(len(values), 16)  # eight independent topics per board
+        # How to reach each board, for tools/logbench's Pi discovery.
+        self.assertEqual(values["/OrangePi/LeftPi/IP"], "10.14.5.21")
+        self.assertEqual(values["/OrangePi/RightPi/Host"], "rightpi.local")
+        self.assertEqual(len(values), 20)  # eight metrics plus IP and Host per board
         self.assertNotIn("/OrangePi/CPU_Pct", values)
         self.assertEqual(clients, ["OrangePiMetrics-LeftPi", "OrangePiMetrics-RightPi"])
 

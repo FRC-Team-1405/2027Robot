@@ -53,6 +53,7 @@ class PiSessionInfo:
     camera: str                            # '' for a legacy, non-namespaced layout
     name: str                              # e.g. 'boot0007-20260115-143511'
     wall_clock: Optional[dt.datetime]      # None if unparseable
+    pi: str = ''                           # which Orange Pi recorded it ('' = the only one)
 
 
 @dataclasses.dataclass

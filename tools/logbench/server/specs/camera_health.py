@@ -86,23 +86,41 @@ def _session_overlapping(sessions: list, t0: float, t1: float):
     return None, None
 
 
-def _attach_vision(spec, log_path, log_root, data: dict, warnings: list) -> None:
+def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras=()) -> None:
     """Populates spec.static['vision'] with one {video, t0} entry per camera that has a
     session overlapping this log's time span -- just a URL and one offset per camera,
     not a per-frame array, per the "render a video, don't swap JPEGs" design (see
     ensure_preview_video's docstring for why). Building the video can fail (missing
     ffmpeg, an empty/corrupt manifest); that degrades to a warning, same as every other
-    optional signal this builder handles, rather than failing the whole spec."""
+    optional signal this builder handles, rather than failing the whole spec.
+
+    `cameras` are the names found in the log (the only source of truth for what cameras
+    exist). A recording folder is matched to one of them ignoring case, because the folder
+    is named by whoever set up the Pi (a systemd instance name) while the log name comes
+    from robot code. The vision entry is keyed by the log's spelling, which is what the
+    player looks up. A folder that matches no logged camera is reported, not guessed at."""
     log_path = pathlib.Path(log_path)
     root = pathlib.Path(log_root) if log_root is not None else log_path.parent
     vision_sessions = bundles.list_vision_sessions(log_path)
     vision_static: dict = {}
+    log_camera_by_folded = {c.casefold(): c for c in cameras}
 
-    for cam, sessions in vision_sessions.items():
-        if not cam:
+    for folder, sessions in vision_sessions.items():
+        if not folder:
             # Legacy, non-namespaced recordings (from before the CAMERA_NAME fix) have
             # no camera identity to key a dropdown entry on -- they still bundle/zip
             # fine, they just don't get a video panel.
+            continue
+        cam = log_camera_by_folded.get(folder.casefold())
+        if cam is None:
+            warnings.append(
+                'Vision recording folder "%s" does not match any camera in this log (%s), so '
+                'it is not shown. Folder names are matched to the log camera names ignoring '
+                'case; rename the recorder instance on the Pi or the camera in robot code so '
+                'they agree.' % (folder, ', '.join(cameras) or 'none logged'))
+            continue
+        if cam in vision_static:
+            warnings.append('More than one recording folder maps to camera "%s"; using the first.' % cam)
             continue
         session_dir, frames = _session_overlapping(sessions, spec.t0, spec.t1)
         if session_dir is None:
@@ -338,5 +356,5 @@ def build(signals: dict, title: str = 'Camera Health Replay', log_path=None, log
         warnings=warnings,
     )
     if log_path is not None:
-        _attach_vision(spec, log_path, log_root, data, warnings)
+        _attach_vision(spec, log_path, log_root, data, warnings, cameras)
     return spec, data

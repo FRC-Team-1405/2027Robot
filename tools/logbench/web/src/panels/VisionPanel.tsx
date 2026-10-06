@@ -75,7 +75,7 @@ export function VisionPanel({ panel }: { panel: Panel }) {
     <div className="panel panel--vision">
       <div className="panel__title">
         {panel.title}
-        {camerasWithVideo.length > 1 ? (
+        {cameras.length > 1 ? (
           <select
             className="vision__camera-select"
             value={camera ?? ''}

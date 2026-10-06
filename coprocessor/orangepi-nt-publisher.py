@@ -18,11 +18,33 @@ To run on boot, add a systemd service (see orangepi-nt-publisher.service).
 
 import time
 import os
+import socket
 import subprocess
 
 TEAM_NUMBER = 1405
 PUBLISH_INTERVAL_S = 1.0
 METRICS_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip()
+
+
+def read_ip():
+    """This board's IPv4 address on the network that reaches the roboRIO (10.TE.AM.2).
+
+    No packets are sent: connecting a UDP socket only makes the OS pick the outgoing
+    interface. Returns "" if there is no route yet, and is retried every publish.
+    """
+    roborio = f"10.{TEAM_NUMBER // 100}.{TEAM_NUMBER % 100}.2"
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect((roborio, 1))
+            return sock.getsockname()[0]
+    except OSError:
+        return ""
+
+
+def read_host():
+    """mDNS-style name other machines can try (hostname.local); "" if unknown."""
+    name = socket.gethostname().strip()
+    return f"{name}.local" if name else ""
 
 
 def read_temp_c():
@@ -95,6 +117,11 @@ def main():
     disk_total_pub= table.getDoubleTopic("Disk_Total_GB").publish()
     disk_pct_pub  = table.getDoubleTopic("Disk_Pct").publish()
     temp_pub      = table.getDoubleTopic("Temp_C").publish()
+    # Where to reach this board. tools/logbench reads these to find the Pis on its own
+    # (server/pi_discovery.py); IP is preferred because two PhotonVision boards often
+    # share the default hostname.
+    ip_pub        = table.getStringTopic("IP").publish()
+    host_pub      = table.getStringTopic("Host").publish()
 
     topic_root = f"/OrangePi/{METRICS_NAME}" if METRICS_NAME else "/OrangePi"
     print(f"Connecting to roboRIO (team {TEAM_NUMBER}); publishing under {topic_root}/…")
@@ -114,6 +141,8 @@ def main():
             disk_total_pub.set(disk_t)
             disk_pct_pub.set(disk_p)
             temp_pub.set(temp)
+            ip_pub.set(read_ip())
+            host_pub.set(read_host())
 
         except Exception as e:
             print(f"Metrics error: {e}")

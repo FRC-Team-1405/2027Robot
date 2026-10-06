@@ -21,10 +21,12 @@ def _rio(name='FRC_20260115_143000.wpilog', minutes_after_t0=0, duration_sec=150
     )
 
 
-def _pi(camera='Left', name='boot0001-20260115-143010', minutes_after_t0=0, seconds_after_t0=10, wall_clock=True):
+def _pi(camera='Left', name='boot0001-20260115-143010', minutes_after_t0=0, seconds_after_t0=10, wall_clock=True,
+        pi=''):
     return PiSessionInfo(
         camera=camera,
         name=name,
+        pi=pi,
         wall_clock=(_T0 + dt.timedelta(minutes=minutes_after_t0, seconds=seconds_after_t0)) if wall_clock else None,
     )
 
@@ -118,3 +120,14 @@ def test_no_pi_sessions_at_all_still_returns_one_pairing_per_rio_log():
     assert pairing.rio_log == rio.name
     assert pairing.pi_sessions == []
     assert pairing.confidence == 'none'
+
+
+def test_sessions_from_different_pis_pair_to_one_log_and_keep_their_pi():
+    """Two boards, one camera each, recording the same enable: both come back, each still
+    labelled with the Pi that holds it so the right host is used to download it."""
+    rio = _rio()
+    left = _pi(camera='left', name='boot0003-20260115-143010', seconds_after_t0=10, pi='LeftPi')
+    right = _pi(camera='right', name='boot0007-20260115-143012', seconds_after_t0=12, pi='RightPi')
+
+    [pairing] = suggest_pairings([rio], [left, right])
+    assert {(s.pi, s.camera) for s in pairing.pi_sessions} == {('LeftPi', 'left'), ('RightPi', 'right')}

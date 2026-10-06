@@ -36,6 +36,7 @@ import battery
 import battery_export as insight_export
 import live_nt
 import pairing
+import pi_discovery
 import remote_config
 import remote_fetch
 from remote_jobs import RemoteJobs
@@ -469,6 +470,9 @@ def export(log: str = Query(...), spec: str = Query(specs.DEFAULT)) -> HTMLRespo
 class PiSessionRef(BaseModel):
     camera: str
     name: str
+    # Which configured Orange Pi holds this session. Optional so a request that predates
+    # multi-Pi support still works when the config has exactly one Pi.
+    pi: str = ''
 
 
 class BundleRequest(BaseModel):
@@ -484,10 +488,45 @@ def _iso(d) -> Optional[str]:
     return d.isoformat() if d is not None else None
 
 
-def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict]) -> dict:
+def _pi_for(cfg, ref: PiSessionRef):
+    """The Pi a session was listed from. Uses the Pis resolved when the page listed them
+    (discovered plus hand-listed), so a download goes where the listing found it."""
+    resolution = pi_discovery.resolve_pis(cfg, refresh=False)
+    try:
+        return remote_config.pick_pi(resolution.pis, ref.pi, cfg.source_path.name)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc.args[0]))
+
+
+def _list_all_pi_sessions(pis) -> list[dict]:
+    """Sessions from every given Pi, each tagged with the Pi's name. Listed in parallel.
+    If any Pi cannot be reached this raises (naming the host) rather than returning the
+    others: a silently missing camera looks exactly like a camera that never recorded."""
+    from concurrent.futures import ThreadPoolExecutor
+    if not pis:
+        return []
+    with ThreadPoolExecutor(max_workers=len(pis)) as executor:
+        futures = [(pi, executor.submit(remote_fetch.list_pi_sessions, pi)) for pi in pis]
+        out: list[dict] = []
+        for pi, future in futures:
+            for session in future.result():
+                out.append({**session, 'pi': pi.name})
+    out.sort(key=lambda s: s['name'], reverse=True)
+    return out
+
+
+def _discover_and_list_pi_sessions(cfg) -> tuple[list[dict], list[str]]:
+    """Resolve which Pis exist (NetworkTables discovery + remote_config.json), then list
+    their sessions. Returns (sessions, notes-for-the-UI)."""
+    resolution = pi_discovery.resolve_pis(cfg, refresh=True)
+    return _list_all_pi_sessions(resolution.pis), resolution.notes
+
+
+def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict], pi_notes=()) -> dict:
     """Build the stable wire shape shared by the legacy and tracked list endpoints."""
     rio_infos = [pairing.RioLogInfo(name=r['name'], wall_clock=r['wall_clock']) for r in rio_raw]
-    pi_infos = [pairing.PiSessionInfo(camera=s['camera'], name=s['name'], wall_clock=s['wall_clock'])
+    pi_infos = [pairing.PiSessionInfo(camera=s['camera'], name=s['name'], wall_clock=s['wall_clock'],
+                              pi=s['pi'])
                 for s in pi_raw]
     suggestions = pairing.suggest_pairings(rio_infos, pi_infos)
 
@@ -497,15 +536,17 @@ def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict]) -> dic
         'wall_clock': _iso(r['wall_clock']),
         'status': bundles.local_status(root / r['name']),
     } for r in rio_raw]
-    pi_out = [{'camera': s['camera'], 'name': s['name'], 'wall_clock': _iso(s['wall_clock'])}
+    pi_out = [{'camera': s['camera'], 'name': s['name'], 'pi': s['pi'],
+               'wall_clock': _iso(s['wall_clock'])}
               for s in pi_raw]
     pairings_out = [{
         'rio_log': p.rio_log,
-        'pi_sessions': [{'camera': s.camera, 'name': s.name} for s in p.pi_sessions],
+        'pi_sessions': [{'camera': s.camera, 'name': s.name, 'pi': s.pi} for s in p.pi_sessions],
         'confidence': p.confidence,
         'reason': p.reason,
     } for p in suggestions]
-    return {'configured': True, 'rio_logs': rio_out, 'pi_sessions': pi_out, 'pairings': pairings_out}
+    return {'configured': True, 'rio_logs': rio_out, 'pi_sessions': pi_out, 'pairings': pairings_out,
+            'pi_notes': list(pi_notes)}
 
 
 def _job_or_404(job_id: str) -> dict:
@@ -524,19 +565,19 @@ def start_remote_sessions_job() -> dict:
 
     def work(job_id: str) -> dict:
         from concurrent.futures import ThreadPoolExecutor
-        remote_jobs.set_phase(job_id, 'Connecting to roboRIO and Orange Pi')
+        remote_jobs.set_phase(job_id, 'Connecting to roboRIO and finding Orange Pis')
         # These independent hosts are intentionally listed in parallel.  On a weak
         # robot network this removes the avoidable serial wait from page load.
         with ThreadPoolExecutor(max_workers=2) as executor:
             rio_future = executor.submit(remote_fetch.list_rio_logs, cfg.rio)
-            pi_future = executor.submit(remote_fetch.list_pi_sessions, cfg.pi)
+            pi_future = executor.submit(_discover_and_list_pi_sessions, cfg)
             remote_jobs.set_phase(job_id, 'Reading remote log and vision directories')
             rio_raw = rio_future.result()
-            pi_raw = pi_future.result()
+            pi_raw, pi_notes = pi_future.result()
         if remote_jobs.cancelled(job_id):
             raise RuntimeError('cancelled by user')
         remote_jobs.set_phase(job_id, 'Matching logs and sessions')
-        result = _remote_sessions_result(cfg, rio_raw, pi_raw)
+        result = _remote_sessions_result(cfg, rio_raw, pi_raw, pi_notes)
         log.info('remote session job %s found %d RIO logs and %d Pi sessions', job_id,
                  len(rio_raw), len(pi_raw))
         return result
@@ -569,7 +610,7 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
         pi_files: list[tuple[PiSessionRef, list[dict]]] = []
         inventory = [(body.rio_log, rio_size)]
         for ref in body.pi_sessions:
-            files = remote_fetch.pi_session_files(cfg.pi, ref.camera, ref.name)
+            files = remote_fetch.pi_session_files(_pi_for(cfg, ref), ref.camera, ref.name)
             pi_files.append((ref, files))
             inventory.extend((f'{ref.camera or "vision"}/{ref.name}/{item["name"]}', item['size'])
                              for item in files)
@@ -597,14 +638,14 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
                     remote_jobs.file_progress(job_id, f'{ref.camera or "vision"}/{ref.name}/{filename}', done, total)
 
                 session_dir = remote_fetch.fetch_pi_session(
-                    cfg.pi, ref.camera, ref.name, vision_dir, progress=pi_progress,
+                    _pi_for(cfg, ref), ref.camera, ref.name, vision_dir, progress=pi_progress,
                     idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
                 # Empty files do not produce an SFTP byte callback; mark every file
                 # idempotently so the completed count stays accurate in that case too.
                 for item in files:
                     remote_jobs.file_complete(job_id,
                                               f'{ref.camera or "vision"}/{ref.name}/{item["name"]}')
-                fetched.append({'camera': ref.camera, 'name': ref.name,
+                fetched.append({'camera': ref.camera, 'name': ref.name, 'pi': ref.pi,
                                 'path': session_dir.relative_to(LOG_ROOT.resolve()).as_posix()})
         remote_jobs.set_phase(job_id, 'Finalizing bundle')
         return {'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
@@ -625,11 +666,11 @@ def remote_sessions() -> dict:
 
     try:
         rio_raw = remote_fetch.list_rio_logs(cfg.rio)
-        pi_raw = remote_fetch.list_pi_sessions(cfg.pi)
+        pi_raw, pi_notes = _discover_and_list_pi_sessions(cfg)
     except remote_fetch.RemoteFetchError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
-    return _remote_sessions_result(cfg, rio_raw, pi_raw)
+    return _remote_sessions_result(cfg, rio_raw, pi_raw, pi_notes)
 
 
 @app.post('/api/remote/bundle')
@@ -647,8 +688,8 @@ def remote_bundle(body: BundleRequest) -> dict:
         if body.pi_sessions:
             vision_dir = bundles.vision_dir_for(local_log)
             for ref in body.pi_sessions:
-                session_dir = remote_fetch.fetch_pi_session(cfg.pi, ref.camera, ref.name, vision_dir)
-                fetched.append({'camera': ref.camera, 'name': ref.name,
+                session_dir = remote_fetch.fetch_pi_session(_pi_for(cfg, ref), ref.camera, ref.name, vision_dir)
+                fetched.append({'camera': ref.camera, 'name': ref.name, 'pi': ref.pi,
                                  'path': session_dir.relative_to(LOG_ROOT.resolve()).as_posix()})
     except remote_fetch.RemoteFetchError as exc:
         raise HTTPException(status_code=502, detail=str(exc))

@@ -27,7 +27,15 @@ This shares the `pyntcore` dependency and venv already set up for `orangepi-nt-p
 `RECORDINGS_DIR` defaults to `/home/pi/vision-recordings` and can be overridden per
 instance via `RECORDINGS_DIR=` in that instance's `EnvironmentFile` for a custom
 storage mount. `tools/logbench/server/remote_config.json` must use SSH user `pi` and
-point `pi.recordings_path` at the same recordings directory when fetching bundles.
+point each Pi's `recordings_path` at the same recordings directory when fetching bundles.
+With more than one board nothing needs listing: LogBench finds each board's name and address from
+`/OrangePi/<board-name>/` on NetworkTables (see the logbench README; hand-listing under `"pis"`
+is only for pinning a host or path). The recorder instance name (`left`,
+`right`, …) becomes the recording folder name; LogBench matches it to the camera name in the
+log ignoring case, so it does not have to be capitalized the same way.
+
+**Viewing the video on the laptop needs ffmpeg** on the PATH of the machine running LogBench
+(`winget install Gyan.FFmpeg`).
 
 
 ## One recorder instance per camera, on any number of boards

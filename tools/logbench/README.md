@@ -72,6 +72,61 @@ instead of appearing stalled; set the optional top-level
 diagnostic log under `tools/logbench/logs/`; the newest ten runs are retained locally and
 the folder is ignored by Git.
 
+#### Orange Pis are discovered, not listed
+
+Each Orange Pi's metrics publisher (`coprocessor/orangepi-nt-publisher.py`) publishes its
+name and address under `/OrangePi/<board-name>/` (`IP` and `Host`, next to the CPU/RAM
+metrics). When the Fetch Bundle page loads it asks the roboRIO's NetworkTables server for
+that table, so **`remote_config.json` needs only the `rio` entry** — no per-Pi list, and no
+assumption about how many boards there are or what they are called. The page shows what it
+found (`Found on NetworkTables: LeftPi (10.14.5.21), …`) above the session list. The laptop
+must be on the robot network when the page loads.
+
+Two things NetworkTables cannot say come from the optional `pi_discovery` block: the SSH
+`user` (default `pi`) and `recordings_path` (default `/home/pi/vision-recordings`).
+
+To pin a Pi by hand — a bench board with a fixed address, or a non-default recordings
+folder — list it under `"pis"`. A listed entry wins over a discovered Pi with the same name
+(ignoring case) or the same address, and the two are never duplicated:
+
+```json
+"pis": [{"name": "LeftPi", "host": "10.14.5.21", "user": "pi", "recordings_path": "/mnt/usb/rec"}]
+```
+
+The original single `"pi": {…}` entry still works. Set `"pi_discovery": {"enabled": false}`
+to use only the listed Pis (then at least one is required).
+
+Sessions from every Pi are listed together and paired with a log by time. If a Pi that was
+found or listed cannot be reached, the whole listing fails and names the host, instead of
+quietly leaving that camera out. If discovery itself fails (laptop not on the robot network,
+`pyntcore` missing) the page says so and falls back to any hand-listed Pis; with none listed,
+the logs still appear but there are no vision recordings to fetch.
+
+A board that shows up on NetworkTables with no address was not re-synced with the current
+publisher: copy `coprocessor/` to it again (`sync-to-orangepi.bat`) and restart
+`orangepi-nt-publisher`.
+
+#### How cameras are named
+
+LogBench never assumes camera names. The cameras for a log are whatever appears under
+`Vision/<name>/…` in that log. A recording folder on a Pi is named by whoever set up the
+recorder (`CAMERA_NAME`, the systemd instance such as `left`), so each folder is matched to a
+logged camera **ignoring case** (`left` ↔ `Left`). A recording folder that matches no logged
+camera is not shown, and the log's warnings list both names so the mismatch can be fixed on
+the Pi or in robot code.
+
+#### Requirement: ffmpeg
+
+Turning a camera's saved frames into the scrubbable video needs the `ffmpeg` command on the
+PATH of the machine running `server/main.py` (the laptop — not the roboRIO or the Pi). Without
+it the log still opens, but with a "Vision preview … could not be built: ffmpeg is not on
+PATH" warning and no camera video.
+
+```bash
+winget install Gyan.FFmpeg      # Windows; then open a new terminal
+ffmpeg -version                 # confirm it is found
+```
+
 **Inside the calibration app** — Tab 6 of `tools/camera-calibration/calibrate.py` embeds
 the player and offers the standalone file as a download. Needs no npm: the built bundle is
 committed at `server/assets/player.singlefile.html`.

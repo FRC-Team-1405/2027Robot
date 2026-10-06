@@ -5,9 +5,10 @@
     "user": "lvuser",
     "logs_path": "/home/lvuser/logs"
   },
-  "pi": {
-    "host": "photonvision.local",
+  "pi_discovery": {
+    "enabled": true,
     "user": "pi",
-    "recordings_path": "/home/pi/vision-recordings"
+    "recordings_path": "/home/pi/vision-recordings",
+    "timeout_seconds": 6
   }
 }

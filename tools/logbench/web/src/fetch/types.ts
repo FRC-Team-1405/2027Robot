@@ -13,12 +13,15 @@ export interface RioLogEntry {
 export interface PiSessionEntry {
   camera: string;
   name: string;
+  /** Which configured Orange Pi holds the session ('' when only one is configured). */
+  pi: string;
   wall_clock: string | null;
 }
 
 export interface PiSessionRef {
   camera: string;
   name: string;
+  pi: string;
 }
 
 export type Confidence = 'high' | 'low' | 'none';
@@ -37,6 +40,8 @@ export type RemoteSessions =
       rio_logs: RioLogEntry[];
       pi_sessions: PiSessionEntry[];
       pairings: PairingSuggestion[];
+      /** What Orange Pi discovery found or could not (NetworkTables + remote_config.json). */
+      pi_notes?: string[];
     };
 
 export interface BundleResult {

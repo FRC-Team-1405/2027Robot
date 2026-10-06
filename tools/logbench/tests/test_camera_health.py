@@ -40,7 +40,12 @@ def test_discovers_cameras_from_health_keys():
 def test_discovers_a_third_camera_without_a_code_change():
     """The 2027 robot may not have exactly two cameras."""
     assert camera_health.discover_cameras(_full_log(('Left', 'Right', 'Rear'))) == \
-        ['Left', 'Right', 'Rear']
+        ['Left', 'Rear', 'Right']
+
+
+def test_camera_names_are_whatever_the_log_says_not_left_and_right():
+    assert camera_health.discover_cameras(_full_log(('front', 'Rear', 'Side'))) == \
+        ['front', 'Rear', 'Side']
 
 
 def test_cross_camera_agreement_is_not_mistaken_for_a_camera():
@@ -197,3 +202,54 @@ def test_build_with_log_path_skips_a_session_outside_the_log_window(tmp_path, mo
 
     spec, _ = camera_health.build(_full_log(('Left',)), log_path=log_path, log_root=tmp_path)
     assert 'vision' not in spec.static
+
+
+def _fake_preview(monkeypatch):
+    """Stand in for ffmpeg: the matching logic is what is under test, not the transcode."""
+    def fake(session_dir, camera=''):
+        out = pathlib.Path(session_dir) / 'preview.mp4'
+        out.write_bytes(b'')
+        return out
+    monkeypatch.setattr(bundles, 'ensure_preview_video', fake)
+
+
+def test_recording_folder_is_matched_to_the_log_camera_ignoring_case(tmp_path, monkeypatch):
+    """The Pi folder is named by a systemd instance (e.g. 'left'); the log says 'Left'.
+    The vision entry must be keyed by the log's spelling -- that is what the player looks up."""
+    _fake_preview(monkeypatch)
+    log_path = tmp_path / 'FRC_20260101_120000.wpilog'
+    log_path.write_bytes(b'')
+    vision_dir = bundles.vision_dir_for(log_path)
+    _write_session(vision_dir, 'left', 'boot0001-20260101-120000', [10.0, 10.02])
+    _write_session(vision_dir, 'RIGHT', 'boot0001-20260101-120001', [10.0, 10.02])
+
+    spec, _ = camera_health.build(_full_log(), log_path=log_path, log_root=tmp_path)
+
+    assert sorted(spec.static['vision']) == ['Left', 'Right']
+    assert spec.static['vision']['Left']['video'].startswith('/vision-video/FRC_20260101_120000.vision/left/')
+    assert not any('does not match any camera' in w for w in spec.warnings)
+
+
+def test_matching_works_for_camera_names_that_are_not_left_or_right(tmp_path, monkeypatch):
+    _fake_preview(monkeypatch)
+    log_path = tmp_path / 'FRC_20260101_120000.wpilog'
+    log_path.write_bytes(b'')
+    vision_dir = bundles.vision_dir_for(log_path)
+    _write_session(vision_dir, 'frontcam', 'boot0001-20260101-120000', [10.0, 10.02])
+
+    spec, _ = camera_health.build(_full_log(('FrontCam',)), log_path=log_path, log_root=tmp_path)
+    assert list(spec.static['vision']) == ['FrontCam']
+
+
+def test_recording_folder_matching_no_logged_camera_is_reported_not_guessed(tmp_path, monkeypatch):
+    _fake_preview(monkeypatch)
+    log_path = tmp_path / 'FRC_20260101_120000.wpilog'
+    log_path.write_bytes(b'')
+    vision_dir = bundles.vision_dir_for(log_path)
+    _write_session(vision_dir, 'turret', 'boot0001-20260101-120000', [10.0, 10.02])
+
+    spec, _ = camera_health.build(_full_log(('Left',)), log_path=log_path, log_root=tmp_path)
+
+    assert 'vision' not in spec.static
+    [warning] = [w for w in spec.warnings if 'does not match any camera' in w]
+    assert '"turret"' in warning and 'Left' in warning

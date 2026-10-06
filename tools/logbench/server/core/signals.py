@@ -53,10 +53,8 @@ def discover_cameras(signals: Dict) -> List[str]:
             break
     # CrossCameraAgreement lives at the same level but is not a camera.
     found.discard('CrossCameraAgreement')
-    # Left/Right first if present, then anything else alphabetically, so the common
-    # two-camera robot always lays out the same way.
-    preferred = [c for c in ('Left', 'Right') if c in found]
-    return preferred + sorted(found - set(preferred))
+    # No camera name is assumed to exist; a stable order is all that matters.
+    return sorted(found, key=lambda c: (c.casefold(), c))
 
 
 def bounds(signals: Dict) -> Tuple[float, float]:

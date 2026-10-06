@@ -34,6 +34,12 @@ Use `ORANGEPI_METRICS_NAME=RightPi` on the other board. The topics will then be 
 service reads this optional file; a manually installed publisher with no file retains
 the legacy paths. Multiple unnamed publishers would write the same topics.
 
+Each board also publishes `IP` (its address on the robot network) and `Host`
+(`<hostname>.local`) next to its metrics. `tools/logbench` reads them to find the Pis for
+the Fetch Bundle page without a hand-written list (see its README). A board that was
+installed before this was added publishes no `IP`/`Host` until you re-run
+`sync-to-orangepi.bat` and restart `orangepi-nt-publisher.service`.
+
 Client identities are `OrangePiMetrics-<board-name>`. The topic namespace is what
 separates values; different client names alone do not prevent topic collisions.
 
@@ -112,7 +118,7 @@ A healthy run prints `Connecting to roboRIO (team 1405)…` once and then stays 
 
 Confirm the data is actually reaching NetworkTables:
 - With the robot/radio powered and the roboRIO running, open **Glass** or **OutlineViewer** pointed at the roboRIO's NT4 server (or check the Driver Station / AdvantageScope NT tab).
-- Look for the `/OrangePi` table (or `/OrangePi/LeftPi` and `/OrangePi/RightPi` for a named two-board install) with keys: `CPU_Pct`, `RAM_Used_MB`, `RAM_Total_MB`, `RAM_Pct`, `Disk_Used_GB`, `Disk_Total_GB`, `Disk_Pct`, `Temp_C`.
+- Look for the `/OrangePi` table (or `/OrangePi/LeftPi` and `/OrangePi/RightPi` for a named two-board install) with keys: `CPU_Pct`, `RAM_Used_MB`, `RAM_Total_MB`, `RAM_Pct`, `Disk_Used_GB`, `Disk_Total_GB`, `Disk_Pct`, `Temp_C`, `IP`, `Host`.
 - Values should update roughly once per second and look sane (e.g. `Temp_C` matches what `cat /sys/class/thermal/thermal_zone0/temp` shows on the Pi, divided by 1000).
 
 ## 6. Clean up internet access
