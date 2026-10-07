@@ -180,7 +180,7 @@ public final class PowerTelemetry {
             signals.put("ObservedControlMode", motor.getControlMode());
             // Raise only slow signals; preserve existing 100/250 Hz motion signals.
             for (BaseStatusSignal signal : signals.values()) {
-                if (signal.getAppliedUpdateFrequency() < 50) signal.setUpdateFrequency(50);
+                // if (signal.getAppliedUpdateFrequency() < 50) signal.setUpdateFrequency(50);
             }
             motor.getDeviceTemp().setUpdateFrequency(4);
             motor.getStickyFault_SupplyCurrLimit().setUpdateFrequency(4);
