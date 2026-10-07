@@ -3,9 +3,16 @@
   "rio": {
     "host": "roborio-1405-frc.local",
     "user": "lvuser",
+    "password": "password",
     "logs_path": "/home/lvuser/logs"
   },
-  "pi_discovery": {
+  "LeftPi": {
+    "enabled": true,
+    "user": "pi",
+    "recordings_path": "/home/pi/vision-recordings",
+    "timeout_seconds": 6
+  },
+  "RightPi": {
     "enabled": true,
     "user": "pi",
     "recordings_path": "/home/pi/vision-recordings",

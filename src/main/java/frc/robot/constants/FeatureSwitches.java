@@ -16,8 +16,8 @@ public class FeatureSwitches {
     public static final boolean DEPLOY_INTAKE_WHEN_STOPPING_SHOOTER = true;
 
     // Mechanical protections
-    public static final boolean INTAKE_SAFTEY_MODE_NO_DEPLOY = true;
-    public static final boolean DISABLE_INTAKE = true;
+    public static final boolean INTAKE_SAFTEY_MODE_NO_DEPLOY = false;
+    public static final boolean DISABLE_INTAKE = false;
     public static final boolean DISABLE_INDEXER = true;
     public static final boolean DISABLE_HOPPER = true;
 
