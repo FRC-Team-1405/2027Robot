@@ -13,6 +13,12 @@
         {
           "type": "path",
           "data": {
+            "pathName": "RB_To_RCH"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
             "pathName": "Right_Start_Center_Harvest"
           }
         }

@@ -45,13 +45,13 @@ public class Full_Autos {
                         cmds.MoveTo_circleLeft.get()).withName("CircleHub");
 
                 Command TEST = new SequentialCommandGroup(
-                                // cmds.MoveTo_depot_BackFace_t.get(),
-                                // cmds.intake.runIntakeOut(),
-                                // cmds.MoveTo_depot_BackFace_In.get(),
-                                // cmds.MoveTo_depot_BackFace_Out.get(),
-                                cmds.MoveTo_rightLoadInZone.get(),
-                                cmds.MoveTo_leftLoadInZone.get(),
-                                cmds.MoveTo_rightLoadInZone.get());
+                         Commands.sequence(
+                                                                cmds.MoveTo_quadRightIntakeStart.get(),
+                                                                cmds.MoveTo_quadRight.get(),
+                                                                cmds.MoveTo_centerLeftIntakeEnd.get(),
+                                                                cmds.MoveTo_centerLeftIntakeEndLookHub.get(),
+                                                                cmds.MoveTo_rightBump_FieldToAllianceStart.get()
+                ));
 
                 Command JUSTSHOOT = new SequentialCommandGroup(
                                 // MoveTo_allianceCenter.get(),
@@ -606,6 +606,10 @@ public class Full_Autos {
                 NamedCommands.registerCommand("TESTCenterHarvest", TESTCenterHarvest);
                 NamedCommands.registerCommand("fourMeters", fourMeters);
 
+
+                NamedCommands.registerCommand("runPickupIn", cmds.pickup.runPickupIn());
+                NamedCommands.registerCommand("runPickupStop", cmds.pickup.runPickupStop());
+                
                 // TODO: Actually cook in autos
                 // TODO: Random circle auto, Ask leeland about get those leftovers, tweak get
                 // those leftovers

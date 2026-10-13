@@ -87,7 +87,7 @@ public class AutoCommands {
                 // NamedCommands.getCommand("TheShowboater"));
 
                 commandsToAddToChooser.put("CircleHub", NamedCommands.getCommand("CircleHub"));
-                // commandsToAddToChooser.put("TEST", NamedCommands.getCommand("TEST"));
+                commandsToAddToChooser.put("TEST", NamedCommands.getCommand("TEST"));
                 // commandsToAddToChooser.put("fourMeters",
                 // NamedCommands.getCommand("fourMeters"));
 
@@ -135,7 +135,10 @@ public class AutoCommands {
                 //                 NamedCommands.getCommand("Right_Path"));
                 commandsToAddToChooser.put("PP_Right_Path",
                                     new PathPlannerAuto("PP_Right_Test"));
-                
+                commandsToAddToChooser.put("New Auto",
+                                    new PathPlannerAuto("New Auto"));
+                commandsToAddToChooser.put("BACK_",
+                                    new PathPlannerAuto("BACK_"));
                 // Add all commands in Map to chooser
                 commandsToAddToChooser.keySet().stream()
                                 .forEach(name -> chooser.addOption(name, commandsToAddToChooser.get(name)));

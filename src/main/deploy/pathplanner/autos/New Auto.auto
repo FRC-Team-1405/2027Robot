@@ -1,0 +1,49 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Right_Bump_To_Field"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "runPickupIn"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "quadRight"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "centerLeftIntakeEnd"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Right_Bump_To_Alliance"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "runPickupStop"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": false,
+  "folder": null,
+  "choreoAuto": false
+}
