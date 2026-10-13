@@ -135,10 +135,14 @@ public class AutoCommands {
                 //                 NamedCommands.getCommand("Right_Path"));
                 commandsToAddToChooser.put("PP_Right_Path",
                                     new PathPlannerAuto("PP_Right_Test"));
-                commandsToAddToChooser.put("New Auto",
-                                    new PathPlannerAuto("New Auto"));
-                commandsToAddToChooser.put("BACK_",
-                                    new PathPlannerAuto("BACK_"));
+                commandsToAddToChooser.put("Right Quad",
+                                    new PathPlannerAuto("Right Quad"));
+                commandsToAddToChooser.put("Shoot",
+                                    new PathPlannerAuto("Shoot"));
+                commandsToAddToChooser.put("BACK_Right_Bump_To_Alliance",
+                                    new PathPlannerAuto("BACK_Right_Bump_To_Alliance"));
+                commandsToAddToChooser.put("BACK_Right_Bump_To_Field",
+                                    new PathPlannerAuto("BACK_Right_Bump_To_Field"));
                 // Add all commands in Map to chooser
                 commandsToAddToChooser.keySet().stream()
                                 .forEach(name -> chooser.addOption(name, commandsToAddToChooser.get(name)));

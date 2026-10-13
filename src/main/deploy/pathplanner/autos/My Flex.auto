@@ -21,6 +21,12 @@
           "data": {
             "pathName": "Right_Bump_To_Field_Towards_Hub"
           }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "mediumShoot"
+          }
         }
       ]
     }
