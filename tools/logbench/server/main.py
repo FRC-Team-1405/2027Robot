@@ -37,6 +37,7 @@ import battery_export as insight_export
 import live_nt
 import pairing
 import pi_discovery
+import connections
 import remote_config
 import remote_fetch
 from remote_jobs import RemoteJobs
@@ -466,6 +467,26 @@ def export(log: str = Query(...), spec: str = Query(specs.DEFAULT)) -> HTMLRespo
 # logs never needs this file, so /api/remote/sessions reports {'configured': False}
 # instead of a 4xx/5xx, and the Fetch Bundle tab shows a setup message for that case
 # while every other tab is unaffected.
+
+class ConnectionScanRequest(BaseModel):
+    target: str = ''
+
+
+@app.post('/api/connections/scan/jobs', status_code=202)
+def start_connection_scan(body: ConnectionScanRequest) -> dict:
+    try:
+        connections.manual_targets(body.target)
+        cfg = remote_config.load_remote_config()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    def work(job_id):
+        return connections.scan_connections(
+            cfg, body.target, cancelled=lambda: remote_jobs.cancelled(job_id),
+            phase=lambda text: remote_jobs.set_phase(job_id, text))
+
+    return {'job_id': remote_jobs.start('connection-scan', work)}
+
 
 class PiSessionRef(BaseModel):
     camera: str

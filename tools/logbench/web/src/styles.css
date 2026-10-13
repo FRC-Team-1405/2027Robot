@@ -1768,3 +1768,14 @@ body {
 .pit-dot--on {
   background: #2ecc71;
 }
+
+/* Connection diagnostics */
+.connections-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 24px 0; }
+.connections-form input { padding: 8px; min-width: 280px; }
+.connections-scroll { overflow-x: auto; }
+.connections-device { padding: 16px; margin: 16px 0; border: 1px solid #48505e; border-radius: 8px; }
+.connections-device h3 { margin-top: 0; }
+.connections-device small { font-weight: normal; }
+.connections-checks { display: flex; flex-wrap: wrap; gap: 24px; }
+.connections-checks dt { opacity: .7; }
+.connections-checks dd { margin: 6px 0 0; }

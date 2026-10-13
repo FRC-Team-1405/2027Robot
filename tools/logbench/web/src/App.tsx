@@ -1,3 +1,4 @@
+import { ConnectionsPage } from './connections/ConnectionsPage';
 import { PlayerProvider } from './player/PlayerContext';
 import { BatteryPage } from './battery/BatteryPage';
 import { useState } from 'react';
@@ -21,7 +22,9 @@ export function App() {
   // and sets window.__MATCH_SPEC__, since it embeds exactly one log with nowhere else to
   // navigate to, so the tab bar doesn't render at all in that build.
   let content;
-  if (view === 'battery') {
+  if (view === 'connections') {
+    content = <ConnectionsPage />;
+  } else if (view === 'battery') {
     content = <BatteryPage />;
   } else if (view === 'compare') {
     content = <ComparePage />;

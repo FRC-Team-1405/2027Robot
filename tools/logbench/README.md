@@ -61,6 +61,33 @@ Battery Insights) have a **Change folder…** button that opens the OS folder pi
 re-lists the logs under whatever you choose. The dialog opens on the machine running the
 server (needs tkinter). The new folder lasts until the server restarts.
 
+### Connections
+
+Open **Connections** to scan active local IPv4 networks without connecting to the roboRIO
+or listing/downloading logs. Install the updated `requirements.txt` (adds `psutil` for
+Windows/macOS/Linux adapter inventory). Click **Scan connections**, optionally entering a
+Pi IPv4 address or subnet. Active private adapter networks of /22 or smaller and configured
+scan targets are probed for SSH and PhotonVision. Larger networks, including link-local
+169.254.0.0/16, require an explicit IP or smaller subnet. Scans are limited to 4096 targets.
+
+Results show adapter IPs/link state, the local source address used to reach each device,
+PhotonVision/SSH port reachability, SSH/SFTP login, and recordings-directory readability.
+An SSH-only device is included even if PhotonVision is stopped. The device-tree model
+confirms Orange Pi identity after login; an open port alone is only a candidate.
+Checks use configured per-host credentials or `pi_discovery` defaults, falling back to
+user `pi` and local SSH keys when no config exists. Credentials are never returned to the
+browser. Checks only read the devices. Fetch Bundle keeps its automatic discovery and
+links to this independent diagnostics view; a failed RIO connection cannot hide its results.
+
+For direct Ethernet, check that the laptop and Pi have addresses in the same subnet.
+A cable does not supply DHCP; a laptop with 169.254.x.x cannot automatically reach a Pi
+with a static 10.14.5.x address. Set an unused laptop address in the Pi's subnet, then
+check the Pi IP explicitly. Overlapping Wi-Fi/Ethernet subnets can select the wrong route;
+the reported laptop source address helps identify this. Login rejection means to check
+user/key/password; successful login with an unavailable folder means to check the path
+and permissions. Cancel stops scheduling further checks; in-flight checks finish before
+the job reports cancellation.
+
 ### Fetch Bundle diagnostics
 
 The Fetch Bundle page runs remote directory discovery and downloads as tracked jobs. It

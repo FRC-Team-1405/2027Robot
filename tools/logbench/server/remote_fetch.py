@@ -59,7 +59,7 @@ log = logging.getLogger('logbench.remote_fetch')
 ProgressCallback = Callable[[str, int, int], None]
 
 
-def _connect(cfg: HostConfig):
+def _connect(cfg: HostConfig, timeout: float = 10):
     import paramiko
 
     client = paramiko.SSHClient()
@@ -70,7 +70,8 @@ def _connect(cfg: HostConfig):
         client.connect(
             cfg.host, port=cfg.port, username=cfg.user,
             password=cfg.password, key_filename=cfg.key_filename,
-            look_for_keys=True, allow_agent=True, timeout=10,
+            look_for_keys=True, allow_agent=True, timeout=timeout,
+            banner_timeout=timeout, auth_timeout=timeout, channel_timeout=timeout,
         )
         sftp = client.open_sftp()
         log.info('connected to %s@%s:%d in %.2fs', cfg.user, cfg.host, cfg.port,

@@ -189,6 +189,7 @@ def test_list_pi_sessions_flags_an_unparseable_session_name():
 
 def test_fetch_rio_log_downloads_into_dest_dir(tmp_path):
     sftp = MagicMock()
+    sftp.get.side_effect = lambda remote, local: pathlib.Path(local).write_bytes(b"log")
     patcher, _ = _mock_paramiko(sftp)
     with patcher:
         local_path = remote_fetch.fetch_rio_log(_cfg(), 'FRC_20260115_143022.wpilog', tmp_path)

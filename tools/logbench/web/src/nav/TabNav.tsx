@@ -16,6 +16,7 @@ const TABS: Tab[] = [
   { label: 'Compare', view: 'compare' },
   { label: 'Battery Insights', view: 'battery' },
   { label: 'Pit Check', view: 'pit' },
+  { label: 'Connections', view: 'connections' },
   { label: 'Fetch Bundle', view: 'fetch' },
 ];
 

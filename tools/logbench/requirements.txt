@@ -8,3 +8,5 @@ uvicorn>=0.30.0
 # don't import it.
 paramiko>=3.4.0
 python-multipart
+# Cross-platform adapter addresses for connection diagnostics
+psutil>=5.9.0
