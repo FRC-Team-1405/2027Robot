@@ -6,16 +6,12 @@
     "password": "password",
     "logs_path": "/home/lvuser/logs"
   },
-  "LeftPi": {
+  "pi_discovery": {
     "enabled": true,
     "user": "pi",
     "recordings_path": "/home/pi/vision-recordings",
-    "timeout_seconds": 6
-  },
-  "RightPi": {
-    "enabled": true,
-    "user": "pi",
-    "recordings_path": "/home/pi/vision-recordings",
-    "timeout_seconds": 6
+    "timeout_seconds": 6,
+    "scan": true,
+    "scan_hosts": ["LeftPi.local", "RightPi.local"]
   }
 }

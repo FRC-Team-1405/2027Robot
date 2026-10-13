@@ -98,16 +98,20 @@ def test_a_session_for_an_unconfigured_pi_is_rejected_not_fetched_from_a_guess(f
     assert fake_remote == []
 
 
-def test_an_unreachable_pi_fails_the_listing_instead_of_hiding_its_camera(fake_remote, monkeypatch):
+def test_an_unreachable_pi_is_named_in_a_note_and_the_other_pi_still_lists(fake_remote, monkeypatch):
     def flaky(cfg):
         if cfg.host == 'rightpi.local':
             raise remote_fetch.RemoteFetchError('could not connect to pi@rightpi.local:22 -- timed out')
-        return []
+        return [{'camera': 'left', 'name': 'boot0003-20260115-143010', 'path': '/x', 'wall_clock': _WALL}]
 
     monkeypatch.setattr(remote_fetch, 'list_pi_sessions', flaky)
     r = client.get('/api/remote/sessions')
-    assert r.status_code == 502
-    assert 'rightpi.local' in r.json()['detail']
+    assert r.status_code == 200
+    body = r.json()
+    assert [l['name'] for l in body['rio_logs']] == ['FRC_20260115_143000.wpilog']
+    assert [s['pi'] for s in body['pi_sessions']] == ['LeftPi']
+    [note] = [n for n in body['pi_notes'] if 'RightPi' in n]
+    assert 'rightpi.local' in note and 'timed out' in note
 
 
 # ── Pis found on NetworkTables, none listed in the config ───────────────────────────

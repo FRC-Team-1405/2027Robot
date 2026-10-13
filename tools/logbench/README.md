@@ -85,6 +85,16 @@ must be on the robot network when the page loads.
 Two things NetworkTables cannot say come from the optional `pi_discovery` block: the SSH
 `user` (default `pi`) and `recordings_path` (default `/home/pi/vision-recordings`).
 
+NetworkTables is backed up by a **network scan**, run in parallel: every address on the
+robot subnet `10.TE.AM.0/24` (team number read from the `rio` host) is probed for
+PhotonVision's web UI on port 5800. Each board that answers is named by its own
+`/etc/hostname`, read over SSH. That finds a board whose publisher is stopped, old, or
+can't reach NT. The scan runs only when the laptop has an address on that subnet, and it
+gives up when the NT timeout does, so it never makes the page slower. A board found both
+ways is listed once, under its NT name. `"scan": false` turns the scan off.
+`"scan_subnets": ["192.168.1.0/24"]` and `"scan_hosts": ["LeftPi.local"]` add bench networks
+or names to probe, and `"team"` overrides the team number.
+
 To pin a Pi by hand — a bench board with a fixed address, or a non-default recordings
 folder — list it under `"pis"`. A listed entry wins over a discovered Pi with the same name
 (ignoring case) or the same address, and the two are never duplicated:
@@ -97,8 +107,10 @@ The original single `"pi": {…}` entry still works. Set `"pi_discovery": {"enab
 to use only the listed Pis (then at least one is required).
 
 Sessions from every Pi are listed together and paired with a log by time. If a Pi that was
-found or listed cannot be reached, the whole listing fails and names the host, instead of
-quietly leaving that camera out. If discovery itself fails (laptop not on the robot network,
+found or listed cannot be reached, the other Pis and the RIO logs still list, and a note
+above the sessions names the missing board, its host and the SSH error, so a missing camera
+never passes for one that didn't record. Entries in `remote_config.json` that LogBench
+doesn't recognise are reported the same way instead of being silently ignored. If discovery itself fails (laptop not on the robot network,
 `pyntcore` missing) the page says so and falls back to any hand-listed Pis; with none listed,
 the logs still appear but there are no vision recordings to fetch.
 

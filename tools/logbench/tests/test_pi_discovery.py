@@ -11,7 +11,8 @@ import paths  # noqa: F401  (side effect: sys.path bridges)
 
 import pi_discovery
 import remote_config
-from pi_discovery import DiscoveredPi, DiscoveryError, discover_via_nt, merge_pis, resolve_pis
+from pi_discovery import (DiscoveredPi, DiscoveryError, discover_via_nt, discover_via_scan, merge_pis,
+                          resolve_pis, scan_targets, team_from_host)
 from remote_config import DiscoveryConfig, HostConfig, RemoteConfig
 
 
@@ -231,3 +232,89 @@ def test_download_time_reuses_the_listing_time_answer(monkeypatch):
     fetched = resolve_pis(_cfg(), refresh=False)
     assert calls == ['rio.local']          # queried once, not again for the download
     assert fetched.pis == listed.pis
+
+
+def test_a_team_rio_host_queries_nt_by_team_number(monkeypatch):
+    calls = []
+    monkeypatch.setattr(pi_discovery, 'discover_via_nt', lambda server, timeout: calls.append(server) or [])
+    monkeypatch.setattr(pi_discovery, 'scan_targets', lambda d, h: ([], []))
+    cfg = _cfg()
+    cfg.rio.host = 'roborio-1405-frc.local'
+    resolve_pis(cfg)
+    assert calls == ['1405']
+
+
+def test_config_warnings_reach_the_page(monkeypatch):
+    monkeypatch.setattr(pi_discovery, 'discover_via_nt', lambda server, timeout: [])
+    cfg = _cfg()
+    cfg.warnings = ['ignored "LeftPi"']
+    assert 'ignored "LeftPi"' in resolve_pis(cfg).notes
+
+
+# ── network scan ────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize('host, team', [
+    ('roborio-1405-frc.local', 1405), ('roborio-254-frc', 254), ('10.14.5.2', 1405),
+    ('10.2.54.2', 254), ('rio.local', None), ('192.168.1.5', None)])
+def test_team_number_is_read_from_the_rio_host(host, team):
+    assert team_from_host(host) == team
+
+
+def test_the_team_subnet_is_scanned_only_when_this_machine_is_on_it():
+    on, _ = scan_targets(_DEFAULTS, 'roborio-1405-frc.local', _local_ip=lambda ip: '10.14.5.50')
+    assert len(on) == 253 and '10.14.5.50' not in on and '10.14.5.11' in on
+    off, _ = scan_targets(_DEFAULTS, 'roborio-1405-frc.local', _local_ip=lambda ip: '192.168.1.9')
+    assert off == []
+
+
+def test_extra_subnets_and_hosts_are_always_scanned():
+    d = DiscoveryConfig(scan_subnets=['192.168.7.0/30', 'nonsense'], scan_hosts=['LeftPi.local'])
+    targets, notes = scan_targets(d, 'rio.local', _local_ip=lambda ip: '192.168.1.9')
+    assert targets == ['192.168.7.1', '192.168.7.2', 'LeftPi.local']
+    assert 'nonsense' in notes[0]
+
+
+def _scan(names_by_ip, open_ips):
+    return discover_via_scan(
+        ['10.14.5.%d' % i for i in range(1, 30)], _DEFAULTS,
+        _probe=lambda host, port, timeout: host in open_ips,
+        _hostname=lambda ip, d: names_by_ip.get(ip, ''), _resolve=lambda h: h)
+
+
+def test_scan_finds_photonvision_boards_by_their_hostnames():
+    found = _scan({'10.14.5.11': 'LeftPi', '10.14.5.12': 'RightPi'}, {'10.14.5.11', '10.14.5.12'})
+    assert [(d.name, d.ip, d.host) for d in found] == [
+        ('LeftPi', '10.14.5.11', 'LeftPi.local'), ('RightPi', '10.14.5.12', 'RightPi.local')]
+
+
+def test_boards_sharing_the_stock_hostname_still_get_distinct_names():
+    found = _scan({'10.14.5.11': 'photonvision', '10.14.5.12': 'photonvision'}, {'10.14.5.11', '10.14.5.12'})
+    assert [d.name for d in found] == ['photonvision@10.14.5.11', 'photonvision@10.14.5.12']
+
+
+def test_a_board_ssh_refuses_is_still_listed_by_address():
+    [d] = _scan({}, {'10.14.5.11'})
+    assert (d.name, d.ip) == ('10.14.5.11', '10.14.5.11')
+
+
+def test_a_board_found_both_ways_is_listed_once_under_its_nt_name(monkeypatch):
+    monkeypatch.setattr(pi_discovery, 'discover_via_nt',
+                        lambda server, timeout: [DiscoveredPi('Right', ip='10.14.5.12')])
+    monkeypatch.setattr(pi_discovery, 'scan_targets', lambda d, h: (['10.14.5.11', '10.14.5.12'], []))
+    monkeypatch.setattr(pi_discovery, 'discover_via_scan', lambda t, d: [
+        DiscoveredPi('LeftPi', ip='10.14.5.11', host='LeftPi.local'),
+        DiscoveredPi('RightPi', ip='10.14.5.12', host='RightPi.local')])
+    res = resolve_pis(_cfg())
+    assert [(p.name, p.host) for p in res.pis] == [('Right', '10.14.5.12'), ('LeftPi', '10.14.5.11')]
+    assert any('network scan' in n and 'LeftPi' in n for n in res.notes)
+
+
+def test_nt_down_but_the_scan_finds_the_pis(monkeypatch):
+    def fail(*a, **k):
+        raise DiscoveryError('no NT')
+    monkeypatch.setattr(pi_discovery, 'discover_via_nt', fail)
+    monkeypatch.setattr(pi_discovery, 'scan_targets', lambda d, h: (['10.14.5.11'], []))
+    monkeypatch.setattr(pi_discovery, 'discover_via_scan', lambda t, d: [DiscoveredPi('LeftPi', ip='10.14.5.11')])
+    res = resolve_pis(_cfg())
+    assert [p.name for p in res.pis] == ['LeftPi']
+    assert any('no NT' in n and 'network scan' in n for n in res.notes)

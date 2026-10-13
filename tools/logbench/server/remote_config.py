@@ -50,6 +50,16 @@ class DiscoveryConfig:
     key_filename: Optional[str] = None
     password: Optional[str] = None
     timeout_seconds: float = 6.0
+    # Second way to find boards, for when NetworkTables can't say (publisher not running,
+    # old publisher, NT down): probe for PhotonVision's web UI (TCP 5800) across the
+    # team's robot subnet 10.TE.AM.0/24 -- only when this laptop is on it -- plus any
+    # extra subnets ("192.168.1.0/24") or hostnames ("LeftPi.local") listed here.
+    # Each hit is named by its own /etc/hostname, read over SSH.
+    scan: bool = True
+    scan_subnets: List[str] = dataclasses.field(default_factory=list)
+    scan_hosts: List[str] = dataclasses.field(default_factory=list)
+    # Normally read from the rio host (roborio-1405-frc.local / 10.14.5.2).
+    team: Optional[int] = None
 
 
 @dataclasses.dataclass
@@ -62,6 +72,9 @@ class RemoteConfig:
     source_path: pathlib.Path
     transfer_idle_timeout_seconds: int = 60
     discovery: DiscoveryConfig = dataclasses.field(default_factory=DiscoveryConfig)
+    # Things in the file that were ignored, shown on the Fetch Bundle page so a
+    # mis-shaped entry doesn't silently do nothing.
+    warnings: List[str] = dataclasses.field(default_factory=list)
 
     def pi_by_name(self, name: str) -> HostConfig:
         return pick_pi(self.pis, name, self.source_path.name)
@@ -132,6 +145,9 @@ def _discovery_config(raw: dict) -> DiscoveryConfig:
     timeout = float(block.get('timeout_seconds', defaults.timeout_seconds))
     if timeout <= 0:
         raise ValueError('pi_discovery.timeout_seconds must be greater than zero')
+    for key in ('scan_subnets', 'scan_hosts'):
+        if not isinstance(block.get(key, []), list):
+            raise ValueError('pi_discovery.%s must be a list' % key)
     return DiscoveryConfig(
         enabled=bool(block.get('enabled', True)),
         user=block.get('user', defaults.user),
@@ -140,7 +156,23 @@ def _discovery_config(raw: dict) -> DiscoveryConfig:
         key_filename=block.get('key_filename'),
         password=block.get('password'),
         timeout_seconds=timeout,
+        scan=bool(block.get('scan', True)),
+        scan_subnets=[str(x).strip() for x in block.get('scan_subnets', [])],
+        scan_hosts=[str(x).strip() for x in block.get('scan_hosts', [])],
+        team=int(block['team']) if block.get('team') not in (None, '') else None,
     )
+
+
+_KNOWN_KEYS = {'transfer_idle_timeout_seconds', 'rio', 'pis', 'pi', 'pi_discovery'}
+
+
+def _unknown_key_warnings(raw: dict, source: str) -> List[str]:
+    unknown = sorted(k for k in raw if k not in _KNOWN_KEYS and not k.startswith('_'))
+    if not unknown:
+        return []
+    return ['%s has entries LogBench does not read and ignored: %s. Orange Pis go in a '
+            '"pis" list (see remote_config.json.example), or leave them out and let '
+            'discovery find them.' % (source, ', '.join('"%s"' % k for k in unknown))]
 
 
 def load_remote_config(path: Optional[pathlib.Path] = None) -> Optional[RemoteConfig]:
@@ -172,4 +204,5 @@ def load_remote_config(path: Optional[pathlib.Path] = None) -> Optional[RemoteCo
         source_path=cfg_path,
         transfer_idle_timeout_seconds=idle_timeout,
         discovery=discovery,
+        warnings=_unknown_key_warnings(raw, cfg_path.name),
     )

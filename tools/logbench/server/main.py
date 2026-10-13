@@ -498,28 +498,43 @@ def _pi_for(cfg, ref: PiSessionRef):
         raise HTTPException(status_code=400, detail=str(exc.args[0]))
 
 
-def _list_all_pi_sessions(pis) -> list[dict]:
-    """Sessions from every given Pi, each tagged with the Pi's name. Listed in parallel.
-    If any Pi cannot be reached this raises (naming the host) rather than returning the
-    others: a silently missing camera looks exactly like a camera that never recorded."""
+def _list_all_pi_sessions(pis) -> tuple[list[dict], list[str]]:
+    """Sessions from every given Pi, each tagged with the Pi's name, plus a note for each
+    Pi that could not be listed. Listed in parallel. One unreachable board must not hide
+    the others' recordings (or the RIO logs), but it must not vanish silently either -- a
+    missing camera looks exactly like one that never recorded -- so it gets a note naming
+    the board, its host and the error."""
     from concurrent.futures import ThreadPoolExecutor
     if not pis:
-        return []
+        return [], []
+    out: list[dict] = []
+    notes: list[str] = []
     with ThreadPoolExecutor(max_workers=len(pis)) as executor:
         futures = [(pi, executor.submit(remote_fetch.list_pi_sessions, pi)) for pi in pis]
-        out: list[dict] = []
         for pi, future in futures:
-            for session in future.result():
+            try:
+                sessions = future.result()
+            except remote_fetch.RemoteFetchError as exc:
+                log.warning('could not list Pi %s: %s', pi.name or pi.host, exc)
+                notes.append('Orange Pi "%s" (%s) was found but its recordings could not be '
+                             'listed, so its camera is missing below: %s'
+                             % (pi.name or pi.host, pi.host, exc))
+                continue
+            if not sessions:
+                notes.append('Orange Pi "%s" (%s) has no recording sessions under %s.'
+                             % (pi.name or pi.host, pi.host, pi.path))
+            for session in sessions:
                 out.append({**session, 'pi': pi.name})
     out.sort(key=lambda s: s['name'], reverse=True)
-    return out
+    return out, notes
 
 
 def _discover_and_list_pi_sessions(cfg) -> tuple[list[dict], list[str]]:
-    """Resolve which Pis exist (NetworkTables discovery + remote_config.json), then list
-    their sessions. Returns (sessions, notes-for-the-UI)."""
+    """Resolve which Pis exist (remote_config.json + NetworkTables + network scan), then
+    list their sessions. Returns (sessions, notes-for-the-UI)."""
     resolution = pi_discovery.resolve_pis(cfg, refresh=True)
-    return _list_all_pi_sessions(resolution.pis), resolution.notes
+    sessions, list_notes = _list_all_pi_sessions(resolution.pis)
+    return sessions, list(resolution.notes) + list_notes
 
 
 def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict], pi_notes=()) -> dict:

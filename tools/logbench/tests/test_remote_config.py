@@ -87,3 +87,17 @@ def test_discovery_defaults_can_be_overridden(tmp_path):
 def test_discovery_can_be_turned_off_when_pis_are_listed(tmp_path):
     cfg = _load(tmp_path, {'rio': _RIO, 'pis': [_pi('A')], 'pi_discovery': {'enabled': False}})
     assert not cfg.discovery.enabled and [p.name for p in cfg.pis] == ['A']
+
+
+def test_unrecognised_top_level_entries_are_reported_not_silently_ignored(tmp_path):
+    cfg = _load(tmp_path, {'rio': _RIO, 'LeftPi': {'user': 'pi'}, 'RightPi': {'user': 'pi'}})
+    assert cfg.pis == []
+    [warning] = cfg.warnings
+    assert '"LeftPi"' in warning and '"RightPi"' in warning and '"pis"' in warning
+
+
+def test_scan_settings_load(tmp_path):
+    cfg = _load(tmp_path, {'rio': _RIO, 'pi_discovery': {
+        'scan': False, 'scan_subnets': ['192.168.1.0/24'], 'scan_hosts': ['LeftPi.local'], 'team': 1405}})
+    d = cfg.discovery
+    assert (d.scan, d.scan_subnets, d.scan_hosts, d.team) == (False, ['192.168.1.0/24'], ['LeftPi.local'], 1405)
