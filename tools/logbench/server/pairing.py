@@ -14,11 +14,11 @@ trivially unit-testable with synthetic RioLogInfo/PiSessionInfo lists. server/ma
 the only caller that has to go fetch those lists for real (via remote_fetch.py) and turn
 the result into JSON.
 
-All `wall_clock` datetimes passed in must be directly comparable (same tzinfo-ness, same
-timezone if aware) -- remote_fetch.py parses both the RIO's DS-renamed filename and the
-Pi's session-folder name as naive local time, since both are ultimately derived from the
-same DS-laptop clock (see orangepi-vision-recorder.py's module docstring), so no
-conversion between them is needed or done here.
+All `wall_clock` datetimes passed in must be directly comparable (all naive or all
+aware). Both clocks come from the DS laptop (see orangepi-vision-recorder.py's module
+docstring), but they are *written* in different zones -- the RIO names its logs in UTC,
+the recorder names sessions in US Eastern -- so remote_fetch.py parses each to a
+timezone-aware datetime and the comparison here is between real instants.
 """
 import dataclasses
 import datetime as dt
@@ -84,9 +84,14 @@ def suggest_pairings(rio_logs: List[RioLogInfo], pi_sessions: List[PiSessionInfo
     *suggestion* -- the caller/UI lets a person override it either way.
     """
     claimed_indices: set = set()
+    # Every boot writes an akit_* (AdvantageKit) log and an FRC_* (WPILib) log about a
+    # second apart, so both windows cover the same sessions. The AdvantageKit log is the
+    # one with Vision/ inputs and poses, so akit_* logs claim first; otherwise the
+    # FRC_* log, a second earlier, would take every session and leave the akit_ log bare.
     ordered = sorted(
         rio_logs,
-        key=lambda r: (r.wall_clock is None, r.wall_clock or dt.datetime.max),
+        key=lambda r: (r.wall_clock is None, not r.name.startswith('akit_'),
+                       r.wall_clock.timestamp() if r.wall_clock else float('inf')),
     )
 
     results: Dict[str, Pairing] = {}

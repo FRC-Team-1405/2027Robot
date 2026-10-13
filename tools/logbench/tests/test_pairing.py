@@ -131,3 +131,14 @@ def test_sessions_from_different_pis_pair_to_one_log_and_keep_their_pi():
 
     [pairing] = suggest_pairings([rio], [left, right])
     assert {(s.pi, s.camera) for s in pairing.pi_sessions} == {('LeftPi', 'left'), ('RightPi', 'right')}
+
+
+def test_the_advantagekit_log_gets_the_sessions_not_the_wpilib_log_from_the_same_boot():
+    wpilib = _rio(name='FRC_20260115_143000.wpilog')
+    akit = RioLogInfo(name='akit_26-01-15_14-30-01.wpilog', wall_clock=_T0 + dt.timedelta(seconds=1),
+                      duration_sec=150.0)
+    left, right = _pi(camera='Left'), _pi(camera='Right', name='boot0002-20260115-143011')
+
+    by_log = {p.rio_log: p for p in suggest_pairings([wpilib, akit], [left, right])}
+    assert {s.camera for s in by_log[akit.name].pi_sessions} == {'Left', 'Right'}
+    assert by_log[wpilib.name].pi_sessions == []

@@ -25,15 +25,29 @@ from typing import Callable, List, Optional
 
 from remote_config import HostConfig
 
-# WPILib renames a wpilog from FRC_TBD_<something>.wpilog to
-# FRC_<yyyyMMdd>_<HHmmss>.wpilog once the Driver Station connects -- an existing,
-# built-in wall-clock anchor. Anything still named FRC_TBD_* has no reliable wall clock
-# and is flagged wall_clock=None (auto-match-ineligible; still listed so it can be
-# manually paired or bundled logs-only).
-_RIO_LOG_RE = re.compile(r'^FRC_(\d{8})_(\d{6})\.wpilog$')
+# The roboRIO writes two logs per boot into the same folder, both renamed with the time
+# (in UTC) once the Driver Station connects -- a built-in wall-clock anchor:
+#   WPILib DataLogManager: FRC_<yyyyMMdd>_<HHmmss>[_<event>_<match>].wpilog
+#   AdvantageKit:          akit_<yy-MM-dd>_<HH-mm-ss>[_<event>_<match>].wpilog
+# (the suffix is added when FMS is attached). Anything still unrenamed (FRC_TBD_*,
+# akit_TBD*) has no reliable wall clock and is flagged wall_clock=None
+# (auto-match-ineligible; still listed so it can be manually paired or bundled logs-only).
+_RIO_LOG_RES = (
+    (re.compile(r'^FRC_(\d{8})_(\d{6})(?:_[^.]*)?\.wpilog$'), '%Y%m%d%H%M%S'),
+    (re.compile(r'^akit_(\d{2}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})(?:_[^.]*)?\.wpilog$'), '%y-%m-%d%H-%M-%S'),
+)
 
-# orangepi-vision-recorder.py's session folder naming: boot<NNNN>-<YYYYMMDD>-<HHMMSS>.
+# orangepi-vision-recorder.py's session folder naming: boot<NNNN>-<YYYYMMDD>-<HHMMSS>,
+# rendered in the recorder's DISPLAY_TZ (US Eastern) -- NOT UTC like the RIO's names.
+# Both are parsed to timezone-aware datetimes so pairing compares real instants; parsing
+# them naively put every Pi session 4-5 hours away from its log, so nothing ever paired.
 _PI_SESSION_RE = re.compile(r'^boot(\d+)-(\d{8})-(\d{6})$')
+_PI_SESSION_TZ = 'America/New_York'  # keep in sync with DISPLAY_TZ in the recorder
+
+
+def _pi_tz():
+    from zoneinfo import ZoneInfo
+    return ZoneInfo(_PI_SESSION_TZ)
 
 
 class RemoteFetchError(Exception):
@@ -70,14 +84,14 @@ def _connect(cfg: HostConfig):
 
 
 def _parse_rio_wall_clock(name: str) -> Optional[dt.datetime]:
-    m = _RIO_LOG_RE.match(name)
-    if not m:
-        return None
-    date_s, time_s = m.groups()
-    try:
-        return dt.datetime.strptime(date_s + time_s, '%Y%m%d%H%M%S')
-    except ValueError:
-        return None
+    for pattern, fmt in _RIO_LOG_RES:
+        m = pattern.match(name)
+        if m:
+            try:
+                return dt.datetime.strptime(''.join(m.groups()), fmt).replace(tzinfo=dt.timezone.utc)
+            except ValueError:
+                return None
+    return None
 
 
 def _parse_pi_session_wall_clock(name: str) -> Optional[dt.datetime]:
@@ -86,7 +100,7 @@ def _parse_pi_session_wall_clock(name: str) -> Optional[dt.datetime]:
         return None
     _, date_s, time_s = m.groups()
     try:
-        return dt.datetime.strptime(date_s + time_s, '%Y%m%d%H%M%S')
+        return dt.datetime.strptime(date_s + time_s, '%Y%m%d%H%M%S').replace(tzinfo=_pi_tz())
     except ValueError:
         return None
 

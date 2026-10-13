@@ -56,9 +56,27 @@ def test_list_rio_logs_parses_a_ds_renamed_wall_clock():
     assert logs[0]['name'] == 'FRC_20260115_143022.wpilog'
     assert logs[0]['size'] == 555
     assert logs[0]['wall_clock'] is not None
-    assert logs[0]['wall_clock'].isoformat() == '2026-01-15T14:30:22'
+    assert logs[0]['wall_clock'].isoformat() == '2026-01-15T14:30:22+00:00'
     sftp.close.assert_called_once()
     client.close.assert_called_once()
+
+
+@pytest.mark.parametrize('name, iso', [
+    ('akit_26-10-13_23-05-06.wpilog', '2026-10-13T23:05:06+00:00'),
+    ('FRC_20261013_230506_NYRO_Q12.wpilog', '2026-10-13T23:05:06+00:00'),
+    ('akit_26-10-13_23-05-06_nyro_q12.wpilog', '2026-10-13T23:05:06+00:00'),
+    ('akit_TBD_1234.wpilog', None),
+])
+def test_both_rio_log_namings_carry_a_utc_wall_clock(name, iso):
+    clock = remote_fetch._parse_rio_wall_clock(name)
+    assert (clock.isoformat() if clock else None) == iso
+
+
+def test_a_pi_session_and_the_rio_log_from_the_same_moment_agree():
+    # 7:05:06 PM Eastern (EDT) is 23:05:06 UTC: the recorder writes the first, the RIO the second.
+    pi = remote_fetch._parse_pi_session_wall_clock('boot0004-20261013-190506')
+    rio = remote_fetch._parse_rio_wall_clock('akit_26-10-13_23-05-06.wpilog')
+    assert pi == rio
 
 
 def test_list_rio_logs_flags_an_unrenamed_log_as_wall_clock_none():
