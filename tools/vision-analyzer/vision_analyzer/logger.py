@@ -51,6 +51,13 @@ def setup_logging() -> pathlib.Path:
     ch.setFormatter(fmt)
     logger.addHandler(ch)
 
+    # The parser moved to wpilog-utils and logs to the 'wpilog_utils' logger, not a child of
+    # 'vision_analyzer'; without this its "PARSING STOPPED EARLY" errors would reach no file.
+    wu_logger = logging.getLogger('wpilog_utils')
+    wu_logger.setLevel(logging.DEBUG)
+    wu_logger.addHandler(fh)
+    wu_logger.addHandler(ch)
+
     logger.info('vision_analyzer session started — log: %s', _log_file)
     return _log_file
 

@@ -1,0 +1,307 @@
+# Logbench
+
+Play back a `.wpilog` and watch metrics move against the robot's position on the field —
+smoothly, at 60fps, with a play button that actually plays.
+
+Built for camera health, but the player itself knows nothing about cameras. "Metrics over
+a match timeline" is a shape we keep wanting (shooter tuning, swerve module health, intake
+state), so the domain knowledge is isolated in one file per view.
+
+## Why this exists
+
+The Replay tab in the camera-calibration Streamlit app had the right features and was
+unusable. It drove playback with `st.fragment(run_every=0.2)`, so every frame was a full
+server round-trip: re-run Python, rebuild two Plotly trend figures containing *every
+sample of all nine health traces per camera* (~135k points), rebuild the field figure,
+rescan the whole pose series three times for a 3-second trail, serialize it all to JSON,
+ship it over the websocket, re-render. Seconds per frame.
+
+Streamlit's execution model is request/response. The fix was not a faster Streamlit — it
+was to send the data to the browser **once** and animate client-side with no round-trips
+at all.
+
+Measured on a 5.5-minute log with 26 tracks and 199k samples:
+
+| | before | after |
+|---|---|---|
+| per frame | seconds | **0.09 ms** mean, 1.3 ms worst |
+| data sent | all traces, 5×/second | 0.47 MB gzipped, once |
+| trail lookup | O(N) scan ×3 per tick | O(1) amortized |
+
+## Running it
+
+**Battery Insights** (`?view=battery`) analyzes match power: brownouts and dips below a
+configurable warning level, what was drawing current in each dip, every current signal in
+the log, physical motor/subsystem draw, and reported current limiting. It supports legacy
+logs (including plain WPILib competition logs), recorded robot states and future
+allocation telemetry, window comparisons, and small HTML (people) / JSON (LLMs) insight
+exports. See [the operating and telemetry guide](../../docs/battery-insights.md)
+for interpretation, battery practices, and hardware commissioning checks.
+
+Three ways, one codebase.
+
+**Standalone file** — no server, no Node, no network. Hand it to a teammate on a USB stick.
+
+```bash
+python server/export.py path/to/log.wpilog
+```
+
+**Server app** — browse the logs on disk and pick one.
+
+```bash
+pip install -r requirements.txt
+cd web && npm install && npm run build && cd ..
+python server/main.py --logs ../../logs
+```
+
+Install NPM if you see an error indicating NPM missing: `winget install OpenJS.NodeJS.LTS`
+
+`--logs` is only the starting folder. The pages that list logs (Vision Logs, Compare,
+Battery Insights) have a **Change folder…** button that opens the OS folder picker and
+re-lists the logs under whatever you choose. The dialog opens on the machine running the
+server (needs tkinter). The new folder lasts until the server restarts.
+
+### Connections
+
+Open **Connections** to scan active local IPv4 networks without connecting to the roboRIO
+or listing/downloading logs. Install the updated `requirements.txt` (adds `psutil` for
+Windows/macOS/Linux adapter inventory). Click **Scan connections**, optionally entering a
+Pi IPv4 address or subnet. Active private adapter networks of /22 or smaller and configured
+scan targets are probed for SSH and PhotonVision. Larger networks, including link-local
+169.254.0.0/16, require an explicit IP or smaller subnet. Scans are limited to 4096 targets.
+
+Results show adapter IPs/link state, the local source address used to reach each device,
+PhotonVision/SSH port reachability, SSH/SFTP login, and recordings-directory readability.
+An SSH-only device is included even if PhotonVision is stopped. The device-tree model
+confirms Orange Pi identity after login; an open port alone is only a candidate.
+Checks use configured per-host credentials or `pi_discovery` defaults, falling back to
+user `pi` and local SSH keys when no config exists. Credentials are never returned to the
+browser. Checks only read the devices. Fetch Bundle keeps its automatic discovery and
+links to this independent diagnostics view; a failed RIO connection cannot hide its results.
+
+For direct Ethernet, check that the laptop and Pi have addresses in the same subnet.
+A cable does not supply DHCP; a laptop with 169.254.x.x cannot automatically reach a Pi
+with a static 10.14.5.x address. Set an unused laptop address in the Pi's subnet, then
+check the Pi IP explicitly. Overlapping Wi-Fi/Ethernet subnets can select the wrong route;
+the reported laptop source address helps identify this. Login rejection means to check
+user/key/password; successful login with an unavailable folder means to check the path
+and permissions. Cancel stops scheduling further checks; in-flight checks finish before
+the job reports cancellation.
+
+### Fetch Bundle diagnostics
+
+The Fetch Bundle page runs remote directory discovery and downloads as tracked jobs. It
+shows the current remote phase, elapsed time, bytes/files transferred, rolling throughput,
+and ETA when a byte total is known. A transfer that receives no data for 60 seconds fails
+instead of appearing stalled; set the optional top-level
+`"transfer_idle_timeout_seconds"` value in the ignored
+`server/remote_config.json` to adjust that per network. Each server run writes a detailed
+diagnostic log under `tools/logbench/logs/`; the newest ten runs are retained locally and
+the folder is ignored by Git.
+
+#### Orange Pis are discovered, not listed
+
+Each Orange Pi's metrics publisher (`coprocessor/orangepi-nt-publisher.py`) publishes its
+name and address under `/OrangePi/<board-name>/` (`IP` and `Host`, next to the CPU/RAM
+metrics). When the Fetch Bundle page loads it asks the roboRIO's NetworkTables server for
+that table, so **`remote_config.json` needs only the `rio` entry** — no per-Pi list, and no
+assumption about how many boards there are or what they are called. The page shows what it
+found (`Found on NetworkTables: LeftPi (10.14.5.21), …`) above the session list. The laptop
+must be on the robot network when the page loads.
+
+Two things NetworkTables cannot say come from the optional `pi_discovery` block: the SSH
+`user` (default `pi`) and `recordings_path` (default `/home/pi/vision-recordings`).
+
+NetworkTables is backed up by a **network scan**, run in parallel: every address on the
+robot subnet `10.TE.AM.0/24` (team number read from the `rio` host) is probed for
+PhotonVision's web UI on port 5800. Each board that answers is named by its own
+`/etc/hostname`, read over SSH. That finds a board whose publisher is stopped, old, or
+can't reach NT. The scan runs only when the laptop has an address on that subnet, and it
+gives up when the NT timeout does, so it never makes the page slower. A board found both
+ways is listed once, under its NT name. `"scan": false` turns the scan off.
+`"scan_subnets": ["192.168.1.0/24"]` and `"scan_hosts": ["LeftPi.local"]` add bench networks
+or names to probe, and `"team"` overrides the team number.
+
+To pin a Pi by hand — a bench board with a fixed address, or a non-default recordings
+folder — list it under `"pis"`. A listed entry wins over a discovered Pi with the same name
+(ignoring case) or the same address, and the two are never duplicated:
+
+```json
+"pis": [{"name": "LeftPi", "host": "10.14.5.21", "user": "pi", "recordings_path": "/mnt/usb/rec"}]
+```
+
+The original single `"pi": {…}` entry still works. Set `"pi_discovery": {"enabled": false}`
+to use only the listed Pis (then at least one is required).
+
+Sessions from every Pi are listed together and paired with a log by time. If a Pi that was
+found or listed cannot be reached, the other Pis and the RIO logs still list, and a note
+above the sessions names the missing board, its host and the SSH error, so a missing camera
+never passes for one that didn't record. Entries in `remote_config.json` that LogBench
+doesn't recognise are reported the same way instead of being silently ignored. If discovery itself fails (laptop not on the robot network,
+`pyntcore` missing) the page says so and falls back to any hand-listed Pis; with none listed,
+the logs still appear but there are no vision recordings to fetch.
+
+A board that shows up on NetworkTables with no address was not re-synced with the current
+publisher: copy `coprocessor/` to it again (`sync-to-orangepi.bat`) and restart
+`orangepi-nt-publisher`.
+
+#### How cameras are named
+
+LogBench never assumes camera names. The cameras for a log are whatever appears under
+`Vision/<name>/…` in that log. A recording folder on a Pi is named by whoever set up the
+recorder (`CAMERA_NAME`, the systemd instance such as `left`), so each folder is matched to a
+logged camera **ignoring case** (`left` ↔ `Left`). A recording folder that matches no logged
+camera is not shown, and the log's warnings list both names so the mismatch can be fixed on
+the Pi or in robot code.
+
+#### Requirement: ffmpeg
+
+Turning a camera's saved frames into the scrubbable video needs the `ffmpeg` command on the
+PATH of the machine running `server/main.py` (the laptop — not the roboRIO or the Pi). Without
+it the log still opens, but with a "Vision preview … could not be built: ffmpeg is not on
+PATH" warning and no camera video.
+
+```bash
+winget install Gyan.FFmpeg      # Windows; then open a new terminal
+ffmpeg -version                 # confirm it is found
+```
+
+**Inside the calibration app** — Tab 6 of `tools/camera-calibration/calibrate.py` embeds
+the player and offers the standalone file as a download. Needs no npm: the built bundle is
+committed at `server/assets/player.singlefile.html`.
+
+**Developing the front end:**
+
+```bash
+cd web && npm run dev          # http://localhost:5173, proxies /api to port 8765
+```
+
+Add `?debug=1` to any of them for an fps counter and a `window.__player` handle.
+
+Keyboard: `space` play/pause · `←`/`→` 1s · `shift+←`/`→` 10s · `,`/`.` one frame · `0`
+restart.
+
+**Exporting a comparison** — after running one on the Compare tab, *HTML (for people)* and
+*JSON (for LLMs)* download the exact result on screen (`GET /api/compare/export?format=html|json`,
+same parameters as `/api/compare`). The HTML mirrors the page's category layout; the JSON
+(`logbench.compare/v2`, built in `server/compare_export.py`) adds both log file names (names
+only, no paths), each window and DS-mode spans, the category definitions, metric definitions,
+per-camera a/b/delta/% change/verdict, tallies (overall, by camera, by category), and a "how to
+read" guide. Adding a metric? Add its one-line entry to `DESCRIPTIONS` in `compare_export.py` —
+a test fails if you forget.
+
+**Metric categories** (`server/core/categories.py`, rationale in
+`docs/adr/0001-camera-health-metric-gating-aggregation-and-range.md`) — every metric declares
+one of three kinds of question, decided by *whether a low reading tells you what to fix*:
+
+| Category | Answers | Low means look at | Scored? |
+|---|---|---|---|
+| **availability** | Does usable data arrive when it should? | connection, mount / FOV, exposure, USB | yes |
+| **quality** | When a tag is seen, how good is the solution? | calibration, focus, threshold, decimate | yes |
+| **context** | What conditions was this measured under? (speed, range) | nothing — it explains the other two | **never** |
+
+The compare page shows availability and quality as separate score cards and context beside them,
+unscored (its rows get verdict `context`, not improved/regressed). `availability_score` and
+`quality_score` are separate products; `health_score` is their optional product and, like both,
+cannot depend on a context metric (`tests/test_categories.py` enforces that structurally).
+`still_score` / `motion_score` mix categories, so they are filed as `legacy` and kept only so
+existing scripts keep working. Two rules apply to every health-factor average: it is
+**time-weighted** (AdvantageKit only logs a value when it changes, so averaging records weights
+by how often a value changed, not how long it lasted) and it covers **only the times a tag was in
+view** (the robot zeroes every factor on a loop with no tag; that dropout is reported once, as
+`tag_in_view_pct`, not counted inside each factor). A metric that describes the whole run rather
+than one camera (`speed_mean_mps`) is declared `per_camera=False` and appears once, as camera
+`All`. Not yet done (see the ADR): range-normalised tag area, block/bootstrap verdicts, and the
+robot-side `TagInViewFraction` log.
+
+## Layout
+
+```
+server/
+  model.py            PlayerSpec / Track / Panel / Group  -- generic, no domain concepts
+  encode.py           columnar + delta + RLE wire format
+  export.py           inline a spec into the single-file bundle
+  main.py             FastAPI: log listing, spec endpoint, static hosting
+  dump_spec.py        CLI: wpilog -> spec JSON (+ --stats). Headless, no browser needed.
+  specs/
+    camera_health.py  THE vision-aware module. Log keys, health factors, field geometry.
+  assets/
+    player.singlefile.html   committed build output (see "Committed build" below)
+web/src/
+  player/   clock.ts (rAF, plain class), cursor.ts (monotonic lookup), decode.ts, types.ts
+  panels/   FieldPanel, TimeSeriesPanel, ReadoutPanel, PanelHost
+  controls/ TransportBar
+  loader/   useSpec (inlined vs fetched vs picker), LogPicker
+```
+
+## Adding a new kind of playback
+
+Write one module in `server/specs/` exposing `NAME`, `LABEL`, and
+`build(signals, title=...) -> (PlayerSpec, data)`, then register it in
+`server/specs/__init__.py`. Declare your groups (the entities), tracks (the metrics),
+panels, and a layout. Nothing in `web/` changes.
+
+`camera_health.py` is the worked example: it maps `Vision/*/Health/*` log keys onto
+generic scalar/string/pose2d/intset tracks and lays them out as a field panel, a readout,
+and one trend chart per camera.
+
+To add a new *kind of panel* instead: write the component and add one line to
+`web/src/panels/PanelHost.tsx`.
+
+## Design notes
+
+**React never re-renders during playback.** The clock is a plain class holding a mutable
+`time`; panels subscribe with `useFrame` and draw straight to canvas. React renders only
+for things a human did — play/pause, speed, a legend toggle. The one DOM panel (the health
+readout) is throttled to 10Hz, because text changing 60 times a second is unreadable
+anyway. Measured: 6 DOM mutations across 120 frames.
+
+**Static content is rasterized once.** A trend chart's traces are identical on every frame;
+only the playhead moves. They are drawn into an offscreen canvas and blitted, so a frame
+costs one `drawImage` plus a line and a few dots. Redrawing the polylines per frame is
+exactly what made the old version unusable. The buffer is invalidated only by a resize or
+a legend toggle.
+
+**Lookups remember where they were.** Time almost always advances by one frame, so
+`Cursor` walks forward a sample or two and only binary-searches on a discontinuity
+(a scrub). Trails use two cursors for the window bounds and draw straight out of the typed
+arrays — no per-frame allocation.
+
+**Time comes from the wall clock.** `t += realElapsed * speed`, not a fixed step per frame,
+so a slow frame costs smoothness rather than sync. Frame deltas are clamped so returning to
+a backgrounded tab doesn't teleport the playhead.
+
+**NaN means "could not measure", not zero.** The robot publishes NaN when a health factor
+is unmeasurable. It survives encoding as JSON `null`, decodes back to NaN, and every
+consumer renders it as a gap or `n/a` — never as a value, and never as a stale previous
+reading. Samples further from the playhead than `staleness_sec` are treated as absent too,
+matching `vision_analyzer.metrics.nearest_value`.
+
+## Committed build
+
+`server/assets/player.singlefile.html` is a build artifact and is checked in on purpose:
+the Streamlit calibration app and the standalone export both need it, and teammates running
+the calibration tool should not need Node installed. **Rebuild and commit it whenever
+`web/src` changes:**
+
+```bash
+cd web && npm run build:single
+```
+
+## Tests
+
+```bash
+python -m pytest tests -q     # wire format, spec builder  (28)
+cd web && npm test            # decode, cursor, clock      (20)
+```
+
+The Python and TypeScript suites pin the two halves of the same wire format; if
+`server/encode.py` changes shape, `web/src/player/decode.ts` changes with it.
+
+## Known limits
+
+- Field geometry and AprilTag positions come from `vision_analyzer.constants`, which is
+  still 2026 Reefscape. Update there for 2027.
+- No live NetworkTables mode yet. `PlayerProvider` is structured to take a live source, and
+  a FastAPI websocket is the natural next step — at which point the calibration app's
+  separate Live Health tab could fold into this.

@@ -1,0 +1,3 @@
+# Only the web UI (python -m janitor serve) needs these; the CLI, and wpilog-utils, are stdlib-only.
+fastapi>=0.115.0
+uvicorn>=0.30.0

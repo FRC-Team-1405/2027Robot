@@ -18,6 +18,10 @@ GY-61
 4x Limelight 2
 3x INNO-MAKER CAM-MIPI9281RAW-V2 Raspi 
 8x ArduCam UC-844 Rev.B (Arducam OV9281)
+https://www.arducam.com/blog/product/ov9281-mipi-1mp-monochrome-global-shutter-camera-module-m12-mount-lens-raspberry-pi/
+Diagonal FOV = 82deg
+Field of View (FOV)	82°(D) x 70° (H) x 55°(V)
+
 
 # TOF
 4x, SEN-36005, playing with fusion can bus time of flight range sensor

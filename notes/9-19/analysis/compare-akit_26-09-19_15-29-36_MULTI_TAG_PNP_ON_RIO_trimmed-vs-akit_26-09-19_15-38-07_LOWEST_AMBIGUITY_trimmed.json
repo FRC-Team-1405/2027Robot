@@ -1,0 +1,669 @@
+{
+  "schema": "logbench.compare/v2",
+  "generated_at": "2026-09-22T21:12:33+00:00",
+  "how_to_read": [
+    "Every metric has a category (see \"categories\" and the \"category\" on each metric): \"availability\" (does usable data arrive?), \"quality\" (when a tag is seen, how good is it?) or \"context\" (the conditions of the run: speed, range). Read availability and quality separately. Context is never part of a score and gets verdict \"context\" instead of a judgement: it explains why the other numbers moved, e.g. a shorter range raises tag area with no change to the camera. Composites in category \"legacy\" mix categories and are kept only for continuity.",
+    "A metric with camera \"All\" describes the whole run and is the same for every camera.",
+    "Each entry in \"comparisons\" is one metric for one camera, computed over each log's window. \"delta\" is b - a and \"pct_change\" is (b - a) / |a| * 100 (null when a is 0 or either side is null).",
+    "Each log is scored only inside its own window (see logs.<a|b>.window). Windows chosen with selection \"mode:<x>\" are that DS mode's longest span in each log independently, so the two windows can differ in length.",
+    "Verdict compares b to a: a metric whose ratio b/a moves by more than verdict_rule.threshold_ratio in the good direction is \"improved\", in the bad direction \"regressed\", otherwise \"neutral\". \"n/a\" means a value was missing on either side. Direction comes from \"lower_is_better\" in \"metrics\".",
+    "A null value means the log had no data for that metric/camera. Some log-derived metrics (fps_mean, fps_min, conn_uptime_pct, latency_mean_ms, acceptance_rate) report exactly 0 instead of null when there were no samples, so a 0 there can mean \"no data\" rather than a measured zero -- check the other metrics for the same camera before concluding.",
+    "A single comparison of two logs is weak evidence: verdicts inside the noise band are neutral by design, and differing routes, lighting or driving between logs confound vision metrics. Prefer changes that show up across several metrics and both cameras."
+  ],
+  "verdict_rule": {
+    "threshold_ratio": 0.1
+  },
+  "logs": {
+    "a": {
+      "file": "akit_26-09-19_15-29-36_MULTI_TAG_PNP_ON_RIO_trimmed.wpilog",
+      "duration_s": 22.46,
+      "cameras": [
+        "Left",
+        "Right"
+      ],
+      "ds_mode_spans": [
+        {
+          "mode": "auto",
+          "start_s": 0.0,
+          "end_s": 22.46
+        }
+      ],
+      "window": {
+        "selection": "mode:auto",
+        "start_s": 36.05,
+        "end_s": 58.51,
+        "start_rel_s": 0.0,
+        "end_rel_s": 22.46,
+        "duration_s": 22.46
+      }
+    },
+    "b": {
+      "file": "akit_26-09-19_15-38-07_LOWEST_AMBIGUITY_trimmed.wpilog",
+      "duration_s": 22.43,
+      "cameras": [
+        "Left",
+        "Right"
+      ],
+      "ds_mode_spans": [
+        {
+          "mode": "auto",
+          "start_s": 0.0,
+          "end_s": 22.43
+        }
+      ],
+      "window": {
+        "selection": "mode:auto",
+        "start_s": 151.74,
+        "end_s": 174.18,
+        "start_rel_s": 0.0,
+        "end_rel_s": 22.43,
+        "duration_s": 22.43
+      }
+    }
+  },
+  "cameras": [
+    "Left",
+    "Right"
+  ],
+  "categories": [
+    {
+      "id": "availability",
+      "label": "Availability",
+      "question": "Does usable data arrive when it should?",
+      "low_means": "Look at the connection, camera mount and field of view, exposure or lighting, USB or network.",
+      "scored": true
+    },
+    {
+      "id": "quality",
+      "label": "Quality",
+      "question": "When a tag is seen, how good is the solution?",
+      "low_means": "Look at calibration, focus, the tag detection threshold, decimate.",
+      "scored": true
+    },
+    {
+      "id": "context",
+      "label": "Context",
+      "question": "What conditions was this measured under?",
+      "low_means": "Nothing is wrong with the camera. This explains why the other numbers moved (different route, speed or range). Never scored.",
+      "scored": false
+    }
+  ],
+  "metrics": [
+    {
+      "id": "health_score",
+      "label": "Health score (availability x quality)",
+      "kind": "composite",
+      "category": "overall",
+      "unit": "%",
+      "lower_is_better": false,
+      "depends_on": [
+        "availability_score",
+        "quality_score"
+      ],
+      "description": "Optional convenience number: availability_score x quality_score / 100. Context is never part of it. Prefer reading the two scores it is made of, because a product hides which one moved."
+    },
+    {
+      "id": "availability_score",
+      "label": "Availability score",
+      "kind": "composite",
+      "category": "availability",
+      "unit": "%",
+      "lower_is_better": false,
+      "depends_on": [
+        "tag_in_view_pct",
+        "fps_pct",
+        "latency_pct"
+      ],
+      "description": "Availability: does usable data arrive when it should? Product of tag_in_view_pct, fps_pct and latency_pct. A low value points at the connection, mount / field of view, exposure or lighting, USB or network."
+    },
+    {
+      "id": "quality_score",
+      "label": "Quality score",
+      "kind": "composite",
+      "category": "quality",
+      "unit": "%",
+      "lower_is_better": false,
+      "depends_on": [
+        "area_pct",
+        "ambiguity_pct",
+        "acceptance_pct",
+        "multitag_pct"
+      ],
+      "description": "Quality: when a tag is seen, how good is the solution? Product of area_pct, ambiguity_pct, acceptance_pct and multitag_pct, each measured only over the times a tag was in view. Jitter is excluded (it rises with motion). Area is still range-dependent until range normalisation lands (docs/adr/0001, D3), so read it next to Median range to tags. A low value points at calibration, focus, the detection threshold or decimate."
+    },
+    {
+      "id": "tag_in_view_pct",
+      "label": "Tag in view",
+      "kind": "metric",
+      "category": "availability",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Availability: percent of the window during which a tag-bearing result was in view (derived from the robot's Health/Reason gate, or from the raw pose array on older logs). Depends on the route: a robot facing away from the tags lowers it without any camera fault."
+    },
+    {
+      "id": "longest_gap_ms",
+      "label": "Longest gap",
+      "kind": "metric",
+      "category": "availability",
+      "unit": "ms",
+      "lower_is_better": true,
+      "description": "Availability: the longest unbroken stretch with no tag in view, in milliseconds. Lower is better. Tells apart many 20 ms blips from one long hole, which the fraction above cannot. Loops are 20 ms, so differences of a loop or two are noise."
+    },
+    {
+      "id": "fps_pct",
+      "label": "FPS",
+      "kind": "metric",
+      "category": "availability",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Availability: health factor from 1s mean camera FPS relative to the target FPS."
+    },
+    {
+      "id": "latency_pct",
+      "label": "Latency",
+      "kind": "metric",
+      "category": "availability",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Availability: health factor from newest-result latency (1s median), inverted. Stale data is unavailable data."
+    },
+    {
+      "id": "conn_uptime_pct",
+      "label": "Connection uptime",
+      "kind": "metric",
+      "category": "availability",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Percent of connection samples in the window reporting the camera connected. 0 if no samples."
+    },
+    {
+      "id": "fps_mean",
+      "label": "FPS (mean)",
+      "kind": "metric",
+      "category": "availability",
+      "unit": "fps",
+      "lower_is_better": false,
+      "description": "Mean camera FPS over the window (computed from the log). 0 if no FPS samples."
+    },
+    {
+      "id": "fps_min",
+      "label": "FPS (min)",
+      "kind": "metric",
+      "category": "availability",
+      "unit": "fps",
+      "lower_is_better": false,
+      "description": "Minimum camera FPS over the window (computed from the log). 0 if no FPS samples."
+    },
+    {
+      "id": "latency_mean_ms",
+      "label": "Latency (mean)",
+      "kind": "metric",
+      "category": "availability",
+      "unit": "ms",
+      "lower_is_better": true,
+      "description": "Mean camera pipeline latency in milliseconds (computed from the log). Lower is better."
+    },
+    {
+      "id": "area_pct",
+      "label": "Tag area",
+      "kind": "metric",
+      "category": "quality",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Quality: health factor from total tag image area (0.5s median), averaged over times a tag was in view. Higher = tags nearer or better oriented. Range-dependent: a closer route raises it with no change to the camera (read it next to Median range to tags)."
+    },
+    {
+      "id": "ambiguity_pct",
+      "label": "Ambiguity",
+      "kind": "metric",
+      "category": "quality",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Quality: health factor from single-tag PnP ambiguity (0.5s median, inverted). Multi-tag solves score 100."
+    },
+    {
+      "id": "acceptance_pct",
+      "label": "Acceptance",
+      "kind": "metric",
+      "category": "quality",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Quality: health factor from accepted / raw pose results over 1s."
+    },
+    {
+      "id": "multitag_pct",
+      "label": "Multi-tag",
+      "kind": "metric",
+      "category": "quality",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Quality (provisionally): health factor from the fraction of accepted results in the previous second that used 2+ tags. Partly reflects route geometry (whether two tags were in view at all)."
+    },
+    {
+      "id": "acceptance_rate",
+      "label": "Acceptance rate (raw)",
+      "kind": "metric",
+      "category": "quality",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Percent of raw vision pose results accepted by the filter pipeline in the window (computed from the log). The most direct measure of filter changes."
+    },
+    {
+      "id": "stillness_pct",
+      "label": "Stillness",
+      "kind": "metric",
+      "category": "context",
+      "unit": "%",
+      "lower_is_better": false,
+      "description": "Context (not scored): health factor from instantaneous chassis velocity; high when the robot is still. Expected to be low during autonomous motion, so it describes the run, not the camera."
+    },
+    {
+      "id": "range_median_m",
+      "label": "Median range to tags",
+      "kind": "metric",
+      "category": "context",
+      "unit": "m",
+      "lower_is_better": false,
+      "description": "Context (not scored): median distance from the camera to the tags used in each result. Tag area and multi-tag depend heavily on this, so a change here explains changes there."
+    },
+    {
+      "id": "speed_mean_mps",
+      "label": "Mean robot speed",
+      "kind": "metric",
+      "category": "context",
+      "unit": "m/s",
+      "lower_is_better": false,
+      "description": "Context (not scored): time-weighted mean chassis speed over the window. Whole-run, so it appears once (camera \"All\")."
+    }
+  ],
+  "comparisons": [
+    {
+      "metric": "health_score",
+      "camera": "Left",
+      "a": 19.4377,
+      "b": 16.5077,
+      "delta": -2.93,
+      "pct_change": -15.07,
+      "verdict": "regressed"
+    },
+    {
+      "metric": "health_score",
+      "camera": "Right",
+      "a": 16.6353,
+      "b": 12.6075,
+      "delta": -4.0278,
+      "pct_change": -24.21,
+      "verdict": "regressed"
+    },
+    {
+      "metric": "availability_score",
+      "camera": "Left",
+      "a": 35.5855,
+      "b": 31.4475,
+      "delta": -4.1381,
+      "pct_change": -11.63,
+      "verdict": "regressed"
+    },
+    {
+      "metric": "availability_score",
+      "camera": "Right",
+      "a": 31.7448,
+      "b": 24.4776,
+      "delta": -7.2672,
+      "pct_change": -22.89,
+      "verdict": "regressed"
+    },
+    {
+      "metric": "quality_score",
+      "camera": "Left",
+      "a": 54.6226,
+      "b": 52.493,
+      "delta": -2.1296,
+      "pct_change": -3.9,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "quality_score",
+      "camera": "Right",
+      "a": 52.4034,
+      "b": 51.5065,
+      "delta": -0.8969,
+      "pct_change": -1.71,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "tag_in_view_pct",
+      "camera": "Left",
+      "a": 92.7498,
+      "b": 78.593,
+      "delta": -14.1568,
+      "pct_change": -15.26,
+      "verdict": "regressed"
+    },
+    {
+      "metric": "tag_in_view_pct",
+      "camera": "Right",
+      "a": 90.7938,
+      "b": 70.9826,
+      "delta": -19.8111,
+      "pct_change": -21.82,
+      "verdict": "regressed"
+    },
+    {
+      "metric": "longest_gap_ms",
+      "camera": "Left",
+      "a": 50.382,
+      "b": 53.814,
+      "delta": 3.432,
+      "pct_change": 6.81,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "longest_gap_ms",
+      "camera": "Right",
+      "a": 49.565,
+      "b": 40.773,
+      "delta": -8.792,
+      "pct_change": -17.74,
+      "verdict": "improved"
+    },
+    {
+      "metric": "fps_pct",
+      "camera": "Left",
+      "a": 38.5041,
+      "b": 40.013,
+      "delta": 1.509,
+      "pct_change": 3.92,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "fps_pct",
+      "camera": "Right",
+      "a": 35.2153,
+      "b": 34.4851,
+      "delta": -0.7301,
+      "pct_change": -2.07,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "latency_pct",
+      "camera": "Left",
+      "a": 99.6447,
+      "b": 100.0,
+      "delta": 0.3553,
+      "pct_change": 0.36,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "latency_pct",
+      "camera": "Right",
+      "a": 99.2853,
+      "b": 99.9963,
+      "delta": 0.711,
+      "pct_change": 0.72,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "conn_uptime_pct",
+      "camera": "Left",
+      "a": 100.0,
+      "b": 100.0,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "conn_uptime_pct",
+      "camera": "Right",
+      "a": 100.0,
+      "b": 100.0,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "fps_mean",
+      "camera": "Left",
+      "a": 38.5177,
+      "b": 40.1621,
+      "delta": 1.6443,
+      "pct_change": 4.27,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "fps_mean",
+      "camera": "Right",
+      "a": 35.2459,
+      "b": 34.4873,
+      "delta": -0.7586,
+      "pct_change": -2.15,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "fps_min",
+      "camera": "Left",
+      "a": 32.7771,
+      "b": 36.7568,
+      "delta": 3.9797,
+      "pct_change": 12.14,
+      "verdict": "improved"
+    },
+    {
+      "metric": "fps_min",
+      "camera": "Right",
+      "a": 31.0868,
+      "b": 30.9274,
+      "delta": -0.1594,
+      "pct_change": -0.51,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "latency_mean_ms",
+      "camera": "Left",
+      "a": 40.8287,
+      "b": 34.7882,
+      "delta": -6.0405,
+      "pct_change": -14.79,
+      "verdict": "improved"
+    },
+    {
+      "metric": "latency_mean_ms",
+      "camera": "Right",
+      "a": 35.3146,
+      "b": 35.6181,
+      "delta": 0.3035,
+      "pct_change": 0.86,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "area_pct",
+      "camera": "Left",
+      "a": 54.8001,
+      "b": 55.0549,
+      "delta": 0.2548,
+      "pct_change": 0.47,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "area_pct",
+      "camera": "Right",
+      "a": 52.4034,
+      "b": 53.2121,
+      "delta": 0.8087,
+      "pct_change": 1.54,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "ambiguity_pct",
+      "camera": "Left",
+      "a": 100.0,
+      "b": 100.0,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "ambiguity_pct",
+      "camera": "Right",
+      "a": 100.0,
+      "b": 100.0,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "acceptance_pct",
+      "camera": "Left",
+      "a": 99.6761,
+      "b": 95.3467,
+      "delta": -4.3294,
+      "pct_change": -4.34,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "acceptance_pct",
+      "camera": "Right",
+      "a": 100.0,
+      "b": 96.7947,
+      "delta": -3.2053,
+      "pct_change": -3.21,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "multitag_pct",
+      "camera": "Left",
+      "a": 100.0,
+      "b": 100.0,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "multitag_pct",
+      "camera": "Right",
+      "a": 100.0,
+      "b": 100.0,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "acceptance_rate",
+      "camera": "Left",
+      "a": 99.5376,
+      "b": 95.6715,
+      "delta": -3.8661,
+      "pct_change": -3.88,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "acceptance_rate",
+      "camera": "Right",
+      "a": 100.0,
+      "b": 97.8149,
+      "delta": -2.1851,
+      "pct_change": -2.19,
+      "verdict": "neutral"
+    },
+    {
+      "metric": "stillness_pct",
+      "camera": "Left",
+      "a": 5.5101,
+      "b": 4.8578,
+      "delta": -0.6523,
+      "pct_change": -11.84,
+      "verdict": "context"
+    },
+    {
+      "metric": "stillness_pct",
+      "camera": "Right",
+      "a": 5.6262,
+      "b": 4.3242,
+      "delta": -1.302,
+      "pct_change": -23.14,
+      "verdict": "context"
+    },
+    {
+      "metric": "range_median_m",
+      "camera": "Left",
+      "a": 1.774,
+      "b": 1.7546,
+      "delta": -0.0194,
+      "pct_change": -1.09,
+      "verdict": "context"
+    },
+    {
+      "metric": "range_median_m",
+      "camera": "Right",
+      "a": 1.8435,
+      "b": 1.8154,
+      "delta": -0.0281,
+      "pct_change": -1.52,
+      "verdict": "context"
+    },
+    {
+      "metric": "speed_mean_mps",
+      "camera": "All",
+      "a": 0.7244,
+      "b": 0.6814,
+      "delta": -0.043,
+      "pct_change": -5.94,
+      "verdict": "context"
+    }
+  ],
+  "summary": {
+    "overall": {
+      "improved": 3,
+      "regressed": 6,
+      "neutral": 23,
+      "n/a": 0,
+      "context": 5
+    },
+    "by_camera": {
+      "Left": {
+        "improved": 2,
+        "regressed": 3,
+        "neutral": 11,
+        "n/a": 0,
+        "context": 2
+      },
+      "Right": {
+        "improved": 1,
+        "regressed": 3,
+        "neutral": 12,
+        "n/a": 0,
+        "context": 2
+      }
+    },
+    "by_category": {
+      "availability": {
+        "improved": 3,
+        "regressed": 4,
+        "neutral": 11,
+        "n/a": 0,
+        "context": 0
+      },
+      "quality": {
+        "improved": 0,
+        "regressed": 0,
+        "neutral": 12,
+        "n/a": 0,
+        "context": 0
+      },
+      "context": {
+        "improved": 0,
+        "regressed": 0,
+        "neutral": 0,
+        "n/a": 0,
+        "context": 5
+      },
+      "overall": {
+        "improved": 0,
+        "regressed": 2,
+        "neutral": 0,
+        "n/a": 0,
+        "context": 0
+      }
+    }
+  }
+}

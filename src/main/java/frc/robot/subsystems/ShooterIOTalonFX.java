@@ -33,6 +33,9 @@ public class ShooterIOTalonFX implements ShooterIO {
     private final Alert configAlert = new Alert("Shooter motor configuration failed", AlertType.kError);
 
     public ShooterIOTalonFX() {
+        frc.robot.power.PowerTelemetry.register(motor1, "Shooter Motor1", "Shooter");
+        frc.robot.power.PowerTelemetry.register(motor2, "Shooter Motor2", "Shooter");
+        frc.robot.power.PowerTelemetry.register(motor3, "Shooter Motor3", "Shooter");
         TalonFXConfiguration mainCfg = new TalonFXConfiguration();
         mainCfg.Slot0.kP = ShooterPIDConfig.KP;
         mainCfg.Slot0.kI = ShooterPIDConfig.KI;
@@ -54,8 +57,8 @@ public class ShooterIOTalonFX implements ShooterIO {
         applyConfig(motor2, followerCfg, "shooter motor2");
         applyConfig(motor3, followerCfg, "shooter motor3");
 
-        motor2.setControl(new Follower(Constants.CANBus.SHOOTER_MOTOR_1, MotorAlignmentValue.Opposed));
-        motor3.setControl(new Follower(Constants.CANBus.SHOOTER_MOTOR_1, MotorAlignmentValue.Opposed));
+        motor2.setControl(frc.robot.power.PowerTelemetry.request(motor2, new Follower(Constants.CANBus.SHOOTER_MOTOR_1, MotorAlignmentValue.Opposed)));
+        motor3.setControl(frc.robot.power.PowerTelemetry.request(motor3, new Follower(Constants.CANBus.SHOOTER_MOTOR_1, MotorAlignmentValue.Opposed)));
 
         closedLoopError.setUpdateFrequency(100);
         closedLoopReference.setUpdateFrequency(100);
@@ -68,10 +71,11 @@ public class ShooterIOTalonFX implements ShooterIO {
             status = motor.getConfigurator().apply(cfg);
             if (status.isOK()) break;
         }
+        frc.robot.power.PowerTelemetry.recordConfigurationApplication(motor, status);
         if (!status.isOK()) {
             System.out.println("Could not configure " + name + ". Error: " + status);
             configAlert.set(true);
-            motor.setControl(brakeRequest);
+            motor.setControl(frc.robot.power.PowerTelemetry.request(motor, brakeRequest));
         }
     }
 
@@ -111,11 +115,11 @@ public class ShooterIOTalonFX implements ShooterIO {
 
     @Override
     public void setVelocity(double velocityRPS) {
-        motor1.setControl(velocityVoltage.withVelocity(velocityRPS));
+        motor1.setControl(frc.robot.power.PowerTelemetry.request(motor1, velocityVoltage.withVelocity(velocityRPS)));
     }
 
     @Override
     public void stop() {
-        motor1.setControl(brakeRequest);
+        motor1.setControl(frc.robot.power.PowerTelemetry.request(motor1, brakeRequest));
     }
 }
