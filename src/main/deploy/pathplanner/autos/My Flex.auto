@@ -7,25 +7,31 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Start of M"
+            "pathName": "Right_Bump_To_Field"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "First Curve of M"
+            "pathName": "Right_Bump_To_Alliance"
           }
         },
         {
-          "type": "sequential",
+          "type": "path",
           "data": {
-            "commands": []
+            "pathName": "Right_Bump_To_Field_Towards_Hub"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "mediumShoot"
           }
         }
       ]
     }
   },
-  "resetOdom": true,
+  "resetOdom": false,
   "folder": null,
   "choreoAuto": false
 }

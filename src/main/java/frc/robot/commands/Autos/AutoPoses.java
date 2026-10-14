@@ -19,7 +19,7 @@ public class AutoPoses {
         public static final Rotation2d CW_30deg = Rotation2d.fromDegrees(-30);
         public static final Rotation2d CCW_30deg = Rotation2d.fromDegrees(30);
         private static double BUMP_X_FIELD_SIDE = 6.0;
-        private static double BUMP_X_ALLIANCE_SIDE = 3.0; // TODO: Change this back to 3.0
+        private static double BUMP_X_ALLIANCE_SIDE = 3.0; 
         // Poses
         // off blue center only used for Right Start Depot Score
 

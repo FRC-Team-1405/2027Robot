@@ -3,7 +3,13 @@ package frc.robot.commands.Autos;
 import java.util.HashMap;
 import java.util.function.Supplier;
 
-import com.pathplanner.lib.auto.NamedCommands;
+import com.pathplanner.lib.auto.NamedCommands; //KEEP THIS ONE!!!
+import com.pathplanner.lib.commands.PathPlannerAuto;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.util.FileVersionException;
+import java.io.IOException;
+import org.json.simple.parser.ParseException;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -11,6 +17,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.commands.PidToPose.PidToPoseCommands;
 import frc.robot.subsystems.AdjustableHood;
 import frc.robot.subsystems.Climber;
@@ -44,10 +51,10 @@ public class AutoCommands {
         public static void configureAutos(SendableChooser<Command> chooser, CommandSwerveDrivetrain drivetrain) {
                 HashMap<String, Command> commandsToAddToChooser = new HashMap<>();
 
-                commandsToAddToChooser.put("JUST_SHOOT_FROM_ANYWHERE",
-                                NamedCommands.getCommand("JUST_SHOOT_FROM_ANYWHERE"));
-                commandsToAddToChooser.put("testOffHub", 
-                                NamedCommands.getCommand("testOffHub"));
+                // commandsToAddToChooser.put("JUST_SHOOT_FROM_ANYWHERE",
+                //                 NamedCommands.getCommand("JUST_SHOOT_FROM_ANYWHERE"));
+                // commandsToAddToChooser.put("testOffHub", 
+                //                 NamedCommands.getCommand("testOffHub"));
                 // commandsToAddToChooser.put("blueCenterToDepot",
                 // NamedCommands.getCommand("blueCenterToDepot"));
                 // // commandsToAddToChooser.put("DepotFaceIn",
@@ -81,7 +88,7 @@ public class AutoCommands {
 
                 commandsToAddToChooser.put("CircleHub", NamedCommands.getCommand("CircleHub"));
                 commandsToAddToChooser.put("CircleFacingTag_Tag10", NamedCommands.getCommand("CircleFacingTag"));
-                // commandsToAddToChooser.put("TEST", NamedCommands.getCommand("TEST"));
+                commandsToAddToChooser.put("TEST", NamedCommands.getCommand("TEST"));
                 // commandsToAddToChooser.put("fourMeters",
                 // NamedCommands.getCommand("fourMeters"));
 
@@ -100,37 +107,49 @@ public class AutoCommands {
                 // NamedCommands.registerCommand("LeftStartFeedingStationScore",
                 // LeftStartFeedingStationScore);
 
-                commandsToAddToChooser.put("RightStartCenterHarvestInLeft",
-                                NamedCommands.getCommand("RightStartCenterHarvestInLeft"));
-                commandsToAddToChooser.put("LeftStartCenterHarvestInRight",
-                                NamedCommands.getCommand("LeftStartCenterHarvestInRight"));
-                commandsToAddToChooser.put("RightStartCenterHarvest_SecondSweep_TOP_FIRST",
-                                NamedCommands.getCommand("RightStartCenterHarvest_SecondSweep_TOP_FIRST"));
-                commandsToAddToChooser.put("LeftStartCenterHarvest_SecondSweep_TOP_FIRST",
-                                NamedCommands.getCommand("LeftStartCenterHarvest_SecondSweep_TOP_FIRST"));
-                commandsToAddToChooser.put("RightStartCenterHarvest_SecondSweep_LOW_FIRST",
-                                NamedCommands.getCommand("RightStartCenterHarvest_SecondSweep_LOW_FIRST"));
-                commandsToAddToChooser.put("LeftStartCenterHarvest_SecondSweep_LOW_FIRST",
-                                NamedCommands.getCommand("LeftStartCenterHarvest_SecondSweep_LOW_FIRST"));
+                // commandsToAddToChooser.put("RightStartCenterHarvestInLeft",
+                //                 NamedCommands.getCommand("RightStartCenterHarvestInLeft"));
+                // commandsToAddToChooser.put("LeftStartCenterHarvestInRight",
+                //                 NamedCommands.getCommand("LeftStartCenterHarvestInRight"));
+                // commandsToAddToChooser.put("RightStartCenterHarvest_SecondSweep_TOP_FIRST",
+                //                 NamedCommands.getCommand("RightStartCenterHarvest_SecondSweep_TOP_FIRST"));
+                // commandsToAddToChooser.put("LeftStartCenterHarvest_SecondSweep_TOP_FIRST",
+                //                 NamedCommands.getCommand("LeftStartCenterHarvest_SecondSweep_TOP_FIRST"));
+                // commandsToAddToChooser.put("RightStartCenterHarvest_SecondSweep_LOW_FIRST",
+                //                 NamedCommands.getCommand("RightStartCenterHarvest_SecondSweep_LOW_FIRST"));
+                // commandsToAddToChooser.put("LeftStartCenterHarvest_SecondSweep_LOW_FIRST",
+                //                 NamedCommands.getCommand("LeftStartCenterHarvest_SecondSweep_LOW_FIRST"));
 
-                // commandsToAddToChooser.put("LeftDepotShootCenterHarvestInLeftShoot",
-                // NamedCommands.getCommand("LeftDepotShootCenterHarvestInLeftShoot"));
-                commandsToAddToChooser.put("RightQuad",
-                                NamedCommands.getCommand("RightQuad"));
-                commandsToAddToChooser.put("LeftQuad",
-                                NamedCommands.getCommand("LeftQuad"));
-                commandsToAddToChooser.put("Zac_RightQuad",
-                                NamedCommands.getCommand("Zac_RightQuad"));
-                commandsToAddToChooser.put("Zac_LeftQuad",
-                                NamedCommands.getCommand("Zac_LeftQuad"));
-                // commandsToAddToChooser.put("Right_Yum_Middle",
-                // NamedCommands.getCommand("Right_Yum_Middle"));
-
+                // // commandsToAddToChooser.put("LeftDepotShootCenterHarvestInLeftShoot",
+                // // NamedCommands.getCommand("LeftDepotShootCenterHarvestInLeftShoot"));
+                // commandsToAddToChooser.put("RightQuad",
+                //                 NamedCommands.getCommand("RightQuad"));
+                // commandsToAddToChooser.put("LeftQuad",
+                //                 NamedCommands.getCommand("LeftQuad"));
+                // commandsToAddToChooser.put("Zac_RightQuad",
+                //                 NamedCommands.getCommand("Zac_RightQuad"));
+                // commandsToAddToChooser.put("Zac_LeftQuad",
+                //                 NamedCommands.getCommand("Zac_LeftQuad"));
+                // // commandsToAddToChooser.put("Right_Yum_Middle",
+                // // NamedCommands.getCommand("Right_Yum_Middle"));
+                // // commandsToAddToChooser.put("Right_Path",
+                //                 NamedCommands.getCommand("Right_Path"));
+                commandsToAddToChooser.put("PP_Right_Path",
+                                    new PathPlannerAuto("PP_Right_Test"));
+                commandsToAddToChooser.put("Right Quad",
+                                    new PathPlannerAuto("Right Quad"));
+                commandsToAddToChooser.put("Shoot",
+                                    new PathPlannerAuto("Shoot"));
+                commandsToAddToChooser.put("BACK_Right_Bump_To_Alliance",
+                                    new PathPlannerAuto("BACK_Right_Bump_To_Alliance"));
+                commandsToAddToChooser.put("BACK_Right_Bump_To_Field",
+                                    new PathPlannerAuto("BACK_Right_Bump_To_Field"));
                 // Add all commands in Map to chooser
                 commandsToAddToChooser.keySet().stream()
                                 .forEach(name -> chooser.addOption(name, commandsToAddToChooser.get(name)));
 
                 initShootPositions();
+                
 
         }
 
@@ -153,6 +172,20 @@ public class AutoCommands {
 
         }
 
+         private static Command runPathPlannerPath(String pathName, CommandSwerveDrivetrain drivetrain, boolean resetOdometry) {
+        try {
+            PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
+            return new SequentialCommandGroup(
+                Commands.runOnce(() -> drivetrain.resetPose(path.getStartingDifferentialPose())).onlyIf(() -> resetOdometry),
+                AutoBuilder.followPath(path)
+                );
+        } catch (FileVersionException | IOException | ParseException e) {
+            System.err.println("ERROR: PathPlannerPath not found, name: " + pathName);
+            System.err.println(e.getStackTrace());
+            return null;
+                }
+        }
+        
         public static Command getAutonomousCommand() {
                 /* Run the path selected from the auto chooser */
                 if (DriverStation.isFMSAttached()
@@ -167,4 +200,6 @@ public class AutoCommands {
                 }
 
         }
+
+        
 }

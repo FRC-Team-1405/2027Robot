@@ -153,4 +153,8 @@ public class Intake extends SubsystemBase {
         SmartDashboard.putNumber("Intake/IntakeCurrent", inputs.deployStatorCurrentAmps);
         SmartDashboard.putNumber("Intake/PickupCurrent", inputs.pickupStatorCurrentAmps);
     }
+    public void publishRPS() {
+        SmartDashboard.putNumber("Intake/IntakeRPS", inputs.deployVelocityRPS);
+        SmartDashboard.putNumber("Intake/PickupRPS", inputs.pickupVelocityRPS);
+    }
 }
