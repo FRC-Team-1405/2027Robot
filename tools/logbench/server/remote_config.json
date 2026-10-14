@@ -9,6 +9,7 @@
   "pi_discovery": {
     "enabled": true,
     "user": "pi",
+    "password": "raspberry",
     "recordings_path": "/home/pi/vision-recordings",
     "timeout_seconds": 6,
     "scan": true,
