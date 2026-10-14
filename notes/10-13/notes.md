@@ -23,3 +23,7 @@ Legend: LOAD   → Reflects whether the unit definition was properly loaded.
 
 3 loaded units listed. Pass --all to see loaded but inactive units, too.
 To show all installed unit files use 'systemctl list-unit-files'.
+
+
+# ran auto test
+with both cameras on rightPi i ran the circle facing tag auto: logs\akit_26-10-14_00-50-12_trimmed.wpilog
