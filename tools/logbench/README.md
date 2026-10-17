@@ -115,6 +115,17 @@ Those prepared files can be removed when no longer needed. One action covers the
 selected RIO log and camera sessions; it does not export unrelated matches or the
 Pi's entire systemd journal.
 
+The adjacent **Fetch + battery analysis** button runs that same complete workflow
+and adds `<name>.battery.html` (self-contained Battery Insights report) and
+`<name>.battery.json` to the ZIP. Analysis always uses the full original log, with
+the whole-log window and default 8 V low-voltage warning, so disabled recovery and
+current telemetry are available. The trimmed copy preserves full-log voltage and
+brownout signals but trims most current/motor signals; it is not used for this
+analysis. Both report files are also retained when the ZIP is imported. After
+completion, **Open Battery Insights** opens the original full log for interactive
+review. The normal button skips battery analysis. Missing telemetry is explained
+in the report; analysis errors stop the job visibly without altering the original.
+
 The Fetch Bundle page runs remote directory discovery and downloads as tracked jobs. It
 shows the current remote phase, elapsed time, bytes/files transferred, rolling throughput,
 and ETA when a byte total is known. A transfer that receives no data for 60 seconds fails

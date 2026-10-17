@@ -4,6 +4,10 @@ import json
 import pathlib
 import zipfile
 
+import battery
+import battery_export
+from core.log import Log
+from wpilog_utils.decode import parse_wpilog_bytes
 from wpilog_utils.index import build_index
 from wpilog_utils.reorder import reorder_log, verify_reorder
 from wpilog_utils.trim import (MATCH_CONTEXT_ENTRIES, MATCH_CONTEXT_PREFIXES, TrimPlan,
@@ -19,8 +23,13 @@ def report_name(source_name: str) -> str:
     return pathlib.Path(source_name).stem + '.trim.json'
 
 
+def battery_report_names(source_name: str) -> tuple[str, str]:
+    stem = pathlib.Path(source_name).stem
+    return stem + '.battery.html', stem + '.battery.json'
+
+
 def prepare(source: pathlib.Path, sessions: list[pathlib.Path], output: pathlib.Path,
-            phase=lambda text: None, cancelled=lambda: False) -> dict:
+            phase=lambda text: None, cancelled=lambda: False, include_battery=False) -> dict:
     """Write a verified trimmed copy and ZIP on disk; never write to the source.
 
     sessions is the explicit fetched selection, so old local sessions cannot sneak
@@ -73,6 +82,20 @@ def prepare(source: pathlib.Path, sessions: list[pathlib.Path], output: pathlib.
     }
     report_file = output / report_name(source.name)
     report_file.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    battery_files = []
+    if include_battery:
+        check()
+        phase('Analyzing battery on full original log')
+        # Use the exact source snapshot, never the trimmed/reordered working copy.
+        analysis = battery.analyze(Log(path=source, signals=parse_wpilog_bytes(original)))
+        exported = battery_export.export_json(analysis)
+        exported['analysis_scope'] = 'full-original-log'
+        html_name, json_name = battery_report_names(source.name)
+        html_file, json_file = output / html_name, output / json_name
+        html_file.write_text(battery_export.render_html(analysis), encoding='utf-8')
+        json_file.write_text(battery_export.dumps(exported), encoding='utf-8')
+        battery_files = [html_file, json_file]
+        check()
     phase('Creating downloadable ZIP')
     archive = output / (source.stem + '-bundle.zip')
     partial = archive.with_suffix('.zip.part')
@@ -81,7 +104,7 @@ def prepare(source: pathlib.Path, sessions: list[pathlib.Path], output: pathlib.
             # Archive the exact input used by the trim, even if another fetch of
             # the same RIO filename updates the local source during processing.
             zf.writestr(source.name, original)
-            for file in (copy, report_file):
+            for file in (copy, report_file, *battery_files):
                 check()
                 zf.write(file, file.name)
             for session in sessions:
@@ -93,4 +116,5 @@ def prepare(source: pathlib.Path, sessions: list[pathlib.Path], output: pathlib.
         partial.replace(archive)
     finally:
         partial.unlink(missing_ok=True)
-    return {'archive': archive.name, 'trimmed_log': copy.name, 'warnings': warnings}
+    return {'archive': archive.name, 'trimmed_log': copy.name, 'warnings': warnings,
+            'battery_reports': [file.name for file in battery_files]}

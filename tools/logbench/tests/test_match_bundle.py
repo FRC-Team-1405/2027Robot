@@ -85,7 +85,8 @@ def test_cancel_during_packaging_never_publishes_a_partial_zip(tmp_path):
     assert not list((tmp_path / 'out').glob('*.zip*'))
 
 
-def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch):
+@pytest.mark.parametrize('include_battery', [False, True])
+def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch, include_battery):
     from fastapi.testclient import TestClient
     import main
     import remote_config
@@ -114,7 +115,7 @@ def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch):
     monkeypatch.setattr(remote_fetch, 'fetch_pi_session', fetch_session)
     client = TestClient(main.app)
     response = client.post('/api/remote/bundle/jobs', json={
-        'rio_log': 'match.wpilog', 'prepare_download': True,
+        'rio_log': 'match.wpilog', 'prepare_download': True, 'include_battery': include_battery,
         'pi_sessions': [{'camera': 'RightCam', 'name': 'boot0001', 'pi': 'RightPi'}]})
     assert response.status_code == 202
     job_id = response.json()['job_id']
@@ -129,8 +130,15 @@ def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch):
     assert download.status_code == 200
     assert [row['path'] for row in client.get('/api/logs').json()['logs']] == ['match.wpilog']
     with zipfile.ZipFile(io.BytesIO(download.content)) as archive:
-        assert set(archive.namelist()) == {'match.wpilog', 'match.trimmed.wpilog', 'match.trim.json',
-                                         'match.vision/RightCam/boot0001/recorder.log'}
+        expected = {'match.wpilog', 'match.trimmed.wpilog', 'match.trim.json',
+                    'match.vision/RightCam/boot0001/recorder.log'}
+        if include_battery:
+            expected.update({'match.battery.html', 'match.battery.json'})
+            report = json.loads(archive.read('match.battery.json'))
+            assert report['analysis_scope'] == 'full-original-log'
+            assert report['log'] == 'match.wpilog'
+            assert b'Battery Insights' in archive.read('match.battery.html')
+        assert set(archive.namelist()) == expected
     imported = tmp_path / 'imported'
     imported.mkdir()
     monkeypatch.setattr(main, 'LOG_ROOT', imported)
@@ -140,6 +148,37 @@ def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch):
     assert (imported / 'match.trimmed.wpilog').is_file()
     assert (imported / 'match.wpilog').read_bytes() == sample()
     assert main.bundles.vision_dir_for(imported / 'match.trimmed.wpilog') == imported / 'match.vision'
+
+
+def test_battery_analysis_receives_recovery_current_beyond_trimmed_window(tmp_path, monkeypatch):
+    raw, _ = wb.ds_log([('disabled', 10), ('auto', 3), ('disabled', 20)],
+                       extra_entries=[('/PowerDistribution/TotalCurrent', 'double'),
+                                      ('/SystemStats/BatteryVoltage', 'double')],
+                       extra_records=[('/PowerDistribution/TotalCurrent', 0, wb.double(5)),
+                                      ('/PowerDistribution/TotalCurrent', 600, wb.double(100)),
+                                      ('/PowerDistribution/TotalCurrent', 1500, wb.double(2)),
+                                      ('/SystemStats/BatteryVoltage', 0, wb.double(12.8)),
+                                      ('/SystemStats/BatteryVoltage', 600, wb.double(9)),
+                                      ('/SystemStats/BatteryVoltage', 1500, wb.double(12.5))])
+    source = tmp_path / 'recovery.wpilog'
+    source.write_bytes(raw)
+    original_analyze = match_bundle.battery.analyze
+    seen = []
+
+    def analyze(log):
+        seen.append(log)
+        return original_analyze(log)
+
+    monkeypatch.setattr(match_bundle.battery, 'analyze', analyze)
+    match_bundle.prepare(source, [], tmp_path / 'out', include_battery=True)
+    assert len(seen) == 1
+    assert seen[0].path == source
+    assert seen[0].signals['PowerDistribution/TotalCurrent'][-1] == (31, 2)
+    trimmed = parse_wpilog_bytes((tmp_path / 'out' / 'recovery.trimmed.wpilog').read_bytes())
+    assert trimmed['PowerDistribution/TotalCurrent'][-1][0] < 31
+    assert trimmed['SystemStats/BatteryVoltage'][-1] == (31, 12.5)
+    report = json.loads((tmp_path / 'out' / 'recovery.battery.json').read_text())
+    assert report['window_s'][1] == pytest.approx(seen[0].bounds()[1] - seen[0].bounds()[0])
 
 
 @pytest.mark.parametrize('bad_name', ['match.vision/../escape.txt', 'other.wpilog'])

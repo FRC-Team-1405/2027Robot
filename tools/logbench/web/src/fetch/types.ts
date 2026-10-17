@@ -48,6 +48,7 @@ export interface BundleResult {
   download_url?: string;
   trimmed_log?: string;
   warnings?: string[];
+  battery_reports?: string[];
   log: string;
   pi_sessions: (PiSessionRef & { path: string })[];
   manual: boolean;

@@ -507,6 +507,7 @@ class BundleRequest(BaseModel):
     # the user picked by hand); fetching happens identically either way.
     manual: bool = False
     prepare_download: bool = False
+    include_battery: bool = False
 
 
 def _iso(d) -> Optional[str]:
@@ -693,11 +694,11 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
             raise RuntimeError('cancelled by user')
         result = {'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
                   'pi_sessions': fetched, 'manual': body.manual}
-        if body.prepare_download:
+        if body.prepare_download or body.include_battery:
             prepared = match_bundle.prepare(
                 local_log, fetched_dirs, LOG_ROOT / '.bundles' / job_id,
                 phase=lambda text: remote_jobs.set_phase(job_id, text),
-                cancelled=lambda: remote_jobs.cancelled(job_id))
+                cancelled=lambda: remote_jobs.cancelled(job_id), include_battery=body.include_battery)
             result.update(prepared)
             result['download_url'] = f'/api/remote/jobs/{job_id}/download'
         remote_jobs.set_phase(job_id, 'Ready')
@@ -812,13 +813,14 @@ async def import_zip(file: UploadFile = File(...)) -> dict:
         )
     wpilog_name = originals[0]
     allowed_logs = {wpilog_name, match_bundle.trimmed_name(wpilog_name)}
+    allowed_reports = {match_bundle.report_name(wpilog_name), *match_bundle.battery_report_names(wpilog_name)}
     if not set(top_level_logs).issubset(allowed_logs):
         raise HTTPException(status_code=400, detail='zip contains unrelated wpilog files')
     vision_prefix = pathlib.Path(wpilog_name).stem + bundles.VISION_SUFFIX + '/'
     for n in names:
         parts = pathlib.PurePosixPath(n).parts
         if ('\\' in n or n.startswith('/') or '..' in parts
-                or (n not in allowed_logs and n != match_bundle.report_name(wpilog_name)
+                or (n not in allowed_logs and n not in allowed_reports
                     and not n.startswith(vision_prefix))):
             raise HTTPException(
                 status_code=400,
