@@ -237,6 +237,19 @@ def test_fetch_pi_session_with_empty_camera_downloads_directly_under_dest_dir(tm
     assert session_dir == tmp_path / 'boot0001-20260115-143010'
 
 
+def test_fetch_pi_session_preserves_recorder_diagnostics_and_rotated_history(tmp_path):
+    files = {'manifest.jsonl': '', 'recorder.log': 'stream stalled\n',
+             'recorder.log.1': 'recorder started\n'}
+    sftp = MagicMock()
+    sftp.listdir_attr.return_value = [_FakeAttr(name) for name in files]
+    sftp.get.side_effect = lambda remote, local: pathlib.Path(local).write_text(
+        files[pathlib.PurePosixPath(remote).name])
+    patcher, _ = _mock_paramiko(sftp)
+    with patcher:
+        session = remote_fetch.fetch_pi_session(_cfg(), 'RightCam', 'boot0001', tmp_path)
+    assert {p.name: p.read_text() for p in session.iterdir()} == files
+
+
 def test_fetch_pi_session_wraps_a_listing_failure(tmp_path):
     sftp = MagicMock()
     sftp.listdir_attr.side_effect = OSError('no such directory')

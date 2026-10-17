@@ -115,6 +115,25 @@ Samples PhotonVision's raw (pre-AprilTag) camera stream at low rate while the ro
 enabled and saves timestamped JPEGs locally, for post-match vision diagnosis. See the
 script's own module docstring for how session folders are named and clock-synced.
 
+Each new session also contains `recorder.log`: recorder version, board/camera/stream
+configuration, NT connection and enabled/control-word changes, ten-second progress
+reports (frames, errors, NT timestamp and clock-sync status), exception tracebacks,
+and the final frame/error count on disable or clean shutdown. These messages still go
+to the systemd journal. The file stays open while disabled until the next session,
+so a missing teleop enable can be investigated from the previous recording. The last
+100 diagnostic events are carried into the next session for startup/transition context.
+Logs rotate at 1 MiB with one backup (`recorder.log.1`) per session and are removed with
+their session under the normal storage cap. Wall-clock log timestamps use the Pi's OS
+clock (which may be stale); progress reports also include NT-server-domain time.
+
+Logbench **Fetch Bundle** already downloads every flat file in a selected session,
+including both diagnostic files, alongside `manifest.jsonl` and the JPEGs. Find them
+under `<match>.vision/<camera>/boot.../` beside the downloaded `.wpilog`. Install the
+updated recorder with `bash setup-orangepi.sh` (select all camera instances on this
+board); historical recordings cannot acquire diagnostics retroactively. These are
+application diagnostics, not an export of the full systemd journal: abrupt power loss,
+OS kills and failures before recorder startup may still require `journalctl`.
+
 ### Why the `@` in the filename
 
 `orangepi-vision-recorder@.service` is a **systemd template unit**, not a typo or a

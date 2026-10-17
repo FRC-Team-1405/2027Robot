@@ -53,6 +53,9 @@ and docs/orangepi-vision-recorder-setup.md).
 """
 
 import json
+import collections
+import logging
+from logging.handlers import RotatingFileHandler
 import os
 import shutil
 import socket
@@ -62,6 +65,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
+RECORDER_VERSION = "2026.10.17.1"
 
 # Fallback only: each instance's EnvironmentFile must specify its confirmed RAW
 # stream on this board. Ports depend on that board's PhotonVision camera config.
@@ -93,6 +97,47 @@ DISPLAY_TZ = ZoneInfo("America/New_York")
 
 JPEG_SOI = b"\xff\xd8"
 JPEG_EOI = b"\xff\xd9"
+
+
+class RecorderDiagnostics(logging.Handler):
+    """Keep startup context, then mirror diagnostics into the selected session.
+
+    Leave the file attached while disabled so a missing next enable is diagnosable.
+    Both memory and disk history are bounded; no journal permissions are required.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.recent = collections.deque(maxlen=100)
+        self.file_handler = None
+        self.log = logging.Logger("vision-recorder", level=logging.INFO)
+        self.formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        console = logging.StreamHandler()
+        console.setFormatter(self.formatter)
+        self.log.addHandler(console)
+        self.log.addHandler(self)
+
+    def emit(self, record):
+        self.recent.append(record)
+        if self.file_handler is not None:
+            self.file_handler.handle(record)
+
+    def start_session(self, session_dir):
+        handler = RotatingFileHandler(
+            os.path.join(session_dir, "recorder.log"), maxBytes=1024 * 1024,
+            backupCount=1, encoding="utf-8")
+        handler.setFormatter(self.formatter)
+        if self.file_handler is not None:
+            self.file_handler.close()
+        self.file_handler = handler
+        for record in self.recent:
+            handler.handle(record)
+
+    def close(self):
+        if self.file_handler is not None:
+            self.file_handler.close()
+            self.file_handler = None
+        super().close()
 
 
 def is_enabled(control_word_entry):
@@ -244,35 +289,55 @@ def main():
 
     boot_id = next_boot_id(RECORDINGS_BASE)
 
-    cam_note = f" [camera {CAMERA_NAME}]" if CAMERA_NAME else ""
-    print(f"Connecting to roboRIO (team {TEAM_NUMBER})…{cam_note} [boot {boot_id}, local clock reads {time.strftime('%Y-%m-%d %H:%M:%S')}]")
-
     reader = MjpegFrameReader(CAMERA_STREAM_URL)
+    diagnostics = RecorderDiagnostics()
+    log = diagnostics.log
+    context = (f"version={RECORDER_VERSION} board={BOARD_NAME} camera={CAMERA_NAME or 'default'} "
+               f"boot={boot_id} team={TEAM_NUMBER} stream={CAMERA_STREAM_URL} sample_hz={SAMPLE_HZ}")
+    log.info("Recorder started: %s", context)
     period_s = 1.0 / SAMPLE_HZ
 
     session_dir = None
     manifest = None
     was_enabled = False
+    frames = 0
+    errors = 0
+    last_state = None
+    last_status = float('-inf')
 
     try:
         while True:
             loop_start = time.monotonic()
             try:
                 enabled = is_enabled(control_word_entry)
+                state = (inst.isConnected(), int(control_word_entry.get(0)), enabled)
+                if state != last_state:
+                    log.info("Robot state: nt_connected=%s control_word=%s enabled=%s", *state)
+                    last_state = state
+                if loop_start - last_status >= 10.0:
+                    log.info("Status: nt_connected=%s control_word=%s enabled=%s frames=%d errors=%d "
+                             "nt_time=%.6f clock_synced=%s", *state, frames, errors,
+                             server_time_sec(inst), inst.getServerTimeOffset() is not None)
+                    last_status = loop_start
 
                 if enabled and not was_enabled:
                     offset_sec = robot_clock_offset_sec(robot_time_entry)
                     enforce_storage_cap(RECORDINGS_BASE, MAX_STORAGE_BYTES)
                     session_dir = new_session_dir(RECORDINGS_BASE, boot_id, offset_sec)
+                    try:
+                        diagnostics.start_session(session_dir)
+                    except OSError:
+                        log.exception("Could not open session diagnostics in %s", session_dir)
                     manifest = open(os.path.join(session_dir, "manifest.jsonl"), "a")
+                    frames = errors = 0
                     sync_note = f"synced to roboRIO, offset {offset_sec:+.1f}s" if offset_sec is not None \
                         else "NOT synced to roboRIO — using Pi's own possibly-stale clock"
-                    print(f"Enabled — starting session {session_dir} ({sync_note})")
+                    log.info("Enabled — starting session %s (%s); %s", session_dir, sync_note, context)
                 elif not enabled and was_enabled:
                     if manifest:
                         manifest.close()
                     manifest = None
-                    print("Disabled — session ended")
+                    log.info("Disabled — session ended: frames=%d errors=%d", frames, errors)
 
                 was_enabled = enabled
 
@@ -284,17 +349,21 @@ def main():
                         f.write(frame)
                     manifest.write(json.dumps({"frame": filename, "t_sec": t_sec}) + "\n")
                     manifest.flush()
+                    frames += 1
 
-            except Exception as e:
-                print(f"Recorder error: {e}")
+            except Exception:
+                errors += 1
+                log.exception("Recorder error: frames=%d errors=%d", frames, errors)
                 reader.close()
 
             elapsed = time.monotonic() - loop_start
             time.sleep(max(0.0, period_s - elapsed))
     finally:
+        log.info("Recorder stopping: frames=%d errors=%d", frames, errors)
         if manifest:
             manifest.close()
         reader.close()
+        diagnostics.close()
 
 
 if __name__ == "__main__":
