@@ -30,6 +30,7 @@ from typing import List, Optional
 import paths  # noqa: F401  (side effect: sys.path bridges)
 
 import bundles
+import match_bundle
 import app_logging
 import compare_export
 import battery
@@ -145,6 +146,8 @@ def list_logs() -> dict:
     root = LOG_ROOT.resolve()
     out = []
     for p in sorted(root.rglob('*.wpilog')):
+        if '.bundles' in p.relative_to(root).parts:
+            continue  # prepared downloads are job artifacts, not additional input logs
         stat = p.stat()
         out.append({
             'path': p.relative_to(root).as_posix(),
@@ -503,6 +506,7 @@ class BundleRequest(BaseModel):
     # matters to the client (whether to keep showing an auto-suggested pairing or one
     # the user picked by hand); fetching happens identically either way.
     manual: bool = False
+    prepare_download: bool = False
 
 
 def _iso(d) -> Optional[str]:
@@ -664,6 +668,7 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
         remote_jobs.file_complete(job_id, body.rio_log)
 
         fetched: List[dict] = []
+        fetched_dirs = []
         if body.pi_sessions:
             vision_dir = bundles.vision_dir_for(local_log)
             for ref, files in pi_files:
@@ -676,6 +681,7 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
                 session_dir = remote_fetch.fetch_pi_session(
                     _pi_for(cfg, ref), ref.camera, ref.name, vision_dir, progress=pi_progress,
                     idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
+                fetched_dirs.append(session_dir)
                 # Empty files do not produce an SFTP byte callback; mark every file
                 # idempotently so the completed count stays accurate in that case too.
                 for item in files:
@@ -683,12 +689,34 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
                                               f'{ref.camera or "vision"}/{ref.name}/{item["name"]}')
                 fetched.append({'camera': ref.camera, 'name': ref.name, 'pi': ref.pi,
                                 'path': session_dir.relative_to(LOG_ROOT.resolve()).as_posix()})
-        remote_jobs.set_phase(job_id, 'Finalizing bundle')
-        return {'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
-                'pi_sessions': fetched, 'manual': body.manual}
+        if remote_jobs.cancelled(job_id):
+            raise RuntimeError('cancelled by user')
+        result = {'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
+                  'pi_sessions': fetched, 'manual': body.manual}
+        if body.prepare_download:
+            prepared = match_bundle.prepare(
+                local_log, fetched_dirs, LOG_ROOT / '.bundles' / job_id,
+                phase=lambda text: remote_jobs.set_phase(job_id, text),
+                cancelled=lambda: remote_jobs.cancelled(job_id))
+            result.update(prepared)
+            result['download_url'] = f'/api/remote/jobs/{job_id}/download'
+        remote_jobs.set_phase(job_id, 'Ready')
+        return result
 
     job_id = remote_jobs.start('bundle', work)
     return {'job_id': job_id}
+
+
+@app.get('/api/remote/jobs/{job_id}/download')
+def download_remote_bundle(job_id: str):
+    job = _job_or_404(job_id)
+    result = job.get('result') or {}
+    if job['status'] != 'complete' or not result.get('archive'):
+        raise HTTPException(status_code=409, detail='bundle download is not ready')
+    archive = LOG_ROOT / '.bundles' / job_id / result['archive']
+    if not archive.is_file():
+        raise HTTPException(status_code=404, detail='prepared bundle is no longer available; fetch it again')
+    return FileResponse(archive, media_type='application/zip', filename=archive.name)
 
 
 @app.get('/api/remote/sessions')
@@ -762,8 +790,8 @@ def remote_bundle_zip(log: str = Query(..., description='log path relative to th
 @app.post('/api/import/zip')
 async def import_zip(file: UploadFile = File(...)) -> dict:
     """Multipart upload for teammates without SSH access to the RIO/Pi. Validates the
-    zip has exactly one top-level .wpilog (+ optionally that log's own <name>.vision/
-    tree, matching what /api/remote/bundle-zip produces) and extracts it into LOG_ROOT.
+    zip has one original .wpilog, optionally its .trimmed.wpilog and .trim.json,
+    and that log's own <name>.vision/ tree, then extracts it into LOG_ROOT.
     409s on a name collision so the client can prompt for a rename rather than silently
     overwriting someone's existing log."""
     contents = await file.read()
@@ -774,23 +802,32 @@ async def import_zip(file: UploadFile = File(...)) -> dict:
 
     names = [n for n in zf.namelist() if not n.endswith('/')]
     top_level_logs = [n for n in names if n.endswith('.wpilog') and '/' not in n]
-    if len(top_level_logs) != 1:
+    # New match bundles contain the original plus its explicitly named derived copy.
+    originals = [n for n in top_level_logs
+                 if not any(match_bundle.trimmed_name(other) == n for other in top_level_logs if other != n)]
+    if len(originals) != 1:
         raise HTTPException(
             status_code=400,
-            detail='zip must contain exactly one top-level .wpilog file (found %d)' % len(top_level_logs),
+            detail='zip must contain exactly one original top-level .wpilog, optionally its trimmed copy (found %d logs)' % len(top_level_logs),
         )
-    wpilog_name = top_level_logs[0]
+    wpilog_name = originals[0]
+    allowed_logs = {wpilog_name, match_bundle.trimmed_name(wpilog_name)}
+    if not set(top_level_logs).issubset(allowed_logs):
+        raise HTTPException(status_code=400, detail='zip contains unrelated wpilog files')
     vision_prefix = pathlib.Path(wpilog_name).stem + bundles.VISION_SUFFIX + '/'
     for n in names:
-        if n != wpilog_name and not n.startswith(vision_prefix):
+        parts = pathlib.PurePosixPath(n).parts
+        if ('\\' in n or n.startswith('/') or '..' in parts
+                or (n not in allowed_logs and n != match_bundle.report_name(wpilog_name)
+                    and not n.startswith(vision_prefix))):
             raise HTTPException(
                 status_code=400,
                 detail='unexpected entry in zip: %r (expected only %r and %r*)' % (n, wpilog_name, vision_prefix),
             )
 
-    dest_log = LOG_ROOT / wpilog_name
-    if dest_log.exists():
-        raise HTTPException(status_code=409, detail='%s already exists in the log root' % wpilog_name)
+    for n in names:
+        if (LOG_ROOT / n).exists():
+            raise HTTPException(status_code=409, detail='%s already exists in the log root' % n)
 
     zf.extractall(LOG_ROOT, members=names)
     return {'log': wpilog_name, 'imported': names}

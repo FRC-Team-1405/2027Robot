@@ -72,16 +72,11 @@ def _window(rio: RioLogInfo):
 
 
 def suggest_pairings(rio_logs: List[RioLogInfo], pi_sessions: List[PiSessionInfo]) -> List[Pairing]:
-    """One Pairing per entry in rio_logs (same order back out), each matching at most one
-    Pi session per camera: the candidate closest in time to the RIO log's own start,
-    among sessions whose folder timestamp falls in
-    [start - tolerance, start + duration + tolerance].
+    """Pair every session in a log's window, including separate auto/teleop enables.
 
-    A Pi session is claimed by at most one RIO log. RIO logs are considered earliest-
-    wall-clock first, so if two logs' windows both cover the same session (e.g. very
-    short back-to-back logs from one boot), the earlier log wins it and the later log is
-    left unmatched for that camera rather than double-booking. This is always a
-    *suggestion* -- the caller/UI lets a person override it either way.
+    Each session is claimed once, with AdvantageKit logs preferred over WPILib logs.
+    A window ends at the next same-kind RIO log's start so a ten-minute fallback
+    duration cannot swallow the following match. The UI still permits overrides.
     """
     claimed_indices: set = set()
     # Every boot writes an akit_* (AdvantageKit) log and an FRC_* (WPILib) log about a
@@ -104,20 +99,22 @@ def suggest_pairings(rio_logs: List[RioLogInfo], pi_sessions: List[PiSessionInfo
             continue
 
         lo, hi = _window(rio)
-        by_camera: Dict[str, list] = {}
+        next_starts = [other.wall_clock for other in rio_logs
+                       if other.wall_clock is not None and other.wall_clock > rio.wall_clock
+                       and other.name.startswith('akit_') == rio.name.startswith('akit_')]
+        next_start = min(next_starts) if next_starts else None
+        if next_start is not None:
+            hi = min(hi, next_start)
+        candidates = []
         for i, sess in enumerate(pi_sessions):
             if i in claimed_indices or sess.wall_clock is None:
                 continue
-            if lo <= sess.wall_clock <= hi:
-                by_camera.setdefault(sess.camera, []).append((i, sess))
+            if lo <= sess.wall_clock <= hi and (next_start is None or sess.wall_clock < next_start):
+                candidates.append((i, sess))
 
         matched: List[PiSessionInfo] = []
         edge_slops: List[float] = []
-        for candidates in by_camera.values():
-            i, sess = min(
-                candidates,
-                key=lambda pair: abs((pair[1].wall_clock - rio.wall_clock).total_seconds()),
-            )
+        for i, sess in sorted(candidates, key=lambda pair: pair[1].wall_clock):
             claimed_indices.add(i)
             matched.append(sess)
             edge_slops.append(min(

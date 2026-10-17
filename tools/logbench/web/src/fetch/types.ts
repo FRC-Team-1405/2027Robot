@@ -45,6 +45,9 @@ export type RemoteSessions =
     };
 
 export interface BundleResult {
+  download_url?: string;
+  trimmed_log?: string;
+  warnings?: string[];
   log: string;
   pi_sessions: (PiSessionRef & { path: string })[];
   manual: boolean;
