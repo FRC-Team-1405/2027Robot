@@ -90,6 +90,42 @@ the job reports cancellation.
 
 ### Fetch Bundle diagnostics
 
+After a match, click **Fetch, trim & download** on its RIO log row. This fetches
+the original `.wpilog` and selected Pi sessions, creates a verified trimmed copy,
+and starts a ZIP download without leaving the page. The original stays unchanged.
+Automatic pairing includes separate auto/teleop sessions for each camera; expand
+the row to inspect or override the selection, especially when timestamps are uncertain.
+
+The ZIP contains the original, `<name>.trimmed.wpilog`, `<name>.trim.json`, and
+`<name>.vision/<camera>/boot.../` with all selected recording files, including
+`recorder.log` and its rotated backup when the updated recorder is installed
+(see the recorder session diagnostics change). Trimming uses the shared WPILog Janitor
+engine: all enabled periods with two seconds before/after, original timestamps,
+and full-log battery/DS/match context. Out-of-order logs are sorted only in a working
+copy and verified before trimming. Vision timestamps stay aligned. If no enabled
+periods can be identified, the derived copy keeps the entire original and the page
+and report explain why. Processing/verification failures stop the download with an
+error; successfully fetched originals stay available locally.
+
+Use **Open log** to review the fetched original or **Download ZIP again** to repeat
+the prepared download. ZIP import accepts both original-only legacy bundles and
+these original-plus-trimmed bundles. Prepared ZIPs and derived copies are stored
+under the local log root's `.bundles/<job-id>/`; the original remains at the log root.
+Those prepared files can be removed when no longer needed. One action covers the
+selected RIO log and camera sessions; it does not export unrelated matches or the
+Pi's entire systemd journal.
+
+The adjacent **Fetch + battery analysis** button runs that same complete workflow
+and adds `<name>.battery.html` (self-contained Battery Insights report) and
+`<name>.battery.json` to the ZIP. Analysis always uses the full original log, with
+the whole-log window and default 8 V low-voltage warning, so disabled recovery and
+current telemetry are available. The trimmed copy preserves full-log voltage and
+brownout signals but trims most current/motor signals; it is not used for this
+analysis. Both report files are also retained when the ZIP is imported. After
+completion, **Open Battery Insights** opens the original full log for interactive
+review. The normal button skips battery analysis. Missing telemetry is explained
+in the report; analysis errors stop the job visibly without altering the original.
+
 The Fetch Bundle page runs remote directory discovery and downloads as tracked jobs. It
 shows the current remote phase, elapsed time, bytes/files transferred, rolling throughput,
 and ETA when a byte total is known. A transfer that receives no data for 60 seconds fails
