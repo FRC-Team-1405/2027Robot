@@ -13,6 +13,24 @@
         {
           "type": "path",
           "data": {
+            "pathName": "Right_Bump_To_Field"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "runIntakeOut"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "runPickupIn"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
             "pathName": "RB_To_RCH"
           }
         },
@@ -20,6 +38,30 @@
           "type": "path",
           "data": {
             "pathName": "Right_Start_Center_Harvest"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "runPickupStop"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "BACK_Right_Bump_To_Alliance"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "BACK_Right_Bump_To_ShootPos"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "mediumShoot"
           }
         }
       ]

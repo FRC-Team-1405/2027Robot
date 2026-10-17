@@ -7,7 +7,19 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Right_Bump_To_Field"
+            "pathName": "BACK_Right_RunUp"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "BACK_Right_Bump_To_Field"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "runIntakeOut"
           }
         },
         {
@@ -38,6 +50,18 @@
           "type": "named",
           "data": {
             "name": "runPickupStop"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "BACK_Right_Bump_To_ShootPos"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "mediumShoot"
           }
         }
       ]

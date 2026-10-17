@@ -133,12 +133,14 @@ public class AutoCommands {
                 // // NamedCommands.getCommand("Right_Yum_Middle"));
                 // // commandsToAddToChooser.put("Right_Path",
                 //                 NamedCommands.getCommand("Right_Path"));
-                commandsToAddToChooser.put("PP_Right_Path",
+                commandsToAddToChooser.put("PP_Right_Test",
                                     new PathPlannerAuto("PP_Right_Test"));
-                commandsToAddToChooser.put("Right Quad",
-                                    new PathPlannerAuto("Right Quad"));
-                commandsToAddToChooser.put("Shoot",
-                                    new PathPlannerAuto("Shoot"));
+                commandsToAddToChooser.put("PP_Left_Quad",
+                                    new PathPlannerAuto("PP_Left_Quad"));
+                 commandsToAddToChooser.put("PP_Right_Quad",
+                                    new PathPlannerAuto("PP_Right_Quad"));
+                commandsToAddToChooser.put("Sit_And_Shoot",
+                                    new PathPlannerAuto("Sit_And_Shoot"));
                 commandsToAddToChooser.put("BACK_Right_Bump_To_Alliance",
                                     new PathPlannerAuto("BACK_Right_Bump_To_Alliance"));
                 commandsToAddToChooser.put("BACK_Right_Bump_To_Field",
