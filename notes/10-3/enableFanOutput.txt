@@ -1,0 +1,19 @@
+pi@RightPi:~$ sudo bash coprocessor/enable-fan.sh --install
+enable-fan.sh version 2026-10-03.3
+Running file: /home/pi/coprocessor/enable-fan.sh
+/pwm@febf0000
+/pinctrl/pwm12/pwm12m1-pins
+Validated overlay against /lib/firmware/6.1.0-1025-rockchip/device-tree/rockchip/rk3588s-orangepi-5.dtb
+P: Checking for EXTLINUX directory... found.
+P: Writing config for vmlinuz-6.1.0-1025-rockchip...
+Installed. Reboot this Pi to test. The fan should run at full speed.
+Undo after boot: sudo bash coprocessor/enable-fan.sh --remove
+If boot fails, restore /boot/extlinux/extlinux.conf from /boot/opi5-fan-backup/extlinux.conf on the SD card
+and remove the BEGIN OPI5 FAN / END OPI5 FAN block from /etc/default/u-boot.
+pi@RightPi:~$ sudo bash coprocessor/enable-fan.sh
+enable-fan.sh version 2026-10-03.3
+Running file: /home/pi/coprocessor/enable-fan.sh
+/pwm@febf0000
+/pinctrl/pwm12/pwm12m1-pins
+Validated overlay against /lib/firmware/6.1.0-1025-rockchip/device-tree/rockchip/rk3588s-orangepi-5.dtb
+Ready. To install: sudo bash coprocessor/enable-fan.sh --install

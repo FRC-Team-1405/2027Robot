@@ -2,6 +2,47 @@
 
 Installs `coprocessor/orangepi-nt-publisher.py` as a systemd service on the PhotonVision Orange Pi, so CPU/RAM/disk/temperature metrics show up in NetworkTables under `/OrangePi/`.
 
+## Recommended: guided installer
+
+Copy the entire `coprocessor` folder to the Pi, SSH in as its normal account, and run
+`cd ~/coprocessor && bash setup-orangepi.sh` after using `sync-to-orangepi.bat`.
+Alternatively, run `sync-to-orangepi.bat pi@photonvision.local --setup` on Windows
+to copy the folder with SCP and open the installer over SSH. Choose metrics, recorders,
+or both. Do not launch the installer with sudo; it requests sudo only where needed.
+It uses your actual home
+path, preserves existing environment files, and renders the service interpreter to
+use the shared venv. See `coprocessor/README.md` for details.
+
+Run `bash setup-orangepi.sh --status` or `--logs` for diagnostics without reinstalling.
+The manual procedure below remains available. The correct SSH account is `pi`, and
+the installer requires that login.
+
+Every board needs its own namespace when sharing a roboRIO. The installer asks for a
+unique board name and writes `/etc/default/orangepi-nt-publisher` automatically,
+regardless of how many boards or cameras you use. Reruns default to the previous name.
+Setup cannot detect a duplicate name chosen on another board; keep the names distinct.
+
+For manual installation, create that file with your chosen name. Example for the current
+robot's Left camera board:
+
+```text
+ORANGEPI_METRICS_NAME=LeftPi
+```
+
+Use `ORANGEPI_METRICS_NAME=RightPi` on the other board. The topics will then be under
+`/OrangePi/LeftPi/` and `/OrangePi/RightPi/` instead of colliding at `/OrangePi/`. The systemd
+service reads this optional file; a manually installed publisher with no file retains
+the legacy paths. Multiple unnamed publishers would write the same topics.
+
+Each board also publishes `IP` (its address on the robot network) and `Host`
+(`<hostname>.local`) next to its metrics. `tools/logbench` reads them to find the Pis for
+the Fetch Bundle page without a hand-written list (see its README). A board that was
+installed before this was added publishes no `IP`/`Host` until you re-run
+`sync-to-orangepi.bat` and restart `orangepi-nt-publisher.service`.
+
+Client identities are `OrangePiMetrics-<board-name>`. The topic namespace is what
+separates values; different client names alone do not prevent topic collisions.
+
 **Prerequisite:** the Pi needs internet access once, to install the `pyntcore` Python package (the PyPI package is named `pyntcore`, not `robotpy-ntcore` — that name 404s). The previous install attempt failed because the Pi has no internet route at all (see `notes/6-20/photonVisionSSH.txt`). Follow **`docs/orangepi-internet-access.md`** first, then come back here. Don't skip the "disconnect Wi-Fi when done" step in that doc before the Pi goes back on a robot.
 
 ## 1. Get a Python environment with `ntcore`
@@ -16,15 +57,15 @@ ssh pi@photonvision.local
 sudo apt update
 sudo apt install -y python3-venv
 
-python3 -m venv /home/pi/.venv-ntpublisher
-/home/pi/.venv-ntpublisher/bin/pip install --upgrade pip
-/home/pi/.venv-ntpublisher/bin/pip install -U pyntcore
+python3 -m venv "$HOME/.venv-ntpublisher"
+"$HOME/.venv-ntpublisher/bin/python3" -m pip install --upgrade pip
+"$HOME/.venv-ntpublisher/bin/python3" -m pip install -U pyntcore
 ```
 
 Confirm it imports cleanly:
 
 ```bash
-/home/pi/.venv-ntpublisher/bin/python3 -c "import ntcore; print('ok')"
+"$HOME/.venv-ntpublisher/bin/python3" -c "import ntcore; print('ok')"
 ```
 
 ## 2. Copy the script and service file to the Pi
@@ -41,8 +82,10 @@ scp coprocessor/orangepi-nt-publisher.service pi@photonvision.local:/tmp/
 The checked-in `orangepi-nt-publisher.service` uses `/usr/bin/python3`, which won't have `ntcore` installed. On the Pi, edit the copy in `/tmp` before installing it:
 
 ```bash
-sudo sed -i 's|/usr/bin/python3|/home/pi/.venv-ntpublisher/bin/python3|' /tmp/orangepi-nt-publisher.service
+sudo sed -i "s|^ExecStart=.*|ExecStart=$HOME/.venv-ntpublisher/bin/python3 $HOME/orangepi-nt-publisher.py|" /tmp/orangepi-nt-publisher.service
 ```
+
+This changes both the interpreter and script path to your login account.
 
 (Alternatively open it with `nano /tmp/orangepi-nt-publisher.service` and change the `ExecStart=` line by hand.)
 
@@ -75,7 +118,7 @@ A healthy run prints `Connecting to roboRIO (team 1405)…` once and then stays 
 
 Confirm the data is actually reaching NetworkTables:
 - With the robot/radio powered and the roboRIO running, open **Glass** or **OutlineViewer** pointed at the roboRIO's NT4 server (or check the Driver Station / AdvantageScope NT tab).
-- Look for the `/OrangePi` table with keys: `CPU_Pct`, `RAM_Used_MB`, `RAM_Total_MB`, `RAM_Pct`, `Disk_Used_GB`, `Disk_Total_GB`, `Disk_Pct`, `Temp_C`.
+- Look for the `/OrangePi` table (or `/OrangePi/LeftPi` and `/OrangePi/RightPi` for a named two-board install) with keys: `CPU_Pct`, `RAM_Used_MB`, `RAM_Total_MB`, `RAM_Pct`, `Disk_Used_GB`, `Disk_Total_GB`, `Disk_Pct`, `Temp_C`, `IP`, `Host`.
 - Values should update roughly once per second and look sane (e.g. `Temp_C` matches what `cat /sys/class/thermal/thermal_zone0/temp` shows on the Pi, divided by 1000).
 
 ## 6. Clean up internet access

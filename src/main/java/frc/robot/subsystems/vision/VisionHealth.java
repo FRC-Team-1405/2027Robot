@@ -107,11 +107,20 @@ public class VisionHealth {
         if (!connected) return unmeasurableCamera("Camera not connected");
         if (!hasTag) return unmeasurableCamera("No tag in view");
 
+        // Jitter (pose stddev) rises with motion for physical reasons -- motion blur, rolling
+        // shutter, PnP noise from a moving target -- that have nothing to do with camera health.
+        // stillnessFactor already penalizes motion directly, so multiplying the raw jitterFactor
+        // in unconditionally double-counts "the robot is moving" and can crater the score even
+        // when tags are locked, FPS is fine, and every other factor looks good. Fade the jitter
+        // penalty out as the robot moves: full weight when stillnessFactor says the robot is
+        // still (jitter is real noise then), no penalty once motion alone explains it.
+        double effectiveJitterFactor = 1.0 - stillnessFactor * (1.0 - jitterFactor);
+
         // Multiplicative, mirroring Vision.java's own `trust *= ...` composition -- one bad
         // factor (e.g. the robot rolling during the check) craters the whole reading instead of
         // being averaged away by several good ones.
         double score = 100.0 * stillnessFactor * areaFactor * ambiguityFactor * fpsFactor
-                * jitterFactor * acceptanceRateFactor * latencyFactor * multiTagRatioFactor;
+                * effectiveJitterFactor * acceptanceRateFactor * latencyFactor * multiTagRatioFactor;
         return new CameraHealth(score, "", stillnessFactor * 100, areaFactor * 100,
                 ambiguityFactor * 100, fpsFactor * 100, jitterFactor * 100,
                 acceptanceRateFactor * 100, latencyFactor * 100, multiTagRatioFactor * 100);

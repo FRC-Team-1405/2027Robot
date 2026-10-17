@@ -375,14 +375,14 @@ The options are:
 
 **Option 1 - Two coprocessors (recommended):**
 Run one OPi5 (or OPi5 Ultra) per 1-2 cameras. Each board gets its own IP address on
-the robot network and publishes to NetworkTables independently. The roboRIO subscribes
-to both. This is the approach used by top teams (e.g., 6328 Mechanical Advantage runs
-a separate process instance per camera). Advantages: full USB3 bandwidth per camera,
-no single point of failure, independent reboots.
+the robot network and publishes to the roboRIO's NetworkTables server independently.
+PhotonLib subscribes by globally unique camera nickname, so it receives both cameras
+without a separate NT server address in robot code. Advantages: full camera/compute
+resources per camera and independent reboots.
 
 > **Wiring note:** Assign static IPs (e.g., `10.14.5.11` and `10.14.5.12`). Configure
-> each PV instance with a unique hostname. The robot code subscribes to both via their
-> respective NetworkTables server addresses.
+> each PV instance with a unique hostname, and keep the PhotonVision NetworkTables server
+> option disabled on both. Both instances are clients of the roboRIO's NT server.
 
 **Option 2 - OPi5 Plus or OPi5 Ultra + one USB2 camera for rear:**
 If the rear camera is purely for global coverage (not precision alignment), USB2 is

@@ -6,6 +6,8 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.robot.constants.FeatureSwitches;
+
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
@@ -29,13 +31,17 @@ public class Indexer extends SubsystemBase {
     // ── Motor Actions ────────────────────────────────────────────────────────
 
     private void setIndexerSpeed(Supplier<AngularVelocity> speed) {
-        isIndexerActive = true;
-        io.setVelocity(speed.get().baseUnitMagnitude());
+        if (FeatureSwitches.DISABLE_INDEXER) {
+            isIndexerActive = true;
+            io.setVelocity(speed.get().baseUnitMagnitude());
+        }
     }
 
     private void setIndexerSpeed() {
-        isIndexerActive = true;
-        io.setVelocity(Constants.ShooterPreferences.INDEXER_VELOCITY.baseUnitMagnitude());
+        if (FeatureSwitches.DISABLE_INDEXER) {
+            isIndexerActive = true;
+            io.setVelocity(Constants.ShooterPreferences.INDEXER_VELOCITY.baseUnitMagnitude());
+        }
     }
 
     private void indexerStop() {

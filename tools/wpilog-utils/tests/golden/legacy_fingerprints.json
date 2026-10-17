@@ -1,0 +1,2450 @@
+{
+ "akit_26-06-20_13-33-46_baseline.wpilog": {
+  "file_bytes": 2523136,
+  "filtered_sha": "f819a1f483e766abda8c7e49fd632e012060073236b97ded1814e987f640c022",
+  "mode_spans": [
+   [
+    0.0,
+    22.911736,
+    "disabled"
+   ],
+   [
+    22.911736,
+    39.900344999999994,
+    "auto"
+   ],
+   [
+    39.900344999999994,
+    57.09844,
+    "disabled"
+   ]
+  ],
+  "n_signals": 298,
+  "signals": {
+   "Climber/ClimberClosedLoopError": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/ClimberClosedLoopReference": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/ClimberOutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/ClimberPositionRots": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/ClimberStatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/ClimberSupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/ClimberVelocityRPS": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/GrabberClosedLoopError": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/GrabberClosedLoopReference": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/GrabberOutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/GrabberPositionRots": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/GrabberStatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/GrabberSupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Climber/GrabberVelocityRPS": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "DriverStation/AllianceStation": [
+    1,
+    "44cf579ddb25ae8ebfb00856f407f82ad969955dfb37d4fed81db2a6bcc8d2c5"
+   ],
+   "DriverStation/Autonomous": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "DriverStation/DSAttached": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "DriverStation/EmergencyStop": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "DriverStation/Enabled": [
+    3,
+    "f64056700320b87fa50efa64c4241dce6f99668798b96d6e8cda40e825e03e5b"
+   ],
+   "DriverStation/EventName": [
+    1,
+    "4e67ebbd5de68effda955877c127e72857cb5c2cfabd6acb908bb77166a68df8"
+   ],
+   "DriverStation/FMSAttached": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "DriverStation/GameSpecificMessage": [
+    1,
+    "4e67ebbd5de68effda955877c127e72857cb5c2cfabd6acb908bb77166a68df8"
+   ],
+   "DriverStation/Joystick0/AxisTypes": [
+    1,
+    "6354cdd5d905dfedced8d049323e52c43061d7dcb56718426666cc1405d39a0e"
+   ],
+   "DriverStation/Joystick0/AxisValues": [
+    1,
+    "2d89646796f63d4116bf639788cecc01ce29df083fcc3d8a17df85997e72a916"
+   ],
+   "DriverStation/Joystick0/ButtonCount": [
+    1,
+    "51aa96410f408dcfa550ae910096894b6389b816cce071d26001e19c243a7e42"
+   ],
+   "DriverStation/Joystick0/ButtonValues": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick0/Name": [
+    1,
+    "ae1087a81f937e61d90854f689461cbf521b6f9c99e596f445487aec8972a747"
+   ],
+   "DriverStation/Joystick0/POVs": [
+    1,
+    "bfd7a17f28c39b33be367567caea6eda9188d0f4e641f9d297b6dfab89c539bc"
+   ],
+   "DriverStation/Joystick0/Type": [
+    1,
+    "88f631cabd828050d89a3c892d588a1e927ea541d5c75d8f170f329c3c630aa2"
+   ],
+   "DriverStation/Joystick0/Xbox": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "DriverStation/Joystick1/AxisTypes": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick1/AxisValues": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick1/ButtonCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick1/ButtonValues": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick1/Name": [
+    1,
+    "4e67ebbd5de68effda955877c127e72857cb5c2cfabd6acb908bb77166a68df8"
+   ],
+   "DriverStation/Joystick1/POVs": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick1/Type": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick1/Xbox": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "DriverStation/Joystick2/AxisTypes": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick2/AxisValues": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick2/ButtonCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick2/ButtonValues": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick2/Name": [
+    1,
+    "4e67ebbd5de68effda955877c127e72857cb5c2cfabd6acb908bb77166a68df8"
+   ],
+   "DriverStation/Joystick2/POVs": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick2/Type": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick2/Xbox": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "DriverStation/Joystick3/AxisTypes": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick3/AxisValues": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick3/ButtonCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick3/ButtonValues": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick3/Name": [
+    1,
+    "4e67ebbd5de68effda955877c127e72857cb5c2cfabd6acb908bb77166a68df8"
+   ],
+   "DriverStation/Joystick3/POVs": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick3/Type": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick3/Xbox": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "DriverStation/Joystick4/AxisTypes": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick4/AxisValues": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick4/ButtonCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick4/ButtonValues": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick4/Name": [
+    1,
+    "4e67ebbd5de68effda955877c127e72857cb5c2cfabd6acb908bb77166a68df8"
+   ],
+   "DriverStation/Joystick4/POVs": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick4/Type": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick4/Xbox": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "DriverStation/Joystick5/AxisTypes": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick5/AxisValues": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick5/ButtonCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick5/ButtonValues": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick5/Name": [
+    1,
+    "4e67ebbd5de68effda955877c127e72857cb5c2cfabd6acb908bb77166a68df8"
+   ],
+   "DriverStation/Joystick5/POVs": [
+    1,
+    "7dc0518a5e6d2dedc762e3439e2c862e17305b6d56284dbb8aecb02f1e2c445e"
+   ],
+   "DriverStation/Joystick5/Type": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Joystick5/Xbox": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "DriverStation/MatchNumber": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/MatchTime": [
+    1,
+    "1bf5d67600fe550a683ea675b398828a2fc25afb24bffcdf8f43d6861bdb145b"
+   ],
+   "DriverStation/MatchType": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/ReplayNumber": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "DriverStation/Test": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "Hood/Enabled": [
+    1,
+    "1ab7f958c23224d391647ef683589220bdaa3fdbe834c93a2964172da974cf45"
+   ],
+   "Hood/Servo1Position": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Hood/Servo2Position": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Hood/TargetPosition": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Hopper/ClosedLoopError": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Hopper/ClosedLoopReference": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Hopper/OutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Hopper/StatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Hopper/SupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Hopper/VelocityRPS": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Indexer/ClosedLoopError": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Indexer/ClosedLoopReference": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Indexer/OutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Indexer/RotorPositionRots": [
+    1,
+    "e4a821ed2308fa2a61e6038503cf061a158ee5d5092cc66d17b57b6b1f84ca43"
+   ],
+   "Indexer/StatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Indexer/SupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Indexer/VelocityRPS": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/DeployClosedLoopError": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/DeployClosedLoopReference": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/DeployOutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/DeployPositionRots": [
+    6,
+    "a6d842b0f6675e08367fa34829d9bc25060e6a5b53be6be4035b80c11c47e9f6"
+   ],
+   "Intake/DeployStatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/DeploySupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/DeployVelocityRPS": [
+    3,
+    "415cc3d01ec510e64014b8a341a1aa5ffdb54bba4c9b5e183119c392b42498a0"
+   ],
+   "Intake/PickupClosedLoopError": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/PickupOutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/PickupStatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/PickupSupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Intake/PickupVelocityRPS": [
+    126,
+    "91d55535b3b7efc248be500a3284519fed1f6b2b3997d7455756080a8c36db46"
+   ],
+   "Pickup/ClosedLoopError": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Pickup/OutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Pickup/StatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Pickup/SupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Pickup/VelocityRPS": [
+    124,
+    "8d9651653890fda04d01a64fc1388f2c7327dd7e5a64c79f79a7d14cdf49a269"
+   ],
+   "PowerDistribution/ChannelCount": [
+    1,
+    "41c881245727dbdd10cca4f4ec73d4815d6c39c04b6cb4ebfb0c3b4759b359c6"
+   ],
+   "PowerDistribution/ChannelCurrent": [
+    559,
+    "0729090143e7159ee08474ff2c77ee7674edde29d89c538fc41ab4135e1d94a8"
+   ],
+   "PowerDistribution/Faults": [
+    66,
+    "30d63fcfe35c72779334f4b23072cc93bd0e5bec0a1c2992c4b403613d147874"
+   ],
+   "PowerDistribution/StickyFaults": [
+    62,
+    "28222daf4f4b3bb75202cf860c781ab039299503567369dba7d30b44141e7825"
+   ],
+   "PowerDistribution/Temperature": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "PowerDistribution/TotalCurrent": [
+    217,
+    "c0c276231d5cdda7dffcfeca48a46bedb87f2c1edcc4080926ea2b1631f9dd7f"
+   ],
+   "PowerDistribution/TotalEnergy": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "PowerDistribution/TotalPower": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "PowerDistribution/Voltage": [
+    498,
+    "b6ef82c4c09456a40f50fd80f195e61ebc81ce82f30dfce33a0a778c92e299d3"
+   ],
+   "RadioStatus/Connected": [
+    2,
+    "a8435e2dcf1d5a22b11339e9bbe6ffae67ea78fd1bab3335480d930809abfa23"
+   ],
+   "RadioStatus/Status": [
+    10,
+    "565ed9157fbe3d89c87adce4efa80606060a67bc92300cbe56b1d2c174337be5"
+   ],
+   "RealMetadata/ProjectName": [
+    1,
+    "4f09f390b69edb9ca167039a6896b69ed1f81a5d649e0b687c7e8112d5362597"
+   ],
+   "RealMetadata/RuntimeType": [
+    1,
+    "966309e451b340f41ff0b42820da6cce9729e3ea1a3d4308a4f17c9970cf1a07"
+   ],
+   "RealOutputs/Alerts/.type": [
+    1,
+    "ac1f2165db389e4be3f2bbae0c84544a6d6751d89bbddb80c9cfb226dc47e6e5"
+   ],
+   "RealOutputs/Climber/ArmAtTarget": [
+    2,
+    "47709a5369e7cc6188800e7fa5a2bea3a31ed740ebe2ddd2edeedeeb53fd1817"
+   ],
+   "RealOutputs/Climber/ArmPositionTarget": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Climber/GrabberAtTarget": [
+    2,
+    "47709a5369e7cc6188800e7fa5a2bea3a31ed740ebe2ddd2edeedeeb53fd1817"
+   ],
+   "RealOutputs/Climber/GrabberPositionTarget": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Console": [
+    185,
+    "193129c470773c65a53c796410240ee6268ace121049e342705a6ed3daeccd41"
+   ],
+   "RealOutputs/Drivetrain/Speeds/omegaRadiansPerSecond": [
+    666,
+    "37fcbfacc37a38bb59d9271e56964512a7feacc1d8ae88884db66053b2ee81b8"
+   ],
+   "RealOutputs/Drivetrain/Speeds/vxMetersPerSecond": [
+    666,
+    "35edb315d62113fcd48336cd1758f763a5e2b6bad41356f99f5e6af764ceee75"
+   ],
+   "RealOutputs/Hood/CurrentPosition": [
+    1,
+    "3f96488ac136df1071177980df6195813086d97b991929aaaf1905fbaa6f8bf3"
+   ],
+   "RealOutputs/Hood/Target": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Hopper/Active": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "RealOutputs/Hopper/VelocityRPS": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Indexer/Active": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "RealOutputs/Indexer/VelocityRPS": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Intake/AtTarget": [
+    2,
+    "6abf11a309977171aea298bcc054d3123d516b9ccfd90e244e423f1dc504f0f1"
+   ],
+   "RealOutputs/Intake/IsDeployed": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "RealOutputs/Intake/PositionTarget": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/LoggedRobot/FullCycleMS": [
+    1871,
+    "9ee411f6b3daac8e9f691260ec3394494cdccbf460b6303e8c801678b7937224"
+   ],
+   "RealOutputs/LoggedRobot/GCCounts": [
+    166,
+    "f35e8b33a7c033eb5d6206467a424ac25bfa2a776d595c1e99da5ed7429e21d6"
+   ],
+   "RealOutputs/LoggedRobot/GCTimeMS": [
+    166,
+    "69bb7fd460474b0e134cf0151bc6c31d727545821ffe3ce019dbae622968ce7f"
+   ],
+   "RealOutputs/LoggedRobot/LogPeriodicMS": [
+    1861,
+    "e273281fdf4c143f5fa292d687df5e54ae311dda1f6feba01f28f24fd6b860ec"
+   ],
+   "RealOutputs/LoggedRobot/UserCodeMS": [
+    1873,
+    "781aebacac1e5ab349c460d166a1cbe52feb8db7724673b28057e7af7aed4908"
+   ],
+   "RealOutputs/Logger/AlertLogMS": [
+    1544,
+    "25b19ba825e4cba93df65b0bc3f766198bb8085c42feee18343d3347d9b0b63e"
+   ],
+   "RealOutputs/Logger/AutoLogMS": [
+    1656,
+    "e9c502c3abfa1fbeb2ca996e637037f665b4b0ce94d088b7033e2a01c2b6e1aa"
+   ],
+   "RealOutputs/Logger/ConduitCaptureMS": [
+    1713,
+    "4ab715486561175820ec788dfacd3ed65d451408609ac507170f66aa96377df6"
+   ],
+   "RealOutputs/Logger/ConduitSaveMS": [
+    1793,
+    "c1a307b4ee22a17b71c93d23592ba10bea7631b6f80e0e650a167bc975422974"
+   ],
+   "RealOutputs/Logger/ConsoleMS": [
+    1423,
+    "2b14ef865373495d05e305373e55578de837e0518fecb3b033dc3d3ecafe3689"
+   ],
+   "RealOutputs/Logger/DashboardInputsMS": [
+    411,
+    "8899e14d16dec08bc7ba4441a836db8e6b94c6d040c7f8fe5e840cd848b59ae0"
+   ],
+   "RealOutputs/Logger/DriverStationMS": [
+    1753,
+    "5e5ef09b8b527b23285d0f5103bb38f5d3a13a51dbac19a2d135ed8688a37cb4"
+   ],
+   "RealOutputs/Logger/EntryUpdateMS": [
+    681,
+    "7ed56a8f866a67915f1dcb70dd0b78b1a7d9c7218441ed15c0df3aee45b96477"
+   ],
+   "RealOutputs/Logger/QueuedCycles": [
+    13,
+    "7e707a7563928930487d1bc9bf2a1631486f67c9b25d11977405479cefc0568f"
+   ],
+   "RealOutputs/Logger/RadioLogMS": [
+    1343,
+    "cd98dee701dd4f1ef57668de07ec2964fabdd258c434b2f0c0c293318de5f7fb"
+   ],
+   "RealOutputs/PhotonAlerts/.type": [
+    1,
+    "ac1f2165db389e4be3f2bbae0c84544a6d6751d89bbddb80c9cfb226dc47e6e5"
+   ],
+   "RealOutputs/Pickup/Active": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "RealOutputs/Pickup/VelocityRPS": [
+    124,
+    "bdcda877599d83242afaf2cfb1487325f9161a70a1eb0e88aeefae2fc7a5ef51"
+   ],
+   "RealOutputs/Shooter/AverageError": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Shooter/ExitVelocityFPS": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Shooter/Locked": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "RealOutputs/Shooter/Motor2RPSDelta": [
+    3,
+    "d86d3b6f35fdcc63240035dab65248c90353c47a121463830ce40d208d491a5b"
+   ],
+   "RealOutputs/Shooter/Motor3RPSDelta": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Shooter/RequestedSpeedRPS": [
+    1,
+    "7ad7fb0d6cb2b62aab04f23fcfc2f88700b4e050eeb263b9f09223e00bfc5fdf"
+   ],
+   "RealOutputs/Shooter/SettleCount": [
+    6,
+    "1d2d447c6f6d7a0e2d04dd39f33e5dbc8781d4a8f3048b10d5476ba834e84794"
+   ],
+   "RealOutputs/Shooter/ShotCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "RealOutputs/Shooter/StdDev": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Shooter/TargetRPS": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Shooter/TimeToLockSeconds": [
+    1,
+    "4d9f12cbea492df268831cee20085179da7698d9623d37152d7087cb70c8ce60"
+   ],
+   "RealOutputs/Shooter/WasLocked": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "RealOutputs/Vision/CorrectionMagnitude": [
+    1863,
+    "8783f97a5107c9134c5900ecad7b2c3d6f27f07512952b7e701720c879cc0b7a"
+   ],
+   "RealOutputs/Vision/Left/AcceptanceRatePercent": [
+    206,
+    "ca7ca9b3c6d534d2239df021ba246c49ba81e6691b7afeca7907bc25c8c5b3e4"
+   ],
+   "RealOutputs/Vision/Left/AcceptedPoses": [
+    1850,
+    "91c337642856fdbf675a659a8e9b3d1feb5e44f5627df90c67845ad31f5fc6c5"
+   ],
+   "RealOutputs/Vision/Left/LatencyMsLatest": [
+    1854,
+    "74533df1f77ad3f9c3ae88216119e07c9bdf111ab2056418d756f2de4c9685a8"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevSampleCount": [
+    7,
+    "0088045110be7ca9f7da6e4767095c21d6fea889da9a1bffc82700f7c44261c0"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevSampleCount1s": [
+    1008,
+    "0c99281050125fc653d2ba5b76ee6ffff177cba9ad2e3606684f99e19fdaf341"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevThetaDegrees": [
+    1760,
+    "69c2fa8446c42fe349be1ae43f6a573227c888d95c501ae3d2d8d196dde4443f"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevThetaDegrees1s": [
+    1760,
+    "db9eb9ebeca2abf5450aabbd9d04bca541d743dda8fdc9707db0f0b40d1dfcf4"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevXMeters": [
+    1760,
+    "f167191f88d88d4828982a8b9ba696c165bdedb3c34b7809c67975418b1e1a29"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevXMeters1s": [
+    1760,
+    "1b50629a224fcba9096142422cac0c5980132426b8ded4cfe78d6b9e8a9906bf"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevYMeters": [
+    1760,
+    "07778062c3ff582c1bc0b5110979525b5a5ca88b61b6f75e361084d5ca3bc67d"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevYMeters1s": [
+    1760,
+    "d905e72c15c30b0cb47f9514e4be942d5e104d14cd0fb33bdb4a7ce0a200821d"
+   ],
+   "RealOutputs/Vision/Left/RejectedAmbiguity": [
+    1,
+    "85124db6085d495b1e7de3c03c9f37a1ae6d0eaf7665a9435635926cc5409d8a"
+   ],
+   "RealOutputs/Vision/Left/RejectedAmbiguityPoses": [
+    1,
+    "cf0e6f7043cbeeac73d0dee192761fb53ba79eac0e47f4e819866042ee2c87fd"
+   ],
+   "RealOutputs/Vision/Left/RejectedBoundary": [
+    1,
+    "85124db6085d495b1e7de3c03c9f37a1ae6d0eaf7665a9435635926cc5409d8a"
+   ],
+   "RealOutputs/Vision/Left/RejectedBoundaryPoses": [
+    1,
+    "cf0e6f7043cbeeac73d0dee192761fb53ba79eac0e47f4e819866042ee2c87fd"
+   ],
+   "RealOutputs/Vision/Left/RejectedVelocity": [
+    36,
+    "46828a49e3d5620466bf63bedccf4e5709858b5ffe8da9294e8d84dfeb85fe78"
+   ],
+   "RealOutputs/Vision/Left/RejectedVelocityPoses": [
+    40,
+    "913de9d61ff2f02305e76e7d7c9884e4ac66b542bef41ed520a933abefc567da"
+   ],
+   "RealOutputs/Vision/Left/ResultsPerLoop": [
+    1127,
+    "146b428d8571303b0d1dcd42aced70190c43a3235f6d85d72e0abf495f69d6e0"
+   ],
+   "RealOutputs/Vision/Right/AcceptanceRatePercent": [
+    298,
+    "cd4a060aa5a905a5f63821a1dfd8962e7a2de1520546bc699edd6c1ed41f0af0"
+   ],
+   "RealOutputs/Vision/Right/AcceptedPoses": [
+    1863,
+    "b09acc65246a7166859c1462bd8259659247d0265cfc1641e5f9bc3ad5ce9d5e"
+   ],
+   "RealOutputs/Vision/Right/LatencyMsLatest": [
+    1866,
+    "41cb0b302af34e63b81b32f7b423b16205154faaae5a1c7c3b7882ac5e9dea98"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevSampleCount": [
+    9,
+    "389aeb3c52a227f1ccf991e9bd34c9c503a6903357ead57d3288344f313c7b74"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevSampleCount1s": [
+    845,
+    "77dc16bcffcd6215b46984a02a6e1b1901d0c83f971ff3e6d1b69d177e47d2d1"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevThetaDegrees": [
+    1718,
+    "7adaeea3f58e15deda63d26decda08f31f5e17fa742116f36394cd010c628862"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevThetaDegrees1s": [
+    1718,
+    "149b943cca3abb043657282cddca6e8e5e1d3f123d4c241f5ffdd9bd9b60f4ed"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevXMeters": [
+    1717,
+    "bb398fa141032d68b8a9b80b73227027f3757dee3713d6156928b08acd482bc1"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevXMeters1s": [
+    1718,
+    "a7826befc9eb4dd13903760fa84dfe3153534bfaabe1f5a040f108e4c5d8f961"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevYMeters": [
+    1717,
+    "3a17accfe7a619fdd9ecaf20a46693ca509bbbf12d723cc7f1fdfc85b7e14e85"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevYMeters1s": [
+    1717,
+    "f2ca5a6c11769cad22d6024d2d03efb9dfd0e25ca08d17b7eaedbb76dc445468"
+   ],
+   "RealOutputs/Vision/Right/RejectedAmbiguity": [
+    1,
+    "85124db6085d495b1e7de3c03c9f37a1ae6d0eaf7665a9435635926cc5409d8a"
+   ],
+   "RealOutputs/Vision/Right/RejectedAmbiguityPoses": [
+    1,
+    "cf0e6f7043cbeeac73d0dee192761fb53ba79eac0e47f4e819866042ee2c87fd"
+   ],
+   "RealOutputs/Vision/Right/RejectedBoundary": [
+    1,
+    "85124db6085d495b1e7de3c03c9f37a1ae6d0eaf7665a9435635926cc5409d8a"
+   ],
+   "RealOutputs/Vision/Right/RejectedBoundaryPoses": [
+    1,
+    "cf0e6f7043cbeeac73d0dee192761fb53ba79eac0e47f4e819866042ee2c87fd"
+   ],
+   "RealOutputs/Vision/Right/RejectedVelocity": [
+    18,
+    "ab4832f3162e2a9ae24f200ba8a75d9f9194b1f3d9ce3ba5201b173f6afd0807"
+   ],
+   "RealOutputs/Vision/Right/RejectedVelocityPoses": [
+    18,
+    "35ef3d74106562a76818de3ac2a46b9a8e34d7568512d80f14dbe3478b1bf0ad"
+   ],
+   "RealOutputs/Vision/Right/ResultsPerLoop": [
+    1116,
+    "e0265e4ecf8e28a8e3ef43279e624ef7f549c22eb0b4d681ca8e041eb19ae69f"
+   ],
+   "RealOutputs/Vision/ThetaStddev": [
+    701,
+    "608dd42ec9756f497815c9b3903682a658fd930dd6d707b9f1cfcc70fdf4063a"
+   ],
+   "RealOutputs/Vision/XYStddev": [
+    1863,
+    "cc9825da8208b9a7cb820da60f5aab49ee3a5b2687f041cdcda254a5b311c0d1"
+   ],
+   "Shooter/ClosedLoopError": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/ClosedLoopReference": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor1OutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor1StatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor1SupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor1TempCelsius": [
+    18,
+    "8d10b9ef6e47d1461ceec5d14c4c1ed5d758433f26fef853153c8075edcf12e2"
+   ],
+   "Shooter/Motor1TorqueCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor1VelocityRPS": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor2OutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor2StatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor2SupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor2TempCelsius": [
+    1,
+    "3dabed0b1d4af38928f9a4632ea897e5c04dc5812571482081432066946dc0f9"
+   ],
+   "Shooter/Motor2TorqueCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor2VelocityRPS": [
+    3,
+    "d00633ab3e3e7648503068302d4dff072a2df5b2389507689b22958f82458628"
+   ],
+   "Shooter/Motor3OutputVoltage": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor3StatorCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor3SupplyCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor3TempCelsius": [
+    1,
+    "3dabed0b1d4af38928f9a4632ea897e5c04dc5812571482081432066946dc0f9"
+   ],
+   "Shooter/Motor3TorqueCurrentAmps": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/Motor3VelocityRPS": [
+    1,
+    "d6f830c08ae5444db5c578143233c3b20f74ef80abcf46755fa0cc2c57cc2846"
+   ],
+   "Shooter/SupplyVoltage": [
+    100,
+    "ccd0fac5656123f6acdb54b8535c2fff5950b4f26e238de31812ff6897b57cf0"
+   ],
+   "SystemStats/3v3Rail/Active": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "SystemStats/3v3Rail/Current": [
+    1462,
+    "e07ebc1e090aae58fb4e5c31812f90025922ab16ebe269ffc3f05d2a44f75e1a"
+   ],
+   "SystemStats/3v3Rail/CurrentFaults": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "SystemStats/3v3Rail/Voltage": [
+    1411,
+    "82f7203ad0781f269f867bfc017060d578a0b8dbc5f0e217910717b7fecde190"
+   ],
+   "SystemStats/5vRail/Active": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "SystemStats/5vRail/Current": [
+    1390,
+    "2e1e080e062a1908e230a56075a9d5402e84bafaedb11e863b9cf7ea0d133a36"
+   ],
+   "SystemStats/5vRail/CurrentFaults": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "SystemStats/5vRail/Voltage": [
+    1429,
+    "3f4b964887f2ae9608511b9ba2a5fbe01c5158e14a761e8fa46eb883bf7d2b9e"
+   ],
+   "SystemStats/6vRail/Active": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "SystemStats/6vRail/Current": [
+    1315,
+    "64d357b18c7781a4d8fc95ae66ba2fd6c47980531d66a5387ce65feb61b4ba29"
+   ],
+   "SystemStats/6vRail/CurrentFaults": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "SystemStats/6vRail/Voltage": [
+    1433,
+    "94c63a5df16fdc9c3408eca795f47503bdc62da9df7297f7b6c62fa15b469795"
+   ],
+   "SystemStats/BatteryCurrent": [
+    1585,
+    "85d9859c48804ebe672175b30716630ef290f63defa90c1ab68dad428b1e7e37"
+   ],
+   "SystemStats/BatteryVoltage": [
+    1568,
+    "bbaab0ba3093e6fd197c6975f51acba0c1a4fb94a4def04611ef9e4f885440f2"
+   ],
+   "SystemStats/BrownedOut": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "SystemStats/BrownoutVoltage": [
+    1,
+    "54ff176ef839b7152b50ec17b06207621a0ad33988e29824e2e7c43578cbd7f1"
+   ],
+   "SystemStats/CANBus/OffCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "SystemStats/CANBus/ReceiveErrorCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "SystemStats/CANBus/TransmitErrorCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "SystemStats/CANBus/TxFullCount": [
+    1,
+    "be5cd01c88a4b104c184d3699a433accb20f03e42b9d620e6ef78d456087b704"
+   ],
+   "SystemStats/CANBus/Utilization": [
+    94,
+    "097ee34cc18a594571717ecded880bc2edce7b65df163a2a610eb005d88733ec"
+   ],
+   "SystemStats/CPUTempCelsius": [
+    1681,
+    "dcace2282359905b33d1d6012a05d73d899f10ecc80953f87c9a9afd5cdf2e3c"
+   ],
+   "SystemStats/Comments": [
+    1,
+    "4e67ebbd5de68effda955877c127e72857cb5c2cfabd6acb908bb77166a68df8"
+   ],
+   "SystemStats/CommsDisableCount": [
+    1,
+    "bb003c7595b862593525754e3441ef7073e8d712977efbb06e0a1be757b9208f"
+   ],
+   "SystemStats/EpochTimeMicros": [
+    1876,
+    "f3a66d19ddc9b1b1e553b886fcbd22c8b192ff359b515f8010b8ac2a29ae5b41"
+   ],
+   "SystemStats/FPGAButton": [
+    1,
+    "55b2c15352e6a9b8d1c6a737089f54a6a9eadcf68ca6b11aecb5e56a9962fec1"
+   ],
+   "SystemStats/FPGARevision": [
+    1,
+    "6645ab3d17fc75a16c1131039683af71f10c6f72eccb1d9f24bef7e8cc4653bf"
+   ],
+   "SystemStats/FPGAVersion": [
+    1,
+    "99e7f802af602070d3f06dc73cdcd478a2233239b911908ffd9e785bc46be665"
+   ],
+   "SystemStats/NTClients/AdvantageScope@1/Connected": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "SystemStats/NTClients/AdvantageScope@1/IPAddress": [
+    1,
+    "f29318b75baf7c37a4aaf4c05397567643fcfdec537c575260f707876eae4ee2"
+   ],
+   "SystemStats/NTClients/AdvantageScope@1/RemotePort": [
+    1,
+    "547f3673ac13695dd713d5b19f105600ef4240ea402b87628bbcbf94a6756830"
+   ],
+   "SystemStats/NTClients/Elastic@3/Connected": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "SystemStats/NTClients/Elastic@3/IPAddress": [
+    1,
+    "f29318b75baf7c37a4aaf4c05397567643fcfdec537c575260f707876eae4ee2"
+   ],
+   "SystemStats/NTClients/Elastic@3/RemotePort": [
+    1,
+    "57379a08b0017e231817329bde75477a38b1810a7db4cd365ced2bf4be826081"
+   ],
+   "SystemStats/NTClients/photonvision@2/Connected": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "SystemStats/NTClients/photonvision@2/IPAddress": [
+    1,
+    "bf14bed4c902bf780436e76bef34c1877b3a62539e83ae197d59ad8922f90287"
+   ],
+   "SystemStats/NTClients/photonvision@2/RemotePort": [
+    1,
+    "d6dd2e24f9fd686807b7e6357447acd02ff444e1c75784de452dee0546a849ad"
+   ],
+   "SystemStats/RSLState": [
+    85,
+    "7fc3395802c80ccc2dc1461f6405abc6dcb8db4ede6da046c4b253b84e66aa26"
+   ],
+   "SystemStats/SerialNumber": [
+    1,
+    "fc13d59975972f990ffcef96c5fdb907b976ea4a36ad70c4cc9963693ec8aec7"
+   ],
+   "SystemStats/SystemActive": [
+    3,
+    "39ff0f78a751b3ac6aa670d319f8dc23c56b098843f72b65f1fdd4788e4e2895"
+   ],
+   "SystemStats/SystemTimeValid": [
+    1,
+    "43d5ea25c1d9719676f3930d6f9ce8b87b2aec4783642bea70160001169a9712"
+   ],
+   "SystemStats/TeamNumber": [
+    1,
+    "4a23dae867360fdb18142b90c8e3b17087cf3b5ccd936da1cddc7a17d3cce58d"
+   ],
+   "Timestamp": [
+    1876,
+    "b0c03439e1784cfebeaa04ffff8486c70e33f98c7d44b4b6db116fdd442d23c1"
+   ],
+   "Vision/Left/Connected": [
+    1,
+    "7f4cdb5bf25e17550bc4e4abc42e901d3ea2193e71b781ac24d27a249e1560e1"
+   ],
+   "Vision/Left/CurrentFps": [
+    47,
+    "b41060c02c2168b0f67cac9f06991bb72e18b2a2eee3b956239cae899bbd9dd4"
+   ],
+   "Vision/Left/LatestResultTimestampSec": [
+    1766,
+    "851d436d343dfbc29a599bccd89c0cc33322d91463b83f1d3127da8d566dd0fd"
+   ],
+   "Vision/Left/RawAmbiguities": [
+    1179,
+    "6dfaff810b9702ceebbde2f74345a1c20831968819e38277b29c572752b8faae"
+   ],
+   "Vision/Left/RawAvgAspectRatioDevs": [
+    1855,
+    "8c120d6bf9218b5a0106d1b4c8ef5087ccb88ab89615b393317cfffe945c3cca"
+   ],
+   "Vision/Left/RawAvgDistancesMeters": [
+    1854,
+    "ccb620dc1cd5129a0eddbd1420da235e838034965c19faa6b7d2d40a986a3444"
+   ],
+   "Vision/Left/RawAvgNormalizedPixelOffsets": [
+    1829,
+    "8ab18369eb4da83c7692e1b05322901d2c3109b3bc555a8a73c8cb0c3c0a4f45"
+   ],
+   "Vision/Left/RawEstimatedPoses": [
+    1855,
+    "ded4e8965f1bace8df8c206225f3c27b55697e9f79e2ce46a105c5f8fc36de40"
+   ],
+   "Vision/Left/RawSumTagAreas": [
+    1833,
+    "991844de99fbb059b6457ca65221b7671bdbd3592f974cb87956117438a677b5"
+   ],
+   "Vision/Left/RawTagCountsPerResult": [
+    1152,
+    "017ff21c52ef5bd4e8a96144157e90ce63e2d612673947c1370a4c568ab03336"
+   ],
+   "Vision/Left/RawTagIdsFlat": [
+    1152,
+    "7ed17f98a381cab6601d46e2fef8d480e050ea3ff158f4525da7dbb8b46ba836"
+   ],
+   "Vision/Left/RawTimestampsSec": [
+    1855,
+    "55a0bb382021e5a3f4e3b7e594f78b69b12260c5b581c5211b87cf074c8cdd9f"
+   ],
+   "Vision/Left/VisibleTagIds": [
+    1151,
+    "f0463662e8a8608cfbff35ae32b6cfe6e9901f314ecf005214b1e89f5c0c29f1"
+   ],
+   "Vision/Right/Connected": [
+    1,
+    "7f4cdb5bf25e17550bc4e4abc42e901d3ea2193e71b781ac24d27a249e1560e1"
+   ],
+   "Vision/Right/CurrentFps": [
+    47,
+    "820125289a5b5c2cdbe163e8583d7e3a5aef002671e9d115850b9814c683ac8e"
+   ],
+   "Vision/Right/LatestResultTimestampSec": [
+    1722,
+    "34e3ba94aa4d09b9a876da41a08644ab53ac2de4c7cee605e3eed4429b211451"
+   ],
+   "Vision/Right/RawAmbiguities": [
+    1183,
+    "82955a7e200f6c6e7367a3a8aec2f4726948693aee9c2368662f42d4b92ec347"
+   ],
+   "Vision/Right/RawAvgAspectRatioDevs": [
+    1865,
+    "eef4fa053a797c4c3a1762d5f3f4fd0eb02bcbf73b6816a03cb0c578991bf0ec"
+   ],
+   "Vision/Right/RawAvgDistancesMeters": [
+    1865,
+    "a04b0696c0af630adb2febaa2adca535afe0056959458317a431dd4e42952098"
+   ],
+   "Vision/Right/RawAvgNormalizedPixelOffsets": [
+    1486,
+    "91465dd24d035f54e5205414d05580a65dedf9f026fb6133555b1cccc880d032"
+   ],
+   "Vision/Right/RawEstimatedPoses": [
+    1865,
+    "e5ddb46bbd30100cb8eb87b61a28960ce6114424c709b357b68d83e88d30c6f6"
+   ],
+   "Vision/Right/RawSumTagAreas": [
+    1666,
+    "8094cef8b589f6538ea997b667997d4abbf478fb4f0fbf667fd0c69026f25878"
+   ],
+   "Vision/Right/RawTagCountsPerResult": [
+    1126,
+    "27b9628b58f7572c9a27477ef29150210d6777693746999591a4b12c3042b08b"
+   ],
+   "Vision/Right/RawTagIdsFlat": [
+    1126,
+    "21089c1fd200816e4db4b5968cc18d5bf834dcd136b555f07be8e1b53a534fc4"
+   ],
+   "Vision/Right/RawTimestampsSec": [
+    1866,
+    "c3c4568f7f92ecc14d0e11864a88efc1fd4d2e9abd6867fa4386825963de8c60"
+   ],
+   "Vision/Right/VisibleTagIds": [
+    1127,
+    "358cb5f9717115d5220570289365fa6134b348954fc7ec1f9d47326b67ff07d4"
+   ]
+  },
+  "t0": 1.324547,
+  "t1": 58.422987,
+  "trim_len": 439553,
+  "trim_sha256": "2ac0c35504ff7294e67a1063f592de7f17b9a914abd3e376c774dfdaeff9d948",
+  "trim_window": [
+   6.324547,
+   21.324547
+  ]
+ },
+ "akit_26-06-20_14-22-29_cameraConfigChange.wpilog": {
+  "file_bytes": 2375680,
+  "filtered_sha": "37fcaf70df1e6ea140581b320b15da690a4fed334036de440f87a24272977693",
+  "mode_spans": [
+   [
+    0.0,
+    32.150636999999996,
+    "disabled"
+   ],
+   [
+    32.150636999999996,
+    51.006099999999996,
+    "auto"
+   ],
+   [
+    51.006099999999996,
+    64.32487,
+    "disabled"
+   ]
+  ],
+  "n_signals": 298,
+  "signals": {
+   "Climber/ClimberClosedLoopError": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/ClimberClosedLoopReference": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/ClimberOutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/ClimberPositionRots": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/ClimberStatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/ClimberSupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/ClimberVelocityRPS": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/GrabberClosedLoopError": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/GrabberClosedLoopReference": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/GrabberOutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/GrabberPositionRots": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/GrabberStatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/GrabberSupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Climber/GrabberVelocityRPS": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "DriverStation/AllianceStation": [
+    1,
+    "162499a108313545e08bd20eca10bb2947657c0f351a2bf30f9a36c909b5faf4"
+   ],
+   "DriverStation/Autonomous": [
+    2,
+    "ca09801482962e88cdd6dfb5cf7f54bb6a279592d05f3d70065a4d138b78f18c"
+   ],
+   "DriverStation/DSAttached": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "DriverStation/EmergencyStop": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "DriverStation/Enabled": [
+    3,
+    "b657e19865ab44be38bc19b4f34dac875d3f5cb76b058c7df47dca1308087388"
+   ],
+   "DriverStation/EventName": [
+    1,
+    "e3aad89cbb385c8dcb1ba7541fc3015cd96ff02551e4f00e9e00336751c9057e"
+   ],
+   "DriverStation/FMSAttached": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "DriverStation/GameSpecificMessage": [
+    1,
+    "e3aad89cbb385c8dcb1ba7541fc3015cd96ff02551e4f00e9e00336751c9057e"
+   ],
+   "DriverStation/Joystick0/AxisTypes": [
+    1,
+    "76c5d4c9e29f7ea726cd5b6e1f6b3bef0fb2a1fd42266fc8e25f63491b30e4cb"
+   ],
+   "DriverStation/Joystick0/AxisValues": [
+    1,
+    "5314497e1113260e5ef888d50f12713af09140b06faf18faab64832113b77af9"
+   ],
+   "DriverStation/Joystick0/ButtonCount": [
+    1,
+    "76e927c634afb10693e6c6cb114dbf111352576eaa82cd69a97305e09bbdd824"
+   ],
+   "DriverStation/Joystick0/ButtonValues": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick0/Name": [
+    1,
+    "4893bf33d8f313dad0aad425a72afa2b8098fd67aa235fa5a514008da7d86f6b"
+   ],
+   "DriverStation/Joystick0/POVs": [
+    1,
+    "a11596da60863f647e714a950ab669452ee7b303759759c387081bdf7f93cf93"
+   ],
+   "DriverStation/Joystick0/Type": [
+    1,
+    "93f7bc4f43451210e3370b3e49752a1be1b8516bcf610d6b218d91448309aaa3"
+   ],
+   "DriverStation/Joystick0/Xbox": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "DriverStation/Joystick1/AxisTypes": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick1/AxisValues": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick1/ButtonCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick1/ButtonValues": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick1/Name": [
+    1,
+    "e3aad89cbb385c8dcb1ba7541fc3015cd96ff02551e4f00e9e00336751c9057e"
+   ],
+   "DriverStation/Joystick1/POVs": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick1/Type": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick1/Xbox": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "DriverStation/Joystick2/AxisTypes": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick2/AxisValues": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick2/ButtonCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick2/ButtonValues": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick2/Name": [
+    1,
+    "e3aad89cbb385c8dcb1ba7541fc3015cd96ff02551e4f00e9e00336751c9057e"
+   ],
+   "DriverStation/Joystick2/POVs": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick2/Type": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick2/Xbox": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "DriverStation/Joystick3/AxisTypes": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick3/AxisValues": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick3/ButtonCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick3/ButtonValues": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick3/Name": [
+    1,
+    "e3aad89cbb385c8dcb1ba7541fc3015cd96ff02551e4f00e9e00336751c9057e"
+   ],
+   "DriverStation/Joystick3/POVs": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick3/Type": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick3/Xbox": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "DriverStation/Joystick4/AxisTypes": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick4/AxisValues": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick4/ButtonCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick4/ButtonValues": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick4/Name": [
+    1,
+    "e3aad89cbb385c8dcb1ba7541fc3015cd96ff02551e4f00e9e00336751c9057e"
+   ],
+   "DriverStation/Joystick4/POVs": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick4/Type": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick4/Xbox": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "DriverStation/Joystick5/AxisTypes": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick5/AxisValues": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick5/ButtonCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick5/ButtonValues": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick5/Name": [
+    1,
+    "e3aad89cbb385c8dcb1ba7541fc3015cd96ff02551e4f00e9e00336751c9057e"
+   ],
+   "DriverStation/Joystick5/POVs": [
+    1,
+    "78cf9730e8f51e8314f0cd228c402ab699ccec698bf9300911484cb6bc593aec"
+   ],
+   "DriverStation/Joystick5/Type": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Joystick5/Xbox": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "DriverStation/MatchNumber": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/MatchTime": [
+    1,
+    "8b7e24d48fc59aa47ea5db0aaebf30b4f59c017a19ccbeeec7bea391a750e85d"
+   ],
+   "DriverStation/MatchType": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/ReplayNumber": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "DriverStation/Test": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "Hood/Enabled": [
+    1,
+    "72347709d21812f1161bc0e62c742bc4587d2c9c7c6bd362bad9f5ec30d28617"
+   ],
+   "Hood/Servo1Position": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Hood/Servo2Position": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Hood/TargetPosition": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Hopper/ClosedLoopError": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Hopper/ClosedLoopReference": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Hopper/OutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Hopper/StatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Hopper/SupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Hopper/VelocityRPS": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Indexer/ClosedLoopError": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Indexer/ClosedLoopReference": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Indexer/OutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Indexer/RotorPositionRots": [
+    1,
+    "5f0c827a9401c01da71eafa4c83785b7067422b0a31bd618acdd8581eb8c7ca0"
+   ],
+   "Indexer/StatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Indexer/SupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Indexer/VelocityRPS": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/DeployClosedLoopError": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/DeployClosedLoopReference": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/DeployOutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/DeployPositionRots": [
+    1,
+    "21f6eb41956716add303591cb41af43b2b27203c6ae6b2cf7dd1ad438aebecb7"
+   ],
+   "Intake/DeployStatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/DeploySupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/DeployVelocityRPS": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/PickupClosedLoopError": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/PickupOutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/PickupStatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/PickupSupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Intake/PickupVelocityRPS": [
+    112,
+    "7dd393cb3e5e00d3ae61130283980d46d8c24907aaa816b9808a563793e8477e"
+   ],
+   "Pickup/ClosedLoopError": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Pickup/OutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Pickup/StatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Pickup/SupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Pickup/VelocityRPS": [
+    114,
+    "c4bcbb74b03691b61d4324822146e61857871a23d8534864394bf7d51e5a7ef7"
+   ],
+   "PowerDistribution/ChannelCount": [
+    1,
+    "9a8766ba290902f7bb15358cc5b04dc351741df3eb8d902cb0ce2160dbde8fa5"
+   ],
+   "PowerDistribution/ChannelCurrent": [
+    669,
+    "7676b7234d73d167bcaa90ba6b7e21a01cd4e2c5c9dc00951d550271b2c369b2"
+   ],
+   "PowerDistribution/Faults": [
+    56,
+    "c4c083cdac063cd2d9f2ecc61b7c7f5464d53e089f5d767c1f2b0b87af8e74a9"
+   ],
+   "PowerDistribution/StickyFaults": [
+    72,
+    "4916d2e647f91196bde390a1d439c7ce2e2ee903d984a55a73f0a5941ff599e7"
+   ],
+   "PowerDistribution/Temperature": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "PowerDistribution/TotalCurrent": [
+    247,
+    "8671221e44b1406fd8150316005a669e908576c8e1e78767eb91d0a8cdcfa5c8"
+   ],
+   "PowerDistribution/TotalEnergy": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "PowerDistribution/TotalPower": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "PowerDistribution/Voltage": [
+    555,
+    "a59af4ff2dcbb4e30a113322f6ea4361b718372a29bcab018e52c7529f217d30"
+   ],
+   "RadioStatus/Connected": [
+    2,
+    "ffa9fea6394f060ba0d756afbbd890fbf84aef5686e9f0a4cdeae666cf7a5336"
+   ],
+   "RadioStatus/Status": [
+    12,
+    "8c690e154ef183997edb39650245a1999b0ffdc0042dc348630c5ef65cc1bd1c"
+   ],
+   "RealMetadata/ProjectName": [
+    1,
+    "9e4cd053b6b21b4871df9f11fea461f10f11c7ede92442d198a25cae9d599cb7"
+   ],
+   "RealMetadata/RuntimeType": [
+    1,
+    "baa0ccc435ee0093e8cb1344503695a1ad22947a23f319fcee692efef54f3274"
+   ],
+   "RealOutputs/Alerts/.type": [
+    1,
+    "3ca6564456138361b2740ef10b2afb52b961bc03bbcda8dc2955049daf30e745"
+   ],
+   "RealOutputs/Climber/ArmAtTarget": [
+    2,
+    "a29e2ca27bb3fe8ad3f48eff2daff259dc8ab71734a7fb85b4f70541d464f39d"
+   ],
+   "RealOutputs/Climber/ArmPositionTarget": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Climber/GrabberAtTarget": [
+    2,
+    "a29e2ca27bb3fe8ad3f48eff2daff259dc8ab71734a7fb85b4f70541d464f39d"
+   ],
+   "RealOutputs/Climber/GrabberPositionTarget": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Console": [
+    167,
+    "57474156556affd0d804315c32b62c85847f29b49b0c73e62a20c638fd874ee4"
+   ],
+   "RealOutputs/Drivetrain/Speeds/omegaRadiansPerSecond": [
+    818,
+    "5590de7ce9e5c3a998b61dfdf5b432d77b304c66c457421efd2b53c535084201"
+   ],
+   "RealOutputs/Drivetrain/Speeds/vxMetersPerSecond": [
+    818,
+    "55a9848e0c42aa75c8c55a3d4ee4b57bf9db43bcab2954b1112044d20ed54ad5"
+   ],
+   "RealOutputs/Hood/CurrentPosition": [
+    1,
+    "b6158c7fe04df95b8391d8f89cb751565694a82ae691749c6a603412733ee94c"
+   ],
+   "RealOutputs/Hood/Target": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Hopper/Active": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "RealOutputs/Hopper/VelocityRPS": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Indexer/Active": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "RealOutputs/Indexer/VelocityRPS": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Intake/AtTarget": [
+    2,
+    "dc73485042f2eeba6ebcaa0282e7022e217826f5672cf59c00197ab144719a6a"
+   ],
+   "RealOutputs/Intake/IsDeployed": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "RealOutputs/Intake/PositionTarget": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/LoggedRobot/FullCycleMS": [
+    2358,
+    "19005c8219af14db76a0e9155e8fdabd57b87a7e51f679fcbfd39fe32d8703e4"
+   ],
+   "RealOutputs/LoggedRobot/GCCounts": [
+    186,
+    "0a9191c4afe5b35e7b572b576d6848b22915787e528313f31f92ec580bd98d0d"
+   ],
+   "RealOutputs/LoggedRobot/GCTimeMS": [
+    186,
+    "31b266b7518076e5c57d6de7bf74a887c04d55fa45ace2f8982258c8d2440150"
+   ],
+   "RealOutputs/LoggedRobot/LogPeriodicMS": [
+    2332,
+    "f449a28d0375d8e08fdf5265b3e3e599ab2bbffd737ee0319dd3c0efe56ab648"
+   ],
+   "RealOutputs/LoggedRobot/UserCodeMS": [
+    2357,
+    "cbdb128e6600402f4ffabddc64d24b613c230b7a204cbea00094a6ca0522a90f"
+   ],
+   "RealOutputs/Logger/AlertLogMS": [
+    1923,
+    "2267c8d8d374ef320d574bd8ddbc34d24c316c64d3a5e7e957e55229accc8937"
+   ],
+   "RealOutputs/Logger/AutoLogMS": [
+    2065,
+    "28b2ce4676a35d64b3d8cbe25ebfc29585bd923e3866534e194794cc7573e884"
+   ],
+   "RealOutputs/Logger/ConduitCaptureMS": [
+    2117,
+    "318e762708cfc688371ed614f67f3be0bdcc81512b65db9af0075234b748d526"
+   ],
+   "RealOutputs/Logger/ConduitSaveMS": [
+    2231,
+    "398f61f07412c8b3bcd78ebe49afeda3b5211818a7dc9a5976cd63a513dead68"
+   ],
+   "RealOutputs/Logger/ConsoleMS": [
+    1728,
+    "d76bc7c2b1137265fc69a5a2a77ac012b0f15ed23cf8df62a398ffe2e21ed1df"
+   ],
+   "RealOutputs/Logger/DashboardInputsMS": [
+    487,
+    "4c32413081de10874eb01e6f1bcf9a34ca456d9540920015f625f3cbae467d1a"
+   ],
+   "RealOutputs/Logger/DriverStationMS": [
+    2181,
+    "31a8725852b153bc26800e66385223265e2d1ec911fe8848f3bf04b980913d67"
+   ],
+   "RealOutputs/Logger/EntryUpdateMS": [
+    729,
+    "78f1118a8c5297d6cfa3b4203df7707b3cdd2c090212f4681e24d7cd6d2f9399"
+   ],
+   "RealOutputs/Logger/QueuedCycles": [
+    31,
+    "d7e16c7733d261c99aeb9fd9261117e2de280118ee7e6ab65dfa5beff309a140"
+   ],
+   "RealOutputs/Logger/RadioLogMS": [
+    1642,
+    "498f16ee2cc7cd375b4f53310b204344ec82a3cb90767a36e862acad145adc0b"
+   ],
+   "RealOutputs/PhotonAlerts/.type": [
+    1,
+    "3ca6564456138361b2740ef10b2afb52b961bc03bbcda8dc2955049daf30e745"
+   ],
+   "RealOutputs/Pickup/Active": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "RealOutputs/Pickup/VelocityRPS": [
+    114,
+    "a2235d5409270d5472059019d2fdd3944a5fd98dd494bef28e046f8583b34fc2"
+   ],
+   "RealOutputs/Shooter/AverageError": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Shooter/ExitVelocityFPS": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Shooter/Locked": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "RealOutputs/Shooter/Motor2RPSDelta": [
+    8,
+    "65935087091e43a5436672bf7efbd0f28d3f4f4bb4b3a0285783bbd0f5b55728"
+   ],
+   "RealOutputs/Shooter/Motor3RPSDelta": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Shooter/RequestedSpeedRPS": [
+    1,
+    "bbd339c4030029031fbc64f06ef33faa976ee7c2f71632295c20e12d765b7d25"
+   ],
+   "RealOutputs/Shooter/SettleCount": [
+    6,
+    "5d3fe19caa64dbc0212cba8d00c58df275435f0cc92971bebe7a769c81a88c14"
+   ],
+   "RealOutputs/Shooter/ShotCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "RealOutputs/Shooter/StdDev": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Shooter/TargetRPS": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Shooter/TimeToLockSeconds": [
+    1,
+    "1a57f65242b5099560cdeeaaa68967e4ef1502ecb35b69695fe8bf6f3a375f34"
+   ],
+   "RealOutputs/Shooter/WasLocked": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "RealOutputs/Vision/CorrectionMagnitude": [
+    2223,
+    "ff0fe7b0a0c95b200d5af242ac670d3db8010d89acebd917805556cdfee62187"
+   ],
+   "RealOutputs/Vision/Left/AcceptanceRatePercent": [
+    1265,
+    "54986599e7125c632138aad7dc0d92b6c4a8a84cbef5585ba03e2ab5a1426779"
+   ],
+   "RealOutputs/Vision/Left/AcceptedPoses": [
+    2322,
+    "2ece4955e6169e2ef98a9f106e0431d8044c779e3bb8eb9a6ad6761233347c94"
+   ],
+   "RealOutputs/Vision/Left/LatencyMsLatest": [
+    2328,
+    "fedb814d41b44a09260a05b20934ee016d17fc5a479f89543d11964e449c68a7"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevSampleCount": [
+    32,
+    "a5fd859357fb4f1cfe400e59fba481e08af7ce2b225afaccc68f9c144d81f51e"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevSampleCount1s": [
+    392,
+    "4e0566a2ee6ac79f6a909b9ba9d1b91cd7c29d6f77ca7750408fe556d9f7cc86"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevThetaDegrees": [
+    1690,
+    "e04b0cdc68ab65408407597c308a8e001ecb470030e1856117f805f1babd2fce"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevThetaDegrees1s": [
+    1690,
+    "d54b298437955fd58bd1f8acdb4b77cfd9c3d81681fbc9b0af453486e069c87d"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevXMeters": [
+    1690,
+    "62fe979a48964b9fbc2581055de9779a2c38388226b3f5c1fbd67edc188fc72d"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevXMeters1s": [
+    1690,
+    "39a78801b1c19c6bed7ea0d36fa906cdcfe308da4ec37e17e18c7106602b6489"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevYMeters": [
+    1690,
+    "8d866e680f11b2b820c9a81d59facf51a2484fc91d81935ded2580333b86ef70"
+   ],
+   "RealOutputs/Vision/Left/PoseStdDevYMeters1s": [
+    1690,
+    "005d8ff2ead5235b280c91911fc56049e6a50016aa325483db562fb9e0d29bb7"
+   ],
+   "RealOutputs/Vision/Left/RejectedAmbiguity": [
+    1,
+    "e467bd290e72220ea03c135fac6033c99971d85b21a8a0fef558834c2acaf3dc"
+   ],
+   "RealOutputs/Vision/Left/RejectedAmbiguityPoses": [
+    1,
+    "45c92d579f0717678b2641100835ba3fd384207a43a5b8b86faf36f6e20dee53"
+   ],
+   "RealOutputs/Vision/Left/RejectedBoundary": [
+    1,
+    "e467bd290e72220ea03c135fac6033c99971d85b21a8a0fef558834c2acaf3dc"
+   ],
+   "RealOutputs/Vision/Left/RejectedBoundaryPoses": [
+    1,
+    "45c92d579f0717678b2641100835ba3fd384207a43a5b8b86faf36f6e20dee53"
+   ],
+   "RealOutputs/Vision/Left/RejectedVelocity": [
+    9,
+    "ac361fd387dee040f58978e3ce14bab2fe6949aae3a23f0c087df59b06da53b9"
+   ],
+   "RealOutputs/Vision/Left/RejectedVelocityPoses": [
+    12,
+    "67c2666d22c82116e40f9d9e95bed89a7ffea8dbedc372c8b13e7db123de246d"
+   ],
+   "RealOutputs/Vision/Left/ResultsPerLoop": [
+    1398,
+    "b2d4c7a1b774c0894c2ab271af44c0e09fa8eefd9860d1b6887e078b004cd8ec"
+   ],
+   "RealOutputs/Vision/Right/AcceptanceRatePercent": [
+    1335,
+    "b96afef06d860eb7eea43f4e092a6b83746df64f7738bc7662ab20867b73d3ad"
+   ],
+   "RealOutputs/Vision/Right/AcceptedPoses": [
+    2312,
+    "da3c6f02feb92259ca2e87d24dc0beb74b1e4b46aa3cfc7db0684c30da8efb97"
+   ],
+   "RealOutputs/Vision/Right/LatencyMsLatest": [
+    2319,
+    "0c0d2823c0999f46cd429243d35d0666c3dfba8bca571a37a31804a21adcaba5"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevSampleCount": [
+    33,
+    "45aaaa63d97672a14a40d10234927fb7104272e6672d463a57eba6c2606d21b8"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevSampleCount1s": [
+    376,
+    "2eb475cf5f9c3ce1b8b14854e2f5b0899ece786551362acccc76aaddef666cf3"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevThetaDegrees": [
+    1645,
+    "9902d9daf964073284ac73bef9cb7012718e974fc877a2e5c5d9213ae6581b53"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevThetaDegrees1s": [
+    1645,
+    "d7125066df82f3617a7e4e7376a9163f2bc609cd65e28cf01a85b5a6e68315e8"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevXMeters": [
+    1644,
+    "5a2b2abd75ab3354c2b202bfec4503b94411db433f07fd6afceff1b26857a313"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevXMeters1s": [
+    1645,
+    "09b19206a18c74732651529b2c096d7ecf7e92c6fa9c4a713394795fb5e2a6ad"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevYMeters": [
+    1644,
+    "2f94495afcffa8d7e36bd1989f9763601cd02079f436433d08c3b831c2126010"
+   ],
+   "RealOutputs/Vision/Right/PoseStdDevYMeters1s": [
+    1644,
+    "96dfc07c13837b149406f4793c9e39d23dd84f77c291b3da5de7706575b10846"
+   ],
+   "RealOutputs/Vision/Right/RejectedAmbiguity": [
+    1,
+    "e467bd290e72220ea03c135fac6033c99971d85b21a8a0fef558834c2acaf3dc"
+   ],
+   "RealOutputs/Vision/Right/RejectedAmbiguityPoses": [
+    1,
+    "45c92d579f0717678b2641100835ba3fd384207a43a5b8b86faf36f6e20dee53"
+   ],
+   "RealOutputs/Vision/Right/RejectedBoundary": [
+    1,
+    "e467bd290e72220ea03c135fac6033c99971d85b21a8a0fef558834c2acaf3dc"
+   ],
+   "RealOutputs/Vision/Right/RejectedBoundaryPoses": [
+    1,
+    "45c92d579f0717678b2641100835ba3fd384207a43a5b8b86faf36f6e20dee53"
+   ],
+   "RealOutputs/Vision/Right/RejectedVelocity": [
+    7,
+    "80f013f40268576c09eafd5f8489f2cb4d3d33377e4955016dfc71c0912bee80"
+   ],
+   "RealOutputs/Vision/Right/RejectedVelocityPoses": [
+    9,
+    "27df79e655c00558c3e7d698cebaac4292303cf7d7e2e7e7a156f3a3f65aec35"
+   ],
+   "RealOutputs/Vision/Right/ResultsPerLoop": [
+    1466,
+    "2646ebfdd1b19fbb45ab847e9ac612fd39284db08db6a40ad5a1157c2cc2118b"
+   ],
+   "RealOutputs/Vision/ThetaStddev": [
+    816,
+    "e6688f01c354fcc5649627df217c9d200c122e6f28502d27e2c66d48f6536a10"
+   ],
+   "RealOutputs/Vision/XYStddev": [
+    2223,
+    "d905cab879e5fbd6811071d81ee1f21dd58f885c8caf066fc9cfb4b97124490a"
+   ],
+   "Shooter/ClosedLoopError": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/ClosedLoopReference": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor1OutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor1StatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor1SupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor1TempCelsius": [
+    1,
+    "a2076c4853240dd0d1f869114ccbbf09cd3014fa199b6b7be619546264c2fe03"
+   ],
+   "Shooter/Motor1TorqueCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor1VelocityRPS": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor2OutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor2StatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor2SupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor2TempCelsius": [
+    1,
+    "a2076c4853240dd0d1f869114ccbbf09cd3014fa199b6b7be619546264c2fe03"
+   ],
+   "Shooter/Motor2TorqueCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor2VelocityRPS": [
+    8,
+    "3b022088d65ee6bb204a0f672b3ec424e274423316ffa4dc992915be9541d525"
+   ],
+   "Shooter/Motor3OutputVoltage": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor3StatorCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor3SupplyCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor3TempCelsius": [
+    1,
+    "a2076c4853240dd0d1f869114ccbbf09cd3014fa199b6b7be619546264c2fe03"
+   ],
+   "Shooter/Motor3TorqueCurrentAmps": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/Motor3VelocityRPS": [
+    1,
+    "17a7ef0a897a9ca5bde73da32fd72024163cd06338c98117f4eb3ae5f0ee47f0"
+   ],
+   "Shooter/SupplyVoltage": [
+    128,
+    "a70a7b966da57ecb354992962b963c45c1939336f64ae91f64d097f678291204"
+   ],
+   "SystemStats/3v3Rail/Active": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "SystemStats/3v3Rail/Current": [
+    1834,
+    "8a232acc236cf4d4800c79a7617525179bff62733b5dced1392bcaabe9b2bfb5"
+   ],
+   "SystemStats/3v3Rail/CurrentFaults": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "SystemStats/3v3Rail/Voltage": [
+    1778,
+    "a1d034a7fe6583374966ea54d756bf0653090e91c0c0a9260bdb1749a320d05b"
+   ],
+   "SystemStats/5vRail/Active": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "SystemStats/5vRail/Current": [
+    1726,
+    "99384be4ebfd089ba417389b3e9ec3e115bd5d3023ad98141f27d2b948e616a8"
+   ],
+   "SystemStats/5vRail/CurrentFaults": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "SystemStats/5vRail/Voltage": [
+    1762,
+    "e285e90111f2819e221f5f004333d255add9643e6a63b6908019bd8587c35f5b"
+   ],
+   "SystemStats/6vRail/Active": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "SystemStats/6vRail/Current": [
+    1629,
+    "e76bccd3c8594d8de503974632a22c3b9110f1d7ffc1f8933a041d486598cd6f"
+   ],
+   "SystemStats/6vRail/CurrentFaults": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "SystemStats/6vRail/Voltage": [
+    1783,
+    "a03f3cfd2b81a162b30e34c63f3b33cf4c34a42b5d00b8e2b4f13c4c74ef367e"
+   ],
+   "SystemStats/BatteryCurrent": [
+    1974,
+    "87ff767779d278db6348c2403ef50d272d73f60ec2aeb884454d494724f1daf6"
+   ],
+   "SystemStats/BatteryVoltage": [
+    1962,
+    "912b45726aa6df5b79cfcb2049d39ef87cc8975bc1c7d46b611fc26f82023885"
+   ],
+   "SystemStats/BrownedOut": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "SystemStats/BrownoutVoltage": [
+    1,
+    "21ced0e619f9c49470b52634f1555f4d7908944ded847b6d7d1b0857aaefec5c"
+   ],
+   "SystemStats/CANBus/OffCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "SystemStats/CANBus/ReceiveErrorCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "SystemStats/CANBus/TransmitErrorCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "SystemStats/CANBus/TxFullCount": [
+    1,
+    "341715f82c8ab95754562222280b9baef1592a7bcffb3a8fc1e64aa70b701cc5"
+   ],
+   "SystemStats/CANBus/Utilization": [
+    119,
+    "8bb1765d0296c278d6ae246e033cf8ec3aa4ce76976fa3bbcb259eebb2e66101"
+   ],
+   "SystemStats/CPUTempCelsius": [
+    2081,
+    "be755781a0a12b1c79db61dd855d89e8af16e9c529042824df722d1a5b3eaf6d"
+   ],
+   "SystemStats/Comments": [
+    1,
+    "e3aad89cbb385c8dcb1ba7541fc3015cd96ff02551e4f00e9e00336751c9057e"
+   ],
+   "SystemStats/CommsDisableCount": [
+    1,
+    "89163893721d95327b368e5175228c734eef72a738d25118a58bf7fd0647fbb3"
+   ],
+   "SystemStats/EpochTimeMicros": [
+    2361,
+    "3fabae6a5b26ccbebd642b7ca1bf00d1d343ae4f64286dc0043313d9ecbdd4d6"
+   ],
+   "SystemStats/FPGAButton": [
+    1,
+    "b66822bf008d8d41121477df73794c1dacf3e5a9a840986b9e893ef7b37ed5f2"
+   ],
+   "SystemStats/FPGARevision": [
+    1,
+    "9b11bd3d84666306ce19ac4feb96eb5757b40cf521236fdd7ae647dcee0f136c"
+   ],
+   "SystemStats/FPGAVersion": [
+    1,
+    "99e0a2190240752b21766ccaeab1b9f7e19b136a7292a15887ded206773d08a1"
+   ],
+   "SystemStats/NTClients/AdvantageScope@3/Connected": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "SystemStats/NTClients/AdvantageScope@3/IPAddress": [
+    1,
+    "1bcf5acafdfb7b44655df0549a891e493c896e3b2b170dae17db2fc44593737c"
+   ],
+   "SystemStats/NTClients/AdvantageScope@3/RemotePort": [
+    1,
+    "2a49f1421161d529c8223c3f405898c386443690b8063249f6b4331c91ae54cd"
+   ],
+   "SystemStats/NTClients/Elastic@1/Connected": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "SystemStats/NTClients/Elastic@1/IPAddress": [
+    1,
+    "1bcf5acafdfb7b44655df0549a891e493c896e3b2b170dae17db2fc44593737c"
+   ],
+   "SystemStats/NTClients/Elastic@1/RemotePort": [
+    1,
+    "be130b0127f2cb2f254fbaa062624f6f7033ed90ec8ec902804dad2e2621f30e"
+   ],
+   "SystemStats/NTClients/photonvision@2/Connected": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "SystemStats/NTClients/photonvision@2/IPAddress": [
+    1,
+    "b7e0ddbc392fc6732e658b810697855efdeeb2387c0828ec4acce129e4fd753c"
+   ],
+   "SystemStats/NTClients/photonvision@2/RemotePort": [
+    1,
+    "c5fcf5962c32e3b7ec44d436be06a909261db8c34135c58d52e2d61e896a56e3"
+   ],
+   "SystemStats/RSLState": [
+    93,
+    "50a31919d672212f6c6fb6062de97010903b621a0b7459af3bc54ee3762a45a7"
+   ],
+   "SystemStats/SerialNumber": [
+    1,
+    "bf015cd2c2091ac6aa3c86a07ecfd54df5fdc88142e6d594bbd278c8f1f63dfb"
+   ],
+   "SystemStats/SystemActive": [
+    3,
+    "28a0ac2f19c693a317775fc910cdd4e91fb9d405766265642caf62cc3c4286d4"
+   ],
+   "SystemStats/SystemTimeValid": [
+    1,
+    "01f02755e6faad809afbd2909393c96c615aecd9eb03326d6fae9cd93dd9667c"
+   ],
+   "SystemStats/TeamNumber": [
+    1,
+    "cab94c03638e00b757deed2da2df7d333236efca42f2af152d9d91ab943b2f8b"
+   ],
+   "Timestamp": [
+    2361,
+    "6a683bb2d0b2b430c1e36b642b25d7113a5feb2223453f48696e8e921de0ebe5"
+   ],
+   "Vision/Left/Connected": [
+    1,
+    "85671908a852f8dc701011d05b55a0e08398820bc71ad14eb2b0ce77906f5cc9"
+   ],
+   "Vision/Left/CurrentFps": [
+    54,
+    "7f0a727096821f5c65bc08d392659ea253073a70e88233c55c03f9c505afa3a4"
+   ],
+   "Vision/Left/LatestResultTimestampSec": [
+    1697,
+    "75a2a5a395037e70430749a791105826b0f8cd88fdf4b5d089060cd980fac8e0"
+   ],
+   "Vision/Left/RawAmbiguities": [
+    1511,
+    "82fa507fd540490e274f39ba83507796f31fd89c602d608d80f2aba2285323ca"
+   ],
+   "Vision/Left/RawAvgAspectRatioDevs": [
+    2328,
+    "8479017cc536f245909ae6d3f567a1c3e02d2f2f529cd52cb2a78fbaf3b9fe93"
+   ],
+   "Vision/Left/RawAvgDistancesMeters": [
+    2327,
+    "97313ac2edc3705454da669e0214361922700f6a2342c14966b94fc1049d0ae3"
+   ],
+   "Vision/Left/RawAvgNormalizedPixelOffsets": [
+    2175,
+    "176be3d8f0d40bf936b352e28d7b40bd53781bca53e2804bd5d6e12575e85015"
+   ],
+   "Vision/Left/RawEstimatedPoses": [
+    2328,
+    "59f2df246f466f58ca5bae590862a6d37d431617a9c79bf7131fd5af6a0eb1a0"
+   ],
+   "Vision/Left/RawSumTagAreas": [
+    2214,
+    "97bad617e96480ce00ed9d5830f94eadbf76317b97a5ef92aec07d393fe9ce11"
+   ],
+   "Vision/Left/RawTagCountsPerResult": [
+    1415,
+    "31a6f43a14255be3da2904c176a96c133f512372652b1ee0fe95eb04781c942b"
+   ],
+   "Vision/Left/RawTagIdsFlat": [
+    1416,
+    "18b7d15a34a683c865436bc863b689d943443e2d03ed28394aeb2224ba6805e7"
+   ],
+   "Vision/Left/RawTimestampsSec": [
+    2328,
+    "9756e473b2ffd1121170c1a1dc828b284d33772998beb269b49ac0537d17fcfe"
+   ],
+   "Vision/Left/VisibleTagIds": [
+    1416,
+    "18b7d15a34a683c865436bc863b689d943443e2d03ed28394aeb2224ba6805e7"
+   ],
+   "Vision/Right/Connected": [
+    1,
+    "85671908a852f8dc701011d05b55a0e08398820bc71ad14eb2b0ce77906f5cc9"
+   ],
+   "Vision/Right/CurrentFps": [
+    54,
+    "340909bf5ee81ba2899db575e2a940438e5ed2b22436945a59a0ec9c266478c7"
+   ],
+   "Vision/Right/LatestResultTimestampSec": [
+    1649,
+    "ce5cc1f0afc5574524eae14b6eb85a6a4e97c1900eb828d48b616e2e171c67b8"
+   ],
+   "Vision/Right/RawAmbiguities": [
+    1584,
+    "74ab7e0dd5c94b73e182fc9d90403d6b0241d7aec29bf98aa6901944192699c1"
+   ],
+   "Vision/Right/RawAvgAspectRatioDevs": [
+    2318,
+    "7daa85566864e6f8ac77c5c7fa53f807bfa28707b809bf6ec3c2c6e2ea63184c"
+   ],
+   "Vision/Right/RawAvgDistancesMeters": [
+    2318,
+    "0b65d1510810c57fee8a4f4ffa6045bf62cee0c9f4d1ea528d796647f9c93dfc"
+   ],
+   "Vision/Right/RawAvgNormalizedPixelOffsets": [
+    2003,
+    "c43e0477b729bebff49dcf4afa33c04db16bce900c80ed0c2209e1f6286393db"
+   ],
+   "Vision/Right/RawEstimatedPoses": [
+    2318,
+    "06c30b5e4eddd918d05b10ddae530b0522e0b9f29794375a122f3fbfe2e5b100"
+   ],
+   "Vision/Right/RawSumTagAreas": [
+    2042,
+    "d787468332b53dff79f24140b79684da6878ad6a9cac2c4e0a5f978ec0d82442"
+   ],
+   "Vision/Right/RawTagCountsPerResult": [
+    1476,
+    "f636d579c675a51a7adb4acf344a1e3b408b3db1eb06d2f43576e297854f4f01"
+   ],
+   "Vision/Right/RawTagIdsFlat": [
+    1476,
+    "b0786339cd39b166d5e27703f2620f2a0dbe6c43de7f0d1a7622e52ae2e803af"
+   ],
+   "Vision/Right/RawTimestampsSec": [
+    2319,
+    "6621bedcba912e927a9e77b572e9df29017f11d1c9cf3e63c7fb0bda1304a257"
+   ],
+   "Vision/Right/VisibleTagIds": [
+    1477,
+    "f36e4a704ccfb1fa20e3141e544f02ac1050470d74a2f1c370d528004ed00013"
+   ]
+  },
+  "t0": 1.398479,
+  "t1": 65.723349,
+  "trim_len": 361001,
+  "trim_sha256": "56e2efad186694514678b776d07236b37261ef8cac2f6154872cb7cdaae08e67",
+  "trim_window": [
+   6.398479,
+   21.398479000000002
+  ]
+ }
+}

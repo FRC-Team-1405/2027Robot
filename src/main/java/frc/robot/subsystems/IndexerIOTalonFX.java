@@ -16,6 +16,7 @@ public class IndexerIOTalonFX implements IndexerIO {
     private final NeutralOut brakeRequest = new NeutralOut();
 
     public IndexerIOTalonFX() {
+        frc.robot.power.PowerTelemetry.register(motor, "Indexer", "Indexer");
         TalonFXConfiguration configs = new TalonFXConfiguration();
         configs.Slot0.kS = Constants.IndexerPreferences.KS;
         configs.Slot0.kV = Constants.IndexerPreferences.KV;
@@ -33,6 +34,7 @@ public class IndexerIOTalonFX implements IndexerIO {
             status = motor.getConfigurator().apply(configs);
             if (status.isOK()) break;
         }
+        frc.robot.power.PowerTelemetry.recordConfigurationApplication(motor, status);
         if (!status.isOK()) {
             System.out.println("Could not configure indexer motor. Error: " + status);
         }
@@ -51,15 +53,15 @@ public class IndexerIOTalonFX implements IndexerIO {
 
     @Override
     public void setVelocity(double velocityRPS) {
-        motor.setControl(velocityVoltage.withVelocity(velocityRPS));
+        motor.setControl(frc.robot.power.PowerTelemetry.request(motor, velocityVoltage.withVelocity(velocityRPS)));
     }
 
     public void setVelocity(AngularVelocity velocity) {
-        motor.setControl(velocityVoltage.withVelocity(velocity));
+        motor.setControl(frc.robot.power.PowerTelemetry.request(motor, velocityVoltage.withVelocity(velocity)));
     }
 
     @Override
     public void stop() {
-        motor.setControl(brakeRequest);
+        motor.setControl(frc.robot.power.PowerTelemetry.request(motor, brakeRequest));
     }
 }

@@ -4,6 +4,8 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.robot.constants.FeatureSwitches;
+
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
@@ -27,13 +29,17 @@ public class Hopper extends SubsystemBase {
     // ── Motor Actions ────────────────────────────────────────────────────────
 
     private void forwardHopper() {
-        isHopperActive = true;
-        io.setVelocity(Constants.HopperPreferences.HOPPER_FORWARD_SPEED.baseUnitMagnitude());
+        if (FeatureSwitches.DISABLE_HOPPER) {
+            isHopperActive = true;
+            io.setVelocity(Constants.HopperPreferences.HOPPER_FORWARD_SPEED.baseUnitMagnitude());
+        }
     }
 
     private void reverseHopper() {
-        isHopperActive = true;
-        io.setVelocity(Constants.HopperPreferences.HOPPER_REVERSE_SPEED.baseUnitMagnitude());
+        if (FeatureSwitches.DISABLE_HOPPER) {
+            isHopperActive = true;
+            io.setVelocity(Constants.HopperPreferences.HOPPER_REVERSE_SPEED.baseUnitMagnitude());
+        }
     }
 
     private void stopHopper() {
@@ -42,8 +48,10 @@ public class Hopper extends SubsystemBase {
     }
 
     public void setSpeed(AngularVelocity velocity) {
-        isHopperActive = true;
-        io.setVelocity(velocity.baseUnitMagnitude());
+        if (FeatureSwitches.DISABLE_HOPPER) {
+            isHopperActive = true;
+            io.setVelocity(velocity.baseUnitMagnitude());
+        }
     }
 
     /** Start feeding balls forward. For use by external commands. */

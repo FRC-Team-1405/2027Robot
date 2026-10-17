@@ -75,32 +75,113 @@
             "problemMatcher": []
         },
         {
-            "label": "MatchPlayerBuild",
-            "detail": "Build the current Match Player front end before serving it.",
+            "label": "LogbenchBuild",
+            "detail": "Build the current Logbench front end before serving it.",
             "type": "process",
             "command": "npm",
             "args": [
                 "--prefix",
-                "tools/match-player/web",
+                "tools/logbench/web",
                 "run",
                 "build"
             ],
             "problemMatcher": []
         },
         {
-            "label": "MatchPlayer",
-            "detail": "Build and serve the current Match Player at http://127.0.0.1:8765 (logs/ picker).",
+            "label": "Logbench",
+            "detail": "Build and serve the current Logbench at http://127.0.0.1:8765 (logs/ picker).",
             "type": "process",
             "command": "python",
             "args": [
-                ".\\tools\\match-player\\server\\main.py",
+                ".\\tools\\logbench\\server\\main.py",
                 "--logs",
                 ".\\logs"
             ],
-            "dependsOn": "MatchPlayerBuild",
+            "dependsOn": "LogbenchBuild",
             "dependsOrder": "sequence",
             "isBackground": true,
             "problemMatcher": []
+        },
+        {
+            "label": "WPILogJanitorBuild",
+            "detail": "Build the WPILog Janitor front end (first time on a machine: run `npm install` in tools/wpilog-janitor/web).",
+            "type": "process",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "tools/wpilog-janitor/web",
+                "run",
+                "build"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "WPILogJanitor",
+            "detail": "Build and serve the WPILog Janitor (trim logs to the periods you care about) at http://127.0.0.1:8767 (logs/ picker).",
+            "type": "process",
+            "command": "python",
+            "args": [
+                "tools/wpilog-janitor/run.py",
+                "serve",
+                "--logs",
+                "logs"
+            ],
+            "dependsOn": "WPILogJanitorBuild",
+            "dependsOrder": "sequence",
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "WPILogJanitorAnalyze",
+            "detail": "WPILog Janitor: show a log's modes and where its bytes are. Prompts for the log path (relative to the repo root).",
+            "type": "process",
+            "command": "python",
+            "args": [
+                "-m",
+                "janitor",
+                "analyze",
+                "${input:wpilogJanitorLog}"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/tools/wpilog-janitor"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "WPILogJanitorTrim",
+            "detail": "WPILog Janitor: trim a log to chosen DS modes (default: auto) and write <log>_trimmed.wpilog next to it. Prompts for log + modes.",
+            "type": "process",
+            "command": "python",
+            "args": [
+                "-m",
+                "janitor",
+                "trim",
+                "${input:wpilogJanitorLog}",
+                "--modes",
+                "${input:wpilogJanitorModes}"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/tools/wpilog-janitor"
+                }
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "wpilogJanitorLog",
+            "type": "promptString",
+            "description": "Path to a .wpilog, relative to the repo root (give a folder to list the logs inside it)",
+            "default": "logs\\"
+        },
+        {
+            "id": "wpilogJanitorModes",
+            "type": "promptString",
+            "description": "DriverStation modes to keep, comma-separated: disabled, auto, teleop",
+            "default": "auto"
         }
     ]
 }

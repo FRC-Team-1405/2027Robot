@@ -3,23 +3,48 @@
 
 Run this on the Orange Pi co-processor alongside PhotonVision.
 It connects to the roboRIO as an NT4 client and publishes CPU, RAM,
-disk usage, and temperature once per second under /OrangePi/.
+disk usage, and temperature once per second under /OrangePi/. Set
+ORANGEPI_METRICS_NAME to give each board its own subtable when more than one
+Orange Pi is installed (for example, /OrangePi/LeftPi/).
 
-Install dependency:
-    pip install robotpy-ntcore
+Install dependency and service (creates a shared venv with pyntcore):
+    bash setup-orangepi.sh
 
 Run:
-    python3 orangepi-nt-publisher.py
+    ~/.venv-ntpublisher/bin/python3 orangepi-nt-publisher.py
 
 To run on boot, add a systemd service (see orangepi-nt-publisher.service).
 """
 
 import time
 import os
+import socket
 import subprocess
 
 TEAM_NUMBER = 1405
 PUBLISH_INTERVAL_S = 1.0
+METRICS_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip()
+
+
+def read_ip():
+    """This board's IPv4 address on the network that reaches the roboRIO (10.TE.AM.2).
+
+    No packets are sent: connecting a UDP socket only makes the OS pick the outgoing
+    interface. Returns "" if there is no route yet, and is retried every publish.
+    """
+    roborio = f"10.{TEAM_NUMBER // 100}.{TEAM_NUMBER % 100}.2"
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect((roborio, 1))
+            return sock.getsockname()[0]
+    except OSError:
+        return ""
+
+
+def read_host():
+    """mDNS-style name other machines can try (hostname.local); "" if unknown."""
+    name = socket.gethostname().strip()
+    return f"{name}.local" if name else ""
 
 
 def read_temp_c():
@@ -75,10 +100,13 @@ def main():
     import ntcore
 
     inst = ntcore.NetworkTableInstance.getDefault()
-    inst.startClient4("OrangePiMetrics")
+    client_name = "OrangePiMetrics" + (f"-{METRICS_NAME}" if METRICS_NAME else "")
+    inst.startClient4(client_name)
     inst.setServerTeam(TEAM_NUMBER)
 
     table = inst.getTable("OrangePi")
+    if METRICS_NAME:
+        table = table.getSubTable(METRICS_NAME)
 
     # Declare all publishers up front so NT knows the types
     cpu_pub       = table.getDoubleTopic("CPU_Pct").publish()
@@ -89,8 +117,14 @@ def main():
     disk_total_pub= table.getDoubleTopic("Disk_Total_GB").publish()
     disk_pct_pub  = table.getDoubleTopic("Disk_Pct").publish()
     temp_pub      = table.getDoubleTopic("Temp_C").publish()
+    # Where to reach this board. tools/logbench reads these to find the Pis on its own
+    # (server/pi_discovery.py); IP is preferred because two PhotonVision boards often
+    # share the default hostname.
+    ip_pub        = table.getStringTopic("IP").publish()
+    host_pub      = table.getStringTopic("Host").publish()
 
-    print(f"Connecting to roboRIO (team {TEAM_NUMBER})…")
+    topic_root = f"/OrangePi/{METRICS_NAME}" if METRICS_NAME else "/OrangePi"
+    print(f"Connecting to roboRIO (team {TEAM_NUMBER}); publishing under {topic_root}/…")
 
     while True:
         try:
@@ -107,6 +141,8 @@ def main():
             disk_total_pub.set(disk_t)
             disk_pct_pub.set(disk_p)
             temp_pub.set(temp)
+            ip_pub.set(read_ip())
+            host_pub.set(read_host())
 
         except Exception as e:
             print(f"Metrics error: {e}")

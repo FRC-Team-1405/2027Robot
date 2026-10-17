@@ -1,0 +1,18 @@
+{
+  "transfer_idle_timeout_seconds": 60,
+  "rio": {
+    "host": "roborio-1405-frc.local",
+    "user": "lvuser",
+    "password": "password",
+    "logs_path": "/home/lvuser/logs"
+  },
+  "pi_discovery": {
+    "enabled": true,
+    "user": "pi",
+    "password": "raspberry",
+    "recordings_path": "/home/pi/vision-recordings",
+    "timeout_seconds": 6,
+    "scan": true,
+    "scan_hosts": ["LeftPi.local", "RightPi.local"]
+  }
+}

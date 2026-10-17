@@ -1,0 +1,27 @@
+{
+  "name": "logbench",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:single": "tsc -b && vite build --config vite.config.single.ts && node scripts/finish-single.mjs",
+    "typecheck": "tsc -b --noEmit",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^4.1.11"
+  }
+}

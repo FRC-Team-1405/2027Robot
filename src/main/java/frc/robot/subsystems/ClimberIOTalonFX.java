@@ -15,7 +15,10 @@ public class ClimberIOTalonFX implements ClimberIO {
     private final NeutralOut stopRequest = new NeutralOut();
 
     // Motor gains are stored in Phoenix Tuner X flash on the real robot.
-    public ClimberIOTalonFX() {}
+    public ClimberIOTalonFX() {
+        frc.robot.power.PowerTelemetry.register(climberMotor, "Climber Climber", "Climber");
+        frc.robot.power.PowerTelemetry.register(grabberMotor, "Climber Grabber", "Climber");
+    }
 
     @Override
     public void updateInputs(ClimberIOInputs inputs) {
@@ -38,21 +41,21 @@ public class ClimberIOTalonFX implements ClimberIO {
 
     @Override
     public void setClimberPosition(double positionRots) {
-        climberMotor.setControl(climberPositionRequest.withPosition(positionRots));
+        climberMotor.setControl(frc.robot.power.PowerTelemetry.request(climberMotor, climberPositionRequest.withPosition(positionRots)));
     }
 
     @Override
     public void setGrabberPosition(double positionRots) {
-        grabberMotor.setControl(grabberPositionRequest.withPosition(positionRots));
+        grabberMotor.setControl(frc.robot.power.PowerTelemetry.request(grabberMotor, grabberPositionRequest.withPosition(positionRots)));
     }
 
     @Override
     public void stopClimber() {
-        climberMotor.setControl(stopRequest);
+        climberMotor.setControl(frc.robot.power.PowerTelemetry.request(climberMotor, stopRequest));
     }
 
     @Override
     public void stopGrabber() {
-        grabberMotor.setControl(stopRequest);
+        grabberMotor.setControl(frc.robot.power.PowerTelemetry.request(grabberMotor, stopRequest));
     }
 }
