@@ -122,10 +122,10 @@ public class AutoCommands {
 
                 // // commandsToAddToChooser.put("LeftDepotShootCenterHarvestInLeftShoot",
                 // // NamedCommands.getCommand("LeftDepotShootCenterHarvestInLeftShoot"));
-                // commandsToAddToChooser.put("RightQuad",
-                //                 NamedCommands.getCommand("RightQuad"));
-                // commandsToAddToChooser.put("LeftQuad",
-                //                 NamedCommands.getCommand("LeftQuad"));
+                commandsToAddToChooser.put("RightQuad",
+                                 NamedCommands.getCommand("RightQuad"));
+                 commandsToAddToChooser.put("LeftQuad",
+                                 NamedCommands.getCommand("LeftQuad"));
                 // commandsToAddToChooser.put("Zac_RightQuad",
                 //                 NamedCommands.getCommand("Zac_RightQuad"));
                 // commandsToAddToChooser.put("Zac_LeftQuad",

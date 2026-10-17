@@ -314,7 +314,7 @@ public class Constants {
 
         static {
             Preferences.initDouble("Intake/Out", 70.0);
-            INTAKE_MOTOR_OUT = 70;
+            INTAKE_MOTOR_OUT = 74.8;
             Preferences.initDouble("Intake/In", 3.0);
             INTAKE_MOTOR_IN = 3;
             Preferences.initDouble("Intake/Center", 57.0);
