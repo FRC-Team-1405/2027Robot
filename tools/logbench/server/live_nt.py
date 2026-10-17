@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 # AdvantageKit's `new NT4Publisher()` (see Robot.java) publishes to this root table by
 # default.
 DEFAULT_ROOT_TABLE = 'AdvantageKit'
-DEFAULT_CAMERAS = ('Left', 'Right')
+DEFAULT_CAMERAS = ('LeftCam', 'RightCam')
 
 _MOTION_SCORE_DEPS = COMPOSITES['motion_score'].deps
 
