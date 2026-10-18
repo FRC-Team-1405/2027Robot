@@ -56,6 +56,7 @@ import json
 import os
 import shutil
 import socket
+import threading
 import time
 import urllib.request
 from datetime import datetime
@@ -63,10 +64,37 @@ from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
 
+
+def _env_number(name, default, cast, minimum_exclusive=0):
+    """Read a positive numeric override from the environment. Blank/unset gives
+    the default; a malformed or non-positive value prints a warning and also
+    falls back to the default, so a typo in an env file can't stop recording."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = cast(raw)
+        if value <= minimum_exclusive or value != value or value == float("inf"):
+            raise ValueError("must be positive and finite")
+        return value
+    except ValueError as e:
+        print(f"Ignoring {name}={raw!r} ({e}); using default {default}")
+        return default
+
+
+# Optional: point the NT client at an explicit server (host/IP, optional port) instead of the
+# roboRIO at team TEAM_NUMBER. Used with coprocessor/sim/fake_robot.py to test without a robot.
+# Unset/blank = unchanged behavior (setServerTeam(TEAM_NUMBER)).
+NT_SERVER = os.environ.get("NT_SERVER", "").strip()
+NT_PORT = _env_number("NT_PORT", 0, int)  # 0 = NT4 default port (5810)
+if NT_PORT > 65535:
+    print(f"Ignoring NT_PORT={NT_PORT} (must be 1-65535); using default NT4 port")
+    NT_PORT = 0
+
 # Fallback only: each instance's EnvironmentFile must specify its confirmed RAW
 # stream on this board. Ports depend on that board's PhotonVision camera config.
 CAMERA_STREAM_URL = os.environ.get("CAMERA_STREAM_URL", "http://localhost:1181/stream.mjpg")
-SAMPLE_HZ = 3.0
+SAMPLE_HZ = _env_number("SAMPLE_HZ", 3.0, float)  # env-overridable (e.g. raised for fast simulated-match tests)
 
 # Set when more than one camera is recorded on this Pi (see module docstring). Sessions
 # and the boot-id counter are namespaced under RECORDINGS_DIR/<CAMERA_NAME>/ so the Left
@@ -76,7 +104,18 @@ BOARD_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip() or socket.getho
 
 RECORDINGS_DIR = os.environ.get("RECORDINGS_DIR", "/home/pi/vision-recordings")  # local storage for v1; swap to a USB mount point here once one is attached
 RECORDINGS_BASE = os.path.join(RECORDINGS_DIR, CAMERA_NAME) if CAMERA_NAME else RECORDINGS_DIR
-MAX_STORAGE_BYTES = 5 * 1024 * 1024 * 1024  # 5GB flat cap, per camera instance
+MAX_STORAGE_BYTES = _env_number("MAX_STORAGE_BYTES", 5 * 1024 * 1024 * 1024, int)  # 5GB flat cap, per camera instance (env-overridable, bytes)
+
+# Frames older than this (arrival to write) are skipped rather than recorded: it means the stream stalled.
+MAX_FRAME_AGE_SEC = 2.0
+# A robot that loses comms is disabled by the field, but a mere NT dropout (Pi's link, roboRIO code
+# restart) reads as control word 0 == "disabled". Hold the current session through a dropout this
+# long instead of ending it, so one continuous enabled period stays one session.
+NT_DROP_GRACE_SEC = _env_number("NT_DROP_GRACE_SEC", 10.0, float)
+# Right after a reconnect the control-word entry can read 0 until the server republishes it (a
+# roboRIO restarting its code does this). Ignore "disabled" for this long after a reconnect that
+# interrupted an enabled session.
+NT_SETTLE_SEC = 2.0
 
 FMS_INFO_TABLE = "FMSInfo"
 FMS_CONTROL_TOPIC = "FMSControlData"
@@ -101,15 +140,21 @@ def is_enabled(control_word_entry):
     return bool(int(raw) & (1 << ENABLED_BIT))
 
 
+_last_server_offset_us = 0  # last offset seen while connected; reused during a dropout so t_sec stays in the server domain
+
+
 def server_time_sec(inst):
     """Current time in the NT-server clock domain, in float seconds (same
     units as .wpilog timestamps). Falls back to local NT time if the
-    client hasn't synced with the server yet."""
+    client hasn't synced with the server yet, and to the last known offset
+    (not zero) while the connection is down."""
     import ntcore
 
-    offset_us = inst.getServerTimeOffset() or 0
-    local_us = ntcore._now()
-    return (local_us + offset_us) / 1_000_000.0
+    global _last_server_offset_us
+    offset_us = inst.getServerTimeOffset()
+    if offset_us is not None:
+        _last_server_offset_us = offset_us
+    return (ntcore._now() + _last_server_offset_us) / 1_000_000.0
 
 
 class MjpegFrameReader:
@@ -127,30 +172,87 @@ class MjpegFrameReader:
             self._stream = urllib.request.urlopen(self.url, timeout=5)
             self._buf = b""
 
+    def _extract(self):
+        """Cut one complete JPEG out of the buffer, or return None if there isn't one yet."""
+        start = self._buf.find(JPEG_SOI)
+        if start == -1:
+            self._buf = self._buf[-16:]  # keep a small tail in case SOI spans chunks
+            return None
+        end = self._buf.find(JPEG_EOI, start)
+        if end == -1:
+            if start > 0:
+                self._buf = self._buf[start:]  # drop leading multipart headers
+            return None
+        frame = self._buf[start:end + 2]
+        self._buf = self._buf[end + 2:]
+        return frame
+
     def read_frame(self):
         self._ensure_open()
         while True:
-            chunk = self._stream.read(4096)
+            # Parse what is already buffered BEFORE reading more: one read can carry several
+            # frames, and reading first would return one frame per call while the rest pile up.
+            frame = self._extract()
+            if frame is not None:
+                return frame
+            # read1() returns whatever has arrived; read(n) would block until n bytes did.
+            chunk = self._stream.read1(65536)
             if not chunk:
                 raise ConnectionError("MJPEG stream closed")
             self._buf += chunk
-            start = self._buf.find(JPEG_SOI)
-            if start == -1:
-                self._buf = self._buf[-16:]  # keep a small tail in case SOI spans chunks
-                continue
-            end = self._buf.find(JPEG_EOI, start)
-            if end == -1:
-                if start > 0:
-                    self._buf = self._buf[start:]  # drop leading multipart headers
-                continue
-            frame = self._buf[start:end + 2]
-            self._buf = self._buf[end + 2:]
-            return frame
 
     def close(self):
         if self._stream is not None:
             self._stream.close()
             self._stream = None
+
+
+class LatestFrameReader:
+    """Drains the MJPEG stream continuously on a background thread, keeping only the newest
+    frame and the NT-server time it arrived.
+
+    PhotonVision's raw stream runs at the camera rate (about 100 fps here) while we only want a
+    few frames per second. Reading one frame per sample leaves the rest queued, so each read
+    returned an older and older frame (measured on a Pi: recorded frames were minutes old by the
+    end of a match, all predating the robot being enabled). Draining keeps the newest frame
+    fresh at all times, including right after a disabled gap, and stamping it on arrival gives
+    the recorded t_sec the true capture time rather than the time we got around to reading it."""
+
+    def __init__(self, reader, inst):
+        self._reader = reader
+        self._inst = inst
+        self._lock = threading.Lock()
+        self._latest = None  # (jpeg bytes, arrival t_sec, sequence number)
+        self._seq = 0
+        self._stop = threading.Event()
+        self._last_error_print = 0.0
+        self._thread = threading.Thread(target=self._run, name="mjpeg-drain", daemon=True)
+
+    def start(self):
+        self._thread.start()
+
+    def _run(self):
+        while not self._stop.is_set():
+            try:
+                frame = self._reader.read_frame()
+                t_sec = server_time_sec(self._inst)
+                with self._lock:
+                    self._seq += 1
+                    self._latest = (frame, t_sec, self._seq)
+            except Exception as e:
+                if not self._stop.is_set() and time.monotonic() - self._last_error_print > 30.0:
+                    self._last_error_print = time.monotonic()
+                    print(f"Stream error (will keep retrying): {e}")
+                self._reader.close()
+                self._stop.wait(1.0)
+
+    def latest(self):
+        with self._lock:
+            return self._latest
+
+    def close(self):
+        self._stop.set()
+        self._reader.close()
 
 
 BOOT_ID_FILE = ".boot_id"  # persisted on disk (survives power loss, unlike the Pi's batteryless RTC) so session folders stay distinguishable across restarts even when the wall clock resets
@@ -232,12 +334,27 @@ def new_session_dir(base, boot_id, offset_sec):
     return session
 
 
+def _session_summary(stats):
+    """One-line summary of a finished session: frames written, how old each was when written
+    (arrival to write, so roughly the sampling jitter), and any frames skipped."""
+    ages = sorted(stats["age_ms"])
+    if not ages:
+        return "no frames written"
+    return (f"{len(ages)} frames written, age at write ms median/max {ages[len(ages) // 2]:.0f}/{ages[-1]:.0f}, "
+            f"skipped {stats['stale']} stale + {stats['nonew']} with no new frame")
+
+
 def main():
     import ntcore
 
     inst = ntcore.NetworkTableInstance.getDefault()
     inst.startClient4(f"OrangePiVisionRecorder-{BOARD_NAME}-{CAMERA_NAME or 'default'}")
-    inst.setServerTeam(TEAM_NUMBER)
+    if NT_SERVER:
+        inst.setServer(NT_SERVER, NT_PORT)
+        server_desc = f"NT server {NT_SERVER}:{NT_PORT or 5810}"
+    else:
+        inst.setServerTeam(TEAM_NUMBER)
+        server_desc = None
 
     control_word_entry = inst.getTable(FMS_INFO_TABLE).getIntegerTopic(FMS_CONTROL_TOPIC).getEntry(0)
     robot_time_entry = inst.getTable(ROBOT_TIME_TABLE).getIntegerTopic(ROBOT_TIME_TOPIC).getEntry(0)
@@ -245,20 +362,47 @@ def main():
     boot_id = next_boot_id(RECORDINGS_BASE)
 
     cam_note = f" [camera {CAMERA_NAME}]" if CAMERA_NAME else ""
-    print(f"Connecting to roboRIO (team {TEAM_NUMBER})…{cam_note} [boot {boot_id}, local clock reads {time.strftime('%Y-%m-%d %H:%M:%S')}]")
+    target = server_desc or f"roboRIO (team {TEAM_NUMBER})"
+    print(f"Connecting to {target}…{cam_note} [boot {boot_id}, local clock reads {time.strftime('%Y-%m-%d %H:%M:%S')}]")
 
     reader = MjpegFrameReader(CAMERA_STREAM_URL)
+    frames = LatestFrameReader(reader, inst)
+    frames.start()
     period_s = 1.0 / SAMPLE_HZ
 
     session_dir = None
     manifest = None
     was_enabled = False
+    disconnected_since = None
+    reconnected_at = None
+    ever_connected = False
+    last_seq = 0
+    stats = {"age_ms": [], "stale": 0, "nonew": 0}
 
     try:
         while True:
             loop_start = time.monotonic()
             try:
-                enabled = is_enabled(control_word_entry)
+                if inst.isConnected():
+                    enabled = is_enabled(control_word_entry)
+                    if disconnected_since is not None and ever_connected:
+                        print(f"NT reconnected after {time.monotonic() - disconnected_since:.1f}s")
+                        reconnected_at = time.monotonic()
+                    elif not ever_connected:
+                        print("NT connected")
+                    ever_connected = True
+                    disconnected_since = None
+                    if was_enabled and not enabled and reconnected_at is not None                             and time.monotonic() - reconnected_at < NT_SETTLE_SEC:
+                        enabled = True  # stale 0 right after a reconnect, not a real disable
+                else:
+                    # An NT dropout reads as control word 0 == "disabled"; hold the session through a short one.
+                    if disconnected_since is None:
+                        disconnected_since = time.monotonic()
+                        if was_enabled:
+                            print(f"NT connection lost while enabled - holding the session up to {NT_DROP_GRACE_SEC:g}s")
+                    enabled = was_enabled and time.monotonic() - disconnected_since <= NT_DROP_GRACE_SEC
+                    if was_enabled and not enabled:
+                        print(f"NT NOT connected for over {NT_DROP_GRACE_SEC:g}s - treating the robot as disabled")
 
                 if enabled and not was_enabled:
                     offset_sec = robot_clock_offset_sec(robot_time_entry)
@@ -267,34 +411,43 @@ def main():
                     manifest = open(os.path.join(session_dir, "manifest.jsonl"), "a")
                     sync_note = f"synced to roboRIO, offset {offset_sec:+.1f}s" if offset_sec is not None \
                         else "NOT synced to roboRIO — using Pi's own possibly-stale clock"
+                    stats = {"age_ms": [], "stale": 0, "nonew": 0}
                     print(f"Enabled — starting session {session_dir} ({sync_note})")
                 elif not enabled and was_enabled:
                     if manifest:
                         manifest.close()
                     manifest = None
-                    print("Disabled — session ended")
+                    nt_note = "NT connected" if inst.isConnected() else "NT NOT connected"
+                    print(f"Disabled — session ended ({nt_note}); {_session_summary(stats)}")
 
                 was_enabled = enabled
 
                 if enabled and session_dir:
-                    frame = reader.read_frame()
-                    t_sec = server_time_sec(inst)
-                    filename = f"frame_{t_sec:.6f}.jpg"
-                    with open(os.path.join(session_dir, filename), "wb") as f:
-                        f.write(frame)
-                    manifest.write(json.dumps({"frame": filename, "t_sec": t_sec}) + "\n")
-                    manifest.flush()
+                    latest = frames.latest()
+                    if latest is None or latest[2] == last_seq:
+                        stats["nonew"] += 1
+                    else:
+                        frame, t_sec, last_seq = latest
+                        age_sec = server_time_sec(inst) - t_sec
+                        if age_sec > MAX_FRAME_AGE_SEC:
+                            stats["stale"] += 1  # stream stalled; never record an old frame as if it were current
+                        else:
+                            filename = f"frame_{t_sec:.6f}.jpg"
+                            with open(os.path.join(session_dir, filename), "wb") as f:
+                                f.write(frame)
+                            manifest.write(json.dumps({"frame": filename, "t_sec": t_sec}) + "\n")
+                            manifest.flush()
+                            stats["age_ms"].append(age_sec * 1000.0)
 
             except Exception as e:
                 print(f"Recorder error: {e}")
-                reader.close()
 
             elapsed = time.monotonic() - loop_start
             time.sleep(max(0.0, period_s - elapsed))
     finally:
         if manifest:
             manifest.close()
-        reader.close()
+        frames.close()
 
 
 if __name__ == "__main__":
