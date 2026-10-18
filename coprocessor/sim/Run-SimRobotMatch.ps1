@@ -39,6 +39,9 @@
 .PARAMETER LogCameras     Camera names to record as, matching the robot's cameras (default LeftCam,RightCam). The first is the real camera.
 .PARAMETER Script         ScriptedMatch script: 'default' or 'disabled:10,auto:20,disabled:3,teleop:140,disabled:10'.
 .PARAMETER Fast           Divide every phase duration by this.
+.PARAMETER CollectOnly    Do not run anything: only copy the Pi's recordings from an earlier run into -OutDir (which must
+                      already hold that run's .wpilog) and check the bundle. Use it when a run stopped before the copy step;
+                      the Pi keeps the recordings until the next run starts.
 .PARAMETER UseRealRecordings  Record into the Pi's normal ~/vision-recordings (mixes with real data) instead of a throwaway folder.
 
 .EXAMPLE
@@ -60,6 +63,7 @@ param(
     [int]$FakeCameraPort = 1191,
     [string]$OutDir = '',
     [switch]$UseRealRecordings,
+    [switch]$CollectOnly,
     [switch]$NoCheck
 )
 $ErrorActionPreference = 'Stop'
@@ -113,7 +117,10 @@ $ping = Invoke-Pi "timeout 3 bash -c '</dev/tcp/$LaptopAddress/22' 2>&1; ping -c
 if ($ping.Out -notmatch 'PONG') { Say "   warning: the Pi could not ping $LaptopAddress - check -LaptopAddress and the shared connection" Yellow }
 
 $gradleProc = $null
+$simOut = Join-Path $OutDir 'simulate.log'
+$simError = $null
 try {
+  if (-not $CollectOnly) {
     Say "1) Starting a temporary recorder per camera, pointed at this laptop's simulation ($LaptopAddress`:$NtPort)" White
     $setup = "set -e; mkdir -p /tmp/simrobot $recDir; "
     for ($i = 0; $i -lt $cams.Count; $i++) {
@@ -143,7 +150,6 @@ try {
     $env:SIM_MATCH_WAIT_CLIENTS = "$WaitClients"
     $env:SIM_MATCH_EXIT = '1'
     $env:SIM_LOG_DIR = $OutDir
-    $simOut = Join-Path $OutDir 'simulate.log'
     $gradle = Join-Path $repo 'gradlew.bat'
     $gradleProc = Start-Process -FilePath $gradle -ArgumentList @('simulateJava', '--console=plain') -WorkingDirectory $repo `
         -RedirectStandardOutput $simOut -RedirectStandardError (Join-Path $OutDir 'simulate.err.log') -PassThru -WindowStyle Hidden
@@ -158,10 +164,18 @@ try {
         }
         if (((Get-Date) - $t0).TotalSeconds -gt $limit) { throw "simulation still running after $limit s; see $simOut" }
     }
-    if ($gradleProc.ExitCode -ne 0) { throw "simulateJava exited with $($gradleProc.ExitCode); see $simOut and simulate.err.log" }
+    # Start-Process -PassThru leaves ExitCode empty until WaitForExit() has been called on the object.
+    $gradleProc.WaitForExit()
+    $simCode = $gradleProc.ExitCode
+    $simFinished = [bool](Get-Content $simOut | Where-Object { $_ -match '^SIMMATCH exit' })
+    # Never throw here: the recordings on the Pi still have to be copied. Report it after they are.
+    if (-not $simFinished -and $null -ne $simCode -and $simCode -ne 0) {
+        $simError = "simulateJava exited with $simCode; see $simOut and simulate.err.log"
+    }
+  }
     $log = Get-ChildItem $OutDir -Filter 'akit_*_simmatch.wpilog' | Sort-Object LastWriteTime | Select-Object -Last 1
     if (-not $log) { throw "no akit_*_simmatch.wpilog in $OutDir; did the simulation start Logger with SIM_LOG_DIR?" }
-    if (-not (Get-Content $simOut | Where-Object { $_ -match '^SIMMATCH start' })) {
+    if (-not $CollectOnly -and -not (Get-Content $simOut | Where-Object { $_ -match '^SIMMATCH start' })) {
         throw "the script never started - no NT client connected ($WaitClients wanted). Is inbound TCP $NtPort allowed through Windows Firewall?"
     }
     Start-Sleep -Seconds 3   # let the recorder close its last session
@@ -174,10 +188,11 @@ try {
         $x = Invoke-Native 'scp' ($sshBase + @('-q', '-r', "$User@${Address}:$recDir/$c", $visionDir)) 600
         Require-Ok $x "fetch $c recordings"
     }
+    if ($simError) { throw $simError }
 }
 finally {
-    Say '4) Removing the temporary recorders and fake cameras' White
     if ($setupDone) {
+        Say '4) Removing the temporary recorders and fake cameras' White
         try {
             $stop = "for c in $($cams -join ' '); do sudo systemctl stop orangepi-vision-recorder@`$c.service; sudo rm -f /etc/orangepi-vision-recorder/`$c.env; test -f /tmp/simrobot/fake-`$c.pid && kill `$(cat /tmp/simrobot/fake-`$c.pid) 2>/dev/null; done; sudo systemctl reset-failed 'orangepi-vision-recorder@*' 2>/dev/null; sudo systemctl daemon-reload; rm -rf /tmp/simrobot; echo cleaned"
             $r = Invoke-Pi $stop
