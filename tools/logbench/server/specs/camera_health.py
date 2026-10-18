@@ -121,6 +121,9 @@ def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras
       vision_segments[cam]  = [{video, t0, t1, session}] every recording session in time order;
                               t0/t1 are absolute log seconds, and the video plays from t0
       vision_coverage[cam]  = {enabled_sec, covered_sec, fraction}   when the log has mode data
+      vision_status[cam]    = {state, detail, sessions, empty_sessions}  for EVERY logged camera, so the
+                              UI can say why a camera has no video (no recorder folder / only empty
+                              sessions / outside the log / video build failed) instead of just "none"
 
     These are URLs and offsets, not per-frame arrays, per the "render a video, don't swap JPEGs"
     design (see ensure_preview_video's docstring for why). Building a video can fail (missing
@@ -138,6 +141,7 @@ def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras
     vision_static: dict = {}
     segments_static: dict = {}
     coverage_static: dict = {}
+    status_static: dict = {}
     log_camera_by_folded = {c.casefold(): c for c in cameras}
     enabled = [m for m in modes if m['mode'] != 'disabled']
 
@@ -185,6 +189,16 @@ def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras
             segments.append({'video': '/vision-video/%s' % rel, 't0': frames[0][0],
                              't1': frames[-1][0] + _frame_tail(frames), 'session': session_dir.name})
         segments_static[cam] = segments
+        if segments:
+            state, detail = 'ok', '%d recording session%s' % (len(segments), '' if len(segments) == 1 else 's')
+        elif usable:
+            state, detail = 'build_failed', 'recorded, but the preview video could not be built (see warnings)'
+        elif empty:
+            state, detail = 'empty', 'the recorder folder has only empty sessions (no frames)'
+        else:
+            state, detail = 'outside_window', 'the recorder folder has sessions, but none overlap this log'
+        status_static[cam] = {'state': state, 'detail': detail, 'sessions': len(segments),
+                              'empty_sessions': len(empty), 'folder': folder}
         if not segments:
             continue
         vision_static[cam] = {'video': segments[0]['video'], 't0': segments[0]['t0']}
@@ -204,6 +218,17 @@ def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras
                         'No video for most of %s on the %s camera: %.0f s of its %.0f s was recorded '
                         '(at %.0f s into the log).' % (window['mode'], cam, have, length, window['t0'] - spec.t0))
 
+    folders_found = sorted(f for f in vision_sessions if f)
+    for cam in cameras:
+        if cam not in status_static:
+            if folders_found:
+                detail = ('no recorder folder named %s in this bundle (folders found: %s)'
+                          % (cam, ', '.join(folders_found)))
+            else:
+                detail = 'this bundle has no vision recordings'
+            status_static[cam] = {'state': 'no_folder', 'detail': detail, 'sessions': 0,
+                                  'empty_sessions': 0, 'folder': None}
+    spec.static['vision_status'] = status_static
     if vision_static:
         spec.static['vision'] = vision_static
         spec.static['vision_segments'] = {c: s for c, s in segments_static.items() if s}

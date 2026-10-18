@@ -52,14 +52,14 @@ laptop and let the Pi record it:
 ```powershell
 .\Run-SimRobotMatch.ps1 -Address <pi-ip> -KeyPath $HOME\.ssh\id_ed25519_claude
 # -Fast 4 to compress it, -Script 'disabled:5,auto:10,disabled:4,teleop:40,disabled:6' for a custom timeline,
-# -LogCamera RightCam to record as the other camera, -UseRealRecordings to write into ~/vision-recordings
+# -LogCameras LeftCam,RightCam,Rear for more feeds, -UseRealRecordings to write into ~/vision-recordings
 ```
 
 Run it from your own PowerShell (Gradle needs normal sockets). What happens:
 
-1. A temporary systemd drop-in points the Pi's recorder at the laptop (`NT_SERVER`, port 5810) and names its recordings after the robot's camera (`-LogCamera`, default `LeftCam`), so LogBench matches folder to log.
+1. One temporary recorder instance per camera (`orangepi-vision-recorder@<camera>`, default `LeftCam,RightCam`) is started with a temporary env file pointing at the laptop (`NT_SERVER`, port 5810). The Pi has one webcam, so the **first camera records the real PhotonVision stream and every other camera records a fake one** (`fake_mjpeg.py` on the Pi: a frame counter and clock), so the two feeds look obviously different when you switch between them. The Pi's normal `@bench` service is not touched.
 2. `frc.robot.sim.ScriptedMatch` (inert unless `SIM_MATCH_SCRIPT` is set) waits for the Pi to connect, then drives the simulated Driver Station through disabled, auto, pause, teleop, disabled with random stick input. `Robot` writes an AdvantageKit log named in UTC (`akit_<yy-MM-dd_HH-mm-ss>_simmatch.wpilog`) when `SIM_LOG_DIR` is set; `SIM_HEADLESS` skips the GUI.
-3. The Pi's sessions are copied to `<log>.vision\<LogCamera>\` beside the log, the service is restored (always), and `tools\logbench\testkit\check_bundle.py` reports coverage and problems.
+3. The Pi's sessions are copied to `<log>.vision\<LogCamera>\` beside the log, the temporary instances and fake cameras are removed (always), and `tools\logbench\testkit\check_bundle.py` reports coverage and problems.
 
 The log and the recordings share one NT clock and one wall clock, as on the real robot. The result
 is a folder you open with `python tools\logbench\server\main.py --logs <folder>`.

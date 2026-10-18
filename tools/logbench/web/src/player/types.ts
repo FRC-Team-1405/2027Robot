@@ -82,6 +82,15 @@ export interface VisionCoverage {
   fraction: number;
 }
 
+/** Why a camera does or does not have video (server: camera_health vision_status). */
+export interface VisionStatus {
+  state: 'ok' | 'no_folder' | 'empty' | 'outside_window' | 'build_failed' | string;
+  detail: string;
+  sessions: number;
+  empty_sessions: number;
+  folder: string | null;
+}
+
 export interface WireSpec {
   title: string;
   t0: number;
@@ -99,6 +108,7 @@ export interface WireSpec {
     /** Every recording session per camera, in time order. Preferred over `vision` when present. */
     vision_segments?: Record<string, VisionSegment[]>;
     vision_coverage?: Record<string, VisionCoverage>;
+    vision_status?: Record<string, VisionStatus>;
     /** Driver-station modes, when the log has them. */
     modes?: ModeWindow[];
   };

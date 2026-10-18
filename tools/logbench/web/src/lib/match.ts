@@ -5,7 +5,7 @@
 // windows and video segments in ABSOLUTE log seconds, because that is the recorder's own t_sec
 // domain. Every function here that takes a playhead time says so.
 
-import type { ModeWindow, VisionSegment } from '../player/types';
+import type { ModeWindow, VisionCoverage, VisionSegment, VisionStatus } from '../player/types';
 
 /** Seconds of lead-in / tail kept around the enabled part of a match when charts are cropped. */
 export const MATCH_PAD_SEC = 10;
@@ -79,4 +79,35 @@ export function modeGradient(modes: ModeWindow[] | undefined, specT0: number, du
   }
   stops.push('transparent 100%');
   return `linear-gradient(to right, ${stops.join(', ')})`;
+}
+
+const STATE_SHORT: Record<string, string> = {
+  no_folder: 'no recorder folder',
+  empty: 'only empty sessions',
+  outside_window: 'recorded outside this log',
+  build_failed: 'video build failed',
+};
+
+/** Dropdown text for a camera: its name, plus the reason when it has no video. */
+export function cameraOptionLabel(camera: string, status: VisionStatus | undefined, hasVideo: boolean): string {
+  if (hasVideo) return camera;
+  return `${camera} (${(status && STATE_SHORT[status.state]) ?? 'no recording'})`;
+}
+
+/** One line per camera for the panel footer: what each camera has, or why it has nothing. */
+export function cameraSummaries(
+  cameras: string[],
+  segments: Record<string, VisionSegment[]>,
+  status: Record<string, VisionStatus> | undefined,
+  coverage: Record<string, VisionCoverage> | undefined,
+): { camera: string; ok: boolean; text: string }[] {
+  return cameras.map((camera) => {
+    const segs = segments[camera] ?? [];
+    if (segs.length) {
+      const cov = coverage?.[camera];
+      const sessions = `${segs.length} session${segs.length === 1 ? '' : 's'}`;
+      return { camera, ok: true, text: cov ? `${sessions}, ${Math.round(cov.fraction * 100)}% of enabled time` : sessions };
+    }
+    return { camera, ok: false, text: status?.[camera]?.detail ?? 'no recording' };
+  });
 }

@@ -31,6 +31,7 @@ from wpilog_utils.index import load_index  # noqa: E402
 
 CAMERA_RX = re.compile(r'^/?(?:RealOutputs/)?Vision/([^/]+)/(?:Health/ScorePercent|AcceptedPoses|RawEstimatedPoses)$',
                        re.IGNORECASE)
+EDGE_SLOP_SEC = 0.5          # a frame this close to an enable/disable edge is sampling and propagation jitter, not a bug
 CLOCK_TOLERANCE_SEC = 15.0   # recorder wall clock vs the log's name; DS-rename lag lives inside this
 
 
@@ -86,7 +87,7 @@ def check(log_path: pathlib.Path, out=print, expect_cameras: Optional[List[str]]
                 continue
             first, last = frames[0][0], frames[-1][0]
             out('    %-30s %4d frames  %7.1f - %7.1f s' % (session.name, len(frames), first, last))
-            off = [t for t, _f in frames if not any(a <= t < b for _m, a, b in enabled)]
+            off = [t for t, _f in frames if not any(a - EDGE_SLOP_SEC <= t < b + EDGE_SLOP_SEC for _m, a, b in enabled)]
             if off:
                 problems.append('%s/%s: %d of %d frames fall while the robot was disabled (first at %.1f s)'
                                 % (label, session.name, len(off), len(frames), off[0]))

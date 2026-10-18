@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { MODE_LABEL, modeAt, nextSegment, segmentAt, videoTime } from '../lib/match';
+import { MODE_LABEL, cameraOptionLabel, cameraSummaries, modeAt, nextSegment, segmentAt, videoTime } from '../lib/match';
 import { useClockState, usePlayer, useThrottledTime } from '../player/PlayerContext';
 import type { Panel, VisionSegment } from '../player/types';
 
@@ -80,14 +80,13 @@ export function VisionPanel({ panel }: { panel: Panel }) {
     }
   }, [time, entry, targetTime]);
 
-  const coverage = camera ? spec.static.vision_coverage?.[camera] : undefined;
   const next = !entry ? nextSegment(segments, abs) : null;
   const mode = modeAt(spec.static.modes, spec.t0, time);
 
   let placeholder = '';
   if (!entry) {
     if (cameras.length === 0) placeholder = 'No camera configured for this log.';
-    else if (!segments?.length) placeholder = 'No vision recording for this window.';
+    else if (!segments?.length) placeholder = `${camera}: ${(camera && spec.static.vision_status?.[camera]?.detail) || 'no vision recording for this window'}.`;
     else if (next) placeholder = `No recording at this moment. Next session starts at ${(next.t0 - spec.t0).toFixed(1)}s.`;
     else placeholder = 'No recording at this moment (after the last session).';
   }
@@ -104,7 +103,7 @@ export function VisionPanel({ panel }: { panel: Panel }) {
           >
             {cameras.map((c) => (
               <option key={c} value={c} disabled={!segmentsByCamera[c]?.length}>
-                {c}{!segmentsByCamera[c]?.length ? ' (no recording)' : ''}
+                {cameraOptionLabel(c, spec.static.vision_status?.[c], Boolean(segmentsByCamera[c]?.length))}
               </option>
             ))}
           </select>
@@ -117,11 +116,18 @@ export function VisionPanel({ panel }: { panel: Panel }) {
         <video ref={videoRef} className="vision__video" muted playsInline hidden={!entry} />
         {!entry && <div className="vision__placeholder">{placeholder}</div>}
       </div>
-      {coverage && (
-        <div className="vision__coverage" title="Share of the log's enabled time (auto + teleop) that has video">
-          Video covers {Math.round(coverage.fraction * 100)}% of enabled time
-          {segments && segments.length > 1 ? ` in ${segments.length} sessions` : ''}
-        </div>
+      {cameras.length > 0 && (
+        <ul className="vision__summary" aria-label="Recordings per camera" title="What each camera has recorded, or why it has nothing">
+          {cameraSummaries(cameras, segmentsByCamera, spec.static.vision_status, spec.static.vision_coverage).map((row) => (
+            <li
+              key={row.camera}
+              className={`vision__summary-row${row.ok ? '' : ' vision__summary-row--none'}${row.camera === camera ? ' vision__summary-row--current' : ''}`}
+              onClick={() => row.ok && setCamera(row.camera)}
+            >
+              <strong>{row.camera}</strong> {row.text}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

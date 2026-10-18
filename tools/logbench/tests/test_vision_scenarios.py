@@ -250,6 +250,9 @@ def test_recording_coverage_says_how_much_of_the_enabled_time_has_video(built, s
     coverage = _spec(bundle, signals).static.get('vision_coverage', {})
     enabled = [s for s in bundle.spans if s[0] != 'disabled']
     for cam in bundle.cameras:
+        if not _with_frames(bundle, cam):
+            assert cam not in coverage      # no recording, nothing to cover
+            continue
         covered = 0.0
         for plan, _d in _with_frames(bundle, cam):
             lo, hi = plan.frame_times[0], plan.frame_times[-1] + 1.0 / build_bundle.SAMPLE_HZ
@@ -342,3 +345,65 @@ def test_preview_video_builds_when_the_session_path_is_relative(built, monkeypat
     monkeypatch.chdir(session.parents[3])
     mp4 = _REAL_PREVIEW(session.relative_to(session.parents[3]), camera='RightCam')
     assert mp4.is_file() and mp4.stat().st_size > 0
+
+
+# ---- Why a camera has no video: static.vision_status ---------------------------------------------
+
+def _status(built, scenario):
+    bundle, signals = built(scenario)
+    return _spec(bundle, signals).static['vision_status']
+
+
+@pytest.mark.parametrize('scenario', ['clean', 'two-boots', 'nt-flap'])
+def test_status_is_ok_for_every_recorded_camera(built, scenario):
+    status = _status(built, scenario)
+    assert {c: v['state'] for c, v in status.items()} == {'LeftCam': 'ok', 'RightCam': 'ok'}
+    assert all(v['sessions'] >= 2 for v in status.values())
+
+
+def test_one_camera_bundle_says_the_other_camera_has_no_recorder_folder(built):
+    """The Tier 2 shape: one Pi, one camera. 'RightCam (no recording)' is accurate, and the status
+    says exactly why."""
+    status = _status(built, 'one-camera')
+    assert status['LeftCam']['state'] == 'ok' and status['LeftCam']['sessions'] == 2
+    assert status['RightCam']['state'] == 'no_folder'
+    assert 'no recorder folder named RightCam' in status['RightCam']['detail']
+    assert 'LeftCam' in status['RightCam']['detail']          # names the folders that do exist
+
+
+def test_name_mismatch_status_names_the_folders_that_were_found(built):
+    status = _status(built, 'name-mismatch')
+    assert {v['state'] for v in status.values()} == {'no_folder'}
+    assert 'Left' in status['LeftCam']['detail'] and 'Right' in status['LeftCam']['detail']
+
+
+def test_no_recording_status(built):
+    status = _status(built, 'no-recording')
+    assert {v['state'] for v in status.values()} == {'no_folder'}
+    assert 'no vision recordings' in status['LeftCam']['detail']
+
+
+def test_empty_sessions_only_status(built, tmp_path):
+    """A camera whose only sessions are empty reports 'empty', not a generic 'none'."""
+    bundle = build_bundle.build_bundle(tmp_path, 'empty-session', cycle_ms=250)
+    for plan, session in bundle.sessions_for('LeftCam'):
+        if plan.frame_times:
+            for f in session.glob('frame_*.jpg'):
+                f.unlink()
+            (session / 'manifest.jsonl').write_text('')
+    from vision_analyzer.parser import parse_wpilog as parse
+    status = _spec(bundle, parse(str(bundle.log_path))).static['vision_status']
+    assert status['LeftCam']['state'] == 'empty'
+    assert status['LeftCam']['empty_sessions'] == 3
+    assert status['RightCam']['state'] == 'ok'
+
+
+def test_each_cameras_frames_say_which_camera_they_are(built):
+    """Two feeds must be distinguishable in the video: the burned-in camera number differs."""
+    bundle, _ = built('clean')
+    numbers = {}
+    for plan, session in bundle.sessions:
+        if plan.frame_times:
+            first = sorted(session.glob('frame_*.jpg'))[0]
+            numbers[plan.camera] = frames.decode_frame_info(first.read_bytes())['camera_index']
+    assert numbers == {'LeftCam': 1, 'RightCam': 2}

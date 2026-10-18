@@ -146,6 +146,12 @@ def _two_boots(ctx: Context) -> List[SessionPlan]:
     return _clean(ctx, boot_of=lambda i: 23 + i)
 
 
+def _one_camera(ctx: Context) -> List[SessionPlan]:
+    """Only the first logged camera has a recorder (one Pi with one camera): the other logged cameras
+    have no recording folder at all. This is the shape of the Tier 2 laptop-sim run."""
+    return [p for p in _clean(ctx) if p.camera == ctx.cameras[0]]
+
+
 def _no_recording(ctx: Context) -> List[SessionPlan]:
     return []
 
@@ -169,6 +175,7 @@ SCENARIOS: Dict[str, Scenario] = {s.name: s for s in [
     Scenario('name-mismatch', 'Recording folder name differs from the log camera name (Right vs RightCam).',
              _name_mismatch),
     Scenario('two-boots', 'Auto and teleop come from different recorder boots.', _two_boots),
+    Scenario('one-camera', 'Only the first logged camera has a recording; the others have no folder.', _one_camera),
     Scenario('no-recording', 'A log with no .vision folder at all.', _no_recording, write_vision=False),
 ]}
 
@@ -294,7 +301,7 @@ def build_bundle(out_dir, scenario: str = 'clean', log_path=None, spans: Optiona
         rows = []
         for seq, t in enumerate(plan.frame_times):
             fname = 'frame_%.6f.jpg' % t
-            (session / fname).write_bytes(frame_gen.make_frame(t, mode_at(abs_spans, t), seq, plan.camera))
+            (session / fname).write_bytes(frame_gen.make_frame(t, mode_at(abs_spans, t), seq, plan.camera, cams.index(plan.camera) + 1))
             rows.append(_manifest_row(fname, t, wall(t)))
         (session / 'manifest.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in rows), encoding='utf-8')
         written.append((plan, session))

@@ -1843,3 +1843,33 @@ body {
   font-size: 11px;
   color: var(--muted);
 }
+
+.vision__summary {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.vision__summary-row {
+  padding: 2px 6px;
+  border-left: 2px solid transparent;
+}
+
+.vision__summary-row strong {
+  color: var(--text);
+  margin-right: 4px;
+}
+
+.vision__summary-row--current {
+  border-left-color: var(--accent);
+}
+
+.vision__summary-row--none {
+  color: #b7791f;
+}
+
+.vision__summary-row:not(.vision__summary-row--none) {
+  cursor: pointer;
+}

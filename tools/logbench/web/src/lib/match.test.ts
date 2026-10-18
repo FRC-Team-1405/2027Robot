@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchWindow, modeAt, nextSegment, segmentAt, videoTime } from './match';
+import { cameraOptionLabel, cameraSummaries, matchWindow, modeAt, nextSegment, segmentAt, videoTime } from './match';
 
 // The Q24 shape, absolute log seconds (spec.t0 = 1.6): disabled, auto, pause, teleop, disabled.
 const T0 = 1.6;
@@ -76,5 +76,38 @@ describe('video segments', () => {
   it('treats a segment end as exclusive', () => {
     expect(segmentAt(SEGS, 326.0)).toBeNull();
     expect(segmentAt(SEGS, 317.0)?.video).toBe('a.mp4');
+  });
+});
+
+describe('camera status text', () => {
+  const SEG = { video: 'a.mp4', t0: 1, t1: 2, session: 's' };
+  const STATUS = {
+    LeftCam: { state: 'ok', detail: '2 recording sessions', sessions: 2, empty_sessions: 0, folder: 'LeftCam' },
+    RightCam: {
+      state: 'no_folder',
+      detail: 'no recorder folder named RightCam in this bundle (folders found: LeftCam)',
+      sessions: 0,
+      empty_sessions: 0,
+      folder: null,
+    },
+  };
+
+  it('labels a camera without video with the reason, not just "no recording"', () => {
+    expect(cameraOptionLabel('LeftCam', STATUS.LeftCam, true)).toBe('LeftCam');
+    expect(cameraOptionLabel('RightCam', STATUS.RightCam, false)).toBe('RightCam (no recorder folder)');
+    expect(cameraOptionLabel('X', { ...STATUS.RightCam, state: 'empty' }, false)).toBe('X (only empty sessions)');
+    expect(cameraOptionLabel('Y', undefined, false)).toBe('Y (no recording)');
+  });
+
+  it('summarises every camera, with coverage when known', () => {
+    const rows = cameraSummaries(
+      ['LeftCam', 'RightCam'],
+      { LeftCam: [SEG, SEG] },
+      STATUS,
+      { LeftCam: { enabled_sec: 50, covered_sec: 49, fraction: 0.98 } },
+    );
+    expect(rows[0]).toEqual({ camera: 'LeftCam', ok: true, text: '2 sessions, 98% of enabled time' });
+    expect(rows[1].ok).toBe(false);
+    expect(rows[1].text).toContain('no recorder folder named RightCam');
   });
 });

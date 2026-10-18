@@ -33,6 +33,7 @@ real logs); within about 0.1 s (one frame) that is the playhead.
 | `empty-session` | clean, plus a post-match restart session whose manifest is empty |
 | `name-mismatch` | folder `Right` vs logged camera `RightCam` |
 | `two-boots` | auto and teleop from different boot ids |
+| `one-camera` | only the first logged camera has recordings; the second has no folder (the Tier 2 shape) |
 | `no-recording` | a log with no `.vision` folder |
 
 New scenarios are a function `Context -> [SessionPlan]` registered in `SCENARIOS`.
@@ -40,3 +41,15 @@ New scenarios are a function `Context -> [SessionPlan]` registered in `SCENARIOS
 `tests/test_vision_scenarios.py` pushes each scenario through bundles, pairing and the camera-health
 spec. Its second half is the contract for the dashboard data (all sessions per camera,
 mode windows, recording coverage, empty-session warning).
+
+## Checking the dashboard in a real browser
+
+`browser_check.js` is a console snippet for a LogBench page opened with `?debug=1`. It switches the
+camera dropdown, seeks to log times and reads the video back off the canvas: for testkit bundles it
+decodes the burned-in log time and **camera number** (so you can see each feed is the right one and
+in sync), and for any footage it reports the video URL and position against where the playhead says
+it should be. `await lbCheck.run([320, 345, 380])` does every camera at each time.
+
+`check_bundle.py <bundle>` is the same idea for the files on disk: per camera, sessions, frames,
+coverage of each enabled window, and plain-words problems (`--expect-cameras A,B` for a rig with
+fewer Pis than robot cameras).
