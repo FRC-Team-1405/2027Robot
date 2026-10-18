@@ -9,6 +9,10 @@ UNITS=(orangepi-nt-publisher.service)
 INSTALLED_RECORDERS=()
 SELECTED=()
 WORK_DIR=""
+# Opt-in non-interactive mode, used by Bootstrap-OrangePi.ps1 over SSH. Interactive runs are unchanged.
+# SETUP_UNATTENDED=1 SETUP_CHOICE=1|2|3 SETUP_BOARD_NAME=<name> SETUP_CAMERAS="a b"
+# SETUP_STREAMS="a=http://localhost:1181/stream.mjpg b=..." (name=url pairs, new cameras only)
+UNATTENDED=${SETUP_UNATTENDED:-0}
 
 usage() {
     cat <<'EOF'
@@ -65,6 +69,7 @@ die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 confirm() {
     local answer
+    [[ "$UNATTENDED" == 1 ]] && return 0
     read -r -p "$1 [y/N] " answer || return 1
     [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]
 }
@@ -138,8 +143,12 @@ configure_board() {
     fi
     echo 'Every board on the robot must have a DISTINCT NetworkTables name.'
     echo 'Examples only: LeftPi, RightPi, VisionFront, PracticePi. No board count is assumed.'
-    read -r -p "Board NT name (letters, digits, _ or -)${current:+ [$current]}: " name
-    name=${name:-$current}
+    if [[ "$UNATTENDED" == 1 ]]; then
+        name=${SETUP_BOARD_NAME:-$current}
+    else
+        read -r -p "Board NT name (letters, digits, _ or -)${current:+ [$current]}: " name
+        name=${name:-$current}
+    fi
     [[ "$name" =~ ^[A-Za-z0-9_-]+$ ]] || die 'A nonempty board name is required; use only letters, digits, _ or -.'
     sed '/^[[:space:]]*ORANGEPI_METRICS_NAME=/d' "$WORK_DIR/board.env" > "$WORK_DIR/board-updated.env"
     printf '\nORANGEPI_METRICS_NAME=%s\n' "$name" >> "$WORK_DIR/board-updated.env"
@@ -193,7 +202,12 @@ configure_camera() {
     else
         echo "Confirm the $camera camera RAW stream in PhotonVision's dashboard first."
         echo 'Use the RAW stream on THIS board; ports depend on its camera configuration.'
-        read -r -p "Confirmed raw MJPEG URL for $camera (no default; blank skips camera): " url
+        if [[ "$UNATTENDED" == 1 ]]; then
+            url=""
+            for pair in ${SETUP_STREAMS:-}; do [[ "${pair%%=*}" == "$camera" ]] && url=${pair#*=}; done
+        else
+            read -r -p "Confirmed raw MJPEG URL for $camera (no default; blank skips camera): " url
+        fi
         [[ -n "$url" ]] || { echo "Skipping $camera recorder."; return; }
         [[ "$url" =~ ^https?://[^[:space:]\"\'\\]+$ ]] || die 'Enter an HTTP(S) URL without spaces, quotes, or backslashes.'
         printf 'CAMERA_STREAM_URL=%s\nRECORDINGS_DIR=%s/vision-recordings\n' "$url" "$HOME" > "$WORK_DIR/$camera.env"
@@ -229,7 +243,7 @@ case "$MODE" in
     --logs) show_logs; exit 0 ;;
 esac
 
-[[ -t 0 ]] || die 'Installation is interactive; run in an SSH terminal. Use --status for diagnostics.'
+[[ "$UNATTENDED" == 1 || -t 0 ]] || die 'Installation is interactive; run in an SSH terminal. Use --status for diagnostics.'
 # These paths are rendered into ExecStart and EnvironmentFile values.
 [[ "$HOME" =~ ^/[a-zA-Z0-9_./-]+$ ]] || die 'Home path contains unsupported characters for generated systemd units.'
 command -v apt-get >/dev/null || die 'Installation requires a Debian/Ubuntu image with apt-get.'
@@ -241,12 +255,12 @@ done
 echo 'Orange Pi setup: team 1405; shared Python venv; systemd services.'
 echo "Login: $(id -un); home: $HOME; source: $SOURCE_DIR"
 echo '1) Metrics publisher  2) Camera recorders  3) Both  4) Quit'
-read -r -p 'Install which services? [3] ' choice
+if [[ "$UNATTENDED" == 1 ]]; then choice=${SETUP_CHOICE:-3}; else read -r -p 'Install which services? [3] ' choice; fi
 choice=${choice:-3}
 case "$choice" in 1|2|3) ;; 4) exit 0 ;; *) die 'Choose 1, 2, 3, or 4.' ;; esac
 confirm 'Install/update selected scripts and units, and restart selected services?' || exit 0
 PHASE='sudo access'
-sudo -v
+if [[ "$UNATTENDED" == 1 ]]; then sudo -n true || die 'Unattended mode needs passwordless sudo for pi.'; else sudo -v; fi
 WORK_DIR=$(mktemp -d)
 
 PHASE='board NetworkTables identity'
@@ -274,7 +288,7 @@ if [[ "$choice" == 2 || "$choice" == 3 ]]; then
     echo 'Choose only the camera instances hosted on THIS board.'
     echo "Existing installed recorder instances: ${INSTALLED_RECORDERS[*]:-(none)}"
     echo 'Examples: left  OR  right  OR  front rear  OR  left right. Blank skips recorders.'
-    read -r -a CAMERAS -p 'Camera instances to install/update (space separated): '
+    if [[ "$UNATTENDED" == 1 ]]; then read -r -a CAMERAS <<< "${SETUP_CAMERAS:-}"; else read -r -a CAMERAS -p 'Camera instances to install/update (space separated): '; fi
     for camera in "${CAMERAS[@]}"; do
         [[ "$camera" =~ ^[A-Za-z0-9_-]+$ ]] || die 'Camera instance names must contain only letters, digits, _ or -.'
     done

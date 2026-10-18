@@ -67,7 +67,34 @@ Left Cam live raw stream: http://photonvision.local:1183/stream.mjpg
 
 Re-verify if cameras are added/reordered, since PhotonVision assigns port pairs per camera index.
 
-**b. Confirm the `/FMSInfo` enabled-bit decoding.** With `./gradlew simulateJava` running and the Driver Station GUI open, use a throwaway NT4 client (or run the real script with extra print statements) to watch the `/FMSInfo/FMSControlData` topic while toggling Enabled/Disabled and Autonomous/Teleop in the DS GUI. The script assumes `enabled = bool(raw_value & 1)` per WPILib's standard `HAL_ControlWord` bit order — confirm this bit actually flips with Enabled before relying on it, since a wrong bit means the recorder either never runs or runs constantly. This only needs checking once — it's shared by both camera instances.
+**b. Confirm the `/FMSInfo` enabled-bit decoding.** *(Checked against WPILib 2026.2.1's source: `/FMSInfo/FMSControlData` is the raw HAL control word, bit 0 enabled, 1 autonomous, 2 test, 3 eStop, 4 fmsAttached, 5 dsAttached, so the decoding below is right. The live toggle check is still a worthwhile one-time sanity check on the real robot.)* With `./gradlew simulateJava` running and the Driver Station GUI open, use a throwaway NT4 client (or run the real script with extra print statements) to watch the `/FMSInfo/FMSControlData` topic while toggling Enabled/Disabled and Autonomous/Teleop in the DS GUI. The script assumes `enabled = bool(raw_value & 1)` per WPILib's standard `HAL_ControlWord` bit order — confirm this bit actually flips with Enabled before relying on it, since a wrong bit means the recorder either never runs or runs constantly. This only needs checking once — it's shared by both camera instances.
+
+## Verifying without a robot
+
+`coprocessor/sim/Run-SimulatedMatch.ps1` plays a full match (auto, pause, teleop) against the real
+service and PhotonVision stream with a fake roboRIO on the Pi, and checks sessions, timestamps,
+frame counts and frame freshness. See `coprocessor/sim/README.md`. Run it after any change to the
+recorder, and after setting up a new Pi (`coprocessor/Bootstrap-OrangePi.ps1` does the setup).
+
+## How the recorder behaves (worth knowing when reading recordings)
+
+- **Frames are fresh and stamped on arrival.** A background thread drains PhotonVision's stream
+  continuously and the sampler takes the newest frame, so `t_sec` is when PhotonVision sent it
+  (measured: median frame age under 20 ms). An earlier version read one frame per sample from a
+  ~100 fps stream and recorded frames that fell minutes behind real time by the end of a match.
+  A frame older than 2 s at write time (stream stalled) is skipped, not recorded.
+- **NT dropouts.** A dropout reads as "disabled". The recorder holds the session through a dropout
+  shorter than `NT_DROP_GRACE_SEC` (default 10 s) and ignores a stale "disabled" for 2 s after a
+  reconnect, so one continuous enabled period stays one session. A dropout longer than the grace
+  period ends the session. During a hold, `t_sec` keeps using the last known server clock offset.
+- **Auto and teleop are separate sessions** (the pause is a disable), but nothing in a recording
+  says which is which; infer it from order and time.
+- **Environment overrides** (in the instance's env file): `SAMPLE_HZ`, `MAX_STORAGE_BYTES`,
+  `NT_DROP_GRACE_SEC`, and `NT_SERVER` / `NT_PORT` (point at a non-roboRIO NT server, used by the
+  simulation).
+- The service runs as root, so recordings under `~/vision-recordings` are root-owned (readable by `pi`).
+- The drain thread reads the stream even while disabled: about 1.5% of one core measured with
+  PhotonVision's 320x240 stream at ~100 fps on an Orange Pi 5. Larger frames cost more.
 
 ## 2. Copy the script and unit file to the Pi
 

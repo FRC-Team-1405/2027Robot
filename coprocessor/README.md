@@ -5,6 +5,35 @@ systemd service. Full bench-verification/install walkthroughs live in
 `docs/orangepi-nt-publisher-setup.md` and `docs/orangepi-vision-recorder-setup.md` — this
 file is just "what's in this folder and why."
 
+## `Bootstrap-OrangePi.ps1` (runs on the LAPTOP, PowerShell)
+
+Not the same thing as `setup-orangepi.sh` below, which runs on the Pi. This is the one-time,
+guided setup of a **new** Pi from the Windows laptop. It explains each step, reports PASS / FAIL /
+"needs you", and is safe to re-run:
+
+```powershell
+cd coprocessor
+.\Bootstrap-OrangePi.ps1                    # fully interactive
+.\Bootstrap-OrangePi.ps1 -Address 192.168.137.241 -BoardName LeftPi -Cameras left
+```
+
+It finds the Pi (mDNS, the Internet-Connection-Sharing subnet, the bench address), creates and
+installs an SSH key (you type the Pi password into ssh itself; the script never sees it), offers
+passwordless sudo, checks the Pi (OS, Python, disk, internet), checks the camera is activated in
+PhotonVision and finds its raw stream port, checks PhotonVision's team number is 1405, copies the
+scripts, runs `setup-orangepi.sh` unattended and verifies the services. Things only a person can
+do (enable Internet Connection Sharing, press ACTIVATE on the camera in PhotonVision) stop the
+script with exact instructions. `Get-Help .\Bootstrap-OrangePi.ps1 -Full` lists the parameters.
+
+`setup-orangepi.sh` also has an opt-in unattended mode used by this script
+(`SETUP_UNATTENDED=1 SETUP_CHOICE SETUP_BOARD_NAME SETUP_CAMERAS SETUP_STREAMS`); without
+`SETUP_UNATTENDED` it behaves exactly as before.
+
+## `sim/` simulated match
+
+Verify the recorder end to end with no roboRIO: `sim\Run-SimulatedMatch.ps1` plays pre-match,
+auto, pause, teleop and post-match on a real Pi and checks the recordings. See `sim/README.md`.
+
 ## `setup-orangepi.sh`
 
 After copying this folder to the Pi, run the installer **on the Pi**, from your normal
