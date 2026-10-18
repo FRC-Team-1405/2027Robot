@@ -305,3 +305,40 @@ def test_a_real_preview_video_spans_the_sessions_recorded_time(built):
                          capture_output=True, text=True, check=True).stdout
     span = plan.frame_times[-1] - plan.frame_times[0]
     assert float(out) == pytest.approx(span + 1.0 / build_bundle.SAMPLE_HZ, abs=0.5)
+
+
+# ---- testkit/check_bundle.py: the plain-words report used on simulated and real bundles ---------------
+
+def _problems(bundle):
+    from testkit import check_bundle
+    return check_bundle.check(bundle.log_path, out=lambda *_a: None)
+
+
+def test_checker_passes_a_clean_bundle(built):
+    assert _problems(built('clean')[0]) == []
+
+
+def test_checker_passes_two_boots_and_nt_flap(built):
+    assert _problems(built('two-boots')[0]) == []
+    assert _problems(built('nt-flap')[0]) == []
+
+
+def test_checker_reports_missing_teleop_video(built):
+    problems = _problems(built('partial-auto-only')[0])
+    assert any('only 0% of teleop' in p for p in problems), problems
+
+
+def test_checker_reports_name_mismatch_and_empty_sessions_and_no_recording(built):
+    assert any('matches no logged camera' in p for p in _problems(built('name-mismatch')[0]))
+    assert any('no frames' in p for p in _problems(built('empty-session')[0]))
+    assert any('no vision recordings' in p for p in _problems(built('no-recording')[0]))
+
+
+@pytest.mark.skipif(shutil.which('ffmpeg') is None, reason='ffmpeg not on PATH')
+def test_preview_video_builds_when_the_session_path_is_relative(built, monkeypatch):
+    bundle, _ = built('clean')
+    plan, session = _with_frames(bundle, 'RightCam')[0]
+    (session / bundles.PREVIEW_NAME).unlink(missing_ok=True)
+    monkeypatch.chdir(session.parents[3])
+    mp4 = _REAL_PREVIEW(session.relative_to(session.parents[3]), camera='RightCam')
+    assert mp4.is_file() and mp4.stat().st_size > 0

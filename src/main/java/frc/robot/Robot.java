@@ -4,6 +4,10 @@
 
 package frc.robot;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+
 import com.ctre.phoenix6.HootAutoReplay;
 
 import edu.wpi.first.wpilibj.DataLogManager;
@@ -54,6 +58,15 @@ public class Robot extends LoggedRobot {
                 Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
             } else {
                 Logger.addDataReceiver(new NT4Publisher());
+                // Opt-in .wpilog from a laptop simulation (see frc.robot.sim.ScriptedMatch and
+                // coprocessor/sim/README.md). Named in UTC like a roboRIO log, because LogBench
+                // pairs a log with Pi recordings by the wall-clock time in its name.
+                String simLogDir = System.getenv("SIM_LOG_DIR");
+                if (simLogDir != null && !simLogDir.isBlank()) {
+                    String stamp = DateTimeFormatter.ofPattern("yy-MM-dd_HH-mm-ss").withZone(ZoneOffset.UTC)
+                            .format(Instant.now());
+                    Logger.addDataReceiver(new WPILOGWriter(simLogDir + "/akit_" + stamp + "_simmatch.wpilog"));
+                }
             }
         }
 
@@ -185,6 +198,7 @@ public class Robot extends LoggedRobot {
     @Override
     public void simulationPeriodic() {
         // IO sim classes manage their own physics — no global sim runner needed.
+        frc.robot.sim.ScriptedMatch.update(); // no-op unless SIM_MATCH_SCRIPT is set
     }
 
     public static double getAutonomousTimeLeft() {

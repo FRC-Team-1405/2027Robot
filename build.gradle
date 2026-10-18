@@ -95,7 +95,9 @@ test {
 // a hard error if the GUI or DriverStation extension is loaded during replay.
 // Skip them when AKIT_LOG_PATH is set (i.e. when simulateJava is being called
 // by replayWatch or directly for one-shot replay).
-if (System.getenv("AKIT_LOG_PATH") == null) {
+// SIM_HEADLESS skips them too, for a scripted match with nobody at the keyboard
+// (see coprocessor/sim/Run-SimRobotMatch.ps1 and frc.robot.sim.ScriptedMatch).
+if (System.getenv("AKIT_LOG_PATH") == null && System.getenv("SIM_HEADLESS") == null) {
     wpi.sim.addGui().defaultEnabled = true
     wpi.sim.addDriverstation()
 }

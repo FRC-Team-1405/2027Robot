@@ -43,6 +43,37 @@ Files here: `fake_robot.py` (fake roboRIO), `fake_mjpeg.py` (fake camera for pyt
 `frame_tap.py` (ground-truth frame arrival log, runs on the Pi), `verify_recordings.py` (the
 checks), `Run-SimulatedMatch.ps1` (orchestrates all of it against a real Pi).
 
+## Real robot code in simulation, real Pi, real LogBench bundle
+
+`Run-SimulatedMatch.ps1` uses a fake roboRIO and produces no AdvantageKit log. To test the whole
+path to the LogBench dashboard, run the **actual robot code** in `gradlew simulateJava` on the
+laptop and let the Pi record it:
+
+```powershell
+.\Run-SimRobotMatch.ps1 -Address <pi-ip> -KeyPath $HOME\.ssh\id_ed25519_claude
+# -Fast 4 to compress it, -Script 'disabled:5,auto:10,disabled:4,teleop:40,disabled:6' for a custom timeline,
+# -LogCamera RightCam to record as the other camera, -UseRealRecordings to write into ~/vision-recordings
+```
+
+Run it from your own PowerShell (Gradle needs normal sockets). What happens:
+
+1. A temporary systemd drop-in points the Pi's recorder at the laptop (`NT_SERVER`, port 5810) and names its recordings after the robot's camera (`-LogCamera`, default `LeftCam`), so LogBench matches folder to log.
+2. `frc.robot.sim.ScriptedMatch` (inert unless `SIM_MATCH_SCRIPT` is set) waits for the Pi to connect, then drives the simulated Driver Station through disabled, auto, pause, teleop, disabled with random stick input. `Robot` writes an AdvantageKit log named in UTC (`akit_<yy-MM-dd_HH-mm-ss>_simmatch.wpilog`) when `SIM_LOG_DIR` is set; `SIM_HEADLESS` skips the GUI.
+3. The Pi's sessions are copied to `<log>.vision\<LogCamera>\` beside the log, the service is restored (always), and `tools\logbench	estkit\check_bundle.py` reports coverage and problems.
+
+The log and the recordings share one NT clock and one wall clock, as on the real robot. The result
+is a folder you open with `python tools\logbench\server\main.py --logs <folder>`.
+
+Needs: inbound TCP 5810 allowed through Windows Firewall for the Java that simulateJava runs
+(WPILib 2026 JDK); an elevated `New-NetFirewallRule -DisplayName 'NT4 sim' -Direction Inbound
+-Protocol TCP -LocalPort 5810 -Action Allow` does it. `probe_sim_nt.py` connects to a running
+simulation the way the recorder does and confirms `/FMSInfo/FMSControlData` and
+`/RobotTime/WallClockMs` are published, without involving the Pi.
+
+Environment the simulation reads (all optional): `SIM_MATCH_SCRIPT`, `SIM_MATCH_FAST`,
+`SIM_MATCH_WAIT_CLIENTS`, `SIM_MATCH_SEED`, `SIM_MATCH_EXIT`, `SIM_LOG_DIR`, `SIM_HEADLESS`; see
+`ScriptedMatch.java`.
+
 ## Laptop only (everything local)
 
 ```bash

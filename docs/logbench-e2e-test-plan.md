@@ -4,6 +4,27 @@ Written 2026-10-18 for a fresh session to pick up on **this machine** (Windows 1
 `C:\Users\importsjc\robotics\2027Robot`). Read `CLAUDE.md` first (no AI attribution in commits/PRs;
 PowerShell is the scripting default; never push/PR unless asked).
 
+## 0. Status (updated 2026-10-18, branch `beta`)
+
+Done: **Tier 1** (`tools/logbench/testkit/`: bundle builder, 7 scenarios, `check_bundle.py`, tests in
+`tools/logbench/tests/test_vision_scenarios.py`); **LogBench fixes** (all sessions per camera, mode
+windows, match crop with a Match/Full log toggle, coverage and empty/partial warnings, video sync
+and ffmpeg 9 fixes; the burned-in frame time was checked against the playhead in the browser);
+`NT_DROP_GRACE_SEC` default raised to 45 s; **Tier 2** (`ScriptedMatch.java`,
+`coprocessor/sim/Run-SimRobotMatch.ps1`; verified end to end on the bench Pi: two sessions, 99%
+coverage of enabled time, no warnings). ffmpeg 9.0.2 is installed.
+
+Findings along the way: the dashboard video was offset by `spec.t0` (about 1.6 s on real logs);
+ffmpeg 9 removed `-vsync`, so no preview could be built; a relative `--logs` path doubled the
+frame paths in the concat list.
+
+Not done: Tier 3 (replay the golden log's DS spans and NT drops in `fake_robot.py`), docs
+(`docs/replay-workflow.md`), the question of committing a trimmed golden log, and the real-robot
+cause of the one-short-session-per-camera recordings (needs `ls` of a real Pi after a match, or a
+fetch of a log recorded with the new recorder). 5 `test_live_nt`/`test_main_live_endpoints`
+failures in `tools/logbench/tests` are stale tests from the camera-name default change in
+`live_nt.py` and predate this work.
+
 ## 1. Goal
 
 Be able to test, without a robot match and without fighting robot connection problems:

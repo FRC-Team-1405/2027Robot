@@ -127,7 +127,9 @@ def ensure_preview_video(session_dir, camera: str = '') -> pathlib.Path:
     unless its `file` line is repeated once more with no trailing duration. That repeated
     line is what actually makes the last frame hold for its intended time.
     """
-    session_dir = pathlib.Path(session_dir)
+    # Absolute, because the concat list names frames by path and ffmpeg resolves a relative one
+    # against the list's own folder -- so a relative --logs directory doubled the path.
+    session_dir = pathlib.Path(session_dir).resolve()
     manifest_path = session_dir / MANIFEST_NAME
     preview_path = session_dir / PREVIEW_NAME
 
