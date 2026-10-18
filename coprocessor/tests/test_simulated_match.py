@@ -5,6 +5,7 @@ camera; the real recorder script runs as a subprocess pointed at both (NT_SERVER
 NT_PORT / CAMERA_STREAM_URL). Needs pyntcore; skipped with a reason if it is missing.
 Runs with either `python -m pytest coprocessor/tests -q` or `python -m unittest`.
 """
+import contextlib
 import importlib.util
 import io
 import json
@@ -376,13 +377,14 @@ class RecorderConfigTests(unittest.TestCase):
         class Stop(BaseException):
             pass
 
+        stderr = io.StringIO()  # the recorder logs through a console handler bound to stderr
         with patch.dict(sys.modules, ntcore=fake_nt), \
              patch.object(module, "next_boot_id", return_value=1), \
              patch.object(module, "MjpegFrameReader", side_effect=Stop), \
-             patch("builtins.print") as printed:
+             contextlib.redirect_stderr(stderr):
             with self.assertRaises(Stop):
                 module.main()
-        return instance, "\n".join(str(c.args[0]) for c in printed.call_args_list if c.args)
+        return instance, stderr.getvalue()
 
     def test_unset_nt_server_still_targets_team_1405(self):
         instance, out = self.run_main({})

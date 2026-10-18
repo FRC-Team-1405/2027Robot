@@ -13,6 +13,10 @@ NT-server-synced timestamps (same clock domain as .wpilog files) into a
 per-session directory under RECORDINGS_DIR. Total storage is capped at
 MAX_STORAGE_BYTES by deleting the oldest whole sessions.
 
+Each manifest row also includes a real UTC receipt date/time derived from the
+robot's WallClockMs publication and its atomic NT server timestamp. Missing or
+stale clock correlation is recorded explicitly as null, never a guessed Pi date.
+
 Run one service instance per camera hosted on a board, on any number of
 Orange Pis. Each instance has its own CAMERA_STREAM_URL. Set CAMERA_NAME
 (env var) to namespace this instance's sessions under
@@ -53,16 +57,21 @@ and docs/orangepi-vision-recorder-setup.md).
 """
 
 import json
+import collections
+import logging
+from logging.handlers import RotatingFileHandler
 import os
 import shutil
 import socket
 import threading
 import time
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
+RECORDER_VERSION = "2026.10.18.1"
+MAX_WALL_CLOCK_AGE_SEC = 5.0
 
 
 def _env_number(name, default, cast, minimum_exclusive=0):
@@ -134,6 +143,52 @@ JPEG_SOI = b"\xff\xd8"
 JPEG_EOI = b"\xff\xd9"
 
 
+class RecorderDiagnostics(logging.Handler):
+    """Keep startup context, then mirror diagnostics into the selected session.
+
+    Leave the file attached while disabled so a missing next enable is diagnosable.
+    Both memory and disk history are bounded; no journal permissions are required.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.recent = collections.deque(maxlen=100)
+        self.file_handler = None
+        self.log = logging.Logger("vision-recorder", level=logging.INFO)
+        self.formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        console = logging.StreamHandler()
+        console.setFormatter(self.formatter)
+        self.log.addHandler(console)
+        self.log.addHandler(self)
+
+    def emit(self, record):
+        self.recent.append(record)
+        if self.file_handler is not None:
+            self.file_handler.handle(record)
+
+    def start_session(self, session_dir):
+        handler = RotatingFileHandler(
+            os.path.join(session_dir, "recorder.log"), maxBytes=1024 * 1024,
+            backupCount=1, encoding="utf-8")
+        handler.setFormatter(self.formatter)
+        if self.file_handler is not None:
+            self.file_handler.close()
+        self.file_handler = handler
+        for record in self.recent:
+            handler.handle(record)
+
+    def detach(self):
+        """Release the session log file (history stays in memory for the next session). Needed
+        before the storage cap deletes old sessions: a held-open file blocks deletion on Windows."""
+        if self.file_handler is not None:
+            self.file_handler.close()
+            self.file_handler = None
+
+    def close(self):
+        self.detach()
+        super().close()
+
+
 def is_enabled(control_word_entry):
     """Decode the roboRIO's control word. Returns False if not yet connected."""
     raw = control_word_entry.get(0)
@@ -155,6 +210,39 @@ def server_time_sec(inst):
     if offset_us is not None:
         _last_server_offset_us = offset_us
     return (ntcore._now() + _last_server_offset_us) / 1_000_000.0
+
+
+def frame_manifest_row(filename, t_sec, inst, robot_time_entry):
+    """Map a received frame's NT time to a real UTC date/time.
+
+    getAtomic() pairs the robot's epoch milliseconds with that publication's
+    server timestamp, so transport delay and an incorrect Pi clock do not shift
+    the result. This is receipt time, not camera exposure time. Missing/stale
+    clock data is explicit rather than replaced with the Pi's unreliable RTC.
+    """
+    row = {"frame": filename, "t_sec": t_sec, "timestamp_utc": None,
+           "timestamp_unix_ms": None, "timestamp_source": None,
+           "timestamp_basis": "recorder_receive", "timestamp_status": "unavailable"}
+    if not inst.isConnected():
+        row["timestamp_status"] = "nt_disconnected"
+        return row
+    if inst.getServerTimeOffset() is None:
+        row["timestamp_status"] = "nt_clock_unsynced"
+        return row
+    sample = robot_time_entry.getAtomic()
+    if sample.value <= 0 or sample.serverTime <= 1:
+        row["timestamp_status"] = "robot_clock_unavailable"
+        return row
+    age_sec = t_sec - sample.serverTime / 1_000_000.0
+    if abs(age_sec) > MAX_WALL_CLOCK_AGE_SEC:
+        row["timestamp_status"] = "robot_clock_stale"
+        return row
+    epoch_ms = sample.value + round(age_sec * 1000)
+    row.update(timestamp_unix_ms=epoch_ms,
+               timestamp_utc=datetime.fromtimestamp(epoch_ms / 1000, timezone.utc)
+                   .isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+               timestamp_source="roborio_wall_clock", timestamp_status="synced")
+    return row
 
 
 class MjpegFrameReader:
@@ -218,9 +306,10 @@ class LatestFrameReader:
     fresh at all times, including right after a disabled gap, and stamping it on arrival gives
     the recorded t_sec the true capture time rather than the time we got around to reading it."""
 
-    def __init__(self, reader, inst):
+    def __init__(self, reader, inst, log=None):
         self._reader = reader
         self._inst = inst
+        self._log = log
         self._lock = threading.Lock()
         self._latest = None  # (jpeg bytes, arrival t_sec, sequence number)
         self._seq = 0
@@ -242,7 +331,10 @@ class LatestFrameReader:
             except Exception as e:
                 if not self._stop.is_set() and time.monotonic() - self._last_error_print > 30.0:
                     self._last_error_print = time.monotonic()
-                    print(f"Stream error (will keep retrying): {e}")
+                    if self._log is not None:  # lands in the session's recorder.log
+                        self._log.error("Stream error (will keep retrying): %s", e, exc_info=True)
+                    else:
+                        print(f"Stream error (will keep retrying): {e}")
                 self._reader.close()
                 self._stop.wait(1.0)
 
@@ -361,13 +453,19 @@ def main():
 
     boot_id = next_boot_id(RECORDINGS_BASE)
 
+    diagnostics = RecorderDiagnostics()
+    log = diagnostics.log
     cam_note = f" [camera {CAMERA_NAME}]" if CAMERA_NAME else ""
     target = server_desc or f"roboRIO (team {TEAM_NUMBER})"
-    print(f"Connecting to {target}…{cam_note} [boot {boot_id}, local clock reads {time.strftime('%Y-%m-%d %H:%M:%S')}]")
+    context = (f"version={RECORDER_VERSION} board={BOARD_NAME} camera={CAMERA_NAME or 'default'} "
+               f"boot={boot_id} team={TEAM_NUMBER} stream={CAMERA_STREAM_URL} sample_hz={SAMPLE_HZ}")
+    log.info("Recorder started: %s", context)
+    log.info("Connecting to %s%s [boot %s, local clock reads %s]", target, cam_note, boot_id,
+             time.strftime("%Y-%m-%d %H:%M:%S"))
 
     reader = MjpegFrameReader(CAMERA_STREAM_URL)
-    frames = LatestFrameReader(reader, inst)
-    frames.start()
+    frame_source = LatestFrameReader(reader, inst, log)
+    frame_source.start()
     period_s = 1.0 / SAMPLE_HZ
 
     session_dir = None
@@ -378,6 +476,10 @@ def main():
     ever_connected = False
     last_seq = 0
     stats = {"age_ms": [], "stale": 0, "nonew": 0}
+    frames = 0
+    errors = 0
+    last_state = None
+    last_status = float('-inf')
 
     try:
         while True:
@@ -386,44 +488,64 @@ def main():
                 if inst.isConnected():
                     enabled = is_enabled(control_word_entry)
                     if disconnected_since is not None and ever_connected:
-                        print(f"NT reconnected after {time.monotonic() - disconnected_since:.1f}s")
+                        log.info("NT reconnected after %.1fs", time.monotonic() - disconnected_since)
                         reconnected_at = time.monotonic()
                     elif not ever_connected:
-                        print("NT connected")
+                        log.info("NT connected")
                     ever_connected = True
                     disconnected_since = None
-                    if was_enabled and not enabled and reconnected_at is not None                             and time.monotonic() - reconnected_at < NT_SETTLE_SEC:
+                    if (was_enabled and not enabled and reconnected_at is not None
+                            and time.monotonic() - reconnected_at < NT_SETTLE_SEC):
                         enabled = True  # stale 0 right after a reconnect, not a real disable
                 else:
                     # An NT dropout reads as control word 0 == "disabled"; hold the session through a short one.
                     if disconnected_since is None:
                         disconnected_since = time.monotonic()
                         if was_enabled:
-                            print(f"NT connection lost while enabled - holding the session up to {NT_DROP_GRACE_SEC:g}s")
+                            log.warning("NT connection lost while enabled - holding the session up to %gs",
+                                        NT_DROP_GRACE_SEC)
                     enabled = was_enabled and time.monotonic() - disconnected_since <= NT_DROP_GRACE_SEC
                     if was_enabled and not enabled:
-                        print(f"NT NOT connected for over {NT_DROP_GRACE_SEC:g}s - treating the robot as disabled")
+                        log.warning("NT NOT connected for over %gs - treating the robot as disabled",
+                                    NT_DROP_GRACE_SEC)
+
+                state = (inst.isConnected(), int(control_word_entry.get(0)), enabled)
+                if state != last_state:
+                    log.info("Robot state: nt_connected=%s control_word=%s enabled=%s", *state)
+                    last_state = state
+                if loop_start - last_status >= 10.0:
+                    log.info("Status: nt_connected=%s control_word=%s enabled=%s frames=%d errors=%d "
+                             "nt_time=%.6f clock_synced=%s", *state, frames, errors,
+                             server_time_sec(inst), inst.getServerTimeOffset() is not None)
+                    last_status = loop_start
 
                 if enabled and not was_enabled:
                     offset_sec = robot_clock_offset_sec(robot_time_entry)
+                    diagnostics.detach()
                     enforce_storage_cap(RECORDINGS_BASE, MAX_STORAGE_BYTES)
                     session_dir = new_session_dir(RECORDINGS_BASE, boot_id, offset_sec)
+                    try:
+                        diagnostics.start_session(session_dir)
+                    except OSError:
+                        log.exception("Could not open session diagnostics in %s", session_dir)
                     manifest = open(os.path.join(session_dir, "manifest.jsonl"), "a")
+                    frames = errors = 0
                     sync_note = f"synced to roboRIO, offset {offset_sec:+.1f}s" if offset_sec is not None \
                         else "NOT synced to roboRIO — using Pi's own possibly-stale clock"
                     stats = {"age_ms": [], "stale": 0, "nonew": 0}
-                    print(f"Enabled — starting session {session_dir} ({sync_note})")
+                    log.info("Enabled — starting session %s (%s); %s", session_dir, sync_note, context)
                 elif not enabled and was_enabled:
                     if manifest:
                         manifest.close()
                     manifest = None
                     nt_note = "NT connected" if inst.isConnected() else "NT NOT connected"
-                    print(f"Disabled — session ended ({nt_note}); {_session_summary(stats)}")
+                    log.info("Disabled — session ended (%s): frames=%d errors=%d; %s",
+                             nt_note, frames, errors, _session_summary(stats))
 
                 was_enabled = enabled
 
                 if enabled and session_dir:
-                    latest = frames.latest()
+                    latest = frame_source.latest()
                     if latest is None or latest[2] == last_seq:
                         stats["nonew"] += 1
                     else:
@@ -433,21 +555,26 @@ def main():
                             stats["stale"] += 1  # stream stalled; never record an old frame as if it were current
                         else:
                             filename = f"frame_{t_sec:.6f}.jpg"
+                            row = frame_manifest_row(filename, t_sec, inst, robot_time_entry)
                             with open(os.path.join(session_dir, filename), "wb") as f:
                                 f.write(frame)
-                            manifest.write(json.dumps({"frame": filename, "t_sec": t_sec}) + "\n")
+                            manifest.write(json.dumps(row) + "\n")
                             manifest.flush()
+                            frames += 1
                             stats["age_ms"].append(age_sec * 1000.0)
 
-            except Exception as e:
-                print(f"Recorder error: {e}")
+            except Exception:
+                errors += 1
+                log.exception("Recorder error: frames=%d errors=%d", frames, errors)
 
             elapsed = time.monotonic() - loop_start
             time.sleep(max(0.0, period_s - elapsed))
     finally:
+        log.info("Recorder stopping: frames=%d errors=%d", frames, errors)
         if manifest:
             manifest.close()
-        frames.close()
+        frame_source.close()
+        diagnostics.close()
 
 
 if __name__ == "__main__":
