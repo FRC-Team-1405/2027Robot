@@ -119,8 +119,10 @@ MAX_STORAGE_BYTES = _env_number("MAX_STORAGE_BYTES", 5 * 1024 * 1024 * 1024, int
 MAX_FRAME_AGE_SEC = 2.0
 # A robot that loses comms is disabled by the field, but a mere NT dropout (Pi's link, roboRIO code
 # restart) reads as control word 0 == "disabled". Hold the current session through a dropout this
-# long instead of ending it, so one continuous enabled period stays one session.
-NT_DROP_GRACE_SEC = _env_number("NT_DROP_GRACE_SEC", 10.0, float)
+# long instead of ending it, so one continuous enabled period stays one session. 45 s because
+# field logs (Ruckus 2026 Q24) show recorder clients dropping for ~21 s repeatedly through teleop;
+# the previous 10 s default cut each of those into a separate session.
+NT_DROP_GRACE_SEC = _env_number("NT_DROP_GRACE_SEC", 45.0, float)
 # Right after a reconnect the control-word entry can read 0 until the server republishes it (a
 # roboRIO restarting its code does this). Ignore "disabled" for this long after a reconnect that
 # interrupted an enabled session.

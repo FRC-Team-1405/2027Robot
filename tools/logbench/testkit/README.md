@@ -28,7 +28,7 @@ real logs); within about 0.1 s (one frame) that is the playhead.
 | Scenario | Shape |
 |---|---|
 | `clean` | one session per enabled window (auto, teleop) per camera |
-| `nt-flap` | ~21 s NT dropouts cut teleop into several sessions (the recorder's hold is 10 s) |
+| `nt-flap` | ~21 s NT dropouts cut teleop into several sessions (modelled on the legacy 10 s hold the field recordings were made with; the default is now 45 s) |
 | `partial-auto-only` | a few seconds around auto only, nothing in teleop (the real Q24 shape) |
 | `empty-session` | clean, plus a post-match restart session whose manifest is empty |
 | `name-mismatch` | folder `Right` vs logged camera `RightCam` |

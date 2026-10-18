@@ -84,7 +84,7 @@ recorder, and after setting up a new Pi (`coprocessor/Bootstrap-OrangePi.ps1` do
   ~100 fps stream and recorded frames that fell minutes behind real time by the end of a match.
   A frame older than 2 s at write time (stream stalled) is skipped, not recorded.
 - **NT dropouts.** A dropout reads as "disabled". The recorder holds the session through a dropout
-  shorter than `NT_DROP_GRACE_SEC` (default 10 s) and ignores a stale "disabled" for 2 s after a
+  shorter than `NT_DROP_GRACE_SEC` (default 45 s; field logs show ~21 s dropouts repeating through teleop) and ignores a stale "disabled" for 2 s after a
   reconnect, so one continuous enabled period stays one session. A dropout longer than the grace
   period ends the session. During a hold, `t_sec` keeps using the last known server clock offset.
 - **Auto and teleop are separate sessions** (the pause is a disable), but nothing in a recording

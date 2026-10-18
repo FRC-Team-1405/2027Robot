@@ -160,6 +160,16 @@ def test_nt_flap_cuts_teleop_into_several_sessions_and_clean_does_not(built):
     assert any(gap > 10 for gap in gaps)
 
 
+def test_testkit_models_the_recorders_current_default_hold():
+    """Drift guard: the kit's NT_DROP_GRACE_SEC must be the recorder's own default."""
+    import importlib.util
+    script = pathlib.Path(__file__).resolve().parents[3] / 'coprocessor' / 'orangepi-vision-recorder.py'
+    spec = importlib.util.spec_from_file_location('recorder_under_test', script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert build_bundle.NT_DROP_GRACE_SEC == module.NT_DROP_GRACE_SEC == 45.0
+
+
 def test_partial_auto_only_matches_the_real_q24_shape(built):
     bundle, _ = built('partial-auto-only')
     [(plan, _d)] = bundle.sessions_for('LeftCam')

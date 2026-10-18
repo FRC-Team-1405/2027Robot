@@ -42,7 +42,8 @@ from testkit import synth_log  # noqa: E402
 PI_SESSION_TZ = ZoneInfo('America/New_York')      # the recorder's DISPLAY_TZ
 DEFAULT_LOG_START = dt.datetime(2026, 10, 17, 17, 21, 3, tzinfo=dt.timezone.utc)
 SAMPLE_HZ = 3.0                                    # the recorder's default
-NT_DROP_GRACE_SEC = 10.0                           # the recorder's default hold through an NT dropout
+NT_DROP_GRACE_SEC = 45.0                           # the recorder's default hold through an NT dropout
+LEGACY_NT_GRACE_SEC = 10.0                         # the default before 2026-10-18: what every recording in the field was made with
 _AKIT_NAME = re.compile(r'^akit_(\d\d)-(\d\d)-(\d\d)_(\d\d)-(\d\d)-(\d\d)')
 
 Span = Tuple[str, float, float]   # (mode, abs_start, abs_end) in the log's timebase
@@ -96,7 +97,9 @@ FLAP_OUTAGES = [(11.0, 21.0), (55.0, 21.0), (100.0, 21.0)]
 def _nt_flap(ctx: Context) -> List[SessionPlan]:
     """What the recorder does under repeated NT dropouts: it holds a session through an outage up
     to `grace` seconds, so an outage longer than that ends the session and the reconnect opens a
-    new one (same boot id, new folder). Frames keep arriving until the hold expires."""
+    new one (same boot id, new folder). Frames keep arriving until the hold expires. This scenario
+    is pinned to the legacy 10 s hold, which is what the recordings made so far have; with today's
+    45 s hold the ~21 s outages would not cut a session at all."""
     plans = []
     for cam in ctx.cameras:
         for _mode, start, end in ctx.enabled:
@@ -153,11 +156,13 @@ class Scenario:
     description: str
     plan: Callable[[Context], List[SessionPlan]]
     write_vision: bool = True
+    grace: Optional[float] = None     # overrides the hold the recorder is modelled with
 
 
 SCENARIOS: Dict[str, Scenario] = {s.name: s for s in [
     Scenario('clean', 'One session per enabled window (auto, teleop), frames at 3 Hz through each.', _clean),
-    Scenario('nt-flap', 'Repeated ~21 s NT dropouts: teleop is cut into several sessions.', _nt_flap),
+    Scenario('nt-flap', 'Repeated ~21 s NT dropouts cut teleop into several sessions (recorder with the legacy 10 s hold).',
+             _nt_flap, grace=LEGACY_NT_GRACE_SEC),
     Scenario('partial-auto-only', 'Only a few seconds around auto recorded; no teleop (the real Q24 shape).',
              _partial_auto_only),
     Scenario('empty-session', 'Clean, plus a post-match restart session with an empty manifest.', _empty_session),
@@ -262,7 +267,7 @@ def build_bundle(out_dir, scenario: str = 'clean', log_path=None, spans: Optiona
         raise SystemExit('no cameras found in the log; pass --cameras')
 
     spec = SCENARIOS[scenario]
-    plans = spec.plan(Context(abs_spans, cams, hz, grace))
+    plans = spec.plan(Context(abs_spans, cams, hz, grace if spec.grace is None else spec.grace))
     vision_dir = out / (log_dest.stem + '.vision') if spec.write_vision else None
     if vision_dir is not None:
         if vision_dir.exists():

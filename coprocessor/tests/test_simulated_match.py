@@ -403,6 +403,11 @@ class RecorderConfigTests(unittest.TestCase):
         instance.setServer.assert_called_once_with("localhost", 0)
         self.assertIn("localhost:5810", out)
 
+    def test_nt_drop_grace_defaults_to_45s_and_is_overridable(self):
+        # Field logs show ~21 s NT dropouts repeating through teleop; 10 s cut each into a session.
+        self.assertEqual(load_recorder({"NT_DROP_GRACE_SEC": ""}).NT_DROP_GRACE_SEC, 45.0)
+        self.assertEqual(load_recorder({"NT_DROP_GRACE_SEC": "0.4"}).NT_DROP_GRACE_SEC, 0.4)
+
     def test_numeric_env_overrides_and_validation(self):
         module = load_recorder({"SAMPLE_HZ": "7.5", "MAX_STORAGE_BYTES": "12345"})
         self.assertEqual((module.SAMPLE_HZ, module.MAX_STORAGE_BYTES), (7.5, 12345))
