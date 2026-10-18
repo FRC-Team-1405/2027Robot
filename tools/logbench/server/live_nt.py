@@ -48,6 +48,9 @@ _channels: Dict[str, _Channel] = {}
 _cameras: Tuple[str, ...] = DEFAULT_CAMERAS
 _conn_listener_handle = None
 _conn_events: collections.deque = collections.deque(maxlen=100)
+_multi = None            # subscribes to every topic under the prefixes the health checks read
+_entries: Dict[str, object] = {}
+HEALTH_EXTRA_ROOTS = ('OrangePi',)   # tables outside the AdvantageKit root that checks read
 
 
 def _import_ntcore():
@@ -77,7 +80,7 @@ def connect(server: str, root_table: str = DEFAULT_ROOT_TABLE,
     """(Re)connect the NT4 client. No-op if already connected with the same settings."""
     ntcore = _ntcore or _import_ntcore()
 
-    global _inst, _params, _channels, _cameras, _conn_listener_handle
+    global _inst, _params, _channels, _cameras, _conn_listener_handle, _multi
     with _lock:
         params = (server.strip(), root_table.strip('/'))
         if _inst is not None and params == _params:
@@ -112,9 +115,12 @@ def connect(server: str, root_table: str = DEFAULT_ROOT_TABLE,
         for camera in cameras:
             base = f'/{root}/Vision/{camera}'
             health_base = f'/{root}/RealOutputs/Vision/{camera}/Health'
-            _sub(f'{camera}/connected', 'getBooleanTopic', f'{base}/connected', False)
-            _sub(f'{camera}/current_fps', 'getDoubleTopic', f'{base}/currentFps', 0.0)
-            _sub(f'{camera}/visible_tag_ids', 'getIntegerArrayTopic', f'{base}/visibleTagIds', [])
+            # AdvantageKit names these after the Java field with the first letter capitalised
+            # (Vision/LeftCam/Connected in every log). The lower-case spelling this used before never
+            # matched, so the camera dot, fps and tag list on the page were always empty.
+            _sub(f'{camera}/connected', 'getBooleanTopic', f'{base}/Connected', False)
+            _sub(f'{camera}/current_fps', 'getDoubleTopic', f'{base}/CurrentFps', 0.0)
+            _sub(f'{camera}/visible_tag_ids', 'getIntegerArrayTopic', f'{base}/VisibleTagIds', [])
 
             _sub(f'{camera}/health_score', 'getDoubleTopic', f'{health_base}/ScorePercent', float('nan'))
             _sub(f'{camera}/health_reason', 'getStringTopic', f'{health_base}/Reason', '')
@@ -138,6 +144,15 @@ def connect(server: str, root_table: str = DEFAULT_ROOT_TABLE,
 
         log.info('Subscribed to %d topics under root %r', len(channels), root)
 
+        # Everything under the AdvantageKit root and the Orange Pi tables, for the Health Check page.
+        prefixes = [f'/{root}/'] + [f'/{r}/' for r in HEALTH_EXTRA_ROOTS]
+        _entries.clear()
+        try:
+            _multi = ntcore.MultiSubscriber(inst, prefixes)
+        except Exception:
+            log.exception('Could not subscribe to %s; Health Check will see only the vision topics', prefixes)
+            _multi = None
+
         _inst = inst
         _params = params
         _channels = channels
@@ -145,7 +160,14 @@ def connect(server: str, root_table: str = DEFAULT_ROOT_TABLE,
 
 
 def _teardown() -> None:
-    global _inst, _params, _channels, _conn_listener_handle
+    global _inst, _params, _channels, _conn_listener_handle, _multi
+    if _multi is not None:
+        try:
+            _multi.close()
+        except Exception:
+            log.exception('Error closing the health subscriber')
+        _multi = None
+    _entries.clear()
     if _inst is not None:
         if _conn_listener_handle is not None:
             try:
@@ -240,3 +262,33 @@ def topic_diagnostics() -> List[dict]:
             'age_sec': round((now - last_change) / 1e6, 1) if last_change > 0 else None,
         })
     return rows
+
+
+# ── Health Check snapshot ────────────────────────────────────────────────────────────────
+
+def health_snapshot(_ntcore=None) -> Dict[str, Tuple[object, Optional[float]]]:
+    """Every topic under the AdvantageKit root and the Orange Pi tables as
+    {key: (latest value, seconds since it last updated)}. Keys drop the AdvantageKit root and the
+    leading slash (so 'SystemStats/CANBus/Utilization', 'RealOutputs/Vision/...',
+    'OrangePi/LeftPi/CPU_Pct') -- the same names a log uses. {} when not connected."""
+    if _inst is None or _params is None:
+        return {}
+    ntcore = _ntcore or _import_ntcore()
+    root = _params[1]
+    root_prefix = f'/{root}/'
+    now = ntcore._now()
+    out: Dict[str, Tuple[object, Optional[float]]] = {}
+    for prefix in [root_prefix] + [f'/{r}/' for r in HEALTH_EXTRA_ROOTS]:
+        for topic in _inst.getTopics(prefix):
+            name = topic.getName()
+            entry = _entries.get(name)
+            if entry is None:
+                entry = _entries[name] = _inst.getEntry(name)
+            value = entry.getValue()
+            if not value.isValid():
+                continue
+            stamp = value.time()
+            age = max(0.0, (now - stamp) / 1e6) if stamp else None
+            key = name[len(root_prefix):] if name.startswith(root_prefix) else name.lstrip('/')
+            out[key] = (value.value(), age)
+    return out

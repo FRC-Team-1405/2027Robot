@@ -81,12 +81,56 @@ class FakeInst:
     def getIntegerArrayTopic(self, path):
         return self._topic(path, [])
 
+    # Generic access, for the Health Check snapshot.
+    def getTopics(self, prefix):
+        return [types.SimpleNamespace(getName=lambda n=n: n) for n in sorted(self.generic) if n.startswith(prefix)]
+
+    def getEntry(self, name):
+        self.entry_requests = getattr(self, 'entry_requests', 0) + 1
+        return FakeEntry(self.generic[name])
+
+    generic = {}
+
+
+class FakeValue:
+    def __init__(self, value, stamp):
+        self._value, self._stamp = value, stamp
+
+    def isValid(self):
+        return self._value is not None
+
+    def value(self):
+        return self._value
+
+    def time(self):
+        return self._stamp
+
+
+class FakeEntry:
+    def __init__(self, value):
+        self._v = value
+
+    def getValue(self):
+        return FakeValue(*self._v)
+
+
+class FakeMulti:
+    closed = False
+
+    def __init__(self, inst, prefixes):
+        self.prefixes = list(prefixes)
+        FakeMulti.last = self
+
+    def close(self):
+        FakeMulti.closed = True
+
 
 def _fake_ntcore(inst: FakeInst):
     return types.SimpleNamespace(
         NetworkTableInstance=types.SimpleNamespace(getDefault=lambda: inst),
         EventFlags=types.SimpleNamespace(kConnected=1),
-        _now=lambda: 2,
+        MultiSubscriber=FakeMulti,
+        _now=lambda: 10_000_000,
     )
 
 
@@ -106,7 +150,7 @@ def test_read_returns_empty_before_connecting():
 
 def test_connect_then_read_relays_the_robots_own_score():
     inst = FakeInst()
-    live_nt.connect('10.14.5.2', _ntcore=_fake_ntcore(inst))
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=_fake_ntcore(inst))
     _set(inst, 'Left', 'ScorePercent', 87.5)
     snapshot = live_nt.read()
     assert snapshot['nt_connected'] is True
@@ -115,7 +159,7 @@ def test_connect_then_read_relays_the_robots_own_score():
 
 def test_motion_score_is_computed_from_the_live_factor_percentages():
     inst = FakeInst()
-    live_nt.connect('10.14.5.2', _ntcore=_fake_ntcore(inst))
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=_fake_ntcore(inst))
     for suffix in ('AreaPercent', 'AmbiguityPercent', 'FpsPercent',
                    'AcceptanceRateFactorPercent', 'LatencyPercent', 'MultiTagRatioPercent'):
         _set(inst, 'Left', suffix, 100.0)
@@ -127,7 +171,7 @@ def test_motion_score_is_computed_from_the_live_factor_percentages():
 
 def test_motion_score_is_none_when_a_dependency_is_nan():
     inst = FakeInst()
-    live_nt.connect('10.14.5.2', _ntcore=_fake_ntcore(inst))
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=_fake_ntcore(inst))
     _set(inst, 'Left', 'AreaPercent', float('nan'))
     snapshot = live_nt.read()
     assert snapshot['cameras']['Left']['motion_score'] is None
@@ -136,14 +180,76 @@ def test_motion_score_is_none_when_a_dependency_is_nan():
 def test_connect_is_a_no_op_with_unchanged_settings():
     inst = FakeInst()
     ntcore = _fake_ntcore(inst)
-    live_nt.connect('10.14.5.2', _ntcore=ntcore)
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=ntcore)
     _set(inst, 'Left', 'ScorePercent', 42.0)
-    live_nt.connect('10.14.5.2', _ntcore=ntcore)  # same params -- must not re-subscribe
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=ntcore)  # same params -- must not re-subscribe
     assert live_nt.read()['cameras']['Left']['health_score'] == 42.0
 
 
 def test_disconnect_makes_read_return_empty_again():
     inst = FakeInst()
-    live_nt.connect('10.14.5.2', _ntcore=_fake_ntcore(inst))
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=_fake_ntcore(inst))
     live_nt.disconnect()
     assert live_nt.read() == {}
+
+
+# ---- Health Check snapshot ------------------------------------------------------------------------------
+
+def _snapshot_inst():
+    inst = FakeInst()
+    inst.generic = {
+        '/AdvantageKit/SystemStats/CANBus/Utilization': (0.31, 9_000_000),
+        '/AdvantageKit/RealOutputs/Vision/Left/Health/ScorePercent': (80.0, 9_900_000),
+        '/AdvantageKit/DriverStation/Enabled': (True, 9_999_000),
+        '/AdvantageKit/Alerts/errors': ([], 9_999_000),
+        '/OrangePi/LeftPi/CPU_Pct': (12.5, 9_500_000),
+        '/OrangePi/LeftPi/Recorders/LeftCam/State': ('idle', 9_900_000),
+        '/Other/Thing': (1, 9_900_000),            # outside every prefix: not read
+        '/AdvantageKit/Never/Published': (None, 0),  # invalid value: skipped
+    }
+    return inst
+
+
+def test_health_snapshot_is_empty_when_not_connected():
+    assert live_nt.health_snapshot() == {}
+
+
+def test_health_snapshot_uses_log_style_keys_and_reports_ages():
+    inst = _snapshot_inst()
+    ntcore = _fake_ntcore(inst)
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=ntcore)
+    snap = live_nt.health_snapshot(_ntcore=ntcore)
+    assert set(snap) == {
+        'SystemStats/CANBus/Utilization', 'RealOutputs/Vision/Left/Health/ScorePercent',
+        'DriverStation/Enabled', 'Alerts/errors', 'OrangePi/LeftPi/CPU_Pct',
+        'OrangePi/LeftPi/Recorders/LeftCam/State'}
+    assert snap['SystemStats/CANBus/Utilization'][0] == 0.31
+    assert snap['SystemStats/CANBus/Utilization'][1] == pytest.approx(1.0)     # (10.0 s - 9.0 s)
+    assert snap['OrangePi/LeftPi/CPU_Pct'][1] == pytest.approx(0.5)
+
+
+def test_health_snapshot_subscribes_to_the_root_and_the_pi_tables_and_reuses_entries():
+    inst = _snapshot_inst()
+    ntcore = _fake_ntcore(inst)
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=ntcore)
+    assert FakeMulti.last.prefixes == ['/AdvantageKit/', '/OrangePi/']
+    live_nt.health_snapshot(_ntcore=ntcore)
+    first = inst.entry_requests
+    live_nt.health_snapshot(_ntcore=ntcore)
+    assert inst.entry_requests == first            # entries are cached, not recreated every poll
+
+
+def test_disconnect_closes_the_health_subscriber():
+    FakeMulti.closed = False
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=_fake_ntcore(FakeInst()))
+    live_nt.disconnect()
+    assert FakeMulti.closed
+
+
+def test_vision_topic_names_match_what_the_robot_logs():
+    """AdvantageKit capitalises the field name: Vision/<cam>/Connected, CurrentFps, VisibleTagIds."""
+    inst = FakeInst()
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=_fake_ntcore(inst))
+    assert '/AdvantageKit/Vision/Left/Connected' in inst.topics
+    assert '/AdvantageKit/Vision/Left/CurrentFps' in inst.topics
+    assert '/AdvantageKit/Vision/Left/VisibleTagIds' in inst.topics

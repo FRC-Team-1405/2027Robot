@@ -50,6 +50,8 @@ from core.composites import COMPOSITES
 from core.log import Log
 from core.metrics import METRICS
 from core.severity import BANDS as SEVERITY_BANDS
+from health import config as health_config
+from health import engine as health_engine
 from encode import spec_to_dict
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
@@ -416,6 +418,70 @@ def live_snapshot() -> dict:
 def live_disconnect() -> dict:
     live_nt.disconnect()
     return {'connected': False}
+
+
+# -- Health Check ------------------------------------------------------------------------------
+# One configuration file (health_checks.toml, re-read when it changes) drives both a live robot
+# and a finished log; see health/engine.py.
+
+HEALTH_CONFIG_PATH = pathlib.Path(__file__).resolve().parent / 'health_checks.toml'
+_health_latch = health_engine.Latch()
+
+
+def _health_specs():
+    specs_, errors = health_config.load(HEALTH_CONFIG_PATH)
+    return specs_, errors
+
+
+@app.get('/api/health/config')
+def health_config_info() -> dict:
+    specs_, errors = _health_specs()
+    return {'path': str(HEALTH_CONFIG_PATH), 'checks': len(specs_), 'errors': errors,
+            'sections': sorted({s.section for s in specs_})}
+
+
+@app.get('/api/health/log')
+def health_for_log(path: str = Query(..., description='log path relative to the log root')) -> dict:
+    """The health report for a finished log: every configured check over the log's own samples."""
+    p = _resolve(path)
+    log_ = _load_log(p)
+    specs_, errors = _health_specs()
+    source = health_engine.LogSource(log_.signals, log_.mode_spans())
+    report = health_engine.evaluate(specs_, source)
+    lo, hi = log_.bounds()
+    report['config_errors'] = errors
+    report['meta'] = {
+        'log': path, 'duration': hi - lo,
+        'modes': [{'mode': m, 'start': a, 'end': b} for a, b, m in log_.mode_spans()],
+    }
+    return report
+
+
+@app.get('/api/health/live')
+def health_live() -> dict:
+    """The health report for the live robot (connect first with /api/live/connect). Each row also
+    carries `worst` (and `peak` for numbers) since the last reset, so a red that came and went while
+    the robot was enabled is still visible."""
+    specs_, errors = _health_specs()
+    if not live_nt.is_connected():
+        return {'connected': False, 'config_errors': errors}
+    data = live_nt.health_snapshot()
+    report = health_engine.evaluate(specs_, health_engine.SnapshotSource(data), latch=_health_latch)
+    enabled = data.get('DriverStation/Enabled', (None, None))[0]
+    auto = data.get('DriverStation/Autonomous', (None, None))[0]
+    report['connected'] = True
+    report['config_errors'] = errors
+    report['meta'] = {
+        'topics': len(data),
+        'robot': None if enabled is None else ('disabled' if not enabled else ('auto' if auto else 'teleop')),
+    }
+    return report
+
+
+@app.post('/api/health/live/reset')
+def health_live_reset() -> dict:
+    _health_latch.reset()
+    return {'reset': True}
 
 
 @app.get('/api/spec')

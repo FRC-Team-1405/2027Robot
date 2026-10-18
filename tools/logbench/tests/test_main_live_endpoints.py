@@ -31,7 +31,10 @@ def test_disconnect_is_safe_to_call_when_nothing_is_connected():
     assert r.json() == {'connected': False}
 
 
-def test_connect_without_ntcore_installed_returns_a_clean_501():
+def test_connect_without_ntcore_installed_returns_a_clean_501(monkeypatch):
+    def missing():
+        raise ModuleNotFoundError("No module named 'ntcore'")
+    monkeypatch.setattr(live_nt, '_import_ntcore', missing)   # ntcore may well be installed here
     r = client.post('/api/live/connect', params={'server': '10.14.5.2'})
     assert r.status_code == 501
     assert 'ntcore' in r.json()['detail']

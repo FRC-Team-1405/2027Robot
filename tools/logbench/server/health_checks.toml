@@ -1,0 +1,620 @@
+# Health Check configuration.
+#
+# Every [[check]] below is one row on the Health Check page. The same file drives both uses:
+#   * Live, in the pits: values come from the robot over NetworkTables (green/amber/red now, and the
+#     worst thing seen since you pressed Reset).
+#   * On a log, after a match: the same signal names, read from the .wpilog.
+#
+# To add a metric you only add a block here -- no code. Edit and save; the page picks it up on its next
+# refresh. The full vocabulary is documented at the top of server/health/config.py and in
+# docs/health-check.md. In short:
+#
+#   signal   The log/NT key. `*` matches one path segment and makes one row per match; {1} {2} in
+#            group/label are what the stars matched, and `lookup` can pull a nicer name from another signal.
+#   measure  How a LOG collapses to one number: last first max min mean seconds_above seconds_below
+#            seconds_true seconds_false fraction_true fraction_false any_true all_true changes delta
+#            max_len last_len.  (Live always uses the current value; measures that need history are
+#            shown as "log only" there.)
+#   window   Which part of a log counts: all (default) enabled auto teleop disabled.
+#   rules    warn_above fail_above warn_below fail_below  |  expect  |  expect_in  |  stale_after
+#   mode     both (default) | live | log.   missing = nodata (grey) | warn | fail.
+#
+# A check with no rule is informational: it shows the number and is never red. That is the way to
+# start tracking something new (for example "how long was the shooter spinning?") before you know
+# what a bad value is; add a threshold later.
+
+[defaults]
+missing = "nodata"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Vision  (cameras as the robot sees them)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "vision.connected"
+section = "Vision"
+group = "{1}"
+label = "Camera connected to robot code"
+signal = "Vision/*/Connected"
+measure = "fraction_true"
+window = "enabled"
+scale = 100
+unit = "% of enabled time"
+decimals = 0
+warn_below = 99
+fail_below = 80
+expect_items = ["LeftCam", "RightCam"]
+help = "PhotonVision is delivering results to the robot's vision code. Log: share of enabled time connected."
+
+[[check]]
+id = "vision.fps"
+section = "Vision"
+group = "{1}"
+label = "Camera frame rate"
+signal = "Vision/*/CurrentFps"
+measure = "mean"
+window = "enabled"
+unit = "fps"
+decimals = 0
+warn_below = 20
+fail_below = 8
+help = "Frames per second PhotonVision reports for this camera (mean while enabled in a log)."
+
+[[check]]
+id = "vision.tags_in_view"
+section = "Vision"
+group = "{1}"
+label = "Tags in view (hold a tag in front of it)"
+signal = "Vision/*/VisibleTagIds"
+measure = "last_len"
+mode = "live"
+warn_below = 1
+decimals = 0
+help = "Pit check: put an AprilTag in front of each camera and this should read 1 or more."
+
+[[check]]
+id = "vision.health_score"
+section = "Vision"
+group = "{1}"
+label = "Tag detection health score (hold the robot still)"
+signal = "Vision/*/Health/ScorePercent"
+mode = "live"
+unit = "%"
+decimals = 0
+warn_below = 60
+fail_below = 30
+help = "VisionHealth.java's overall score, read live. A calibration diagnostic, not a match-accuracy score."
+
+[[check]]
+id = "vision.health_reason"
+section = "Vision"
+group = "{1}"
+label = "Why the score is low, if it is"
+signal = "Vision/*/Health/Reason"
+mode = "live"
+
+[[check]]
+id = "vision.cross_agreement"
+section = "Vision"
+group = "Both cameras"
+label = "Camera agreement"
+signal = "Vision/CrossCameraAgreement/ScorePercent"
+mode = "live"
+unit = "%"
+decimals = 0
+warn_below = 60
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Orange Pis  (CPU/RAM/disk from orangepi-nt-publisher, recorder health from the vision recorder)
+# In a log these only exist when the robot code mirrors /OrangePi/** into the AdvantageKit log.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "pi.reporting"
+section = "Orange Pis"
+group = "{1}"
+label = "Pi is reporting to the robot"
+signal = "OrangePi/*/CPU_Pct"
+mode = "live"
+stale_after = 5
+expect_items = ["LeftPi", "RightPi"]
+missing = "fail"
+help = "The Pi's metrics publisher updates once a second. Silent for 5 s means the Pi is off, rebooting, or off the network."
+
+[[check]]
+id = "pi.cpu"
+section = "Orange Pis"
+group = "{1}"
+label = "CPU"
+signal = "OrangePi/*/CPU_Pct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 75
+fail_above = 92
+help = "PhotonVision needs headroom for detection. Log: the worst value."
+
+[[check]]
+id = "pi.ram"
+section = "Orange Pis"
+group = "{1}"
+label = "RAM used"
+signal = "OrangePi/*/RAM_Pct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 80
+fail_above = 92
+
+[[check]]
+id = "pi.disk"
+section = "Orange Pis"
+group = "{1}"
+label = "Disk used"
+signal = "OrangePi/*/Disk_Pct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 80
+fail_above = 92
+
+[[check]]
+id = "pi.temp"
+section = "Orange Pis"
+group = "{1}"
+label = "Temperature"
+signal = "OrangePi/*/Temp_C"
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 70
+fail_above = 85
+help = "The board throttles when it gets hot, which slows detection."
+
+[[check]]
+id = "rec.state"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorder state"
+signal = "OrangePi/*/Recorders/*/State"
+measure = "last"
+expect_in = ["idle", "recording"]
+help = "idle = camera stream is fine and it is waiting for the robot to enable; recording = a session is open. no_stream or error is a problem."
+
+[[check]]
+id = "rec.stream"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Camera stream delivering frames"
+signal = "OrangePi/*/Recorders/*/StreamOk"
+measure = "fraction_true"
+scale = 100
+unit = "% of the time"
+decimals = 0
+expect_items = []
+warn_below = 99
+fail_below = 80
+help = "The recorder is getting fresh frames from PhotonVision's raw stream, even while the robot is disabled."
+
+[[check]]
+id = "rec.fps"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Stream frame rate"
+signal = "OrangePi/*/Recorders/*/StreamFps"
+measure = "mean"
+unit = "fps"
+decimals = 0
+warn_below = 10
+fail_below = 2
+
+[[check]]
+id = "rec.recording"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorded while the robot was enabled"
+signal = "OrangePi/*/Recorders/*/Recording"
+measure = "fraction_true"
+window = "enabled"
+mode = "log"
+scale = 100
+unit = "% of enabled time"
+decimals = 0
+warn_below = 90
+fail_below = 50
+help = "How much of auto + teleop has video."
+
+[[check]]
+id = "rec.disk"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Disk free for recordings"
+signal = "OrangePi/*/Recorders/*/DiskFreeGB"
+measure = "min"
+unit = "GB"
+decimals = 1
+warn_below = 5
+fail_below = 1
+
+[[check]]
+id = "rec.errors"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorder errors since boot"
+signal = "OrangePi/*/Recorders/*/Errors"
+measure = "max"
+decimals = 0
+warn_above = 0
+fail_above = 25
+
+[[check]]
+id = "rec.clock"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Clock synced to the robot"
+signal = "OrangePi/*/Recorders/*/ClockSynced"
+measure = "last"
+expect = true
+severity = "warn"
+help = "Without the robot's clock, session folder names use the Pi's own clock and may not pair with the log."
+
+[[check]]
+id = "rec.version"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorder version"
+signal = "OrangePi/*/Recorders/*/Version"
+measure = "last"
+help = "Which recorder code is running."
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# roboRIO
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "rio.can_util"
+section = "roboRIO"
+group = "CAN bus"
+label = "CAN utilization (worst)"
+signal = "SystemStats/CANBus/Utilization"
+measure = "max"
+scale = 100
+unit = "%"
+decimals = 0
+warn_above = 70
+fail_above = 90
+help = "A saturated CAN bus delays every motor and sensor. Above ~70% is a problem to look into."
+
+[[check]]
+id = "rio.can_off"
+section = "roboRIO"
+group = "CAN bus"
+label = "Bus-off events"
+signal = "SystemStats/CANBus/OffCount"
+measure = "max"
+decimals = 0
+fail_above = 0
+
+[[check]]
+id = "rio.can_txfull"
+section = "roboRIO"
+group = "CAN bus"
+label = "Transmit buffer full events"
+signal = "SystemStats/CANBus/TxFullCount"
+measure = "max"
+decimals = 0
+warn_above = 0
+
+[[check]]
+id = "rio.can_rx_err"
+section = "roboRIO"
+group = "CAN bus"
+label = "Receive errors"
+signal = "SystemStats/CANBus/ReceiveErrorCount"
+measure = "max"
+decimals = 0
+warn_above = 10
+fail_above = 100
+
+[[check]]
+id = "rio.can_tx_err"
+section = "roboRIO"
+group = "CAN bus"
+label = "Transmit errors"
+signal = "SystemStats/CANBus/TransmitErrorCount"
+measure = "max"
+decimals = 0
+warn_above = 10
+fail_above = 100
+
+[[check]]
+id = "rio.battery_min"
+section = "roboRIO"
+group = "Power"
+label = "Battery voltage (lowest while enabled)"
+signal = "SystemStats/BatteryVoltage"
+measure = "min"
+window = "enabled"
+unit = "V"
+decimals = 1
+warn_below = 10.5
+fail_below = 8
+help = "In the pits, with the robot disabled, this is just the resting voltage; enable it to see it sag under load."
+
+[[check]]
+id = "rio.battery_now"
+section = "roboRIO"
+group = "Power"
+label = "Battery voltage (now)"
+signal = "SystemStats/BatteryVoltage"
+mode = "live"
+unit = "V"
+decimals = 1
+warn_below = 12
+fail_below = 11
+
+[[check]]
+id = "rio.brownout"
+section = "roboRIO"
+group = "Power"
+label = "Brownout"
+signal = "SystemStats/BrownedOut"
+measure = "any_true"
+expect = false
+
+[[check]]
+id = "rio.rails"
+section = "roboRIO"
+group = "Power"
+label = "{1} rail current faults"
+signal = "SystemStats/*Rail/CurrentFaults"
+measure = "max"
+decimals = 0
+warn_above = 0
+
+[[check]]
+id = "rio.comms"
+section = "roboRIO"
+group = "Power"
+label = "Comms disable events"
+signal = "SystemStats/CommsDisableCount"
+measure = "max"
+decimals = 0
+fail_above = 0
+
+[[check]]
+id = "pdh.faults"
+section = "roboRIO"
+group = "Power distribution"
+label = "PDH active faults"
+signal = "PowerDistribution/Faults"
+measure = "max"
+decimals = 0
+warn_above = 0
+help = "A bit field; any non-zero value means the PDH reported a fault at some point."
+
+[[check]]
+id = "pdh.current_peak"
+section = "roboRIO"
+group = "Power distribution"
+label = "Total current (peak)"
+signal = "PowerDistribution/TotalCurrent"
+measure = "max"
+unit = "A"
+decimals = 0
+
+[[check]]
+id = "rio.cpu_temp"
+section = "roboRIO"
+group = "Controller"
+label = "CPU temperature (peak)"
+signal = "SystemStats/CPUTempCelsius"
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 70
+fail_above = 85
+
+[[check]]
+id = "rio.loop_time"
+section = "roboRIO"
+group = "Controller"
+label = "Robot loop time (worst while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "max"
+window = "enabled"
+unit = "ms"
+decimals = 0
+warn_above = 40
+fail_above = 100
+help = "The loop should take about 20 ms; long cycles mean overruns."
+
+[[check]]
+id = "rio.log_backlog"
+section = "roboRIO"
+group = "Controller"
+label = "Logging backlog (worst)"
+signal = "RealOutputs/Logger/QueuedCycles"
+measure = "max"
+decimals = 0
+warn_above = 10
+fail_above = 40
+help = "AdvantageKit cycles waiting to be written; a growing queue risks dropped log data."
+
+[[check]]
+id = "rio.radio"
+section = "roboRIO"
+group = "Controller"
+label = "Radio connected"
+signal = "RadioStatus/Connected"
+measure = "last"
+expect = true
+severity = "warn"
+
+[[check]]
+id = "rio.alert_errors"
+missing = "ok"
+section = "roboRIO"
+group = "Robot alerts"
+label = "Errors reported by robot code"
+signal = "Alerts/errors"
+measure = "max_len"
+decimals = 0
+fail_above = 0
+
+[[check]]
+id = "rio.alert_warnings"
+missing = "ok"
+section = "roboRIO"
+group = "Robot alerts"
+label = "Warnings reported by robot code"
+signal = "Alerts/warnings"
+measure = "max_len"
+decimals = 0
+warn_above = 0
+
+[[check]]
+id = "rio.photon_alerts"
+missing = "ok"
+section = "roboRIO"
+group = "Robot alerts"
+label = "PhotonVision alerts"
+signal = "PhotonAlerts/warnings"
+measure = "max_len"
+decimals = 0
+warn_above = 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Robot -- one group per subsystem, one row per motor and thing checked
+# (from Power/Motors/<bus>-<id>/..., which the robot logs for every motor it knows about)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "motor.responding"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "responding on CAN"
+signal = "Power/Motors/*/Valid"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "fraction_true"
+scale = 100
+unit = "% of the time"
+decimals = 0
+warn_below = 99
+fail_below = 90
+help = "A motor controller that is missing, unpowered or off the bus never reports valid data."
+
+[[check]]
+id = "motor.signal_age"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "newest status age (worst)"
+signal = "Power/Motors/*/SignalAgeSeconds"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "max"
+unit = "s"
+decimals = 2
+warn_above = 1
+fail_above = 2.5
+help = "How old the freshest CAN status from this motor was. Seconds-old data means it dropped off the bus."
+
+[[check]]
+id = "motor.status"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "CAN signal status"
+signal = "Power/Motors/*/SignalStatus"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "last"
+expect = "OK"
+severity = "warn"
+help = "Phoenix 6's status for the motor's signals: OK, or a reason such as RxTimeout or CanMessageStale."
+
+[[check]]
+id = "motor.temp"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "temperature (peak)"
+signal = "Power/Motors/*/TemperatureCelsius"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 70
+fail_above = 85
+
+[[check]]
+id = "motor.undervoltage"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "undervoltage"
+signal = "Power/Motors/*/Undervoltage"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "any_true"
+expect = false
+severity = "warn"
+
+[[check]]
+id = "motor.stator_limited"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "time at the stator current limit"
+signal = "Power/Motors/*/StatorLimited"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "fraction_true"
+window = "enabled"
+scale = 100
+unit = "% of enabled time"
+decimals = 1
+warn_above = 10
+help = "A motor pinned at its current limit for long is stalled, overloaded, or mis-tuned."
+
+[[check]]
+id = "motor.supply_peak"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "supply current (peak)"
+signal = "Power/Motors/*/SupplyCurrentAmps"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "max"
+unit = "A"
+decimals = 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Examples of tracking something new. These have no thresholds, so they only inform. Copy one,
+# change the signal, and (once you know what is too much) add warn_above / fail_above.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "example.shooter_spin_time"
+section = "Robot"
+group = "Shooter"
+label = "Shooter wheels spinning (time while enabled)"
+signal = "Shooter/Motor1VelocityRPS"
+measure = "seconds_above"
+above = 5
+window = "enabled"
+unit = "s"
+decimals = 0
+mode = "log"
+help = "Seconds the first shooter motor was above 5 rotations/s. Long spin-up time costs battery; add warn_above once you know your normal."
