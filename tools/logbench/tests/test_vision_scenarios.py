@@ -1,0 +1,288 @@
+"""End-to-end vision scenarios (Tier 1 of docs/logbench-e2e-test-plan.md).
+
+`testkit.build_bundle` writes a match-shaped log plus the recorder's `.vision/<camera>/boot####-<ts>/`
+folders for each scenario -- clean, NT flapping, only-auto-recorded, an empty session, a camera
+name mismatch, two recorder boots, no recording -- with no robot, Pi or camera. These tests push
+each one through the same code the dashboard uses: bundles -> pairing -> specs.camera_health.
+
+Part 1 checks the kit itself and today's behaviour; it passes.
+
+Part 2 is the contract for the dashboard improvements the plan lists (all sessions per camera,
+game-mode bands, recording coverage, empty-session warning). Those tests are `xfail(strict=True)`
+today: they document the target, and the strict flag makes the marker come off the moment the
+feature lands. ffmpeg is not needed: preview-video building is stubbed.
+"""
+import datetime as dt
+import json
+import pathlib
+import sys
+
+import pytest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'server'))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
+import paths  # noqa: F401  (side effect: sys.path bridges)
+
+import bundles
+import pairing
+import remote_fetch
+from specs import camera_health
+from testkit import build_bundle, frames
+from vision_analyzer.parser import parse_wpilog
+
+SCENARIOS = sorted(build_bundle.SCENARIOS)
+HAVE_VISION = [s for s in SCENARIOS if build_bundle.SCENARIOS[s].write_vision]
+SHOWN = [s for s in HAVE_VISION if s != 'name-mismatch']   # name-mismatch is deliberately not shown
+
+
+@pytest.fixture(scope='module')
+def built(tmp_path_factory):
+    """scenario name -> (Bundle, parsed signals). Built once per module."""
+    cache = {}
+
+    def get(name):
+        if name not in cache:
+            bundle = build_bundle.build_bundle(tmp_path_factory.mktemp(name.replace('-', '_')), name, cycle_ms=250)
+            cache[name] = (bundle, parse_wpilog(str(bundle.log_path)))
+        return cache[name]
+    return get
+
+
+@pytest.fixture(autouse=True)
+def stub_ffmpeg(monkeypatch):
+    def fake_preview(session_dir, camera=''):
+        out = pathlib.Path(session_dir) / bundles.PREVIEW_NAME
+        out.write_bytes(b'stub')
+        return out
+    monkeypatch.setattr(bundles, 'ensure_preview_video', fake_preview)
+
+
+def _spec(bundle, signals):
+    spec, _data = camera_health.build(signals, log_path=bundle.log_path, log_root=bundle.out_dir)
+    return spec
+
+
+def _with_frames(bundle, camera):
+    return [(p, d) for p, d in bundle.sessions_for(camera) if p.frame_times]
+
+
+# ---- Part 1: the kit, and what works today ------------------------------------------------------
+
+def test_every_scenario_is_registered_with_a_description():
+    assert {'clean', 'nt-flap', 'partial-auto-only', 'empty-session', 'name-mismatch', 'two-boots',
+            'no-recording'} <= set(SCENARIOS)
+    assert all(s.description for s in build_bundle.SCENARIOS.values())
+
+
+@pytest.mark.parametrize('scenario', SCENARIOS)
+def test_log_has_the_match_shape_the_mode_bands_need(built, scenario):
+    bundle, signals = built(scenario)
+    modes = [m for m, _s, _e in bundle.spans]
+    assert modes == ['disabled', 'auto', 'disabled', 'teleop', 'disabled']
+    assert camera_health.discover_cameras(signals) == ['LeftCam', 'RightCam']
+
+
+@pytest.mark.parametrize('scenario', HAVE_VISION)
+def test_frames_carry_their_own_log_time_and_mode(built, scenario):
+    """The burned-in log time must equal the manifest's t_sec -- the property the dashboard's
+    video sync is checked against."""
+    bundle, _ = built(scenario)
+    seen = 0
+    for plan, session in bundle.sessions:
+        manifest = [json.loads(line) for line in (session / 'manifest.jsonl').read_text().splitlines()]
+        assert len(manifest) == len(plan.frame_times)
+        for row in manifest[::7]:
+            info = frames.decode_frame_info((session / row['frame']).read_bytes())
+            assert info['t_sec'] == pytest.approx(row['t_sec'], abs=1e-6)
+            assert info['mode'] == build_bundle.mode_at(bundle.spans, row['t_sec'])
+            assert info['camera'] == plan.camera
+            seen += 1
+    assert seen or scenario == 'no-recording'
+
+
+@pytest.mark.parametrize('scenario', HAVE_VISION)
+def test_frames_stay_inside_the_log_and_sessions_inside_enabled_windows(built, scenario):
+    bundle, signals = built(scenario)
+    spec = _spec(bundle, signals)
+    for plan, _session in bundle.sessions:
+        if not plan.frame_times:
+            continue
+        assert spec.t0 <= plan.frame_times[0] and plan.frame_times[-1] <= spec.t1 + 2.0
+        assert plan.frame_times == sorted(plan.frame_times)
+        assert build_bundle.mode_at(bundle.spans, plan.frame_times[len(plan.frame_times) // 2]) != 'disabled'
+
+
+@pytest.mark.parametrize('scenario', HAVE_VISION)
+def test_session_folders_are_listed_per_camera_folder(built, scenario):
+    bundle, _ = built(scenario)
+    listed = bundles.list_vision_sessions(bundle.log_path)
+    expected = {}
+    for plan, session in bundle.sessions:
+        expected.setdefault(plan.folder, []).append(session.name)
+    assert {k: sorted(d.name for d in v) for k, v in listed.items()} == {k: sorted(v) for k, v in expected.items()}
+
+
+def test_no_recording_scenario_has_no_vision_folder(built):
+    bundle, signals = built('no-recording')
+    assert bundle.vision_dir is None
+    assert bundles.list_vision_sessions(bundle.log_path) == {}
+    assert bundles.local_status(bundle.log_path) == 'logs only'
+    assert 'vision' not in _spec(bundle, signals).static
+
+
+@pytest.mark.parametrize('scenario', HAVE_VISION)
+def test_folder_timestamps_pair_every_session_with_the_log(built, scenario):
+    """The recorder names folders in US Eastern and the log is named in UTC; both must resolve to
+    the same real instants or Fetch Bundle cannot pair them."""
+    bundle, _ = built(scenario)
+    rio = pairing.RioLogInfo(name=bundle.log_path.name, wall_clock=remote_fetch._parse_rio_wall_clock(
+        bundle.log_path.name), duration_sec=bundle.spans[-1][2] - bundle.t0)
+    assert rio.wall_clock == bundle.log_start_utc
+    pis = []
+    for plan, session in bundle.sessions:
+        wall = remote_fetch._parse_pi_session_wall_clock(session.name)
+        expected = bundle.log_start_utc + dt.timedelta(seconds=plan.start_t - bundle.t0)
+        assert abs((wall - expected).total_seconds()) < 3.0, session.name
+        pis.append(pairing.PiSessionInfo(camera=plan.folder, name=session.name, wall_clock=wall))
+    [paired] = pairing.suggest_pairings([rio], pis)
+    assert len(paired.pi_sessions) == len(bundle.sessions)
+
+
+def test_nt_flap_cuts_teleop_into_several_sessions_and_clean_does_not(built):
+    flap, _ = built('nt-flap')
+    clean, _ = built('clean')
+    assert len(clean.sessions_for('LeftCam')) == 2          # auto + teleop
+    assert len(flap.sessions_for('LeftCam')) > 3            # teleop cut by the ~21 s dropouts
+    gaps = [b[0].frame_times[0] - a[0].frame_times[-1]
+            for a, b in zip(flap.sessions_for('LeftCam'), flap.sessions_for('LeftCam')[1:])]
+    assert any(gap > 10 for gap in gaps)
+
+
+def test_partial_auto_only_matches_the_real_q24_shape(built):
+    bundle, _ = built('partial-auto-only')
+    [(plan, _d)] = bundle.sessions_for('LeftCam')
+    auto = next(s for s in bundle.spans if s[0] == 'auto')
+    assert len(plan.frame_times) < 50                       # the real recordings held 8-48 frames
+    assert auto[1] <= plan.frame_times[0] and plan.frame_times[-1] > auto[2] - 1  # around auto, spilling past it
+    assert all(t < next(s for s in bundle.spans if s[0] == 'teleop')[1] for t in plan.frame_times)
+
+
+def test_two_boots_have_distinct_boot_ids(built):
+    bundle, _ = built('two-boots')
+    assert [p.boot_id for p, _d in bundle.sessions_for('LeftCam')] == [23, 24]
+
+
+def test_empty_session_has_a_manifest_but_no_frames(built):
+    bundle, _ = built('empty-session')
+    [(plan, session)] = [(p, d) for p, d in bundle.sessions if not p.frame_times]
+    assert (session / 'manifest.jsonl').read_text() == ''
+    assert list(session.glob('frame_*.jpg')) == []
+
+
+def test_name_mismatch_is_reported_not_guessed(built):
+    bundle, signals = built('name-mismatch')
+    spec = _spec(bundle, signals)
+    assert 'vision' not in spec.static
+    assert any('does not match any camera' in w and 'Right' in w for w in spec.warnings)
+
+
+def test_missing_ffmpeg_stays_a_clear_warning(built, monkeypatch):
+    def no_ffmpeg(session_dir, camera=''):
+        raise bundles.FfmpegNotFoundError('ffmpeg is not on PATH -- required to build the preview')
+    monkeypatch.setattr(bundles, 'ensure_preview_video', no_ffmpeg)
+    bundle, signals = built('clean')
+    spec = _spec(bundle, signals)
+    assert 'vision' not in spec.static
+    assert any('ffmpeg' in w and 'LeftCam' in w for w in spec.warnings)
+
+
+# ---- Part 2: the dashboard contract the plan asks for (xfail until each lands) -------------------
+
+_TODO = 'dashboard improvement not built yet (docs/logbench-e2e-test-plan.md section 6, step 3)'
+
+
+@pytest.mark.xfail(strict=True, reason=_TODO)
+@pytest.mark.parametrize('scenario', SHOWN)
+def test_every_session_with_frames_reaches_the_dashboard(built, scenario):
+    """spec.static['vision_segments'][camera] = [{'video', 't0', 't1'}, ...] in time order, one
+    per session with frames; static['vision'][camera] stays as the first segment for old clients."""
+    bundle, signals = built(scenario)
+    spec = _spec(bundle, signals)
+    segments = spec.static.get('vision_segments', {})
+    for cam in bundle.cameras:
+        expected = _with_frames(bundle, cam)
+        got = segments.get(cam, [])
+        assert len(got) == len(expected), (cam, got)
+        for segment, (plan, _d) in zip(got, expected):
+            assert segment['t0'] == pytest.approx(plan.frame_times[0], abs=1e-3)
+            assert segment['t1'] == pytest.approx(plan.frame_times[-1], abs=1.0)
+            assert segment['video'].startswith('/vision-video/')
+        assert [s['t0'] for s in got] == sorted(s['t0'] for s in got)
+        if expected:
+            assert spec.static['vision'][cam]['t0'] == got[0]['t0']
+
+
+@pytest.mark.xfail(strict=True, reason=_TODO)
+@pytest.mark.parametrize('scenario', SCENARIOS)
+def test_spec_carries_the_driver_station_modes(built, scenario):
+    """spec.static['modes'] = [{'mode', 't0', 't1'}, ...] in the log timebase, from the log's own
+    DriverStation signals, so the UI can label and shade disabled/auto/teleop."""
+    bundle, signals = built(scenario)
+    modes = _spec(bundle, signals).static.get('modes')
+    assert modes is not None
+    assert [m['mode'] for m in modes] == [m for m, _s, _e in bundle.spans]
+    for got, (_m, start, end) in zip(modes, bundle.spans):
+        assert got['t0'] == pytest.approx(start, abs=0.3)
+        assert got['t1'] == pytest.approx(end, abs=0.3)
+
+
+@pytest.mark.xfail(strict=True, reason=_TODO)
+@pytest.mark.parametrize('scenario', SHOWN)
+def test_recording_coverage_says_how_much_of_the_enabled_time_has_video(built, scenario):
+    """spec.static['vision_coverage'][camera] = {'enabled_sec', 'covered_sec', 'fraction'}."""
+    bundle, signals = built(scenario)
+    coverage = _spec(bundle, signals).static.get('vision_coverage', {})
+    enabled = [s for s in bundle.spans if s[0] != 'disabled']
+    for cam in bundle.cameras:
+        covered = 0.0
+        for plan, _d in _with_frames(bundle, cam):
+            lo, hi = plan.frame_times[0], plan.frame_times[-1] + 1.0 / build_bundle.SAMPLE_HZ
+            covered += sum(max(0.0, min(hi, e) - max(lo, s)) for _m, s, e in enabled)
+        total = sum(e - s for _m, s, e in enabled)
+        assert coverage[cam]['enabled_sec'] == pytest.approx(total, abs=0.5)
+        assert coverage[cam]['covered_sec'] == pytest.approx(covered, abs=1.0)
+        assert coverage[cam]['fraction'] == pytest.approx(covered / total, abs=0.02)
+
+
+@pytest.mark.xfail(strict=True, reason=_TODO)
+def test_an_empty_session_is_reported_as_a_warning(built):
+    bundle, signals = built('empty-session')
+    [(plan, session)] = [(p, d) for p, d in bundle.sessions if not p.frame_times]
+    spec = _spec(bundle, signals)
+    assert any(session.name in w and 'no frames' in w.lower() for w in spec.warnings), spec.warnings
+    assert len(spec.static['vision_segments'][plan.camera]) == 2   # the real sessions still show
+
+
+@pytest.mark.xfail(strict=True, reason=_TODO)
+def test_partial_recording_warns_that_most_of_the_match_has_no_video(built):
+    bundle, signals = built('partial-auto-only')
+    spec = _spec(bundle, signals)
+    assert any('teleop' in w.lower() and 'no video' in w.lower() for w in spec.warnings), spec.warnings
+
+
+# ---- Optional: the same builder over the real Q24 log (skipped when it is not on this machine) -----
+
+GOLDEN = pathlib.Path(r'C:\Users\importsjc\robotics\logs\ruckus2026\akit_26-10-17_17-21-03_nyroc1_q24-bundle'
+                      r'\akit_26-10-17_17-21-03_nyroc1_q24.wpilog')
+
+
+@pytest.mark.skipif(not GOLDEN.is_file(), reason='real Q24 log not present on this machine')
+def test_builder_reads_a_real_logs_modes_and_cameras(tmp_path):
+    bundle = build_bundle.build_bundle(tmp_path, 'clean', log_path=GOLDEN)
+    assert [m for m, _s, _e in bundle.spans] == ['disabled', 'auto', 'disabled', 'teleop', 'disabled']
+    assert bundle.cameras == ['LeftCam', 'RightCam']
+    assert bundle.log_start_utc == dt.datetime(2026, 10, 17, 17, 21, 3, tzinfo=dt.timezone.utc)
+    auto = next(s for s in bundle.spans if s[0] == 'auto')
+    assert auto[1] == pytest.approx(316.7, abs=0.5)           # 315.1 s after the log's first record at 1.6 s
+    assert len(bundle.sessions_for('LeftCam')) == 2
