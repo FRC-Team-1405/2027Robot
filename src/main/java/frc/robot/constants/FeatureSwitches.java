@@ -24,6 +24,7 @@ public class FeatureSwitches {
     // Drive base
     public static final boolean PUBLISH_INDIVIDUAL_DRIVE_CURRENTS = false;
 
+    //#region CanBusLoadSwitches
     // -------------------------------------------------------------------------
     // CAN bus load and loop time A/B switches (see docs/can-bus-load-ab-test.md)
     // -------------------------------------------------------------------------
@@ -60,7 +61,9 @@ public class FeatureSwitches {
      *  RealOutputs/Timing/<Name>Ms, and mirror the Tracer (Vision) timings into the log. Shows in the
      *  log where the ~38 ms loop goes. Costs a little itself, so it is OFF until you are measuring. */
     public static final boolean LOG_SUBSYSTEM_TIMINGS = false;
+    //#endregion
 
+    //#region VisionTestSwitches
     // -------------------------------------------------------------------------
     // Vision A/B Test Switches (all OFF by default - baseline is 2026 behavior)
     // -------------------------------------------------------------------------
@@ -94,4 +97,5 @@ public class FeatureSwitches {
     /** P3: Reject single-tag estimates with ambiguity score >= 0.2.
      *  OFF = 2026 behavior (no ambiguity threshold). ON = ambiguity filter active. */
     public static final boolean VISION_AMBIGUITY_THRESHOLD = true;
+    //#endregion
 }
