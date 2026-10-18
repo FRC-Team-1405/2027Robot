@@ -59,7 +59,7 @@ Run it from your own PowerShell (Gradle needs normal sockets). What happens:
 
 1. A temporary systemd drop-in points the Pi's recorder at the laptop (`NT_SERVER`, port 5810) and names its recordings after the robot's camera (`-LogCamera`, default `LeftCam`), so LogBench matches folder to log.
 2. `frc.robot.sim.ScriptedMatch` (inert unless `SIM_MATCH_SCRIPT` is set) waits for the Pi to connect, then drives the simulated Driver Station through disabled, auto, pause, teleop, disabled with random stick input. `Robot` writes an AdvantageKit log named in UTC (`akit_<yy-MM-dd_HH-mm-ss>_simmatch.wpilog`) when `SIM_LOG_DIR` is set; `SIM_HEADLESS` skips the GUI.
-3. The Pi's sessions are copied to `<log>.vision\<LogCamera>\` beside the log, the service is restored (always), and `tools\logbench	estkit\check_bundle.py` reports coverage and problems.
+3. The Pi's sessions are copied to `<log>.vision\<LogCamera>\` beside the log, the service is restored (always), and `tools\logbench\testkit\check_bundle.py` reports coverage and problems.
 
 The log and the recordings share one NT clock and one wall clock, as on the real robot. The result
 is a folder you open with `python tools\logbench\server\main.py --logs <folder>`.
