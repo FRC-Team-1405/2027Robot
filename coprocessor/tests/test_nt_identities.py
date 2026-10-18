@@ -79,7 +79,7 @@ class NetworkTablesIdentityTests(unittest.TestCase):
                     module.main()
             clients.append(instance.startClient4.call_args.args[0])
             self.assertEqual([call.args[0] for call in instance.getTable.call_args_list],
-                             ["FMSInfo", "RobotTime"])
+                             ["FMSInfo", "RobotTime", f"OrangePi/{board}/Recorders/{camera}"])
             instance.getTable.return_value.getIntegerTopic.return_value.getEntry.return_value.set.assert_not_called()
         self.assertEqual(clients, ["OrangePiVisionRecorder-LeftPi-left", "OrangePiVisionRecorder-RightPi-right",
                                    "OrangePiVisionRecorder-PracticeVision-front", "OrangePiVisionRecorder-PracticeVision-rear"])

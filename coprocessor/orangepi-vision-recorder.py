@@ -128,6 +128,16 @@ NT_DROP_GRACE_SEC = _env_number("NT_DROP_GRACE_SEC", 45.0, float)
 # interrupted an enabled session.
 NT_SETTLE_SEC = 2.0
 
+# Health heartbeat: where this recorder publishes its own status, next to orangepi-nt-publisher's
+# CPU/RAM/disk numbers: /OrangePi/[<ORANGEPI_METRICS_NAME>/]Recorders/<camera>/. LogBench's Health
+# Check page reads it live; the robot code mirrors /OrangePi/** into the AdvantageKit log so a
+# match log can be checked afterwards too. See docs/orangepi-vision-recorder-setup.md.
+METRICS_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip()
+HEARTBEAT_ROOT = "OrangePi"
+HEARTBEAT_INTERVAL_SEC = 1.0
+DISK_CHECK_INTERVAL_SEC = 10.0
+USED_CHECK_INTERVAL_SEC = 60.0
+
 FMS_INFO_TABLE = "FMSInfo"
 FMS_CONTROL_TOPIC = "FMSControlData"
 ENABLED_BIT = 0  # HAL_ControlWord bit order: enabled, autonomous, test, eStop, fmsAttached, dsAttached — verify on bench (see docs/orangepi-vision-recorder-setup.md)
@@ -428,6 +438,158 @@ def new_session_dir(base, boot_id, offset_sec):
     return session
 
 
+def heartbeat_path(metrics_name=None, camera=None):
+    """NT table path the heartbeat publishes under."""
+    name = METRICS_NAME if metrics_name is None else metrics_name
+    cam = (CAMERA_NAME if camera is None else camera) or "default"
+    return "/".join(part for part in (HEARTBEAT_ROOT, name, "Recorders", cam) if part)
+
+
+def directory_bytes(path):
+    """Total size of the files under `path` (0 if it does not exist)."""
+    total = 0
+    for root, _dirs, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.path.getsize(os.path.join(root, name))
+            except OSError:
+                pass
+    return total
+
+
+class RecorderHeartbeat:
+    """Publishes this recorder's health to NetworkTables about once a second.
+
+    Everything a person checking the robot in the pits wants to see: is the recorder alive, is the
+    camera stream actually delivering frames (even while the robot is disabled), is it recording,
+    is anything failing, and is there room on the disk. The consumer decides what is healthy; this
+    only reports. Publishing problems are logged once and never affect recording.
+
+    Topics (under heartbeat_path()):
+      State            string   'starting' | 'idle' (stream ok, waiting for enable) | 'recording' |
+                                'no_stream' (no fresh camera frames) | 'error' (recent error)
+      Recording        boolean  a session is open
+      StreamOk         boolean  the newest camera frame is fresh
+      StreamAgeSec     double   age of the newest camera frame, -1 if none yet
+      StreamFps        double   frames per second arriving from the camera stream
+      SessionFrames    integer  frames written in the current/last session
+      Sessions         integer  sessions started since this process booted
+      TotalFrames      integer  frames written since boot
+      Errors           integer  errors since boot
+      LastError        string   last error message ('' if none)
+      DiskFreeGB       double   free space where recordings are stored
+      RecordingsUsedGB double   space the recordings under this camera's folder use
+      ClockSynced      boolean  the roboRIO wall clock has been received (session names are trustworthy)
+      UptimeSec        double   seconds since this process started
+      HeartbeatSec     double   increments every publish; also lets a consumer see a frozen loop
+      Version, BootId, SampleHz   static identity
+    """
+
+    def __init__(self, table, version, boot_id, sample_hz, recordings_dir, recordings_base,
+                 clock=time.monotonic, disk_usage=shutil.disk_usage, dir_bytes=directory_bytes,
+                 interval=HEARTBEAT_INTERVAL_SEC):
+        self._clock = clock
+        self._disk_usage = disk_usage
+        self._dir_bytes = dir_bytes
+        self._dir = recordings_dir
+        self._base = recordings_base
+        self._interval = interval
+        self._started = clock()
+        self._last_publish = None
+        self._beats = 0
+        self._last_seq = None
+        self._last_seq_time = None
+        self._fps = 0.0
+        self._disk_free_gb = 0.0
+        self._disk_checked = None
+        self._used_gb = 0.0
+        self._used_checked = None
+        self._failed = False
+        self._pubs = {}
+        try:
+            for name, kind in (
+                ("State", "String"), ("Recording", "Boolean"), ("StreamOk", "Boolean"),
+                ("StreamAgeSec", "Double"), ("StreamFps", "Double"), ("SessionFrames", "Integer"),
+                ("Sessions", "Integer"), ("TotalFrames", "Integer"), ("Errors", "Integer"),
+                ("LastError", "String"), ("DiskFreeGB", "Double"), ("RecordingsUsedGB", "Double"),
+                ("ClockSynced", "Boolean"), ("UptimeSec", "Double"), ("HeartbeatSec", "Double"),
+                ("Version", "String"), ("BootId", "Integer"), ("SampleHz", "Double"),
+            ):
+                self._pubs[name] = getattr(table, f"get{kind}Topic")(name).publish()
+            self._pubs["Version"].set(version)
+            self._pubs["BootId"].set(int(boot_id))
+            self._pubs["SampleHz"].set(float(sample_hz))
+            self._pubs["State"].set("starting")
+        except Exception:
+            self._failed = True
+            self._pubs = {}
+
+    def _refresh_slow(self, now):
+        if self._disk_checked is None or now - self._disk_checked >= DISK_CHECK_INTERVAL_SEC:
+            self._disk_checked = now
+            try:
+                probe = self._dir if os.path.isdir(self._dir) else os.path.dirname(self._dir.rstrip("/")) or "/"
+                self._disk_free_gb = round(self._disk_usage(probe).free / 1e9, 2)
+            except OSError:
+                self._disk_free_gb = -1.0
+        if self._used_checked is None or now - self._used_checked >= USED_CHECK_INTERVAL_SEC:
+            self._used_checked = now
+            try:
+                self._used_gb = round(self._dir_bytes(self._base) / 1e9, 3)
+            except OSError:
+                self._used_gb = -1.0
+
+    def due(self):
+        """True when update() would publish now, so callers can skip gathering the inputs."""
+        return not self._failed and (self._last_publish is None
+                                     or self._clock() - self._last_publish >= self._interval)
+
+    def update(self, *, recording, stream_age_sec, stream_seq, session_frames, sessions, total_frames,
+               errors, last_error, last_error_age_sec, clock_synced, log=None):
+        """Call every loop; publishes at most once per interval. Returns True if it published."""
+        now = self._clock()
+        if self._failed:
+            return False
+        if self._last_publish is not None and now - self._last_publish < self._interval:
+            return False
+        self._last_publish = now
+        self._refresh_slow(now)
+        if stream_seq is not None and self._last_seq is not None and now > self._last_seq_time:
+            self._fps = round(max(0, stream_seq - self._last_seq) / (now - self._last_seq_time), 1)
+        elif stream_seq is None:
+            self._fps = 0.0
+        if stream_seq is not None:
+            self._last_seq, self._last_seq_time = stream_seq, now
+        stream_ok = stream_age_sec is not None and stream_age_sec <= MAX_FRAME_AGE_SEC
+        if last_error and last_error_age_sec is not None and last_error_age_sec < 30.0:
+            state = "error"
+        elif not stream_ok:
+            state = "no_stream"
+        elif recording:
+            state = "recording"
+        else:
+            state = "idle"
+        self._beats += 1
+        values = {
+            "State": state, "Recording": bool(recording), "StreamOk": bool(stream_ok),
+            "StreamAgeSec": round(stream_age_sec, 3) if stream_age_sec is not None else -1.0,
+            "StreamFps": self._fps, "SessionFrames": int(session_frames), "Sessions": int(sessions),
+            "TotalFrames": int(total_frames), "Errors": int(errors), "LastError": last_error or "",
+            "DiskFreeGB": self._disk_free_gb, "RecordingsUsedGB": self._used_gb,
+            "ClockSynced": bool(clock_synced), "UptimeSec": round(now - self._started, 1),
+            "HeartbeatSec": float(self._beats),
+        }
+        try:
+            for name, value in values.items():
+                self._pubs[name].set(value)
+        except Exception:
+            self._failed = True
+            if log is not None:
+                log.exception("Heartbeat publishing failed; recording continues without it")
+            return False
+        return True
+
+
 def _session_summary(stats):
     """One-line summary of a finished session: frames written, how old each was when written
     (arrival to write, so roughly the sampling jitter), and any frames skipped."""
@@ -454,6 +616,8 @@ def main():
     robot_time_entry = inst.getTable(ROBOT_TIME_TABLE).getIntegerTopic(ROBOT_TIME_TOPIC).getEntry(0)
 
     boot_id = next_boot_id(RECORDINGS_BASE)
+    heartbeat = RecorderHeartbeat(inst.getTable(heartbeat_path()), RECORDER_VERSION, boot_id, SAMPLE_HZ,
+                                  RECORDINGS_DIR, RECORDINGS_BASE)
 
     diagnostics = RecorderDiagnostics()
     log = diagnostics.log
@@ -482,10 +646,16 @@ def main():
     errors = 0
     last_state = None
     last_status = float('-inf')
+    sessions_started = 0
+    total_frames = 0
+    total_errors = 0
+    last_error = ""
+    last_error_at = None
 
     try:
         while True:
             loop_start = time.monotonic()
+            newest = None  # the newest camera frame, if the capture step below fetched it
             try:
                 if inst.isConnected():
                     enabled = is_enabled(control_word_entry)
@@ -531,6 +701,7 @@ def main():
                     except OSError:
                         log.exception("Could not open session diagnostics in %s", session_dir)
                     manifest = open(os.path.join(session_dir, "manifest.jsonl"), "a")
+                    sessions_started += 1
                     frames = errors = 0
                     sync_note = f"synced to roboRIO, offset {offset_sec:+.1f}s" if offset_sec is not None \
                         else "NOT synced to roboRIO — using Pi's own possibly-stale clock"
@@ -547,7 +718,7 @@ def main():
                 was_enabled = enabled
 
                 if enabled and session_dir:
-                    latest = frame_source.latest()
+                    latest = newest = frame_source.latest()
                     if latest is None or latest[2] == last_seq:
                         stats["nonew"] += 1
                     else:
@@ -563,11 +734,30 @@ def main():
                             manifest.write(json.dumps(row) + "\n")
                             manifest.flush()
                             frames += 1
+                            total_frames += 1
                             stats["age_ms"].append(age_sec * 1000.0)
 
-            except Exception:
+            except Exception as exc:
                 errors += 1
+                total_errors += 1
+                last_error, last_error_at = f"{type(exc).__name__}: {exc}"[:200], time.monotonic()
                 log.exception("Recorder error: frames=%d errors=%d", frames, errors)
+
+            try:
+                if heartbeat.due():
+                    if newest is None:
+                        newest = frame_source.latest()
+                    heartbeat.update(
+                        recording=manifest is not None,
+                        stream_age_sec=(server_time_sec(inst) - newest[1]) if newest else None,
+                        stream_seq=newest[2] if newest else None,
+                        session_frames=frames, sessions=sessions_started, total_frames=total_frames,
+                        errors=total_errors, last_error=last_error,
+                        last_error_age_sec=(time.monotonic() - last_error_at) if last_error_at else None,
+                        clock_synced=inst.getServerTimeOffset() is not None and bool(robot_time_entry.get(0)),
+                        log=log)
+            except Exception:
+                log.exception("Heartbeat update failed")
 
             elapsed = time.monotonic() - loop_start
             time.sleep(max(0.0, period_s - elapsed))
