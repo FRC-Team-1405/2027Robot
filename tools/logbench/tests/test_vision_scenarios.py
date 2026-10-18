@@ -407,3 +407,68 @@ def test_each_cameras_frames_say_which_camera_they_are(built):
             first = sorted(session.glob('frame_*.jpg'))[0]
             numbers[plan.camera] = frames.decode_frame_info(first.read_bytes())['camera_index']
     assert numbers == {'LeftCam': 1, 'RightCam': 2}
+
+
+# ---- A recorder that lost power mid-write must not take the whole page down ---------------------------
+
+def _tear(session, keep_rows):
+    """Leave the manifest as a brown-out would: whole rows, then half of the next one."""
+    lines = (session / 'manifest.jsonl').read_text().splitlines()
+    torn = lines[keep_rows][: len(lines[keep_rows]) // 2]
+    (session / 'manifest.jsonl').write_text('\n'.join(lines[:keep_rows] + [torn]))
+    return len(lines)
+
+
+def test_read_manifest_skips_a_torn_last_row_and_a_garbage_row(tmp_path):
+    (tmp_path / 'a.jpg').write_bytes(b'x')
+    (tmp_path / 'b.jpg').write_bytes(b'x')
+    (tmp_path / 'manifest.jsonl').write_text(
+        '{"frame":"a.jpg","t_sec":1.0}\n'
+        'not json at all\n'
+        '{"frame":"b.jpg","t_sec":2.0}\n'
+        '{"frame":"c.jpg","t_sec":3.0}\n'      # row is fine, JPEG is gone
+        '{"frame":"d.jpg"}\n'                   # no t_sec
+        '{"frame":"e.jpg","t_se')               # torn
+    report = bundles.read_manifest(tmp_path, check_files=True)
+    assert report.frames == [(1.0, 'a.jpg'), (2.0, 'b.jpg')]
+    assert (report.bad_lines, report.missing_frames) == (3, 1)
+    assert report.damaged
+    # the plain loader tolerates it too, and (without check_files) keeps rows whose JPEG is missing
+    assert [t for t, _ in bundles.load_manifest(tmp_path)] == [1.0, 2.0, 3.0]
+
+
+def test_a_torn_manifest_still_builds_the_dashboard_and_says_so(built, tmp_path):
+    bundle = build_bundle.build_bundle(tmp_path, 'clean', cycle_ms=250)
+    plan, session = _with_frames(bundle, 'LeftCam')[1]            # LeftCam teleop
+    total = _tear(session, keep_rows=100)
+    from vision_analyzer.parser import parse_wpilog as parse
+    spec = _spec(bundle, parse(str(bundle.log_path)))             # used to raise JSONDecodeError
+    segments = spec.static['vision_segments']['LeftCam']
+    assert len(segments) == 2
+    assert segments[1]['t1'] < plan.frame_times[-1] - 5            # the lost tail is not claimed
+    assert any('LeftCam' in w and 'unreadable' in w and 'half-written' in w for w in spec.warnings), spec.warnings
+    assert spec.static['vision_status']['LeftCam']['state'] == 'ok'
+    assert spec.static['vision_status']['RightCam']['sessions'] == 2   # the other camera is untouched
+    assert total > 100
+
+
+def test_missing_frame_files_are_skipped_not_fatal(tmp_path):
+    bundle = build_bundle.build_bundle(tmp_path, 'clean', cycle_ms=250)
+    plan, session = _with_frames(bundle, 'RightCam')[0]
+    for jpg in sorted(session.glob('frame_*.jpg'))[3:7]:
+        jpg.unlink()
+    from vision_analyzer.parser import parse_wpilog as parse
+    spec = _spec(bundle, parse(str(bundle.log_path)))
+    assert len(spec.static['vision_segments']['RightCam']) == 2
+    assert any('4 missing frame rows skipped' in w for w in spec.warnings), spec.warnings
+
+
+@pytest.mark.skipif(shutil.which('ffmpeg') is None, reason='ffmpeg not on PATH')
+def test_a_real_preview_video_is_built_from_a_damaged_session(tmp_path):
+    bundle = build_bundle.build_bundle(tmp_path, 'clean', cycle_ms=250)
+    plan, session = _with_frames(bundle, 'LeftCam')[0]
+    jpgs = sorted(session.glob('frame_*.jpg'))
+    jpgs[5].unlink()
+    (session / 'manifest.jsonl').write_text((session / 'manifest.jsonl').read_text() + '{"frame":"frame_999.jp')
+    (session / bundles.PREVIEW_NAME).unlink(missing_ok=True)
+    assert _REAL_PREVIEW(session, camera='LeftCam').stat().st_size > 0

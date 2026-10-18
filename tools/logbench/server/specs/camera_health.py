@@ -72,7 +72,7 @@ def _time_bounds(data: dict) -> tuple:
     return lo, hi
 
 
-def _sessions_in_window(sessions: list, t0: float, t1: float):
+def _sessions_in_window(sessions: list, t0: float, t1: float, notes: list = None):
     """Splits a camera's session directories into ([(dir, frames)], [empty dirs]).
 
     The first list holds every session whose frame span overlaps [t0, t1], in time order: a
@@ -82,7 +82,14 @@ def _sessions_in_window(sessions: list, t0: float, t1: float):
     wrote a frame -- so the caller can say so instead of silently skipping them."""
     usable, empty = [], []
     for session_dir in sessions:
-        frames = bundles.load_manifest(session_dir)
+        report = bundles.read_manifest(session_dir, check_files=True)
+        frames = report.frames
+        if report.damaged and notes is not None:
+            notes.append(
+                '%s: %d unreadable and %d missing frame row%s skipped (a power loss while recording can '
+                'leave a half-written manifest); the remaining %d frames are shown.'
+                % (session_dir.name, report.bad_lines, report.missing_frames,
+                   '' if report.bad_lines + report.missing_frames == 1 else 's', len(frames)))
         if not frames:
             empty.append(session_dir)
         elif frames[-1][0] >= t0 and frames[0][0] <= t1:
@@ -162,7 +169,10 @@ def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras
         if cam in segments_static:
             warnings.append('More than one recording folder maps to camera "%s"; using the first.' % cam)
             continue
-        usable, empty = _sessions_in_window(sessions, spec.t0, spec.t1)
+        damage_notes: list = []
+        usable, empty = _sessions_in_window(sessions, spec.t0, spec.t1, damage_notes)
+        for note in damage_notes:
+            warnings.append('Vision session %s/%s' % (cam, note))
         for session_dir in empty:
             warnings.append(
                 'Vision session %s/%s has no frames (its manifest is empty): the recorder opened a '
