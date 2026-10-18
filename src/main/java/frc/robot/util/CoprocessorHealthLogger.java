@@ -43,7 +43,7 @@ public final class CoprocessorHealthLogger {
     }
 
     /** Hands a mirrored value to the matching typed Logger.recordOutput overload. */
-    private static void record(String key, Object value) {
+    static void record(String key, Object value) {
         if (value instanceof Boolean b) {
             Logger.recordOutput(key, b.booleanValue());
         } else if (value instanceof Long l) {

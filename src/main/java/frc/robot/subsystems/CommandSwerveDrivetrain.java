@@ -300,6 +300,15 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     @Override
     public void periodic() {
+        long timingStart = frc.robot.util.LoopTimings.begin();
+        try {
+            periodicImpl();
+        } finally {
+            frc.robot.util.LoopTimings.end("Timing/Drivetrain", timingStart);
+        }
+    }
+
+    private void periodicImpl() {
         /*
          * Periodically try to apply the operator perspective.
          * If we haven't applied the operator perspective before, then we should apply

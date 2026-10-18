@@ -17,7 +17,6 @@ import frc.robot.commands.AutoPilot.AutoPilotV2Command;
 import frc.robot.commands.Shooter.AutoFire;
 import frc.robot.constants.FieldConstants;
 import frc.robot.subsystems.AdjustableHood;
-import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.Hopper;
 import frc.robot.subsystems.Indexer;
@@ -65,7 +64,6 @@ public class CommandsForAutos {
         // .withJerk(67.0);
         // #endregion
         CommandSwerveDrivetrain drivetrain;
-        Climber climber;
         Intake intake;
         Pickup pickup;
         Hopper hopper;
@@ -73,7 +71,7 @@ public class CommandsForAutos {
         Shooter shooter;
         AdjustableHood hood;
 
-        public CommandsForAutos(CommandSwerveDrivetrain drivetrain, Climber climber,
+        public CommandsForAutos(CommandSwerveDrivetrain drivetrain,
                         Intake intake,
                         Pickup pickup,
                         Hopper hopper,
@@ -82,7 +80,6 @@ public class CommandsForAutos {
                         AdjustableHood hood) {
 
                 this.drivetrain = drivetrain;
-                this.climber = climber;
                 this.intake = intake;
                 this.pickup = pickup;
                 this.hopper = hopper;

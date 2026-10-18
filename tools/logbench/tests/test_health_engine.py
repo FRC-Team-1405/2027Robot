@@ -200,11 +200,11 @@ warn_above = 50
     src = log({
         'Motors/rio-1/Temp': ts((0, 30)), 'Motors/rio-1/Name': ts((0, 'Drive 0')), 'Motors/rio-1/Subsystem': ts((0, 'Drivetrain')),
         'Motors/rio-2/Temp': ts((0, 60)), 'Motors/rio-2/Name': ts((0, 'Drive 1')), 'Motors/rio-2/Subsystem': ts((0, 'Drivetrain')),
-        'Motors/rio-9/Temp': ts((0, 20)), 'Motors/rio-9/Name': ts((0, 'Climber')), 'Motors/rio-9/Subsystem': ts((0, 'Climber')),
+        'Motors/rio-9/Temp': ts((0, 20)), 'Motors/rio-9/Name': ts((0, 'Hopper')), 'Motors/rio-9/Subsystem': ts((0, 'Hopper')),
     })
     report = run(toml, src)
     [sec] = report['sections']
-    assert [g['label'] for g in sec['groups']] == ['Drivetrain', 'Climber']    # first appearance, by key
+    assert [g['label'] for g in sec['groups']] == ['Drivetrain', 'Hopper']    # first appearance, by key
     drive = sec['groups'][0]
     assert [(s['label'], s['status']) for s in drive['subjects']] == [('Drive 0', OK), ('Drive 1', WARN)]
     assert drive['status'] == WARN and sec['groups'][1]['status'] == OK and sec['status'] == WARN

@@ -39,7 +39,7 @@ fail above 90 %") and detail. Hover for the check's help text.
 |---|---|
 | **Vision** | per camera: connected to robot code, frame rate; live only: tags in view, tag-detection health score and why it is low, camera agreement. The old per-factor tag-detection cards are under **Tag detection detail**. |
 | **Orange Pis** | per Pi: reporting (silent over 5 s fails), CPU, RAM, disk, temperature, and the diagnostics below. Per recorder: state (idle/recording ok; no_stream/error not), camera stream delivering frames, stream rate, share of an enabled match that was recorded (log), disk free, errors, clock synced to the robot, version. |
-| **roboRIO** | CAN utilization (worst), bus-off, TX-full, RX/TX errors; battery voltage (lowest while enabled, and now), brownout, rail faults, comms disables; PDH faults and peak current; controller CPU temperature, loop time, logging backlog, radio; errors/warnings/PhotonVision alerts logged by robot code. |
+| **roboRIO** | CAN utilization (worst), bus-off, TX-full, RX/TX errors; battery voltage (lowest while enabled, and now), brownout, rail faults, comms disables; PDH faults and peak current; controller CPU temperature, loop time (worst and mean), logging backlog, radio; CAN utilization while disabled (the idle baseline) and mean while enabled, used to A/B the CAN-load switches in [can-bus-load-ab-test.md](can-bus-load-ab-test.md); an optional loop-time breakdown per section when `LOG_SUBSYSTEM_TIMINGS` is on; errors/warnings/PhotonVision alerts logged by robot code. |
 | **Robot** | one group per subsystem, one cluster per motor: responding on CAN, newest status age, last status, temperature, undervoltage, time at the current limit, peak supply current. |
 
 ### When the Pi's cameras and clients all drop at once: reboot, link flap or camera loss?
@@ -133,9 +133,10 @@ The full reference is the docstring at the top of `server/health/config.py`; a m
 
 Run against the seven Ruckus 2026 AdvantageKit logs (Q1, Q6, Q17, Q20, Q24, Q28, plus Q24's bundle):
 
-- Healthy motors report `SignalStatus == OK` for 99-100 % of enabled time; the two climber motors report
-  0 % in every match (`RxTimeout`, status age of hundreds of seconds). That is the "responding on CAN"
-  check, and it flags exactly those two motors and nothing else. (The `Valid` flag is *not* used: it only
+- Healthy motors report `SignalStatus == OK` for 99-100 % of enabled time; two configured motors that were
+  not on the bus (since removed from the code) reported 0 % in every match (`RxTimeout`, status age of
+  hundreds of seconds). That is the "responding on CAN" check, and it flagged exactly those two motors and
+  nothing else. (The `Valid` flag is *not* used: it only
   means "data fresher than 100 ms" and is false most of the time for healthy motors.)
 - Drive motors sit at their stator-current limit 15-20 % of an enabled match, so that warning is set at 35 %.
 - Every log shows CAN utilization reaching 100 %, battery dips to about 7 V, loop times of 100+ ms and the

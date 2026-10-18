@@ -37,6 +37,15 @@ public class Intake extends SubsystemBase {
 
     @Override
     public void periodic() {
+        long timingStart = frc.robot.util.LoopTimings.begin();
+        try {
+            periodicImpl();
+        } finally {
+            frc.robot.util.LoopTimings.end("Timing/Intake", timingStart);
+        }
+    }
+
+    private void periodicImpl() {
         io.updateInputs(inputs);
         Logger.processInputs("Intake", inputs);
 

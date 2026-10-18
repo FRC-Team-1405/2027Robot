@@ -204,6 +204,15 @@ public class Vision extends SubsystemBase {
 
     @Override
     public void periodic() {
+        long timingStart = frc.robot.util.LoopTimings.begin();
+        try {
+            periodicImpl();
+        } finally {
+            frc.robot.util.LoopTimings.end("Timing/Vision", timingStart);
+        }
+    }
+
+    private void periodicImpl() {
         Tracer.startTrace("VisionPeriodic");
 
         for (int i = 0; i < ios.length; i++) {

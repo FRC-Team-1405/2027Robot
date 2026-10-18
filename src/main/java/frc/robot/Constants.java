@@ -21,8 +21,6 @@ import edu.wpi.first.wpilibj.Preferences;
 /** Add your docs here. */
 public class Constants {
     public static class CANBus {
-        public static final int CLIMBER_MOTOR = 45;
-        public static final int CLIMBER_GRABBER = 37;
         public static final int HOPPER_MOTOR = 25;
         public static final int INTAKE_MOTOR = 28;
         public static final int PICKUP_MOTOR = 29;
@@ -139,35 +137,6 @@ public class Constants {
 
         public static final double STATOR_CURRENT_LIMIT = 60;
         public static final double SUPPLY_CURRENT_LIMIT = 50;
-    }
-
-    public static class ClimberPreferences {
-        public static final double CLIMBER_EXTEND_POSITION;
-        public static final double CLIMBER_RETRACT_POSITION;
-        public static final double GRABBER_OPEN_POSITION;
-        public static final double GRABBER_CLOSED_POSITION;
-        public static final double POSITION_TOLERANCE;
-        public static final double SETTLE_MAX;
-
-        static {
-            Preferences.initDouble("Climber/Arm/Extended", 100.0);
-            CLIMBER_EXTEND_POSITION = Preferences.getDouble("Climber/Arm/Extended", 100.0);
-
-            Preferences.initDouble("Climber/Arm/Retracted", 0.0);
-            CLIMBER_RETRACT_POSITION = Preferences.getDouble("Climber/Arm/Retracted", 0.0);
-
-            Preferences.initDouble("Climber/Grabber/Open", 50.0);
-            GRABBER_OPEN_POSITION = Preferences.getDouble("Climber/Grabber/Open", 50.0);
-
-            Preferences.initDouble("Climber/Grabber/Closed", 0.0);
-            GRABBER_CLOSED_POSITION = Preferences.getDouble("Climber/Grabber/Closed", 0.0);
-
-            Preferences.initDouble("Climber/PositionTolerance", 1.0);
-            POSITION_TOLERANCE = Preferences.getDouble("Climber/PositionTolerance", 1.0);
-
-            Preferences.initDouble("Climber/SettleMax", 3);
-            SETTLE_MAX = Preferences.getDouble("Climber/SettleMax", 3);
-        }
     }
 
     public static class HoodPreferences {

@@ -16,6 +16,7 @@ import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.util.LoopTimings;
 import frc.robot.util.GamePeriod;
 
 import org.littletonrobotics.junction.LogFileUtil;
@@ -94,8 +95,6 @@ public class Robot extends LoggedRobot {
         frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.PICKUP_MOTOR, "Pickup", "Pickup");
         frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.HOPPER_MOTOR, "Hopper", "Hopper");
         frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.INDEXER_MOTOR, "Indexer", "Indexer");
-        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.CLIMBER_MOTOR, "Climber Climber", "Climber");
-        frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.CLIMBER_GRABBER, "Climber Grabber", "Climber");
         frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.SHOOTER_MOTOR_1, "Shooter Motor1", "Shooter");
         frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.SHOOTER_MOTOR_2, "Shooter Motor2", "Shooter");
         frc.robot.power.PowerTelemetry.declare("rio", Constants.CANBus.SHOOTER_MOTOR_3, "Shooter Motor3", "Shooter");
@@ -122,11 +121,21 @@ public class Robot extends LoggedRobot {
 
     @Override
     public void robotPeriodic() {
+        long loopStart = LoopTimings.begin();
         m_timeAndJoystickReplay.update();
+        long t = LoopTimings.begin();
         m_robotContainer.correctOdometry();
+        LoopTimings.end("Timing/CorrectOdometry", t);
+        t = LoopTimings.begin();
         CommandScheduler.getInstance().run();
+        LoopTimings.end("Timing/CommandScheduler", t);
+        t = LoopTimings.begin();
         frc.robot.power.PowerTelemetry.periodic();
+        LoopTimings.end("Timing/PowerTelemetry", t);
+        t = LoopTimings.begin();
         frc.robot.util.CoprocessorHealthLogger.periodic(); // Orange Pi + recorder health into the log
+        LoopTimings.end("Timing/CoprocessorHealthLogger", t);
+        t = LoopTimings.begin();
         RobotContainer.updateNT();
         RobotContainer.publishRobotData();
         m_robotContainer.drivetrain.publishDriveOutputVoltage();
@@ -134,6 +143,9 @@ public class Robot extends LoggedRobot {
         m_robotContainer.drivetrain.publishDrivePidErrors();
         m_robotContainer.drivetrain.publishDistanceToHub();
         m_robotContainer.intake.publishMotorCurrents();
+        LoopTimings.end("Timing/Publishing", t);
+        LoopTimings.end("Timing/RobotPeriodic", loopStart);
+        LoopTimings.mirrorTracer();
     }
 
     @Override

@@ -20,7 +20,6 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.commands.PidToPose.PidToPoseCommands;
 import frc.robot.subsystems.AdjustableHood;
-import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.Hopper;
 import frc.robot.subsystems.Indexer;
@@ -33,7 +32,7 @@ public class AutoCommands {
 
         private static final String AUTO_SMARTDASHBOARD_FOLDER = "Auto";
 
-        public static void setupAutoChooser(CommandSwerveDrivetrain drivetrain, Climber climber, Intake intake,
+        public static void setupAutoChooser(CommandSwerveDrivetrain drivetrain, Intake intake,
                         Hopper hopper,
                         Indexer indexer,
                         Shooter shooter,

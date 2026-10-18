@@ -8,11 +8,13 @@ import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.controls.ControlRequest;
 import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Preferences;
 import org.littletonrobotics.conduit.ConduitApi;
 import org.littletonrobotics.junction.LogTable;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.inputs.LoggableInputs;
+import frc.robot.constants.FeatureSwitches;
 
 /** Read-only power observation. Never changes a motor request or current limit.
  * Register existing motor objects; aliases share one physical identity. Call initialize()
@@ -93,9 +95,10 @@ public final class PowerTelemetry {
             distribution.strings.put("BatteryId", Preferences.getString("Power/BatteryId", "Unknown"));
         }
         Logger.processInputs("Power/Distribution", distribution);
+        double now = Timer.getFPGATimestamp();
         for (var entry : devices.entrySet()) {
             Device device = entry.getValue();
-            if (RobotBase.isReal() && device.motor != null) device.update();
+            if (RobotBase.isReal() && device.motor != null && FeatureSwitches.POWER_TELEMETRY_SIGNALS) device.refresh(now);
             Logger.processInputs("Power/Motors/" + entry.getKey(), device.inputs);
         }
         PowerStates.periodic();
@@ -123,6 +126,7 @@ public final class PowerTelemetry {
         final Map<String, BaseStatusSignal> signals = new LinkedHashMap<>();
         final Map<String, DoubleSupplier> values = new LinkedHashMap<>();
         boolean requestObserved;
+        final AbsenceTracker absence = new AbsenceTracker();
         Device(TalonFX motor, String name, String subsystem) {
             this.motor = motor;
             for (String key : new String[]{"SupplyCurrentAmps", "StatorCurrentAmps", "TorqueCurrentAmps",
@@ -151,6 +155,12 @@ public final class PowerTelemetry {
         }
         void initialize() {
             if (motor == null || !RobotBase.isReal()) return;
+            if (!FeatureSwitches.POWER_TELEMETRY_SIGNALS) {
+                // Declared and configuration read, but no status signals: no extra bus traffic.
+                BusLoad.finishMechanismMotor(motor, signals);
+                readConfiguration();
+                return;
+            }
             var supply = motor.getSupplyCurrent();
             signal("SupplyCurrentAmps", supply, supply::getValueAsDouble);
             var stator = motor.getStatorCurrent();
@@ -185,7 +195,18 @@ public final class PowerTelemetry {
             motor.getDeviceTemp().setUpdateFrequency(4);
             motor.getStickyFault_SupplyCurrLimit().setUpdateFrequency(4);
             motor.getStickyFault_StatorCurrLimit().setUpdateFrequency(4);
+            BusLoad.finishMechanismMotor(motor, signals);
             readConfiguration();
+        }
+        /** update() unless SKIP_ABSENT_DEVICES has parked this motor as absent. */
+        void refresh(double now) {
+            if (FeatureSwitches.SKIP_ABSENT_DEVICES && !absence.shouldRefresh(now)) {
+                inputs.booleans.put("Valid", false);
+                inputs.strings.put("SignalStatus", "SkippedAbsent");
+                return;
+            }
+            boolean ok = update();
+            if (FeatureSwitches.SKIP_ABSENT_DEVICES) absence.record(ok, now);
         }
         void readConfiguration() {
             if (motor == null || !RobotBase.isReal()) return;
@@ -200,7 +221,7 @@ public final class PowerTelemetry {
             inputs.booleans.put("SupplyLimitEnabled", status.isOK() && config.SupplyCurrentLimitEnable);
             inputs.booleans.put("StatorLimitEnabled", status.isOK() && config.StatorCurrentLimitEnable);
         }
-        void update() {
+        boolean update() {
             var status = BaseStatusSignal.refreshAll(signals.values().toArray(BaseStatusSignal[]::new));
             double age = signals.values().stream().mapToDouble(s -> s.getTimestamp().getLatency()).max().orElse(Double.POSITIVE_INFINITY);
             boolean valid = status.isOK() && age <= 0.1;
@@ -223,6 +244,7 @@ public final class PowerTelemetry {
             inputs.booleans.put("StickySupplyLimited", stickyValid && stickySupply.getValue());
             inputs.booleans.put("StickyStatorLimited", stickyValid && stickyStator.getValue());
             if (!requestObserved) observeRequest(motor.getAppliedControl(), inputs.strings.get("Name"));
+            return status.isOK();
         }
         void observeRequest(ControlRequest request, String owner) {
             inputs.strings.put("ControlMode", request.getName());

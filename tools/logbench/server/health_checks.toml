@@ -464,6 +464,37 @@ fail_above = 90
 help = "A saturated CAN bus delays every motor and sensor. Above ~70% is a problem to look into."
 
 [[check]]
+id = "rio.can_util_idle"
+section = "roboRIO"
+group = "CAN bus"
+label = "CAN utilization while disabled (idle baseline)"
+signal = "SystemStats/CANBus/Utilization"
+measure = "mean"
+window = "disabled"
+scale = 100
+unit = "%"
+decimals = 0
+warn_above = 40
+fail_above = 80
+help = "With the robot disabled and nothing driving, the bus should be quiet. A high idle level is status-signal traffic (see FeatureSwitches POWER_TELEMETRY_SIGNALS, MECHANISM_STATUS_SIGNAL_HZ, OPTIMIZE_BUS_UTILIZATION). Ruckus 2026 idled at about 65%."
+
+[[check]]
+id = "rio.can_util_enabled"
+section = "roboRIO"
+group = "CAN bus"
+label = "CAN utilization while enabled (mean)"
+signal = "SystemStats/CANBus/Utilization"
+measure = "mean"
+window = "enabled"
+scale = 100
+unit = "%"
+decimals = 0
+warn_above = 60
+fail_above = 85
+mode = "log"
+help = "The average load during the match, as opposed to the worst instant above."
+
+[[check]]
 id = "rio.can_off"
 section = "roboRIO"
 group = "CAN bus"
@@ -606,6 +637,49 @@ decimals = 0
 warn_above = 40
 fail_above = 100
 help = "The loop should take about 20 ms; long cycles mean overruns."
+
+[[check]]
+id = "rio.loop_mean"
+section = "roboRIO"
+group = "Controller"
+label = "Robot loop time (mean while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+warn_above = 25
+fail_above = 45
+mode = "log"
+help = "The typical loop, not the worst: the target is 20 ms. Ruckus 2026 averaged about 38 ms. Turn on FeatureSwitches LOG_SUBSYSTEM_TIMINGS to see where it goes."
+
+[[check]]
+id = "rio.loop_usercode_mean"
+section = "roboRIO"
+group = "Controller"
+label = "Robot code time per loop (mean while enabled)"
+signal = "RealOutputs/LoggedRobot/UserCodeMS"
+measure = "mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+warn_above = 20
+fail_above = 40
+mode = "log"
+help = "How much of the loop is your code (the rest is logging and WPILib). Over 20 ms alone means the loop cannot hold 20 ms."
+
+[[check]]
+id = "rio.timing_breakdown"
+section = "roboRIO"
+group = "Loop time breakdown"
+label = "{1} (mean while enabled)"
+signal = "RealOutputs/Timing/*"
+measure = "mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+mode = "log"
+help = "Per-section time, only logged when FeatureSwitches LOG_SUBSYSTEM_TIMINGS is on. RobotPeriodic is the whole robotPeriodic(); CommandScheduler contains each subsystem's periodic (Shooter, Vision, ...) plus commands."
 
 [[check]]
 id = "rio.log_backlog"

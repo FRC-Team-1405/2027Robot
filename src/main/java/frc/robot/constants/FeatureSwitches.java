@@ -25,6 +25,43 @@ public class FeatureSwitches {
     public static final boolean PUBLISH_INDIVIDUAL_DRIVE_CURRENTS = false;
 
     // -------------------------------------------------------------------------
+    // CAN bus load and loop time A/B switches (see docs/can-bus-load-ab-test.md)
+    // -------------------------------------------------------------------------
+    // Ruckus 2026 logs: the roboRIO CAN bus ran at ~65% with the robot DISABLED and still (~77%
+    // enabled, 100% at peaks), and the robot loop took ~38 ms against its 20 ms period, ~90% of it
+    // robot code. These switches let each suspect be turned off or down one at a time and compared
+    // on Health Check ("CAN utilization while disabled", "Mean robot loop time"). Every default
+    // below is the behavior the robot had at Ruckus; flip one, redeploy, compare.
+
+    /** Subscribe PowerTelemetry to its ~14 status signals on every motor (all 16 CAN devices) and
+     *  refresh/log them each loop. Subscribing turns each signal's CAN frame on at Phoenix's default
+     *  rate (mostly 100 Hz). OFF = devices are still declared and their configuration read once, but
+     *  no status signals, so no extra bus traffic and no per-loop reads. Motor current, temperature and
+     *  health then vanish from logs: use for testing, not for matches. */
+    public static final boolean POWER_TELEMETRY_SIGNALS = true;
+
+    /** Status-signal rate (Hz) for the Hopper, Indexer, Pickup and Intake-pickup motors: the signals
+     *  their IO classes read and PowerTelemetry's. 0 = leave Phoenix's default (usually 100 Hz).
+     *  Try 20. The swerve modules and the shooter are never touched (odometry and shooter lock need
+     *  their own 100 Hz+ rates). */
+    public static final double MECHANISM_STATUS_SIGNAL_HZ = 0.0;
+
+    /** On those same four mechanism motors, call optimizeBusUtilization() once every signal the code
+     *  reads has an explicit rate (MECHANISM_STATUS_SIGNAL_HZ, or 50 Hz if that is 0). Everything else
+     *  the device would send (accelerations, rotor velocity, ...) stops. OFF = no change. */
+    public static final boolean OPTIMIZE_BUS_UTILIZATION = false;
+
+    /** PowerTelemetry stops refreshing a motor that has reported a bad CAN status (e.g. RxTimeout)
+     *  for 5 s, re-checking every 5 s, so an unplugged or dead motor stops costing time every loop.
+     *  OFF = every motor is refreshed every loop. */
+    public static final boolean SKIP_ABSENT_DEVICES = false;
+
+    /** Log how long each part of robotPeriodic and each subsystem's periodic() took, every loop, as
+     *  RealOutputs/Timing/<Name>Ms, and mirror the Tracer (Vision) timings into the log. Shows in the
+     *  log where the ~38 ms loop goes. Costs a little itself, so it is OFF until you are measuring. */
+    public static final boolean LOG_SUBSYSTEM_TIMINGS = false;
+
+    // -------------------------------------------------------------------------
     // Vision A/B Test Switches (all OFF by default - baseline is 2026 behavior)
     // -------------------------------------------------------------------------
     // Enable/disable individual filters independently so each can be measured

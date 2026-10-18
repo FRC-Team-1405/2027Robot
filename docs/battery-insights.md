@@ -73,7 +73,7 @@ refresh status must be good and the oldest required signal must be at most 100 m
 Temperature and sticky faults use 4 Hz updates and a separate one-second freshness
 check. Every physical motor is registered once by CAN bus
 and ID. Drive and steer modules, all three shooter motors, deploy/pickup, hopper,
-indexer, and climber/grabber are covered.
+and indexer are covered.
 
 | Namespace | Contents |
 |---|---|

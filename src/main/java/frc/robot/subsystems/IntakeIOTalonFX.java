@@ -77,6 +77,9 @@ public class IntakeIOTalonFX implements IntakeIO {
         config.CurrentLimits.SupplyCurrentLimit = IntakePreferences.PICKUP_SUPPLY_LIMIT;
         config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
         applyConfig(pickupMotor, config, "intake pickup motor");
+        frc.robot.power.BusLoad.tuneMechanismMotor(pickupMotor, pickupMotor.getVelocity(),
+                pickupMotor.getStatorCurrent(), pickupMotor.getSupplyCurrent(), pickupMotor.getMotorVoltage(),
+                pickupMotor.getClosedLoopError());
     }
 
     private void applyConfig(TalonFX motor, TalonFXConfiguration cfg, String name) {
