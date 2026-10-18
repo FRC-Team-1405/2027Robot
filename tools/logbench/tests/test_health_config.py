@@ -99,6 +99,7 @@ def test_each_kind_of_mistake_has_a_message_naming_the_check():
         ('wrong type', '[[check]]\nid="a"\nsection="S"\nlabel="L"\nsignal="X"\nwarn_above="high"\n', 'wrong type'),
         ('bool as number', '[[check]]\nid="a"\nsection="S"\nlabel="L"\nsignal="X"\nscale=true\n', 'true/false'),
         ('seconds_above needs above', '[[check]]\nid="a"\nsection="S"\nlabel="L"\nsignal="X"\nmeasure="seconds_above"\n', 'above'),
+        ('equals needed', '[[check]]\nid="a"\nsection="S"\nlabel="L"\nsignal="X"\nmeasure="fraction_equals"\n', 'equals'),
         ('both expects', '[[check]]\nid="a"\nsection="S"\nlabel="L"\nsignal="X"\nexpect=1\nexpect_in=["a"]\n', 'either expect'),
         ('zero scale', '[[check]]\nid="a"\nsection="S"\nlabel="L"\nsignal="X"\nscale=0\n', 'scale'),
         ('items need star', '[[check]]\nid="a"\nsection="S"\nlabel="L"\nsignal="X"\nexpect_items=["a"]\n', '`*`'),

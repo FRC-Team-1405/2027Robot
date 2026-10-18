@@ -16,6 +16,7 @@ A check block (every field but id/section/label/signal is optional):
     unit = "%"
     scale = 100                     # the value is multiplied by this for display and thresholds
     measure = "max"                 # how a log's samples collapse to one number (see MEASURES)
+    equals = "OK"                  # for seconds_equals / fraction_equals: the value that counts
     window = "enabled"              # which part of a log counts: all|enabled|auto|teleop|disabled
     warn_above = 70                 # numeric rules, applied to the scaled value
     fail_above = 90
@@ -53,11 +54,12 @@ except ImportError:  # pragma: no cover - the project runs on 3.12+
 MEASURES = (
     'last', 'first', 'max', 'min', 'mean',
     'seconds_above', 'seconds_below', 'seconds_true', 'seconds_false',
-    'fraction_true', 'fraction_false', 'any_true', 'all_true',
+    'fraction_true', 'fraction_false', 'seconds_equals', 'fraction_equals', 'any_true', 'all_true',
     'changes', 'delta', 'max_len', 'last_len',
 )
 # Measures that need a log's history; in a live view they have nothing to measure.
-HISTORY_MEASURES = ('seconds_above', 'seconds_below', 'seconds_true', 'seconds_false', 'changes', 'delta')
+HISTORY_MEASURES = ('seconds_above', 'seconds_below', 'seconds_true', 'seconds_false', 'seconds_equals',
+                    'changes', 'delta')
 WINDOWS = ('all', 'enabled', 'auto', 'teleop', 'disabled')
 MISSING = ('nodata', 'ok', 'warn', 'fail')
 MODES = ('both', 'live', 'log')
@@ -81,6 +83,8 @@ class CheckSpec:
     window: str = 'all'
     above: Optional[float] = None
     below: Optional[float] = None
+    equals: Any = None
+    has_equals: bool = False
     warn_above: Optional[float] = None
     fail_above: Optional[float] = None
     warn_below: Optional[float] = None
@@ -107,7 +111,7 @@ _FIELDS: Dict[str, Tuple[tuple, Any]] = {
     'id': ((str,), None), 'section': ((str,), None), 'label': ((str,), None), 'signal': ((str,), None),
     'group': ((str,), None), 'subject': ((str,), None), 'lookup': ((dict,), None), 'unit': ((str,), None),
     'scale': (_NUMBER, None), 'measure': ((str,), MEASURES), 'window': ((str,), WINDOWS),
-    'above': (_NUMBER, None), 'below': (_NUMBER, None),
+    'above': (_NUMBER, None), 'below': (_NUMBER, None), 'equals': ((bool, int, float, str), None),
     'warn_above': (_NUMBER, None), 'fail_above': (_NUMBER, None),
     'warn_below': (_NUMBER, None), 'fail_below': (_NUMBER, None),
     'expect': ((bool, int, float, str), None), 'expect_in': ((list,), None),
@@ -142,6 +146,8 @@ def _build(raw: dict, defaults: dict) -> CheckSpec:
         raise ValueError(f'{ident}: measure "seconds_above" needs an `above` value')
     if merged.get('measure') == 'seconds_below' and 'below' not in merged:
         raise ValueError(f'{ident}: measure "seconds_below" needs a `below` value')
+    if merged.get('measure') in ('seconds_equals', 'fraction_equals') and 'equals' not in merged:
+        raise ValueError(f'{ident}: measure {merged["measure"]!r} needs an `equals` value')
     if 'expect' in merged and 'expect_in' in merged:
         raise ValueError(f'{ident}: use either expect or expect_in, not both')
     if merged.get('scale') == 0:
@@ -152,11 +158,13 @@ def _build(raw: dict, defaults: dict) -> CheckSpec:
     for name, pattern in lookup.items():
         if not isinstance(pattern, str) or not name.isidentifier():
             raise ValueError(f'{ident}: lookup entries must be name = "signal path"')
-    fields = {k: v for k, v in merged.items() if k not in ('lookup', 'expect', 'expect_in', 'expect_items')}
+    fields = {k: v for k, v in merged.items()
+              if k not in ('lookup', 'expect', 'expect_in', 'expect_items', 'equals')}
     return CheckSpec(
         **fields,
         lookup=tuple(sorted(lookup.items())),
         expect=merged.get('expect'), has_expect='expect' in merged,
+        equals=merged.get('equals'), has_equals='equals' in merged,
         expect_in=tuple(str(v) for v in merged.get('expect_in', ())),
         expect_items=tuple(str(v) for v in merged.get('expect_items', ())),
     )

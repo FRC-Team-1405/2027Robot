@@ -245,6 +245,33 @@ def test_expect_items_must_all_be_present():
     assert any('expected B' in c['detail'] for c in rows)
 
 
+def test_expect_items_do_not_fail_a_log_that_has_none_of_that_data():
+    toml = check_toml('measure="last"\nexpect_items=["A","B"]', 'Cam/*/On')
+    report = run(toml, log({}))
+    rows = [c for s in report['sections'] for g in s['groups'] for sub in g['subjects'] for c in sub['checks']]
+    assert [c['status'] for c in rows] == [NODATA]
+
+
+def test_fraction_and_seconds_equal_to_a_value():
+    src = log({'X': ts((0, 'OK'), (45, 'CanMessageStale'), (50, 'OK'))})          # 5 s stale of 50 s teleop
+    c = one(check_toml('measure="fraction_equals"\nequals="OK"\nwindow="teleop"\nscale=100\nunit="%"\nwarn_below=95'), src)
+    assert (c['status'], c['display']) == (WARN, '90 %')
+    assert one(check_toml('measure="seconds_equals"\nequals="CanMessageStale"\nwindow="teleop"'), src)['value'] == pytest.approx(5.0)
+    nums = log({'X': ts((0, 3), (45, 4))})
+    assert one(check_toml('measure="seconds_equals"\nequals=3\nwindow="teleop"'), nums)['value'] == pytest.approx(5.0)
+    flags = log({'X': ts((0, True), (45, False))})
+    # false from 45 s to the end of teleop at 90 s
+    assert one(check_toml('measure="seconds_equals"\nequals=false\nwindow="teleop"'), flags)['value'] == pytest.approx(45.0)
+
+
+def test_equals_live_is_the_current_value_and_the_seconds_form_needs_a_log():
+    src = engine.SnapshotSource({'X': ('OK', 0.1)})
+    assert one(check_toml('measure="fraction_equals"\nequals="OK"\nscale=100\nfail_below=90'), src)['value'] == 100.0
+    assert one(check_toml('measure="fraction_equals"\nequals="OK"\nscale=100\nfail_below=90'),
+               engine.SnapshotSource({'X': ('RxTimeout', 0.1)}))['status'] == FAIL
+    assert one(check_toml('measure="seconds_equals"\nequals="OK"'), src)['status'] == NA
+
+
 def test_unfilled_wildcard_rows_go_to_a_shared_no_data_group():
     toml = ('[[check]]\nid="c"\nsection="S"\ngroup="{1}"\nsubject="Recorder ({2})"\nlabel="state {2}"\n'
             'signal="Pi/*/Rec/*/State"\n')

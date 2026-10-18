@@ -126,6 +126,7 @@ public class Robot extends LoggedRobot {
         m_robotContainer.correctOdometry();
         CommandScheduler.getInstance().run();
         frc.robot.power.PowerTelemetry.periodic();
+        frc.robot.util.CoprocessorHealthLogger.periodic(); // Orange Pi + recorder health into the log
         RobotContainer.updateNT();
         RobotContainer.publishRobotData();
         m_robotContainer.drivetrain.publishDriveOutputVoltage();

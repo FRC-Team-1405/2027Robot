@@ -3,7 +3,7 @@
 // bought no vertical space back since the bar stayed on screen either way, and hiding
 // navigation behind a click made "which page am I on" harder to answer, not easier.
 // Still query-param routing (?view=...), no router dependency. Rendered once at the top
-// of App.tsx so every view (including Compare/Pit Check/Fetch Bundle/the log picker) gets
+// of App.tsx so every view (including Compare/Health Check/Fetch Bundle/the log picker) gets
 // the same bar, instead of each page rolling its own back-link.
 
 interface Tab {
@@ -15,7 +15,7 @@ const TABS: Tab[] = [
   { label: 'Vision Logs', view: null },
   { label: 'Compare', view: 'compare' },
   { label: 'Battery Insights', view: 'battery' },
-  { label: 'Pit Check', view: 'pit' },
+  { label: 'Health Check', view: 'health' },
   { label: 'Connections', view: 'connections' },
   { label: 'Fetch Bundle', view: 'fetch' },
 ];
@@ -30,7 +30,7 @@ export function TabNav() {
   return (
     <nav className="tab-nav">
       {TABS.map((tab) => {
-        const isActive = tab.view === activeView || (tab.view === null && !activeView);
+        const isActive = tab.view === activeView || (tab.view === 'health' && activeView === 'pit') || (tab.view === null && !activeView);
         return (
           <a
             key={tab.label}

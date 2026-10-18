@@ -507,15 +507,17 @@ section = "Robot"
 group = "{subsystem}"
 subject = "{name}"
 label = "responding on CAN"
-signal = "Power/Motors/*/Valid"
+signal = "Power/Motors/*/SignalStatus"
 lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
-measure = "fraction_true"
+measure = "fraction_equals"
+equals = "OK"
+window = "enabled"
 scale = 100
-unit = "% of the time"
+unit = "% of enabled time"
 decimals = 0
-warn_below = 99
-fail_below = 90
-help = "A motor controller that is missing, unpowered or off the bus never reports valid data."
+warn_below = 97
+fail_below = 80
+help = "Phoenix 6 reports OK for a motor controller it is hearing. A controller that is missing, unpowered or off the bus reports RxTimeout and never recovers. (Healthy motors read 99-100%; a missing one reads 0%.)"
 
 [[check]]
 id = "motor.signal_age"
@@ -537,13 +539,11 @@ id = "motor.status"
 section = "Robot"
 group = "{subsystem}"
 subject = "{name}"
-label = "CAN signal status"
+label = "last CAN signal status"
 signal = "Power/Motors/*/SignalStatus"
 lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
 measure = "last"
-expect = "OK"
-severity = "warn"
-help = "Phoenix 6's status for the motor's signals: OK, or a reason such as RxTimeout or CanMessageStale."
+help = "Phoenix 6's reason when it is not OK: RxTimeout (not heard), CanMessageStale, ..."
 
 [[check]]
 id = "motor.temp"
@@ -584,8 +584,8 @@ window = "enabled"
 scale = 100
 unit = "% of enabled time"
 decimals = 1
-warn_above = 10
-help = "A motor pinned at its current limit for long is stalled, overloaded, or mis-tuned."
+warn_above = 35
+help = "A motor pinned at its current limit for long is stalled, overloaded, or mis-tuned. Drive motors sit at the limit 15-20% of an enabled match on this robot; the threshold is set above that."
 
 [[check]]
 id = "motor.supply_peak"

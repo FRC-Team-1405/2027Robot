@@ -116,6 +116,16 @@ def _scalar(v: Any) -> Any:
     return v
 
 
+def _matches(v: Any, wanted: Any) -> bool:
+    """Whether a sample equals the `equals` value of a check, comparing like with like."""
+    if isinstance(wanted, bool):
+        return isinstance(v, bool) and v == wanted or (not isinstance(v, str) and bool(v) == wanted and _num(v) is not None)
+    if isinstance(wanted, (int, float)):
+        n = _num(v)
+        return n is not None and abs(n - float(wanted)) < 1e-9
+    return str(v) == str(wanted)
+
+
 def _length(v: Any) -> float:
     return float(len(v)) if isinstance(v, (str, list, tuple)) else 0.0
 
@@ -208,6 +218,9 @@ def _reduce_pieces(pieces: List[sig.Piece], spec: CheckSpec, t0: float) -> Reduc
         want = measure.endswith('true')
         secs = sum(b - a for a, b, v in pieces if bool(v) == want)
         return Reduced(secs / total if measure.startswith('fraction') and total > 0 else secs)
+    if measure in ('seconds_equals', 'fraction_equals'):
+        secs = sum(b - a for a, b, v in pieces if _matches(v, spec.equals))
+        return Reduced(secs / total if measure == 'fraction_equals' and total > 0 else secs)
     if measure == 'any_true':
         return Reduced(any(bool(v) for _a, _b, v in pieces))
     if measure == 'all_true':
@@ -256,6 +269,8 @@ class SnapshotSource:
             return Reduced(bool(v), age=age)
         if spec.measure in ('fraction_true', 'fraction_false'):
             return Reduced(1.0 if bool(v) == spec.measure.endswith('true') else 0.0, age=age)
+        if spec.measure == 'fraction_equals':
+            return Reduced(1.0 if _matches(v, spec.equals) else 0.0, age=age)
         if spec.measure in ('max_len', 'last_len'):
             return Reduced(_length(v), age=age, sample=_text(v))
         return Reduced(_scalar(v), age=age, sample=_text(v))
@@ -433,7 +448,9 @@ def evaluate(specs: Sequence[CheckSpec], source, latch: Optional[Latch] = None) 
                 continue
             status, x, detail = judge(spec, reduced)
             rows.append(_row(spec, key, labels, status, x, detail))
-        if spec.expect_items and '*' in spec.signal:
+        if spec.expect_items and '*' in spec.signal and matches:
+            # Only when some items reported: a log with none of this kind of data at all (a plain
+            # WPILib log has no vision signals) cannot say that an expected one is missing.
             have = {caps[0] for _k, caps in matches if caps}
             for name in spec.expect_items:
                 if name in have:

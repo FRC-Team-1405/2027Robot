@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { ComparePage } from './compare/ComparePage';
 import { FetchBundlePage } from './fetch/FetchBundlePage';
 import { PanelHost } from './panels/PanelHost';
-import { PitCheckPage } from './pit/PitCheckPage';
+import { HealthCheckPage } from './health/HealthCheckPage';
 import { TransportBar } from './controls/TransportBar';
 import { TabNav } from './nav/TabNav';
 import { LogPicker } from './loader/LogPicker';
@@ -28,8 +28,9 @@ export function App() {
     content = <BatteryPage />;
   } else if (view === 'compare') {
     content = <ComparePage />;
-  } else if (view === 'pit') {
-    content = <PitCheckPage />;
+  } else if (view === 'health' || view === 'pit') {
+    // 'pit' is the old name of this page (it only checked AprilTag detection); old links still work.
+    content = <HealthCheckPage />;
   } else if (view === 'fetch') {
     content = <FetchBundlePage />;
   } else {
