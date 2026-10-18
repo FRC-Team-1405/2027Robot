@@ -2,6 +2,7 @@
 import tempfile
 import contextlib
 import io
+import json
 from pathlib import Path
 from types import SimpleNamespace
 import sys
@@ -22,6 +23,8 @@ class RecorderDiagnosticsTests(unittest.TestCase):
         inst = MagicMock()
         inst.isConnected.return_value = True
         inst.getServerTimeOffset.return_value = 0
+        inst.getTable.return_value.getIntegerTopic.return_value.getEntry.return_value.getAtomic.return_value = \
+            SimpleNamespace(value=1792332000000, serverTime=12_000_000)
         ntcore = SimpleNamespace(NetworkTableInstance=SimpleNamespace(getDefault=lambda: inst))
         reader = MagicMock()
         reader.read_frame.side_effect = [b"jpeg", TimeoutError("camera stream stalled")]
@@ -44,6 +47,10 @@ class RecorderDiagnosticsTests(unittest.TestCase):
             self.assertIn("Disabled — session ended: frames=1 errors=1", text)
             self.assertIn("Recorder stopping", text)
             self.assertEqual(len((session / "manifest.jsonl").read_text().splitlines()), 1)
+            row = json.loads((session / "manifest.jsonl").read_text())
+            self.assertEqual(row['timestamp_unix_ms'], 1792332000500)
+            self.assertEqual(row['timestamp_utc'], '2026-10-18T14:00:00.500Z')
+            self.assertEqual(row['timestamp_status'], 'synced')
 
     def test_session_switch_preserves_recent_history_and_isolates_cameras(self):
         module = load_script("orangepi-vision-recorder.py", "RightPi", "RightCam")

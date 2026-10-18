@@ -115,6 +115,29 @@ Samples PhotonVision's raw (pre-AprilTag) camera stream at low rate while the ro
 enabled and saves timestamped JPEGs locally, for post-match vision diagnosis. See the
 script's own module docstring for how session folders are named and clock-synced.
 
+Each `manifest.jsonl` row now contains a real per-frame UTC date/time, not just
+the NT seconds embedded in its filename. Recorder version `2026.10.18.1` adds:
+
+```json
+{"frame":"frame_12.500000.jpg","t_sec":12.5,"timestamp_utc":"2026-10-18T14:00:00.500Z","timestamp_unix_ms":1792332000500,"timestamp_source":"roborio_wall_clock","timestamp_basis":"recorder_receive","timestamp_status":"synced"}
+```
+
+The recorder maps the robot's published `RobotTime/WallClockMs` and its atomic NT
+server timestamp to each frame's NT receipt time. This accounts for elapsed time
+since publication without relying on the Orange Pi's batteryless wall clock.
+Accuracy follows the roboRIO clock supplied by the Driver Station; millisecond
+formatting does not promise millisecond capture accuracy. These are recorder receipt
+timestamps, **not camera exposure timestamps**: this MJPEG reader has no exposure
+timestamp metadata. `t_sec` and filenames stay compatible with WPILog replay.
+
+When disconnected, awaiting NT clock sync, or lacking a valid robot clock sample
+within five seconds of the frame, `timestamp_utc`, `timestamp_unix_ms` and
+`timestamp_source` are `null`. `timestamp_status` states why (`nt_disconnected`,
+`nt_clock_unsynced`, `robot_clock_unavailable`, or `robot_clock_stale`). Frames still
+record; the recorder never substitutes an unverified Pi date. Install the updated
+script on every camera instance via `bash setup-orangepi.sh`. Existing manifests
+are not rewritten: their original rows did not record this clock correlation.
+
 Each new session also contains `recorder.log`: recorder version, board/camera/stream
 configuration, NT connection and enabled/control-word changes, ten-second progress
 reports (frames, errors, NT timestamp and clock-sync status), exception tracebacks,

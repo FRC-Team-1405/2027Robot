@@ -13,6 +13,10 @@ NT-server-synced timestamps (same clock domain as .wpilog files) into a
 per-session directory under RECORDINGS_DIR. Total storage is capped at
 MAX_STORAGE_BYTES by deleting the oldest whole sessions.
 
+Each manifest row also includes a real UTC receipt date/time derived from the
+robot's WallClockMs publication and its atomic NT server timestamp. Missing or
+stale clock correlation is recorded explicitly as null, never a guessed Pi date.
+
 Run one service instance per camera hosted on a board, on any number of
 Orange Pis. Each instance has its own CAMERA_STREAM_URL. Set CAMERA_NAME
 (env var) to namespace this instance's sessions under
@@ -61,11 +65,12 @@ import shutil
 import socket
 import time
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
-RECORDER_VERSION = "2026.10.17.1"
+RECORDER_VERSION = "2026.10.18.1"
+MAX_WALL_CLOCK_AGE_SEC = 5.0
 
 # Fallback only: each instance's EnvironmentFile must specify its confirmed RAW
 # stream on this board. Ports depend on that board's PhotonVision camera config.
@@ -155,6 +160,39 @@ def server_time_sec(inst):
     offset_us = inst.getServerTimeOffset() or 0
     local_us = ntcore._now()
     return (local_us + offset_us) / 1_000_000.0
+
+
+def frame_manifest_row(filename, t_sec, inst, robot_time_entry):
+    """Map a received frame's NT time to a real UTC date/time.
+
+    getAtomic() pairs the robot's epoch milliseconds with that publication's
+    server timestamp, so transport delay and an incorrect Pi clock do not shift
+    the result. This is receipt time, not camera exposure time. Missing/stale
+    clock data is explicit rather than replaced with the Pi's unreliable RTC.
+    """
+    row = {"frame": filename, "t_sec": t_sec, "timestamp_utc": None,
+           "timestamp_unix_ms": None, "timestamp_source": None,
+           "timestamp_basis": "recorder_receive", "timestamp_status": "unavailable"}
+    if not inst.isConnected():
+        row["timestamp_status"] = "nt_disconnected"
+        return row
+    if inst.getServerTimeOffset() is None:
+        row["timestamp_status"] = "nt_clock_unsynced"
+        return row
+    sample = robot_time_entry.getAtomic()
+    if sample.value <= 0 or sample.serverTime <= 1:
+        row["timestamp_status"] = "robot_clock_unavailable"
+        return row
+    age_sec = t_sec - sample.serverTime / 1_000_000.0
+    if abs(age_sec) > MAX_WALL_CLOCK_AGE_SEC:
+        row["timestamp_status"] = "robot_clock_stale"
+        return row
+    epoch_ms = sample.value + round(age_sec * 1000)
+    row.update(timestamp_unix_ms=epoch_ms,
+               timestamp_utc=datetime.fromtimestamp(epoch_ms / 1000, timezone.utc)
+                   .isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+               timestamp_source="roborio_wall_clock", timestamp_status="synced")
+    return row
 
 
 class MjpegFrameReader:
@@ -345,9 +383,10 @@ def main():
                     frame = reader.read_frame()
                     t_sec = server_time_sec(inst)
                     filename = f"frame_{t_sec:.6f}.jpg"
+                    row = frame_manifest_row(filename, t_sec, inst, robot_time_entry)
                     with open(os.path.join(session_dir, filename), "wb") as f:
                         f.write(frame)
-                    manifest.write(json.dumps({"frame": filename, "t_sec": t_sec}) + "\n")
+                    manifest.write(json.dumps(row) + "\n")
                     manifest.flush()
                     frames += 1
 
