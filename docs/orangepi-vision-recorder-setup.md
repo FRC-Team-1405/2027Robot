@@ -89,6 +89,13 @@ recorder, and after setting up a new Pi (`coprocessor/Bootstrap-OrangePi.ps1` do
   period ends the session. During a hold, `t_sec` keeps using the last known server clock offset.
 - **Auto and teleop are separate sessions** (the pause is a disable), but nothing in a recording
   says which is which; infer it from order and time.
+- **Health heartbeat.** About once a second the recorder publishes its own status to NetworkTables under
+  `/OrangePi/[<ORANGEPI_METRICS_NAME>/]Recorders/<camera>/`: `State` (`idle` = stream fine and waiting for the
+  robot to enable, `recording`, `no_stream`, `error`), `StreamOk`, `StreamFps`, session and frame counters,
+  `Errors`/`LastError`, `DiskFreeGB`, `ClockSynced`, `Version`. It reports while the robot is disabled too, so the
+  camera stream and disk can be checked in the pits. LogBench's **Health Check** page reads it
+  (`docs/health-check.md`), and the robot's `CoprocessorHealthLogger` copies it into the match log. A
+  publishing failure is logged once and never affects recording.
 - **Environment overrides** (in the instance's env file): `SAMPLE_HZ`, `MAX_STORAGE_BYTES`,
   `NT_DROP_GRACE_SEC`, and `NT_SERVER` / `NT_PORT` (point at a non-roboRIO NT server, used by the
   simulation).

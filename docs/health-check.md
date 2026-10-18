@@ -1,0 +1,134 @@
+# Health Check
+
+LogBench's **Health Check** page (it replaced "Pit Check") answers one question: *is everything on the
+robot OK?* Scroll it and look for anything that is not a green tick. It works two ways, from the same
+list of checks:
+
+- **Live robot**, in the pits: connect over NetworkTables, enable and disable the robot, and watch each
+  row. A row that goes red keeps a note ("was problem since reset, peak 95 %") even after it recovers,
+  until you press **Reset**.
+- **Match log**, afterwards: pick a `.wpilog` and see what stood out in that match, with the worst
+  reading and when it happened ("at 61.5 s into the log").
+
+Open it from the **Health Check** tab, or `?view=health` (the old `?view=pit` still works). A log can be
+opened directly with `?view=health&log=<name>.wpilog`.
+
+## Reading the page
+
+| Icon | Meaning |
+|---|---|
+| ✔ green | within its limits |
+| ▲ amber | warning: outside the normal range, not a failure |
+| ✖ red | problem |
+| ? grey | no data: the check could not be made (the row says why) |
+| – | not applicable here (hidden by default; **Show not applicable** reveals them) |
+
+The banner at the top rolls everything up: **All checks passing / Nothing stands out**, **Check these
+before going** (warnings), **Problems found**, or **Incomplete** (nothing wrong, but some checks had no
+data). Sections (Vision, Orange Pis, roboRIO, Robot) contain groups (one per camera, Pi, subsystem...),
+which contain rows. Anything amber or red opens by default; anything fine stays collapsed to one line
+with its own icon, so you can scan the page for the first non-green icon. **Problems only** hides every
+green row.
+
+Every row shows what was measured, the value, **the rule that was applied in words** ("warn above 70 %,
+fail above 90 %") and detail. Hover for the check's help text.
+
+## What is checked out of the box
+
+| Section | Checks |
+|---|---|
+| **Vision** | per camera: connected to robot code, frame rate; live only: tags in view, tag-detection health score and why it is low, camera agreement. The old per-factor tag-detection cards are under **Tag detection detail**. |
+| **Orange Pis** | per Pi: reporting (silent over 5 s fails), CPU, RAM, disk, temperature. Per recorder: state (idle/recording ok; no_stream/error not), camera stream delivering frames, stream rate, share of an enabled match that was recorded (log), disk free, errors, clock synced to the robot, version. |
+| **roboRIO** | CAN utilization (worst), bus-off, TX-full, RX/TX errors; battery voltage (lowest while enabled, and now), brownout, rail faults, comms disables; PDH faults and peak current; controller CPU temperature, loop time, logging backlog, radio; errors/warnings/PhotonVision alerts logged by robot code. |
+| **Robot** | one group per subsystem, one cluster per motor: responding on CAN, newest status age, last status, temperature, undervoltage, time at the current limit, peak supply current. |
+
+### Where the data comes from
+
+- **roboRIO and robot rows** read what AdvantageKit already logs (`SystemStats/*`, `PowerDistribution/*`,
+  `Power/Motors/*`, `RealOutputs/*`), live from `/AdvantageKit/...` or from the log.
+- **Orange Pi rows** read `/OrangePi/...`. `orangepi-nt-publisher.py` publishes CPU/RAM/disk/temperature;
+  `orangepi-vision-recorder.py` publishes a heartbeat per camera under
+  `/OrangePi/[<board>/]Recorders/<camera>/`: `State`, `Recording`, `StreamOk`, `StreamAgeSec`, `StreamFps`,
+  `SessionFrames`, `Sessions`, `TotalFrames`, `Errors`, `LastError`, `DiskFreeGB`, `RecordingsUsedGB`,
+  `ClockSynced`, `UptimeSec`, `HeartbeatSec`, `Version`, `BootId`, `SampleHz`. It reports even while the robot is
+  disabled, so the camera stream and the disk can be checked in the pits.
+- **In a match log**, those Pi topics are only there if the robot code copies them in:
+  `CoprocessorHealthLogger` mirrors `/OrangePi/**` into the AdvantageKit log (`RealOutputs/OrangePi/...`)
+  twice a second. Logs recorded before that change show the Orange Pi section as grey "no data".
+
+Nothing reaches the robot's Pis or the robot until you deploy it: re-run `Bootstrap-OrangePi.ps1` for each
+Pi (it installs the updated recorder) and deploy the robot code.
+
+## Adding a metric (no code)
+
+Everything is in `tools/logbench/server/health_checks.toml`. Add a block, save, refresh the page (the file
+is re-read when it changes). Mistakes are listed at the top of the page and the other checks still run.
+
+Track something new before you know what "too much" is: a check with no rule is informational and never
+red. For example, how long the shooter was spinning (this one ships as an example):
+
+```toml
+[[check]]
+id = "example.shooter_spin_time"
+section = "Robot"
+group = "Shooter"
+label = "Shooter wheels spinning (time while enabled)"
+signal = "Shooter/Motor1VelocityRPS"
+measure = "seconds_above"     # how long the value was above `above`
+above = 5
+window = "enabled"            # only count auto + teleop
+unit = "s"
+mode = "log"                  # needs a log: live has no history
+# warn_above = 90             # add this once you know what a normal match looks like
+```
+
+Why the shooter running long matters is battery draw; the check is the same idea for anything else:
+swap `signal`, pick a `measure`, add a threshold.
+
+### The vocabulary
+
+- **`signal`**: a log/NetworkTables key. `RealOutputs/`, a leading `/`, and the AdvantageKit root are optional.
+  A `*` matches one path segment and produces **one row per match**; `{1}`, `{2}` in `group`, `subject` and
+  `label` are what the first and second `*` matched. `lookup = { name = "Power/Motors/{1}/Name" }` pulls
+  display text (`{name}`) from another signal of the same item.
+- **`measure`** (how a log collapses to one number): `last`, `first`, `max`, `min`, `mean` (time-weighted),
+  `seconds_above` / `seconds_below` (need `above` / `below`), `seconds_true`, `seconds_false`,
+  `fraction_true`, `fraction_false`, `seconds_equals`, `fraction_equals` (need `equals`), `any_true`,
+  `all_true`, `changes`, `delta`, `max_len`, `last_len` (lists and text: alerts). A log is a sample-and-hold
+  series, so durations are real time, not record counts. Live always uses the current value; measures
+  that need history are shown as "log only" there.
+- **`window`**: which part of a log counts: `all` (default), `enabled`, `auto`, `teleop`, `disabled`.
+- **Rules**: `warn_above`, `fail_above`, `warn_below`, `fail_below` (on the scaled value);
+  `expect = true | false | number | "text"` or `expect_in = [...]` (with `severity = "warn"` to make a violation
+  amber); `stale_after = seconds` (live: fail if the topic stopped updating); `scale` multiplies the value
+  first (CAN utilization is 0-1, so `scale = 100`, `unit = "%"`).
+- **Missing data**: `missing = "nodata"` (grey, default), `"ok"` (alerts: nothing published means nothing
+  wrong), `"warn"`, `"fail"`. `expect_items = ["LeftCam", "RightCam"]` on a `*` check fails if one of those
+  is absent, when others reported.
+- **`mode`**: `both` (default), `live`, or `log`.
+
+The full reference is the docstring at the top of `server/health/config.py`; a mis-spelled field is an error
+(`warn_abve` is reported, not silently ignored).
+
+## How the defaults were calibrated
+
+Run against the seven Ruckus 2026 AdvantageKit logs (Q1, Q6, Q17, Q20, Q24, Q28, plus Q24's bundle):
+
+- Healthy motors report `SignalStatus == OK` for 99-100 % of enabled time; the two climber motors report
+  0 % in every match (`RxTimeout`, status age of hundreds of seconds). That is the "responding on CAN"
+  check, and it flags exactly those two motors and nothing else. (The `Valid` flag is *not* used: it only
+  means "data fresher than 100 ms" and is false most of the time for healthy motors.)
+- Drive motors sit at their stator-current limit 15-20 % of an enabled match, so that warning is set at 35 %.
+- Every log shows CAN utilization reaching 100 %, battery dips to about 7 V, loop times of 100+ ms and the
+  camera dropping connection during teleop. These are real findings in those matches, not noise.
+
+## For developers
+
+- `server/health/config.py` loads and validates the TOML; `engine.py` evaluates (`LogSource` for a parsed
+  log, `SnapshotSource` for live values, `Latch` for the worst-since-reset memory) and returns one
+  report: sections -> groups -> subjects -> checks.
+- API: `GET /api/health/config`, `GET /api/health/log?path=...`, `GET /api/health/live`,
+  `POST /api/health/live/reset`. The live view uses the connection `POST /api/live/connect` opens.
+- Tests: `tests/test_health_config.py`, `test_health_engine.py`, `test_health_api.py`, `test_live_nt.py`;
+  `web/src/health/healthView.test.ts`; `CoprocessorHealthLoggerTest.java`; the recorder side is
+  `coprocessor/tests/test_recorder_heartbeat.py`.

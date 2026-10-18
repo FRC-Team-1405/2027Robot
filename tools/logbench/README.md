@@ -250,6 +250,14 @@ than one camera (`speed_mean_mps`) is declared `per_camera=False` and appears on
 `All`. Not yet done (see the ADR): range-normalised tag area, block/bootstrap verdicts, and the
 robot-side `TagInViewFraction` log.
 
+## Health Check
+
+The **Health Check** tab (it replaced Pit Check) runs one configurable list of checks over either the live
+robot in the pits (NetworkTables) or a finished match log: vision, the Orange Pis and their recorders, the
+roboRIO (CAN, battery, loop time, alerts) and every motor, each with a green/amber/red icon, the value, and
+the rule in words. The checks live in `server/health_checks.toml`; adding a metric is a few lines of TOML and
+no code. See `docs/health-check.md`.
+
 ## Layout
 
 ```
