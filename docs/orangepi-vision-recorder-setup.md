@@ -92,7 +92,9 @@ recorder, and after setting up a new Pi (`coprocessor/Bootstrap-OrangePi.ps1` do
 - **Health heartbeat.** About once a second the recorder publishes its own status to NetworkTables under
   `/OrangePi/[<ORANGEPI_METRICS_NAME>/]Recorders/<camera>/`: `State` (`idle` = stream fine and waiting for the
   robot to enable, `recording`, `no_stream`, `error`), `StreamOk`, `StreamFps`, session and frame counters,
-  `Errors`/`LastError`, `DiskFreeGB`, `ClockSynced`, `Version`. It reports while the robot is disabled too, so the
+  `Errors`/`LastError`, `DiskFreeGB`, `ClockSynced`, `Version`, and the recorder's own view of its NetworkTables
+  connection (`NtDisconnects`, `NtDownSec`, `NtLongestOutageSec`), so after a reconnect the Pi can show it never
+  rebooted and the link dropped N times. It reports while the robot is disabled too, so the
   camera stream and disk can be checked in the pits. LogBench's **Health Check** page reads it
   (`docs/health-check.md`), and the robot's `CoprocessorHealthLogger` copies it into the match log. A
   publishing failure is logged once and never affects recording.

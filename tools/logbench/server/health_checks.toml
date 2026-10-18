@@ -173,6 +173,102 @@ warn_above = 70
 fail_above = 85
 help = "The board throttles when it gets hot, which slows detection."
 
+# ── Why did the Pi's clients drop? Reboot vs link flap vs camera loss ─────────────────────────
+# When the cameras and every other Pi client vanish from the robot's log together, these say which
+# of the causes it was: BootId changes only on a real reboot; NetCarrierChanges climbs when the
+# network link flaps (the Pi keeps running, uptime keeps counting); UsbCameras drops when a camera
+# falls off the USB bus. (Published by orangepi-nt-publisher.py; in a log they need the robot's
+# CoprocessorHealthLogger, i.e. a log recorded after that change.)
+
+[[check]]
+id = "pi.rebooted"
+section = "Orange Pis"
+group = "{1}"
+label = "Rebooted during the match"
+signal = "OrangePi/*/BootId"
+measure = "changes"
+window = "all"
+mode = "log"
+decimals = 0
+fail_above = 0
+help = "The kernel's boot id changes only when the whole board restarts (power loss, crash, reboot). A service restart does not change it. Counts changes across the whole log."
+
+[[check]]
+id = "pi.uptime"
+section = "Orange Pis"
+group = "{1}"
+label = "Time since the board booted"
+signal = "OrangePi/*/SystemUptimeSec"
+measure = "last"
+mode = "live"
+unit = "s"
+decimals = 0
+warn_below = 60
+help = "Under a minute means the board has only just (re)started."
+
+[[check]]
+id = "pi.link_state"
+section = "Orange Pis"
+group = "{1}"
+label = "Network link"
+signal = "OrangePi/*/NetOperState"
+measure = "last"
+expect = "up"
+mode = "live"
+help = "The Pi's network interface state as the Pi sees it."
+
+[[check]]
+id = "pi.link_speed"
+section = "Orange Pis"
+group = "{1}"
+label = "Network link speed"
+signal = "OrangePi/*/NetSpeedMbps"
+measure = "last"
+mode = "live"
+unit = "Mbit/s"
+decimals = 0
+warn_below = 1000
+fail_below = 100
+help = "The Orange Pi's port is gigabit. Negotiating 100 Mbit/s (warning) or 10 (problem) often means a damaged cable or connector. Remove this check if a board uses a slower USB adapter."
+
+[[check]]
+id = "pi.link_flaps"
+section = "Orange Pis"
+group = "{1}"
+label = "Network link flaps while enabled"
+signal = "OrangePi/*/NetCarrierChanges"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+warn_above = 0
+fail_above = 4
+help = "How many times the Pi's ethernet link changed state (down or up) while the robot was enabled. A link that flapped while the board kept running (uptime and BootId unchanged) points at the cable, connector or the switch/radio port, or their power."
+
+[[check]]
+id = "pi.usb_cameras"
+section = "Orange Pis"
+group = "{1}"
+label = "USB cameras present"
+signal = "OrangePi/*/UsbCameras"
+measure = "last"
+mode = "live"
+decimals = 0
+help = "How many USB cameras the board can see right now. Compare with the number you have fitted."
+
+[[check]]
+id = "pi.usb_camera_loss"
+section = "Orange Pis"
+group = "{1}"
+label = "USB camera count changed"
+signal = "OrangePi/*/UsbCameras"
+measure = "changes"
+window = "all"
+mode = "log"
+decimals = 0
+warn_above = 0
+help = "A camera that fell off the USB bus (cable, connector, power glitch) lowers this count and may not come back until it re-enumerates; the other camera keeps working."
+
 [[check]]
 id = "rec.state"
 section = "Orange Pis"
@@ -266,6 +362,77 @@ measure = "last"
 expect = true
 severity = "warn"
 help = "Without the robot's clock, session folder names use the Pi's own clock and may not pair with the log."
+
+[[check]]
+id = "rec.nt_disconnects_match"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "NetworkTables drops while enabled"
+signal = "OrangePi/*/Recorders/*/NtDisconnects"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+warn_above = 0
+fail_above = 5
+help = "How many times THIS recorder lost its connection to the robot while enabled, counted by the Pi itself. With the Pi's uptime still counting and BootId unchanged, the Pi did not reboot: the link (or the roboRIO side) dropped."
+
+[[check]]
+id = "rec.nt_down_match"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Time disconnected while enabled"
+signal = "OrangePi/*/Recorders/*/NtDownSec"
+measure = "delta"
+window = "enabled"
+mode = "log"
+unit = "s"
+decimals = 0
+warn_above = 5
+fail_above = 30
+
+[[check]]
+id = "rec.nt_longest"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Longest NetworkTables outage since boot"
+signal = "OrangePi/*/Recorders/*/NtLongestOutageSec"
+measure = "max"
+unit = "s"
+decimals = 0
+warn_above = 5
+fail_above = 30
+help = "The recorder holds a session through an outage up to NT_DROP_GRACE_SEC (45 s); longer ends the session."
+
+[[check]]
+id = "rec.nt_disconnects_live"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "NetworkTables drops since boot"
+signal = "OrangePi/*/Recorders/*/NtDisconnects"
+measure = "last"
+mode = "live"
+decimals = 0
+warn_above = 0
+fail_above = 10
+
+[[check]]
+id = "rec.uptime"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorder process uptime"
+signal = "OrangePi/*/Recorders/*/UptimeSec"
+measure = "last"
+mode = "live"
+unit = "s"
+decimals = 0
+warn_below = 60
+help = "Seconds since this recorder process started. A small number with a large board uptime means the recorder restarted on its own."
 
 [[check]]
 id = "rec.version"

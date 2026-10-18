@@ -34,7 +34,11 @@ class SharedTable:
         path = f"{self.path}/{name}"
         return SimpleNamespace(publish=lambda: SimpleNamespace(set=lambda value: self.values.__setitem__(path, value)))
 
-    getStringTopic = getDoubleTopic
+    getStringTopic = getIntegerTopic = getBooleanTopic = getDoubleTopic
+
+
+SYSTEM = {"uptime_sec": 120.5, "boot_id": "boot-1", "iface": "eth0", "carrier_changes": 3, "operstate": "up",
+          "speed_mbps": 1000, "video_devices": 4, "usb_cameras": 2}
 
 
 class NetworkTablesIdentityTests(unittest.TestCase):
@@ -50,6 +54,7 @@ class NetworkTablesIdentityTests(unittest.TestCase):
                  patch.object(module, "read_cpu_pct", return_value=cpu), \
                  patch.object(module, "read_ram", return_value=(100, 200, 50)), \
                  patch.object(module, "read_disk", return_value=(1, 10, 10)), \
+                 patch.object(module, "read_system", return_value=SYSTEM), \
                  patch.object(module, "read_temp_c", return_value=40),                  patch.object(module, "read_ip", return_value=ip),                  patch.object(module, "read_host", return_value=f"{board.lower()}.local"), \
                  patch.object(module.time, "sleep", side_effect=StopLoop), patch("builtins.print"):
                 with self.assertRaises(StopLoop):
@@ -61,7 +66,9 @@ class NetworkTablesIdentityTests(unittest.TestCase):
         # How to reach each board, for tools/logbench's Pi discovery.
         self.assertEqual(values["/OrangePi/LeftPi/IP"], "10.14.5.21")
         self.assertEqual(values["/OrangePi/RightPi/Host"], "rightpi.local")
-        self.assertEqual(len(values), 20)  # eight metrics plus IP and Host per board
+        self.assertEqual(len(values), 36)  # eight metrics, IP, Host and eight system diagnostics per board
+        self.assertEqual(values["/OrangePi/LeftPi/BootId"], "boot-1")
+        self.assertEqual(values["/OrangePi/RightPi/NetCarrierChanges"], 3)
         self.assertNotIn("/OrangePi/CPU_Pct", values)
         self.assertEqual(clients, ["OrangePiMetrics-LeftPi", "OrangePiMetrics-RightPi"])
 

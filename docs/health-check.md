@@ -38,9 +38,28 @@ fail above 90 %") and detail. Hover for the check's help text.
 | Section | Checks |
 |---|---|
 | **Vision** | per camera: connected to robot code, frame rate; live only: tags in view, tag-detection health score and why it is low, camera agreement. The old per-factor tag-detection cards are under **Tag detection detail**. |
-| **Orange Pis** | per Pi: reporting (silent over 5 s fails), CPU, RAM, disk, temperature. Per recorder: state (idle/recording ok; no_stream/error not), camera stream delivering frames, stream rate, share of an enabled match that was recorded (log), disk free, errors, clock synced to the robot, version. |
+| **Orange Pis** | per Pi: reporting (silent over 5 s fails), CPU, RAM, disk, temperature, and the diagnostics below. Per recorder: state (idle/recording ok; no_stream/error not), camera stream delivering frames, stream rate, share of an enabled match that was recorded (log), disk free, errors, clock synced to the robot, version. |
 | **roboRIO** | CAN utilization (worst), bus-off, TX-full, RX/TX errors; battery voltage (lowest while enabled, and now), brownout, rail faults, comms disables; PDH faults and peak current; controller CPU temperature, loop time, logging backlog, radio; errors/warnings/PhotonVision alerts logged by robot code. |
 | **Robot** | one group per subsystem, one cluster per motor: responding on CAN, newest status age, last status, temperature, undervoltage, time at the current limit, peak supply current. |
+
+### When the Pi's cameras and clients all drop at once: reboot, link flap or camera loss?
+
+PhotonVision's own NetworkTables client, every recorder and the metrics publisher live on the same Pi, so a
+drop usually takes them all down together. Which kind of drop it was is what these rows say:
+
+| Cause | What shows it |
+|---|---|
+| **The board rebooted** (power loss, crash) | **Rebooted during the match** goes red: `BootId` (the kernel's per-boot id) changed. Live, **Time since the board booted** is small. |
+| **A service restarted** (recorder or PhotonVision, board still up) | `BootId` unchanged and `SystemUptimeSec` still counting, but the recorder's **Recorder process uptime** is small. |
+| **The network link flapped** (cable, connector, switch/radio port or its power) | **Network link flaps while enabled** (`NetCarrierChanges` climbing) and each recorder's **NetworkTables drops / time disconnected while enabled** (counted by the Pi itself and published after the reconnect), with `BootId` unchanged. Live, **Network link** and **link speed** show the port's state. |
+| **One camera fell off USB** | **USB camera count changed** (`UsbCameras` dropped) while the link rows are clean and the other camera's recorder is fine; that recorder's `StreamOk` goes false. |
+
+Published by `orangepi-nt-publisher.py` (`SystemUptimeSec`, `BootId`, `NetIface`, `NetCarrierChanges`,
+`NetOperState`, `NetSpeedMbps`, `VideoDevices`, `UsbCameras`; set `ORANGEPI_NET_IFACE` to pick the interface if the
+default route is not the one that reaches the robot) and by the recorder heartbeat (`NtDisconnects`, `NtDownSec`,
+`NtLongestOutageSec`). The recorder samples its connection about three times a second, so each outage is good to
+about a third of a second. Only logs recorded after the robot code's `CoprocessorHealthLogger` mirror and these
+Pi changes have these rows; older logs show them as grey "no data".
 
 ### Where the data comes from
 

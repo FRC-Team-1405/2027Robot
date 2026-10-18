@@ -16,6 +16,7 @@ Run:
 To run on boot, add a systemd service (see orangepi-nt-publisher.service).
 """
 
+import glob
 import time
 import os
 import socket
@@ -24,6 +25,8 @@ import subprocess
 TEAM_NUMBER = 1405
 PUBLISH_INTERVAL_S = 1.0
 METRICS_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip()
+# Which network interface to report link health for. Default: the one carrying the default route.
+NET_IFACE = os.environ.get("ORANGEPI_NET_IFACE", "").strip()
 
 
 def read_ip():
@@ -96,6 +99,107 @@ def read_disk():
     return round(used_mb / 1024, 2), round(total_mb / 1024, 2), pct
 
 
+def _read_text(path):
+    """First line of a small /proc or /sys file, or None if it cannot be read."""
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except (OSError, ValueError):
+        return None
+
+
+def _read_int(path, default=-1):
+    text = _read_text(path)
+    try:
+        return int(text) if text is not None else default
+    except ValueError:
+        return default
+
+
+def read_uptime_sec(root=""):
+    """Seconds since this board booted (the OS, not any one process). -1.0 if unreadable."""
+    text = _read_text(f"{root}/proc/uptime")
+    try:
+        return round(float(text.split()[0]), 1) if text else -1.0
+    except (ValueError, IndexError):
+        return -1.0
+
+
+def read_boot_id(root=""):
+    """The kernel's random id for THIS boot: changes on every reboot, constant across service
+    restarts, so a change between two log samples means the board really restarted."""
+    return _read_text(f"{root}/proc/sys/kernel/random/boot_id") or ""
+
+
+def primary_interface(root="", override=None):
+    """The network interface to report: ORANGEPI_NET_IFACE if set, else the default route's, else
+    the first physical-looking interface that exists. '' if none can be found."""
+    if override:
+        return override
+    try:
+        with open(f"{root}/proc/net/route") as f:
+            next(f, None)
+            for line in f:
+                parts = line.split()
+                if len(parts) > 1 and parts[1] == "00000000":
+                    return parts[0]
+    except OSError:
+        pass
+    for path in sorted(glob.glob(f"{root}/sys/class/net/*")):
+        name = os.path.basename(path)
+        if name == "lo" or name.startswith(("docker", "veth", "br-", "virbr", "tailscale")):
+            continue
+        if os.path.exists(f"{path}/device"):   # backed by hardware, not a virtual interface
+            return name
+    return ""
+
+
+def read_link(iface, root=""):
+    """Link health of one interface. carrier_changes counts every time the cable/link went up or
+    down since boot, so a link that flapped N times shows N more changes afterwards, even if it is
+    up now. Unreadable values are -1 / ''."""
+    if not iface:
+        return {"iface": "", "carrier_changes": -1, "operstate": "", "speed_mbps": -1}
+    base = f"{root}/sys/class/net/{iface}"
+    return {
+        "iface": iface,
+        "carrier_changes": _read_int(f"{base}/carrier_changes"),
+        "operstate": _read_text(f"{base}/operstate") or "",
+        "speed_mbps": _read_int(f"{base}/speed"),    # -1 while the link is down
+    }
+
+
+def read_video(root=""):
+    """(video device nodes, distinct USB cameras). One physical camera exposes several /dev/video
+    nodes, so USB cameras are counted by their parent USB device. A camera that fell off the USB
+    bus (cable, power glitch) drops this count and does not come back until it re-enumerates."""
+    # Only numbered nodes: Rockchip boards also expose /dev/video-dec0 and /dev/video-enc0 (hardware
+    # codecs), which are not cameras.
+    nodes = glob.glob(f"{root}/dev/video[0-9]*")
+    usb_parents = set()
+    for entry in glob.glob(f"{root}/sys/class/video4linux/video*"):
+        try:
+            real = os.path.realpath(os.path.join(entry, "device"))
+        except OSError:
+            continue
+        if "/usb" in real.replace("\\", "/"):
+            # The link points at a USB *interface* (it has bInterfaceNumber); the physical camera is
+            # its parent device, shared by all of that camera's interfaces and /dev/video nodes.
+            usb_parents.add(os.path.dirname(real) if os.path.exists(os.path.join(real, "bInterfaceNumber")) else real)
+    return len(nodes), len(usb_parents)
+
+
+def read_system(root="", iface_override=None):
+    """Everything the board can tell us about its own reboots, link and cameras. Never raises."""
+    link = read_link(primary_interface(root, iface_override), root)
+    try:
+        video_nodes, usb_cameras = read_video(root)
+    except Exception:
+        video_nodes, usb_cameras = -1, -1
+    return {"uptime_sec": read_uptime_sec(root), "boot_id": read_boot_id(root), **link,
+            "video_devices": video_nodes, "usb_cameras": usb_cameras}
+
+
 def main():
     import ntcore
 
@@ -122,6 +226,17 @@ def main():
     # share the default hostname.
     ip_pub        = table.getStringTopic("IP").publish()
     host_pub      = table.getStringTopic("Host").publish()
+    # Did the board reboot, did its network link flap, did a USB camera disappear? Together these
+    # tell a reboot (uptime resets, BootId changes) from a service restart (neither) from a link
+    # flap (NetCarrierChanges climbs, uptime keeps counting) from one camera dropping off USB.
+    uptime_pub    = table.getDoubleTopic("SystemUptimeSec").publish()
+    boot_pub      = table.getStringTopic("BootId").publish()
+    iface_pub     = table.getStringTopic("NetIface").publish()
+    carrier_pub   = table.getIntegerTopic("NetCarrierChanges").publish()
+    operstate_pub = table.getStringTopic("NetOperState").publish()
+    speed_pub     = table.getIntegerTopic("NetSpeedMbps").publish()
+    video_pub     = table.getIntegerTopic("VideoDevices").publish()
+    usbcam_pub    = table.getIntegerTopic("UsbCameras").publish()
 
     topic_root = f"/OrangePi/{METRICS_NAME}" if METRICS_NAME else "/OrangePi"
     print(f"Connecting to roboRIO (team {TEAM_NUMBER}); publishing under {topic_root}/…")
@@ -143,6 +258,16 @@ def main():
             temp_pub.set(temp)
             ip_pub.set(read_ip())
             host_pub.set(read_host())
+
+            system = read_system(iface_override=NET_IFACE or None)
+            uptime_pub.set(system["uptime_sec"])
+            boot_pub.set(system["boot_id"])
+            iface_pub.set(system["iface"])
+            carrier_pub.set(system["carrier_changes"])
+            operstate_pub.set(system["operstate"])
+            speed_pub.set(system["speed_mbps"])
+            video_pub.set(system["video_devices"])
+            usbcam_pub.set(system["usb_cameras"])
 
         except Exception as e:
             print(f"Metrics error: {e}")

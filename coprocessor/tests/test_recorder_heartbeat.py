@@ -206,5 +206,115 @@ class HeartbeatTests(unittest.TestCase):
         self.assertEqual(table.values["Version"], module.RECORDER_VERSION)
 
 
+class NtOutageTrackerTests(unittest.TestCase):
+    def setUp(self):
+        self.module = load_script("orangepi-vision-recorder.py", "LeftPi", "LeftCam")
+
+    def feed(self, tracker, steps):
+        """steps: [(seconds, connected)] sampled once per second."""
+        now = 0.0
+        for seconds, connected in steps:
+            for _ in range(seconds):
+                tracker.observe(connected, now)
+                now += 1.0
+        return now
+
+    def test_time_before_the_first_connection_is_not_an_outage(self):
+        t = self.module.NtOutageTracker()
+        now = self.feed(t, [(30, False)])
+        self.assertEqual(t.snapshot(now), (0, 0.0, 0.0))
+
+    def test_counts_each_outage_total_time_and_the_longest(self):
+        t = self.module.NtOutageTracker()
+        # up 5 s, down 3 s, up 5 s, down 7 s, up 2 s
+        now = self.feed(t, [(5, True), (3, False), (5, True), (7, False), (2, True)])
+        self.assertEqual(t.snapshot(now), (2, 10.0, 7.0))
+
+    def test_an_outage_in_progress_is_included_in_the_snapshot(self):
+        t = self.module.NtOutageTracker()
+        now = self.feed(t, [(5, True), (4, False)])
+        self.assertEqual(t.snapshot(now), (1, 4.0, 4.0))
+        now += 6
+        self.assertEqual(t.snapshot(now), (1, 10.0, 10.0))
+
+    def test_staying_connected_changes_nothing(self):
+        t = self.module.NtOutageTracker()
+        now = self.feed(t, [(60, True)])
+        self.assertEqual(t.snapshot(now), (0, 0.0, 0.0))
+
+    def test_repeated_disconnected_samples_are_one_outage(self):
+        t = self.module.NtOutageTracker()
+        self.feed(t, [(2, True), (10, False)])
+        self.assertEqual(t.disconnects, 1)
+
+
+class HeartbeatNtOutageTopicsTests(unittest.TestCase):
+    def setUp(self):
+        self.module = load_script("orangepi-vision-recorder.py", "LeftPi", "LeftCam")
+
+    def test_the_outage_counters_are_published(self):
+        hb, table, _ = make(self.module)
+        beat(hb, nt_disconnects=11, nt_down_sec=38.4, nt_longest_outage_sec=7.1)
+        v = table.values
+        self.assertEqual((v["NtDisconnects"], v["NtDownSec"], v["NtLongestOutageSec"]), (11, 38.4, 7.1))
+
+    def test_they_default_to_zero_for_callers_that_do_not_track(self):
+        hb, table, _ = make(self.module)
+        beat(hb)
+        self.assertEqual((table.values["NtDisconnects"], table.values["NtDownSec"]), (0, 0.0))
+
+
+class MainLoopOutageWiringTests(unittest.TestCase):
+    def test_a_connection_drop_seen_by_the_main_loop_reaches_the_heartbeat(self):
+        module = load_script("orangepi-vision-recorder.py", "RightPi", "RightCam")
+        connected = {"now": True}
+        inst = MagicMock()
+        inst.isConnected.side_effect = lambda: connected["now"]
+        inst.getServerTimeOffset.return_value = 0
+        table = FakeTable()
+        inst.getTable.side_effect = lambda path: table if path.startswith("OrangePi") else MagicMock()
+        frame_source = MagicMock()
+        frame_source.latest.return_value = (b"jpeg", 12.4, 5)
+        ntcore = SimpleNamespace(NetworkTableInstance=SimpleNamespace(getDefault=lambda: inst))
+
+        class Stop(BaseException):
+            pass
+
+        def drop(_seconds):
+            connected["now"] = False
+
+        def recover(_seconds):
+            connected["now"] = True
+
+        def finish(_seconds):
+            raise Stop
+
+        class EveryLoopHeartbeat(module.RecorderHeartbeat):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **{**kwargs, "interval": 0})     # publish on every loop iteration
+
+        # time.sleep is the loop's clock tick: each step runs between two loop iterations
+        steps = [drop, drop, recover, recover, finish]
+
+        def sleeper(seconds):
+            steps.pop(0)(seconds)
+
+        with tempfile.TemporaryDirectory() as root, \
+             patch.dict(sys.modules, ntcore=ntcore), \
+             patch.object(module, "RECORDINGS_BASE", root), \
+             patch.object(module, "RECORDINGS_DIR", root), \
+             patch.object(module, "MjpegFrameReader", return_value=MagicMock()), \
+             patch.object(module, "LatestFrameReader", return_value=frame_source), \
+             patch.object(module, "is_enabled", return_value=False), \
+             patch.object(module, "server_time_sec", return_value=12.5), \
+             patch.object(module, "RecorderHeartbeat", EveryLoopHeartbeat), \
+             patch.object(module.time, "sleep", side_effect=sleeper), \
+             self.assertRaises(Stop):
+            module.main()
+        self.assertEqual(table.values["NtDisconnects"], 1)
+        self.assertGreaterEqual(table.values["NtDownSec"], 0.0)
+        self.assertEqual(table.history["NtDisconnects"][0], 0)      # published 0 while still connected
+
+
 if __name__ == "__main__":
     unittest.main()

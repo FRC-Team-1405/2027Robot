@@ -457,6 +457,42 @@ def directory_bytes(path):
     return total
 
 
+class NtOutageTracker:
+    """The recorder's own view of its NetworkTables connection: how many times it dropped, for how
+    long in total, and the longest single outage.
+
+    Why: when the camera and every other Pi client vanish from the robot's log together, the log
+    cannot say whether the Pi rebooted, a process restarted or the link flapped. This counts the
+    flaps from the Pi's side and publishes them after the reconnect (while down there is nothing to
+    publish to), so a Pi that never rebooted can show 'the link dropped 11 times, 38 s in all'.
+    Sampled once per recorder loop (about 3 Hz), so each outage is good to about a third of a second.
+    The time before the first connection is not an outage."""
+
+    def __init__(self):
+        self.disconnects = 0
+        self.down_sec = 0.0
+        self.longest_sec = 0.0
+        self._ever_connected = False
+        self._down_since = None
+
+    def observe(self, connected, now):
+        if connected:
+            if self._down_since is not None:
+                outage = now - self._down_since
+                self.down_sec += outage
+                self.longest_sec = max(self.longest_sec, outage)
+                self._down_since = None
+            self._ever_connected = True
+        elif self._ever_connected and self._down_since is None:
+            self.disconnects += 1
+            self._down_since = now
+
+    def snapshot(self, now):
+        """(disconnects, total down seconds, longest outage seconds), counting an outage in progress."""
+        ongoing = (now - self._down_since) if self._down_since is not None else 0.0
+        return self.disconnects, round(self.down_sec + ongoing, 1), round(max(self.longest_sec, ongoing), 1)
+
+
 class RecorderHeartbeat:
     """Publishes this recorder's health to NetworkTables about once a second.
 
@@ -480,6 +516,10 @@ class RecorderHeartbeat:
       DiskFreeGB       double   free space where recordings are stored
       RecordingsUsedGB double   space the recordings under this camera's folder use
       ClockSynced      boolean  the roboRIO wall clock has been received (session names are trustworthy)
+      NtDisconnects    integer  times this recorder lost its NetworkTables connection since boot
+      NtDownSec        double   total seconds it was disconnected
+      NtLongestOutageSec double longest single outage; with UptimeSec still counting up, a link flap
+                                (not a reboot or a crash) is what happened
       UptimeSec        double   seconds since this process started
       HeartbeatSec     double   increments every publish; also lets a consumer see a frozen loop
       Version, BootId, SampleHz   static identity
@@ -512,7 +552,8 @@ class RecorderHeartbeat:
                 ("StreamAgeSec", "Double"), ("StreamFps", "Double"), ("SessionFrames", "Integer"),
                 ("Sessions", "Integer"), ("TotalFrames", "Integer"), ("Errors", "Integer"),
                 ("LastError", "String"), ("DiskFreeGB", "Double"), ("RecordingsUsedGB", "Double"),
-                ("ClockSynced", "Boolean"), ("UptimeSec", "Double"), ("HeartbeatSec", "Double"),
+                ("ClockSynced", "Boolean"), ("NtDisconnects", "Integer"), ("NtDownSec", "Double"),
+                ("NtLongestOutageSec", "Double"), ("UptimeSec", "Double"), ("HeartbeatSec", "Double"),
                 ("Version", "String"), ("BootId", "Integer"), ("SampleHz", "Double"),
             ):
                 self._pubs[name] = getattr(table, f"get{kind}Topic")(name).publish()
@@ -545,7 +586,8 @@ class RecorderHeartbeat:
                                      or self._clock() - self._last_publish >= self._interval)
 
     def update(self, *, recording, stream_age_sec, stream_seq, session_frames, sessions, total_frames,
-               errors, last_error, last_error_age_sec, clock_synced, log=None):
+               errors, last_error, last_error_age_sec, clock_synced, nt_disconnects=0, nt_down_sec=0.0,
+               nt_longest_outage_sec=0.0, log=None):
         """Call every loop; publishes at most once per interval. Returns True if it published."""
         now = self._clock()
         if self._failed:
@@ -576,7 +618,9 @@ class RecorderHeartbeat:
             "StreamFps": self._fps, "SessionFrames": int(session_frames), "Sessions": int(sessions),
             "TotalFrames": int(total_frames), "Errors": int(errors), "LastError": last_error or "",
             "DiskFreeGB": self._disk_free_gb, "RecordingsUsedGB": self._used_gb,
-            "ClockSynced": bool(clock_synced), "UptimeSec": round(now - self._started, 1),
+            "ClockSynced": bool(clock_synced), "NtDisconnects": int(nt_disconnects),
+            "NtDownSec": float(nt_down_sec), "NtLongestOutageSec": float(nt_longest_outage_sec),
+            "UptimeSec": round(now - self._started, 1),
             "HeartbeatSec": float(self._beats),
         }
         try:
@@ -646,6 +690,7 @@ def main():
     errors = 0
     last_state = None
     last_status = float('-inf')
+    nt_outages = NtOutageTracker()
     sessions_started = 0
     total_frames = 0
     total_errors = 0
@@ -656,6 +701,7 @@ def main():
         while True:
             loop_start = time.monotonic()
             newest = None  # the newest camera frame, if the capture step below fetched it
+            nt_outages.observe(inst.isConnected(), loop_start)
             try:
                 if inst.isConnected():
                     enabled = is_enabled(control_word_entry)
@@ -755,6 +801,8 @@ def main():
                         errors=total_errors, last_error=last_error,
                         last_error_age_sec=(time.monotonic() - last_error_at) if last_error_at else None,
                         clock_synced=inst.getServerTimeOffset() is not None and bool(robot_time_entry.get(0)),
+                        **dict(zip(("nt_disconnects", "nt_down_sec", "nt_longest_outage_sec"),
+                                   nt_outages.snapshot(time.monotonic()))),
                         log=log)
             except Exception:
                 log.exception("Heartbeat update failed")
