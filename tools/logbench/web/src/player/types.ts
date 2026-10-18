@@ -61,6 +61,27 @@ export interface VisionCameraStatic {
   t0: number;
 }
 
+/** One recording session. t0/t1 are ABSOLUTE log seconds (not relative to spec.t0); the video plays from t0. */
+export interface VisionSegment {
+  video: string;
+  t0: number;
+  t1: number;
+  session: string;
+}
+
+/** A driver-station mode window, absolute log seconds. */
+export interface ModeWindow {
+  mode: 'disabled' | 'auto' | 'teleop' | string;
+  t0: number;
+  t1: number;
+}
+
+export interface VisionCoverage {
+  enabled_sec: number;
+  covered_sec: number;
+  fraction: number;
+}
+
 export interface WireSpec {
   title: string;
   t0: number;
@@ -75,6 +96,11 @@ export interface WireSpec {
     severity?: SeverityBand[];
     staleness_sec?: number;
     vision?: Record<string, VisionCameraStatic>;
+    /** Every recording session per camera, in time order. Preferred over `vision` when present. */
+    vision_segments?: Record<string, VisionSegment[]>;
+    vision_coverage?: Record<string, VisionCoverage>;
+    /** Driver-station modes, when the log has them. */
+    modes?: ModeWindow[];
   };
   warnings: string[];
   /** Set by the server when the log's records are out of time order; see loader/OrderNotice. */

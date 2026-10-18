@@ -9,8 +9,9 @@
 //
 // The static buffer is invalidated only by a resize or a legend toggle.
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { MODE_FILL, MODE_LABEL, matchWindow, relativeModes } from '../lib/match';
 import { Cursor } from '../player/cursor';
 import { usePlayer, useFrame, useRepaintOn } from '../player/PlayerContext';
 import type { Panel, ScalarSeries, StringSeries } from '../player/types';
@@ -40,12 +41,23 @@ function unavailable(reason: string): boolean {
 }
 
 export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; expanded?: boolean }) {
-  const { spec, clock, hidden, toggleTrack } = usePlayer();
+  const { spec, clock, hidden, toggleTrack, fullLog } = usePlayer();
   const height = expanded ? 300 : HEIGHT;
   const { canvasRef, size } = useCanvas(height);
   const offscreen = useOffscreen();
   const staticKey = useRef('');
-  const [view, setView] = useState<[number, number]>((panel.options.view as [number, number] | undefined) ?? [0, spec.duration]);
+  // Charts open on the match, not the whole log: a qualification log is ~57% disabled lead-in and
+  // tail, which would otherwise squash auto and teleop into a sliver. The transport bar toggles it.
+  const defaultView = useMemo<[number, number]>(
+    () =>
+      (panel.options.view as [number, number] | undefined) ??
+      (fullLog ? null : matchWindow(spec.static.modes, spec.t0, spec.duration)) ??
+      [0, spec.duration],
+    [panel, spec, fullLog],
+  );
+  const [view, setView] = useState<[number, number]>(defaultView);
+  useEffect(() => setView(defaultView), [defaultView]);
+  const modeWindows = useMemo(() => relativeModes(spec.static.modes, spec.t0), [spec]);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [tagSamplesOnly, setTagSamplesOnly] = useState(false);
   const [movingAverage, setMovingAverage] = useState(true);
@@ -142,7 +154,7 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
 
     // ── Static layer: grid, axis labels, every trace ──────────────────────────
     const visibleIds = tracks.filter((t) => !hidden.has(t.id)).map((t) => t.id).join(',');
-    const key = `${width}x${height}@${size.dpr}|${visibleIds}|${view.join(':')}|${tagSamplesOnly}|${movingAverage}`;
+    const key = `${width}x${height}@${size.dpr}|${visibleIds}|${view.join(':')}|${tagSamplesOnly}|${movingAverage}|${modeWindows.length}`;
     const buf = offscreen.get(width, height, size.dpr);
     if (staticKey.current !== key) {
       staticKey.current = key;
@@ -151,9 +163,24 @@ export function TimeSeriesPanel({ panel, expanded = false }: { panel: Panel; exp
       b.fillStyle = '#111827';
       b.fillRect(0, 0, width, height);
 
+      // Driver-station modes: tint auto and teleop, label them, so a chart reads against the match.
+      b.font = '10px ui-sans-serif, system-ui, sans-serif';
+      for (const m of modeWindows) {
+        const fill = MODE_FILL[m.mode];
+        if (!fill || m.t1 <= view[0] || m.t0 >= view[1]) continue;
+        const x0 = tx(Math.max(m.t0, view[0]));
+        const x1 = tx(Math.min(m.t1, view[1]));
+        b.fillStyle = fill;
+        b.fillRect(x0, PAD_T, x1 - x0, plotH);
+        if (x1 - x0 > 34) {
+          b.fillStyle = '#9fb3c8';
+          b.textAlign = 'left';
+          b.fillText(MODE_LABEL[m.mode] ?? m.mode, x0 + 4, PAD_T + 10);
+        }
+      }
+
       b.strokeStyle = '#242c3a';
       b.lineWidth = 1;
-      b.font = '10px ui-sans-serif, system-ui, sans-serif';
       b.fillStyle = '#5d6779';
       b.textAlign = 'right';
       for (let i = 0; i <= 4; i++) {

@@ -21,8 +21,9 @@ log's wall-clock name rendered in US Eastern, like the recorder's. Each bundle a
 
 Every frame is a real JPEG with its **log time (ms), mode code (0 disabled, 1 auto, 2 teleop) and
 frame number** drawn on it, and the same facts in a comment segment (`frames.decode_frame_info`).
-Scrub the dashboard video and read the clock off the picture; the burned-in time should equal the
-playhead.
+Scrub the dashboard video and read the clock off the picture. The burned-in time is absolute log
+time, so it equals the transport clock plus the log's first-record time (1.6 s for the synthetic and
+real logs); within about 0.1 s (one frame) that is the playhead.
 
 | Scenario | Shape |
 |---|---|
@@ -37,5 +38,5 @@ playhead.
 New scenarios are a function `Context -> [SessionPlan]` registered in `SCENARIOS`.
 
 `tests/test_vision_scenarios.py` pushes each scenario through bundles, pairing and the camera-health
-spec. Its second half is the contract for the dashboard improvements (all sessions per camera,
-mode bands, recording coverage, empty-session warning) and is `xfail(strict=True)` until they land.
+spec. Its second half is the contract for the dashboard data (all sessions per camera,
+mode windows, recording coverage, empty-session warning).

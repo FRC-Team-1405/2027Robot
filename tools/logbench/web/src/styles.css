@@ -177,8 +177,27 @@ body {
   background: #4f9bf0;
 }
 
+.transport__scrubwrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Auto/teleop tint along the timeline, drawn under the scrub input. */
+.transport__bands {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 4px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
 .transport__scrub {
   flex: 1;
+  width: 100%;
   accent-color: var(--accent);
   cursor: pointer;
 }
@@ -1780,3 +1799,47 @@ body {
 .connections-checks { display: flex; flex-wrap: wrap; gap: 24px; }
 .connections-checks dt { opacity: .7; }
 .connections-checks dd { margin: 6px 0 0; }
+
+/* ── Driver-station mode + vision coverage ───────────────────────────────── */
+
+.transport__btn--text {
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.transport__mode {
+  min-width: 58px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: var(--muted);
+}
+
+.transport__mode--auto,
+.vision__mode--auto {
+  background: rgba(57, 135, 229, 0.25);
+  color: #9cc4f5;
+}
+
+.transport__mode--teleop,
+.vision__mode--teleop {
+  background: rgba(46, 204, 113, 0.2);
+  color: #86e0ad;
+}
+
+.vision__mode {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--muted);
+}
+
+.vision__coverage {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}

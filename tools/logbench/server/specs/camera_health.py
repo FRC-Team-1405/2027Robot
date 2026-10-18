@@ -27,8 +27,9 @@ from vision_analyzer.constants import (
 )
 
 import bundles
+from wpilog_utils.modes import compute_mode_spans
 from core.severity import BANDS as SEVERITY
-from core.signals import discover_cameras, find_signal, flatten_pose_signal
+from core.signals import bounds, discover_cameras, find_signal, flatten_pose_signal
 from model import Group, Panel, PlayerSpec, Track
 
 NAME = 'camera_health'
@@ -71,39 +72,74 @@ def _time_bounds(data: dict) -> tuple:
     return lo, hi
 
 
-def _session_overlapping(sessions: list, t0: float, t1: float):
-    """First session directory (already load_manifest()-loaded) whose frame span
-    overlaps [t0, t1], plus its loaded frames -- or (None, None). Sessions from
-    different boots don't overlap each other, so "first that overlaps" is unambiguous
-    in practice; this doesn't try to pick a *best* overlap."""
+def _sessions_in_window(sessions: list, t0: float, t1: float):
+    """Splits a camera's session directories into ([(dir, frames)], [empty dirs]).
+
+    The first list holds every session whose frame span overlaps [t0, t1], in time order: a
+    match normally has one session per enabled window (auto and teleop are separate enables),
+    and an NT dropout longer than the recorder's hold cuts one further. The second holds
+    sessions with an empty or missing manifest -- a recorder restart can open one that never
+    wrote a frame -- so the caller can say so instead of silently skipping them."""
+    usable, empty = [], []
     for session_dir in sessions:
         frames = bundles.load_manifest(session_dir)
         if not frames:
-            continue
-        first_t, last_t = frames[0][0], frames[-1][0]
-        if last_t >= t0 and first_t <= t1:
-            return session_dir, frames
-    return None, None
+            empty.append(session_dir)
+        elif frames[-1][0] >= t0 and frames[0][0] <= t1:
+            usable.append((session_dir, frames))
+    usable.sort(key=lambda pair: pair[1][0][0])
+    return usable, empty
 
 
-def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras=()) -> None:
-    """Populates spec.static['vision'] with one {video, t0} entry per camera that has a
-    session overlapping this log's time span -- just a URL and one offset per camera,
-    not a per-frame array, per the "render a video, don't swap JPEGs" design (see
-    ensure_preview_video's docstring for why). Building the video can fail (missing
-    ffmpeg, an empty/corrupt manifest); that degrades to a warning, same as every other
-    optional signal this builder handles, rather than failing the whole spec.
+def _frame_tail(frames: list) -> float:
+    """How long a session's last frame is held on screen: the gap before it, like the video."""
+    if len(frames) > 1:
+        return max(frames[-1][0] - frames[-2][0], 0.001)
+    return bundles._SINGLE_FRAME_DURATION_SEC
+
+
+def _mode_windows(signals: dict, t0: float, t1: float) -> list:
+    """[{'mode', 't0', 't1'}] in absolute log time, clipped to [t0, t1]; [] if the log carries no
+    driver-station mode data."""
+    spans = compute_mode_spans(signals, 0.0, bounds(signals)[1])
+    out = []
+    for start, end, mode in spans:
+        start, end = max(start, t0), min(end, t1)
+        if end > start:
+            out.append({'mode': mode, 't0': start, 't1': end})
+    return out
+
+
+def _overlap(lo: float, hi: float, windows: list) -> float:
+    return sum(max(0.0, min(hi, w['t1']) - max(lo, w['t0'])) for w in windows)
+
+
+def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras=(), modes=()) -> None:
+    """Populates spec.static with the camera recordings found beside this log:
+
+      vision[cam]           = {video, t0}                the camera's first recording (older clients)
+      vision_segments[cam]  = [{video, t0, t1, session}] every recording session in time order;
+                              t0/t1 are absolute log seconds, and the video plays from t0
+      vision_coverage[cam]  = {enabled_sec, covered_sec, fraction}   when the log has mode data
+
+    These are URLs and offsets, not per-frame arrays, per the "render a video, don't swap JPEGs"
+    design (see ensure_preview_video's docstring for why). Building a video can fail (missing
+    ffmpeg, a corrupt manifest); that degrades to a warning, same as every other optional signal
+    this builder handles, rather than failing the whole spec.
 
     `cameras` are the names found in the log (the only source of truth for what cameras
     exist). A recording folder is matched to one of them ignoring case, because the folder
     is named by whoever set up the Pi (a systemd instance name) while the log name comes
-    from robot code. The vision entry is keyed by the log's spelling, which is what the
+    from robot code. The entries are keyed by the log's spelling, which is what the
     player looks up. A folder that matches no logged camera is reported, not guessed at."""
     log_path = pathlib.Path(log_path)
     root = pathlib.Path(log_root) if log_root is not None else log_path.parent
     vision_sessions = bundles.list_vision_sessions(log_path)
     vision_static: dict = {}
+    segments_static: dict = {}
+    coverage_static: dict = {}
     log_camera_by_folded = {c.casefold(): c for c in cameras}
+    enabled = [m for m in modes if m['mode'] != 'disabled']
 
     for folder, sessions in vision_sessions.items():
         if not folder:
@@ -119,29 +155,60 @@ def _attach_vision(spec, log_path, log_root, data: dict, warnings: list, cameras
                 'case; rename the recorder instance on the Pi or the camera in robot code so '
                 'they agree.' % (folder, ', '.join(cameras) or 'none logged'))
             continue
-        if cam in vision_static:
+        if cam in segments_static:
             warnings.append('More than one recording folder maps to camera "%s"; using the first.' % cam)
             continue
-        session_dir, frames = _session_overlapping(sessions, spec.t0, spec.t1)
-        if session_dir is None:
-            continue
-        try:
-            preview_path = bundles.ensure_preview_video(session_dir, camera=cam)
-        except (bundles.FfmpegNotFoundError, FileNotFoundError, ValueError, RuntimeError) as exc:
-            warnings.append('Vision preview for the %s camera could not be built: %s' % (cam, exc))
-            continue
-        try:
-            rel = preview_path.relative_to(root).as_posix()
-        except ValueError:
+        usable, empty = _sessions_in_window(sessions, spec.t0, spec.t1)
+        for session_dir in empty:
             warnings.append(
-                'Vision preview for the %s camera is outside the log root -- cannot '
-                'build a /vision-video URL for it.' % cam
-            )
+                'Vision session %s/%s has no frames (its manifest is empty): the recorder opened a '
+                'session but wrote nothing, usually after a process restart.' % (cam, session_dir.name))
+        segments = []
+        for session_dir, frames in usable:
+            try:
+                preview_path = bundles.ensure_preview_video(session_dir, camera=cam)
+            except bundles.FfmpegNotFoundError as exc:
+                warnings.append('Vision preview for the %s camera could not be built: %s' % (cam, exc))
+                break   # same cause for every session; say it once
+            except (FileNotFoundError, ValueError, RuntimeError) as exc:
+                warnings.append('Vision preview for the %s camera (%s) could not be built: %s'
+                                % (cam, session_dir.name, exc))
+                continue
+            try:
+                rel = preview_path.relative_to(root).as_posix()
+            except ValueError:
+                warnings.append(
+                    'Vision preview for the %s camera is outside the log root -- cannot '
+                    'build a /vision-video URL for it.' % cam
+                )
+                break
+            segments.append({'video': '/vision-video/%s' % rel, 't0': frames[0][0],
+                             't1': frames[-1][0] + _frame_tail(frames), 'session': session_dir.name})
+        segments_static[cam] = segments
+        if not segments:
             continue
-        vision_static[cam] = {'video': '/vision-video/%s' % rel, 't0': frames[0][0]}
+        vision_static[cam] = {'video': segments[0]['video'], 't0': segments[0]['t0']}
+
+        if enabled:
+            total = sum(w['t1'] - w['t0'] for w in enabled)
+            covered = sum(_overlap(seg['t0'], seg['t1'], enabled) for seg in segments)
+            coverage_static[cam] = {'enabled_sec': total, 'covered_sec': covered,
+                                    'fraction': covered / total if total else 0.0}
+            for window in enabled:
+                length = window['t1'] - window['t0']
+                if length < 5.0:
+                    continue
+                have = sum(_overlap(seg['t0'], seg['t1'], [window]) for seg in segments)
+                if have < 0.5 * length:
+                    warnings.append(
+                        'No video for most of %s on the %s camera: %.0f s of its %.0f s was recorded '
+                        '(at %.0f s into the log).' % (window['mode'], cam, have, length, window['t0'] - spec.t0))
 
     if vision_static:
         spec.static['vision'] = vision_static
+        spec.static['vision_segments'] = {c: s for c, s in segments_static.items() if s}
+    if coverage_static:
+        spec.static['vision_coverage'] = coverage_static
 
 
 def build(signals: dict, title: str = 'Camera Health Replay', log_path=None, log_root=None) -> tuple:
@@ -333,6 +400,7 @@ def build(signals: dict, title: str = 'Camera Health Replay', log_path=None, log
         )
 
     t0, t1 = _time_bounds(data)
+    modes = _mode_windows(signals, t0, t1)
     spec = PlayerSpec(
         title=title,
         t0=t0,
@@ -355,6 +423,10 @@ def build(signals: dict, title: str = 'Camera Health Replay', log_path=None, log
         },
         warnings=warnings,
     )
+    if modes:
+        # Driver-station mode windows (absolute log seconds), so the UI can shade and label
+        # disabled / auto / teleop and crop charts to the match.
+        spec.static['modes'] = modes
     if log_path is not None:
-        _attach_vision(spec, log_path, log_root, data, warnings, cameras)
+        _attach_vision(spec, log_path, log_root, data, warnings, cameras, modes)
     return spec, data

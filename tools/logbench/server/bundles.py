@@ -167,15 +167,20 @@ def ensure_preview_video(session_dir, camera: str = '') -> pathlib.Path:
     concat_file.write_text('\n'.join(concat_lines) + '\n', encoding='utf-8')
 
     try:
-        result = subprocess.run(
-            ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', str(concat_file),
-             '-vsync', 'vfr', '-pix_fmt', 'yuv420p', str(preview_path)],
-            capture_output=True, text=True,
-        )
+        # Variable frame rate is `-fps_mode vfr` since ffmpeg 5.1; the older `-vsync vfr` spelling
+        # was deprecated then and is gone in ffmpeg 9, so try the new one and fall back for old builds.
+        for vfr_flag in (['-fps_mode', 'vfr'], ['-vsync', 'vfr']):
+            result = subprocess.run(
+                ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', str(concat_file),
+                 *vfr_flag, '-pix_fmt', 'yuv420p', str(preview_path)],
+                capture_output=True, text=True,
+            )
+            if result.returncode == 0 or 'Unrecognized option' not in result.stderr:
+                break
         if result.returncode != 0:
             raise RuntimeError(
                 'ffmpeg failed transcoding %s (%s camera):\n%s'
-                % (session_dir, camera or '(unnamed)', result.stderr[-4000:])
+                % (session_dir, camera or '(unnamed)', result.stderr[-800:])
             )
     finally:
         concat_file.unlink(missing_ok=True)

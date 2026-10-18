@@ -5,16 +5,15 @@ folders for each scenario -- clean, NT flapping, only-auto-recorded, an empty se
 name mismatch, two recorder boots, no recording -- with no robot, Pi or camera. These tests push
 each one through the same code the dashboard uses: bundles -> pairing -> specs.camera_health.
 
-Part 1 checks the kit itself and today's behaviour; it passes.
-
-Part 2 is the contract for the dashboard improvements the plan lists (all sessions per camera,
-game-mode bands, recording coverage, empty-session warning). Those tests are `xfail(strict=True)`
-today: they document the target, and the strict flag makes the marker come off the moment the
-feature lands. ffmpeg is not needed: preview-video building is stubbed.
+Part 1 checks the kit itself. Part 2 is the contract for the dashboard data the plan asks for
+(every session per camera, driver-station mode windows, recording coverage, empty-session and
+partial-recording warnings). ffmpeg is not needed: preview-video building is stubbed.
 """
 import datetime as dt
 import json
 import pathlib
+import shutil
+import subprocess
 import sys
 
 import pytest
@@ -30,6 +29,8 @@ import remote_fetch
 from specs import camera_health
 from testkit import build_bundle, frames
 from vision_analyzer.parser import parse_wpilog
+
+_REAL_PREVIEW = bundles.ensure_preview_video   # the autouse fixture below stubs the module attribute
 
 SCENARIOS = sorted(build_bundle.SCENARIOS)
 HAVE_VISION = [s for s in SCENARIOS if build_bundle.SCENARIOS[s].write_vision]
@@ -197,12 +198,8 @@ def test_missing_ffmpeg_stays_a_clear_warning(built, monkeypatch):
     assert any('ffmpeg' in w and 'LeftCam' in w for w in spec.warnings)
 
 
-# ---- Part 2: the dashboard contract the plan asks for (xfail until each lands) -------------------
+# ---- Part 2: the dashboard contract (all sessions per camera, modes, coverage, warnings) ----------
 
-_TODO = 'dashboard improvement not built yet (docs/logbench-e2e-test-plan.md section 6, step 3)'
-
-
-@pytest.mark.xfail(strict=True, reason=_TODO)
 @pytest.mark.parametrize('scenario', SHOWN)
 def test_every_session_with_frames_reaches_the_dashboard(built, scenario):
     """spec.static['vision_segments'][camera] = [{'video', 't0', 't1'}, ...] in time order, one
@@ -223,7 +220,6 @@ def test_every_session_with_frames_reaches_the_dashboard(built, scenario):
             assert spec.static['vision'][cam]['t0'] == got[0]['t0']
 
 
-@pytest.mark.xfail(strict=True, reason=_TODO)
 @pytest.mark.parametrize('scenario', SCENARIOS)
 def test_spec_carries_the_driver_station_modes(built, scenario):
     """spec.static['modes'] = [{'mode', 't0', 't1'}, ...] in the log timebase, from the log's own
@@ -237,7 +233,6 @@ def test_spec_carries_the_driver_station_modes(built, scenario):
         assert got['t1'] == pytest.approx(end, abs=0.3)
 
 
-@pytest.mark.xfail(strict=True, reason=_TODO)
 @pytest.mark.parametrize('scenario', SHOWN)
 def test_recording_coverage_says_how_much_of_the_enabled_time_has_video(built, scenario):
     """spec.static['vision_coverage'][camera] = {'enabled_sec', 'covered_sec', 'fraction'}."""
@@ -255,7 +250,6 @@ def test_recording_coverage_says_how_much_of_the_enabled_time_has_video(built, s
         assert coverage[cam]['fraction'] == pytest.approx(covered / total, abs=0.02)
 
 
-@pytest.mark.xfail(strict=True, reason=_TODO)
 def test_an_empty_session_is_reported_as_a_warning(built):
     bundle, signals = built('empty-session')
     [(plan, session)] = [(p, d) for p, d in bundle.sessions if not p.frame_times]
@@ -264,7 +258,6 @@ def test_an_empty_session_is_reported_as_a_warning(built):
     assert len(spec.static['vision_segments'][plan.camera]) == 2   # the real sessions still show
 
 
-@pytest.mark.xfail(strict=True, reason=_TODO)
 def test_partial_recording_warns_that_most_of_the_match_has_no_video(built):
     bundle, signals = built('partial-auto-only')
     spec = _spec(bundle, signals)
@@ -286,3 +279,19 @@ def test_builder_reads_a_real_logs_modes_and_cameras(tmp_path):
     auto = next(s for s in bundle.spans if s[0] == 'auto')
     assert auto[1] == pytest.approx(316.7, abs=0.5)           # 315.1 s after the log's first record at 1.6 s
     assert len(bundle.sessions_for('LeftCam')) == 2
+
+
+# ---- With a real ffmpeg (skipped when it is not installed) ---------------------------------------
+
+@pytest.mark.skipif(shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None, reason='ffmpeg/ffprobe not on PATH')
+def test_a_real_preview_video_spans_the_sessions_recorded_time(built):
+    """Builds an actual mp4 from a session's frames (this is what broke on ffmpeg 9, which removed
+    `-vsync`) and checks its length is the session's span, so video time = log time - first t_sec."""
+    bundle, _ = built('clean')
+    plan, session = _with_frames(bundle, 'LeftCam')[0]
+    (session / bundles.PREVIEW_NAME).unlink(missing_ok=True)   # other tests leave a stub here
+    mp4 = _REAL_PREVIEW(session, camera='LeftCam')
+    out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', str(mp4)],
+                         capture_output=True, text=True, check=True).stdout
+    span = plan.frame_times[-1] - plan.frame_times[0]
+    assert float(out) == pytest.approx(span + 1.0 / build_bundle.SAMPLE_HZ, abs=0.5)

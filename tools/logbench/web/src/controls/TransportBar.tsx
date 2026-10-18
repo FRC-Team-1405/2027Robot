@@ -7,6 +7,7 @@
 
 import { useRef } from 'react';
 
+import { MODE_LABEL, matchWindow, modeAt, modeGradient } from '../lib/match';
 import { SPEEDS } from '../player/clock';
 import { usePlayer, useClockState, useFrame } from '../player/PlayerContext';
 
@@ -17,8 +18,10 @@ function fmt(seconds: number): string {
 }
 
 export function TransportBar({ debug }: { debug: boolean }) {
-  const { clock } = usePlayer();
+  const { clock, spec, fullLog, setFullLog } = usePlayer();
   const { playing, speed } = useClockState();
+  const modeRef = useRef<HTMLSpanElement | null>(null);
+  const croppable = matchWindow(spec.static.modes, spec.t0, spec.duration) !== null;
   const scrubRef = useRef<HTMLInputElement | null>(null);
   const timeRef = useRef<HTMLSpanElement | null>(null);
   const fpsRef = useRef<HTMLSpanElement | null>(null);
@@ -28,6 +31,11 @@ export function TransportBar({ debug }: { debug: boolean }) {
     // While the user is dragging, the input is the source of truth -- don't fight them.
     if (scrubRef.current && !dragging.current) {
       scrubRef.current.value = String(time);
+    }
+    if (modeRef.current) {
+      const mode = modeAt(spec.static.modes, spec.t0, time);
+      modeRef.current.textContent = mode ? (MODE_LABEL[mode] ?? mode) : '';
+      modeRef.current.className = `transport__mode${mode ? ` transport__mode--${mode}` : ''}`;
     }
     if (timeRef.current) {
       timeRef.current.textContent = `${fmt(time)} / ${fmt(clock.duration)}`;
@@ -57,27 +65,42 @@ export function TransportBar({ debug }: { debug: boolean }) {
         ⏮
       </button>
 
-      <input
-        ref={scrubRef}
-        className="transport__scrub"
-        type="range"
-        min={0}
-        max={clock.duration}
-        step={0.01}
-        defaultValue={0}
-        onPointerDown={() => {
-          dragging.current = true;
-        }}
-        onPointerUp={() => {
-          dragging.current = false;
-        }}
-        onChange={(e) => clock.seek(Number(e.target.value))}
-        title="Scrub"
-      />
+      <div className="transport__scrubwrap">
+        <div className="transport__bands" style={{ background: modeGradient(spec.static.modes, spec.t0, spec.duration) }} />
+        <input
+          ref={scrubRef}
+          className="transport__scrub"
+          type="range"
+          min={0}
+          max={clock.duration}
+          step={0.01}
+          defaultValue={0}
+          onPointerDown={() => {
+            dragging.current = true;
+          }}
+          onPointerUp={() => {
+            dragging.current = false;
+          }}
+          onChange={(e) => clock.seek(Number(e.target.value))}
+          title="Scrub (blue = auto, green = teleop)"
+        />
+      </div>
+
+      <span ref={modeRef} className="transport__mode" title="Driver-station mode at the playhead" />
 
       <span className="transport__time" ref={timeRef}>
         0:00.0
       </span>
+
+      {croppable && (
+        <button
+          className="transport__btn transport__btn--text"
+          onClick={() => setFullLog(!fullLog)}
+          title={fullLog ? 'Zoom the charts to the match (auto + teleop, with padding)' : 'Show the whole log, including long disabled periods'}
+        >
+          {fullLog ? 'Full log' : 'Match'}
+        </button>
+      )}
 
       <label className="transport__speed">
         <select value={speed} onChange={(e) => clock.setSpeed(Number(e.target.value))}>
