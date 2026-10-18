@@ -418,8 +418,20 @@ def _row(spec: CheckSpec, key: str, labels: Tuple[str, str, str], status: str, v
     }
 
 
-def evaluate(specs: Sequence[CheckSpec], source, latch: Optional[Latch] = None) -> Dict[str, Any]:
-    """Run every check against `source`; returns the report dict."""
+def make_row(*, id: str, section: str, group: str, label: str, status: str, value: Any, display: str,
+             unit: str = '', rule: str = '', detail: str = '', help: str = '', subject: str = '',
+             key: Optional[str] = None) -> Dict[str, Any]:
+    """A report row for something computed outside the TOML checks (the vision recording's coverage,
+    which needs the bundle's files as well as the log). Same shape the checks produce."""
+    return {'id': id, 'key': key or f'{id}|{group}', 'section': section, 'group': group, 'subject': subject,
+            'label': label, 'status': status, 'value': value, 'display': display, 'unit': unit,
+            'rule': rule, 'detail': detail, 'help': help}
+
+
+def evaluate(specs: Sequence[CheckSpec], source, latch: Optional[Latch] = None,
+             extra_rows: Sequence[Dict[str, Any]] = ()) -> Dict[str, Any]:
+    """Run every check against `source`; returns the report dict. `extra_rows` (see make_row) are
+    added to the report after the configured checks."""
     rows: List[Dict[str, Any]] = []
     for spec in specs:
         matches = source.match(spec.signal)
@@ -459,6 +471,7 @@ def evaluate(specs: Sequence[CheckSpec], source, latch: Optional[Latch] = None) 
                 rows.append(_row(spec, spec.signal.replace('*', name, 1),
                                  _labels(spec, (name,), source, spec.signal), status, None,
                                  [f'expected {name} but it is not reporting']))
+    rows.extend(extra_rows)
     if latch is not None:
         specs_by_id = {s.id: s for s in specs}
         for row in rows:

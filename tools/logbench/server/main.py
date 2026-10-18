@@ -30,6 +30,8 @@ from typing import List, Optional
 import paths  # noqa: F401  (side effect: sys.path bridges)
 
 import bundles
+import bundle_pairing
+import vision_coverage
 import match_bundle
 import app_logging
 import compare_export
@@ -447,8 +449,10 @@ def health_for_log(path: str = Query(..., description='log path relative to the 
     log_ = _load_log(p)
     specs_, errors = _health_specs()
     source = health_engine.LogSource(log_.signals, log_.mode_spans())
-    report = health_engine.evaluate(specs_, source)
     lo, hi = log_.bounds()
+    # Rows that need the bundle's files, not just the log: how much of the match each Pi camera saw.
+    coverage_rows = vision_coverage.for_log(p, log_.mode_spans(), lo, log_.cameras())
+    report = health_engine.evaluate(specs_, source, extra_rows=coverage_rows)
     report['config_errors'] = errors
     report['meta'] = {
         'log': path, 'duration': hi - lo,
@@ -633,7 +637,8 @@ def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict], pi_not
     """Build the stable wire shape shared by the legacy and tracked list endpoints."""
     rio_infos = [pairing.RioLogInfo(name=r['name'], wall_clock=r['wall_clock']) for r in rio_raw]
     pi_infos = [pairing.PiSessionInfo(camera=s['camera'], name=s['name'], wall_clock=s['wall_clock'],
-                              pi=s['pi'])
+                                      pi=s['pi'], epoch=s.get('epoch'), t_first=s.get('t_first'),
+                                      t_last=s.get('t_last'))
                 for s in pi_raw]
     suggestions = pairing.suggest_pairings(rio_infos, pi_infos)
 
@@ -644,13 +649,14 @@ def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict], pi_not
         'status': bundles.local_status(root / r['name']),
     } for r in rio_raw]
     pi_out = [{'camera': s['camera'], 'name': s['name'], 'pi': s['pi'],
-               'wall_clock': _iso(s['wall_clock'])}
+               'wall_clock': _iso(s['wall_clock']), 'epoch': _iso(s.get('epoch'))}
               for s in pi_raw]
     pairings_out = [{
         'rio_log': p.rio_log,
         'pi_sessions': [{'camera': s.camera, 'name': s.name, 'pi': s.pi} for s in p.pi_sessions],
         'confidence': p.confidence,
         'reason': p.reason,
+        'method': p.method,
     } for p in suggestions]
     return {'configured': True, 'rio_logs': rio_out, 'pi_sessions': pi_out, 'pairings': pairings_out,
             'pi_notes': list(pi_notes)}
@@ -661,6 +667,22 @@ def _job_or_404(job_id: str) -> dict:
     if snapshot is None:
         raise HTTPException(status_code=404, detail='remote job not found or has expired')
     return snapshot
+
+
+def _refine_sessions(cfg, local_log: pathlib.Path, requested: List[PiSessionRef],
+                     job_id: str) -> tuple[list[PiSessionRef], str]:
+    """The automatic pick, redone from the downloaded log's own boot clock (bundle_pairing.refine).
+    Anything that stops that (no clock in the log, a Pi that cannot be listed) keeps the suggestion."""
+    remote_jobs.set_phase(job_id, "Matching Orange Pi sessions to this log's boot")
+    try:
+        resolution = pi_discovery.resolve_pis(cfg, refresh=False)
+        pi_raw, _notes = _list_all_pi_sessions(resolution.pis)
+        refined = bundle_pairing.refine(local_log, [{'camera': r.camera, 'name': r.name, 'pi': r.pi} for r in requested], pi_raw)
+    except Exception as exc:  # noqa: BLE001 -- the file-name pick is still a usable answer
+        log.warning('could not refine Pi sessions by boot clock: %s', exc)
+        return requested, 'kept the file-name suggestion (boot-clock match failed: %s)' % exc
+    log.info('bundle %s: %s', local_log.name, refined.note)
+    return [PiSessionRef(camera=s['camera'], name=s['name'], pi=s['pi']) for s in refined.sessions], refined.note
 
 
 @app.post('/api/remote/sessions/jobs', status_code=202)
@@ -714,13 +736,20 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
     def work(job_id: str) -> dict:
         remote_jobs.set_phase(job_id, 'Inspecting selected remote files')
         rio_size = remote_fetch.rio_log_size(cfg.rio, body.rio_log)
-        pi_files: list[tuple[PiSessionRef, list[dict]]] = []
-        inventory = [(body.rio_log, rio_size)]
-        for ref in body.pi_sessions:
-            files = remote_fetch.pi_session_files(_pi_for(cfg, ref), ref.camera, ref.name)
-            pi_files.append((ref, files))
-            inventory.extend((f'{ref.camera or "vision"}/{ref.name}/{item["name"]}', item['size'])
-                             for item in files)
+
+        def pi_inventory(refs: list[PiSessionRef]):
+            listed, inv = [], []
+            for ref in refs:
+                files = remote_fetch.pi_session_files(_pi_for(cfg, ref), ref.camera, ref.name)
+                listed.append((ref, files))
+                inv.extend((f'{ref.camera or "vision"}/{ref.name}/{item["name"]}', item['size'])
+                           for item in files)
+            return listed, inv
+
+        # A hand-picked set is fetched as chosen, so its size is known up front. An automatic one
+        # is re-picked from the log's own clock after the download (below), so only the log counts yet.
+        pi_files, pi_inv = pi_inventory(body.pi_sessions) if body.manual else ([], [])
+        inventory = [(body.rio_log, rio_size)] + pi_inv
         remote_jobs.set_inventory(job_id, inventory)
         log.info('bundle job %s inventory: %d files, %d bytes', job_id, len(inventory),
                  sum(size for _, size in inventory))
@@ -734,9 +763,14 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
             idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
         remote_jobs.file_complete(job_id, body.rio_log)
 
+        pairing_note = None
+        if not body.manual:
+            refs, pairing_note = _refine_sessions(cfg, local_log, body.pi_sessions, job_id)
+            pi_files, pi_inv = pi_inventory(refs)
+            remote_jobs.set_inventory(job_id, [(body.rio_log, rio_size)] + pi_inv)
         fetched: List[dict] = []
         fetched_dirs = []
-        if body.pi_sessions:
+        if pi_files:
             vision_dir = bundles.vision_dir_for(local_log)
             for ref, files in pi_files:
                 remote_jobs.set_phase(job_id, 'Downloading Orange Pi vision session', ref.name)
@@ -760,6 +794,8 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
             raise RuntimeError('cancelled by user')
         result = {'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
                   'pi_sessions': fetched, 'manual': body.manual}
+        if pairing_note:
+            result['pairing_note'] = pairing_note
         if body.prepare_download or body.include_battery:
             prepared = match_bundle.prepare(
                 local_log, fetched_dirs, LOG_ROOT / '.bundles' / job_id,

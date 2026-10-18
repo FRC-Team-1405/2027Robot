@@ -15,6 +15,7 @@ pi@...` from a bench laptop for the first time.
 """
 import dataclasses
 import datetime as dt
+import json
 import logging
 import pathlib
 import posixpath
@@ -23,6 +24,7 @@ import stat
 import time
 from typing import Callable, List, Optional
 
+import pairing
 from remote_config import HostConfig
 
 # The roboRIO writes two logs per boot into the same folder, both renamed with the time
@@ -106,6 +108,58 @@ def _parse_pi_session_wall_clock(name: str) -> Optional[dt.datetime]:
         return None
 
 
+# How much of a manifest.jsonl to read from each end to learn a session's clock. A row is ~300 bytes, so
+# this is dozens of rows: enough to skip a few unsynced ones, small enough that listing hundreds of
+# sessions stays quick.
+_MANIFEST_PEEK_BYTES = 16 * 1024
+# A finished session's manifest does not change, so its clock is looked up once per (host, path, size).
+_clock_cache: dict = {}
+
+
+def _json_rows(text: str, drop_first: bool, drop_last: bool) -> List[dict]:
+    lines = text.splitlines()
+    if drop_first and lines:
+        lines = lines[1:]      # starts mid-row
+    if drop_last and lines:
+        lines = lines[:-1]     # ends mid-row (or the recorder is still writing it)
+    rows = []
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict):
+            rows.append(row)
+    return rows
+
+
+def _session_clock(sftp, cfg: HostConfig, remote_session: str, name_wall: Optional[dt.datetime]) -> dict:
+    """{epoch, t_first, t_last} (each None when unknown) read from the head and tail of the session's
+    manifest. Never raises: a Pi that cannot be read just means that session pairs by file name."""
+    path = posixpath.join(remote_session, 'manifest.jsonl')
+    try:
+        size = int(sftp.stat(path).st_size)
+        key = (cfg.host, path, size)
+        if key in _clock_cache:
+            return _clock_cache[key]
+        with sftp.open(path, 'rb') as f:
+            head = f.read(min(size, _MANIFEST_PEEK_BYTES)).decode('utf-8', 'replace')
+            tail = head
+            if size > _MANIFEST_PEEK_BYTES:
+                f.seek(size - _MANIFEST_PEEK_BYTES)
+                tail = f.read(_MANIFEST_PEEK_BYTES).decode('utf-8', 'replace')
+        big = size > _MANIFEST_PEEK_BYTES
+        epoch, t_first, t_last = pairing.session_clock(
+            _json_rows(head, False, big), _json_rows(tail, big, not tail.endswith(chr(10))), name_wall)
+    except (OSError, IOError, ValueError) as exc:
+        log.debug('could not read the clock of %s: %s', remote_session, exc)
+        return {'epoch': None, 't_first': None, 't_last': None}
+    out = {'epoch': epoch, 't_first': t_first, 't_last': t_last}
+    if t_first is not None:
+        _clock_cache[key] = out
+    return out
+
+
 def list_rio_logs(cfg: HostConfig) -> List[dict]:
     """[{name, path (remote, posix), size, mtime, wall_clock: datetime|None}, ...],
     newest first."""
@@ -136,7 +190,8 @@ def list_rio_logs(cfg: HostConfig) -> List[dict]:
 
 
 def list_pi_sessions(cfg: HostConfig) -> List[dict]:
-    """[{camera, name, path (remote, posix), wall_clock: datetime|None}, ...] across both
+    """[{camera, name, path (remote, posix), wall_clock: datetime|None, epoch, t_first, t_last}, ...]
+    (the last three read from the manifest: see pairing.session_clock) across both
     the camera-namespaced layout (<recordings_path>/<camera>/boot####-*) and the legacy,
     single-camera layout (<recordings_path>/boot####-*), newest first."""
     client, sftp = _connect(cfg)
@@ -153,12 +208,10 @@ def list_pi_sessions(cfg: HostConfig) -> List[dict]:
         out = []
         if legacy:
             for entry in legacy:
-                out.append({
-                    'camera': '',
-                    'name': entry.filename,
-                    'path': posixpath.join(cfg.path, entry.filename),
-                    'wall_clock': _parse_pi_session_wall_clock(entry.filename),
-                })
+                wall = _parse_pi_session_wall_clock(entry.filename)
+                path = posixpath.join(cfg.path, entry.filename)
+                out.append({'camera': '', 'name': entry.filename, 'path': path, 'wall_clock': wall,
+                            **_session_clock(sftp, cfg, path, wall)})
         else:
             for cam_entry in top_entries:
                 if not stat.S_ISDIR(cam_entry.st_mode or 0) or cam_entry.filename.startswith('.'):
@@ -169,12 +222,10 @@ def list_pi_sessions(cfg: HostConfig) -> List[dict]:
                 except (OSError, IOError):
                     continue
                 for entry in _boot_dirs(cam_dir, cam_entries):
-                    out.append({
-                        'camera': cam_entry.filename,
-                        'name': entry.filename,
-                        'path': posixpath.join(cam_dir, entry.filename),
-                        'wall_clock': _parse_pi_session_wall_clock(entry.filename),
-                    })
+                    wall = _parse_pi_session_wall_clock(entry.filename)
+                    path = posixpath.join(cam_dir, entry.filename)
+                    out.append({'camera': cam_entry.filename, 'name': entry.filename, 'path': path,
+                                'wall_clock': wall, **_session_clock(sftp, cfg, path, wall)})
         out.sort(key=lambda s: s['name'], reverse=True)
         log.info('listed %d Pi recording sessions from %s', len(out), cfg.host)
         return out

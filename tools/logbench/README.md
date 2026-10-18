@@ -96,6 +96,40 @@ and starts a ZIP download without leaving the page. The original stays unchanged
 Automatic pairing includes separate auto/teleop sessions for each camera; expand
 the row to inspect or override the selection, especially when timestamps are uncertain.
 
+**How a Pi frame is tied to a log.** Log timestamps and the Pi's `t_sec` are the same axis (seconds
+since the roboRIO booted), so the only question is *which boot*. A boot is identified by its
+**epoch**, the wall clock at log t=0 (`wall clock - time since boot`), which is constant for the
+boot and minutes apart between boots (`server/pairing.py`, `server/log_clock.py`):
+
+1. **Exact, once the log is downloaded.** Robot code records the epoch into the AdvantageKit log
+   (`RealOutputs/RobotTime/EpochMs`, plus a per-run `BootId`; `WallClockEpoch.java`, written on change
+   only). The plain WPILib log has `NT:/RobotTime/WallClockMs` (and the same two entries mirrored from
+   NetworkTables), from which the epoch is the value minus the sample's log time. A Pi session's epoch is
+   its first manifest row's `timestamp_utc` minus `t_sec` (or, for older recordings, the session folder's
+   name time minus the first `t_sec`). The bundle job reads the log's epoch and true duration after the
+   download and takes **every session of that boot whose frames overlap the log's time range**, however many
+   pieces the recorder cut the match into. The note ("picked N session(s) by boot clock: ...") is on the
+   job result as `pairing_note`. A hand-picked selection (`manual`) is never changed; if the log has no
+   epoch (an AdvantageKit log from before `WallClockEpoch`) or no session shares it, the file-name
+   suggestion is kept and the note says why.
+2. **Suggested in the list, from file names.** Before anything is downloaded only the file name is
+   known, and its time is when the Driver Station first synced the roboRIO clock (20 s to 412 s
+   after boot at Ruckus), not boot. The listing reads each session's epoch from its manifest (the
+   first and last 16 KB, over SFTP) and gives each boot to the first log named within 20 minutes
+   after it, so a match that starts an hour after the sync still pairs. Epoch-less sessions fall back to the old window
+   (the file time plus an assumed 30 minutes, cut off at the next log).
+3. **Twin logs share.** Every boot writes an `akit_*` and an `FRC_*` log a few seconds apart with the
+   same FMS event/match suffix; they are treated as one boot and get the same sessions (previously the
+   `akit_*` log claimed them all and the `FRC_*` twin got none).
+
+The Health Check page adds a **Vision recording** section for a log opened with its `.vision` folder:
+per camera, the share of the enabled (auto + teleop) time within 0.5 s of a frame, and the longest
+stretch with none, with the largest gaps (seconds into the log) in the row's detail
+(`server/vision_coverage.py`). A bundle can hold every frame that exists and still be sparse, because
+the recorder never captured what fell between sessions; this makes that visible instead of silent. Warn below
+90 %, fail below 50 %; longest gap warns above 10 s, fails above 60 s. A camera the robot logged but
+that has no recording folder is a failure.
+
 The ZIP contains the original, `<name>.trimmed.wpilog`, `<name>.trim.json`, and
 `<name>.vision/<camera>/boot.../` with all selected recording files, including
 `recorder.log` and its rotated backup when the updated recorder is installed

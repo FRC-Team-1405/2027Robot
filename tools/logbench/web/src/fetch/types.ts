@@ -16,6 +16,8 @@ export interface PiSessionEntry {
   /** Which configured Orange Pi holds the session ('' when only one is configured). */
   pi: string;
   wall_clock: string | null;
+  /** Wall clock at the roboRIO boot's t=0, from the session's manifest (null when unknown). */
+  epoch?: string | null;
 }
 
 export interface PiSessionRef {
@@ -31,6 +33,8 @@ export interface PairingSuggestion {
   pi_sessions: PiSessionRef[];
   confidence: Confidence;
   reason: string;
+  /** How the sessions were picked: boot clock ('epoch' / 'inferred'), file name, or none. */
+  method?: 'epoch' | 'inferred' | 'filename' | 'none';
 }
 
 export type RemoteSessions =
@@ -52,6 +56,8 @@ export interface BundleResult {
   log: string;
   pi_sessions: (PiSessionRef & { path: string })[];
   manual: boolean;
+  /** What the boot-clock re-pick did after the download (automatic pairing only). */
+  pairing_note?: string;
 }
 
 export interface RemoteJob {
