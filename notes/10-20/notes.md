@@ -3,6 +3,8 @@ i need to determine:
 - i think our camera is the best camera for cheap coverage, but can we get a high quality camera for longer distance/high accuracy (high res) targeting
 - is there significant performance improvements running one camera per orange pi vs two camera's per orange pi
 
+it seems that in most matches our orange pi running two camera's was less than 10% ram utilization at all times with 16gb of ram. meaning we could significantly reduce orangePi ram requirements.
+
 # Bootstrap OrangePi Error
 
 PS C:\Users\FinneyRobotics\VS Code\2027Robot\coprocessor> .\Bootstrap-OrangePi.ps1
@@ -182,3 +184,38 @@ Summary
          Next: bench-verify the recorder with no robot using coprocessor\sim\Run-SimulatedMatch.ps1 (see coprocessor\sim\README.md).
          When done with the Pi, switch Internet Connection Sharing off again.
 PS C:\Users\FinneyRobotics\VS Code\2027Robot\coprocessor>
+
+
+
+# Health Check Live Robot page goes blank after connecting
+Uncaught TypeError: Cannot read properties of null (reading 'toFixed')
+    at Dt (index-CsBvv-6G.js:9:115117)
+    at Eo (index-CsBvv-6G.js:8:47507)
+    at _c (index-CsBvv-6G.js:8:69941)
+    at Pc (index-CsBvv-6G.js:8:80191)
+    at Mu (index-CsBvv-6G.js:8:115514)
+    at ku (index-CsBvv-6G.js:8:114598)
+    at Ou (index-CsBvv-6G.js:8:114437)
+    at gu (index-CsBvv-6G.js:8:111307)
+    at cd (index-CsBvv-6G.js:8:122813)
+    at MessagePort.ne (index-CsBvv-6G.js:1:9770)
+Dt @ index-CsBvv-6G.js:9
+Eo @ index-CsBvv-6G.js:8
+_c @ index-CsBvv-6G.js:8
+Pc @ index-CsBvv-6G.js:8
+Mu @ index-CsBvv-6G.js:8
+ku @ index-CsBvv-6G.js:8
+Ou @ index-CsBvv-6G.js:8
+gu @ index-CsBvv-6G.js:8
+cd @ index-CsBvv-6G.js:8
+ne @ index-CsBvv-6G.js:1
+postMessage
+T @ index-CsBvv-6G.js:1
+e.unstable_scheduleCallback @ index-CsBvv-6G.js:1
+sd @ index-CsBvv-6G.js:8
+od @ index-CsBvv-6G.js:8
+(anonymous) @ index-CsBvv-6G.js:8
+
+
+# Strange photon vision camera mismatch error
+Camera Mismatch Detected! Visit the Camera Matching page for more information. Note: Camera matching is done by USB port. Ensure cameras are plugged into the same USB ports as when they were activated.
