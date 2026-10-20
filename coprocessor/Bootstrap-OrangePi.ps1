@@ -67,7 +67,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$script:Version = '2026-10-18.1'
+$script:Version = '2026-10-20.1'
 $script:CoprocessorDir = $PSScriptRoot
 $script:Results = New-Object System.Collections.ArrayList
 $script:StepNumber = 0
@@ -124,13 +124,30 @@ class StepAbort : System.Exception { StepAbort([string]$m) : base($m) {} }
 function Stop-Run([string]$Message) { throw [StepAbort]::new($Message) }
 
 # ---------------------------------------------------------------- native process helper
+# ProcessStartInfo.Arguments uses Windows command-line quoting, not shell quoting.
+# In particular, -N must receive an explicit "" for an empty SSH key passphrase.
+function ConvertTo-NativeArgument([AllowEmptyString()][string]$Argument) {
+    if ($Argument.Length -eq 0) { return '""' }
+    if ($Argument -notmatch '[\s"]') { return $Argument }
+    # Double backslashes before literal quotes, then escape the quote itself.
+    $escaped = $Argument -replace '(\\*)"', '$1$1\"'
+    # Backslashes at the end must not escape our closing quote.
+    $escaped = $escaped -replace '(\\+)$', '$1$1'
+    return '"' + $escaped + '"'
+}
+
 # Runs an executable, returns stdout/stderr/exit code. Never throws on non-zero exit.
 function Invoke-Native {
     param([string]$File, [string[]]$Arguments, [string]$StdIn, [int]$TimeoutSec = 120, [switch]$Inherit)
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $File
-    # Quote args that contain spaces or quotes (Windows PowerShell 5.1 has no ArgumentList).
-    $psi.Arguments = ($Arguments | ForEach-Object { if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ } }) -join ' '
+    if ($null -ne $psi.PSObject.Properties['ArgumentList']) {
+        # PowerShell 7 / modern .NET: let the runtime preserve argument boundaries.
+        foreach ($argument in $Arguments) { $psi.ArgumentList.Add($argument) }
+    } else {
+        # Windows PowerShell 5.1 / .NET Framework has only the string API.
+        $psi.Arguments = ($Arguments | ForEach-Object { ConvertTo-NativeArgument $_ }) -join ' '
+    }
     $psi.UseShellExecute = $false
     $psi.RedirectStandardInput = ($PSBoundParameters.ContainsKey('StdIn'))
     if (-not $Inherit) { $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true }
@@ -191,7 +208,7 @@ function Find-OpenPort([string[]]$Hosts, [int]$Port, [int]$TimeoutMs = 2000) {
 # ---------------------------------------------------------------- steps
 function Step-Preflight {
     Start-Step 'Preflight' 'Everything below uses the Windows OpenSSH client (ssh, scp, ssh-keygen) and the files in this folder.'
-    $missing = @('ssh', 'scp', 'ssh-keygen') | Where-Object { -not (Get-Command $_ -ErrorAction SilentlyContinue) }
+    $missing = @('ssh', 'scp', 'ssh-keygen') | Where-Object { -not (Get-Command $_ -CommandType Application -ErrorAction SilentlyContinue) }
     if ($missing) {
         Write-Fail ("Missing: " + ($missing -join ', '))
         Write-Action 'Install the Windows optional feature "OpenSSH Client" (Settings > Apps > Optional features), then re-run.'
@@ -199,6 +216,11 @@ function Step-Preflight {
         Stop-Run 'OpenSSH client not installed.'
     }
     Write-Pass 'ssh, scp and ssh-keygen are available.'
+    foreach ($tool in 'ssh', 'scp', 'ssh-keygen') {
+        Write-Info ("{0}: {1}" -f $tool, (Get-Command $tool -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source)
+    }
+    $sshVersion = Invoke-Native -File 'ssh' -Arguments @('-V')
+    Write-Info (("{0} {1}" -f $sshVersion.Out, $sshVersion.Err).Trim())
     $need = 'setup-orangepi.sh', 'orangepi-nt-publisher.py', 'orangepi-nt-publisher.service', 'orangepi-vision-recorder.py', 'orangepi-vision-recorder@.service'
     $absent = $need | Where-Object { -not (Test-Path (Join-Path $script:CoprocessorDir $_)) }
     if ($absent) {
@@ -234,7 +256,7 @@ function Step-FindPi {
         } else {
             Write-Info 'No 192.168.137.x adapter on this laptop, so Internet Connection Sharing is probably off.'
         }
-        $found = Find-OpenPort -Hosts @($candidates) -Port 22
+        $found = @(Find-OpenPort -Hosts @($candidates) -Port 22)
         # Prefer ones that also answer PhotonVision's port.
         $pv = @($found | Where-Object { Test-TcpPort $_ 5800 800 })
         $pick = $null

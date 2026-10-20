@@ -25,6 +25,22 @@ scripts, runs `setup-orangepi.sh` unattended and verifies the services. Things o
 do (enable Internet Connection Sharing, press ACTIVATE on the camera in PhotonVision) stop the
 script with exact instructions. `Get-Help .\Bootstrap-OrangePi.ps1 -Full` lists the parameters.
 
+Use the Windows **OpenSSH Client** optional feature; we do not bundle OpenSSH binaries or
+automatically upgrade/downgrade them. Preflight prints the executable paths and `ssh -V`
+to help diagnose laptops with multiple installations. The script supports Windows PowerShell
+5.1 and PowerShell 7. Version `2026-10-20.1` fixes the `ssh-keygen: Too many arguments`
+error recorded in `notes/10-20/notes.md`: the native-process helper was dropping the empty
+passphrase argument after `-N`. Updating OpenSSH would not repair that malformed command.
+It also keeps a single discovered hostname intact instead of selecting its first character.
+Pull `beta` and re-run the same bootstrap command; existing keys are reused.
+
+Regression checks (Python 3 and OpenSSH on PATH, no Pi needed):
+
+```powershell
+powershell -NoProfile -File .\tests\Test-BootstrapOrangePi.ps1
+# Or: pwsh -NoProfile -File .\tests\Test-BootstrapOrangePi.ps1
+```
+
 `setup-orangepi.sh` also has an opt-in unattended mode used by this script
 (`SETUP_UNATTENDED=1 SETUP_CHOICE SETUP_BOARD_NAME SETUP_CAMERAS SETUP_STREAMS`); without
 `SETUP_UNATTENDED` it behaves exactly as before.
