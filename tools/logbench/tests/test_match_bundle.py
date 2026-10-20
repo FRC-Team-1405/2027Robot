@@ -5,6 +5,7 @@ import pathlib
 import sys
 import time
 import zipfile
+from types import SimpleNamespace
 
 import pytest
 
@@ -70,6 +71,34 @@ def test_no_enabled_periods_keeps_full_copy_and_reports_warning(tmp_path):
     assert (tmp_path / 'out' / result['trimmed_log']).read_bytes() == raw
 
 
+@pytest.mark.parametrize('failure', ['index-overflow', 'order-check', 'trim-check'])
+def test_processing_failure_archives_original_without_unverified_copy(tmp_path, monkeypatch, failure):
+    raw = sample()
+    if failure == 'index-overflow':
+        def overflow(_raw):
+            raise OverflowError('int too big to convert')
+        monkeypatch.setattr(match_bundle, 'build_index', overflow)
+    elif failure == 'order-check':
+        raw += wb.record(4, 1_000_000, wb.double(1))
+        monkeypatch.setattr(match_bundle, 'verify_reorder', lambda *a: SimpleNamespace(ok=False))
+    else:
+        monkeypatch.setattr(match_bundle, 'verify_trim', lambda *a: SimpleNamespace(ok=False))
+    source = tmp_path / 'match.wpilog'
+    source.write_bytes(raw)
+    out = tmp_path / 'out'
+    result = match_bundle.prepare(source, [], out)
+    assert source.read_bytes() == raw
+    assert 'trimmed_log' not in result
+    assert not list(out.glob('*.trimmed.wpilog'))
+    with zipfile.ZipFile(out / result['archive']) as archive:
+        assert set(archive.namelist()) == {'match.wpilog', 'match.trim.json'}
+        assert archive.read('match.wpilog') == raw
+        report = json.loads(archive.read('match.trim.json'))
+        assert report['trim_status'] == 'failed' and report['trim_error']
+        assert report['stats'] is None and report['trimmed'] is None
+        assert report['warnings'] == result['warnings']
+
+
 def test_cancel_during_packaging_never_publishes_a_partial_zip(tmp_path):
     source = tmp_path / 'match.wpilog'
     source.write_bytes(sample())
@@ -86,23 +115,27 @@ def test_cancel_during_packaging_never_publishes_a_partial_zip(tmp_path):
 
 
 @pytest.mark.parametrize('include_battery', [False, True])
-def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch, include_battery):
+@pytest.mark.parametrize('bad_timestamp', [None, 2**63, 2**80])
+def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch, include_battery, bad_timestamp):
     from fastapi.testclient import TestClient
     import main
     import remote_config
     import remote_fetch
+    raw = sample()
+    if bad_timestamp is not None:
+        raw += wb.record(4, bad_timestamp, wb.double(123))
     cfg = remote_config.RemoteConfig(
         rio=remote_config.HostConfig(host='rio', user='lvuser', path='/logs'),
         pis=[], source_path=pathlib.Path('config.json'))
     monkeypatch.setattr(main, 'LOG_ROOT', tmp_path)
     monkeypatch.setattr(remote_config, 'load_remote_config', lambda: cfg)
     monkeypatch.setattr(main, '_pi_for', lambda cfg, ref: cfg.rio)
-    monkeypatch.setattr(remote_fetch, 'rio_log_size', lambda *a: len(sample()))
+    monkeypatch.setattr(remote_fetch, 'rio_log_size', lambda *a: len(raw))
     monkeypatch.setattr(remote_fetch, 'pi_session_files', lambda *a: [{'name': 'recorder.log', 'size': 8}])
 
     def fetch_log(cfg, name, dest, **kwargs):
         path = dest / name
-        path.write_bytes(sample())
+        path.write_bytes(raw)
         return path
 
     def fetch_session(cfg, camera, name, dest, **kwargs):
@@ -130,9 +163,24 @@ def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch, incl
     assert download.status_code == 200
     assert [row['path'] for row in client.get('/api/logs').json()['logs']] == ['match.wpilog']
     with zipfile.ZipFile(io.BytesIO(download.content)) as archive:
-        expected = {'match.wpilog', 'match.trimmed.wpilog', 'match.trim.json',
+        expected = {'match.wpilog', 'match.trim.json',
                     'match.vision/RightCam/boot0001/recorder.log'}
-        if include_battery:
+        assert archive.read('match.wpilog') == raw
+        report = json.loads(archive.read('match.trim.json'))
+        if bad_timestamp is None:
+            expected.add('match.trimmed.wpilog')
+            assert report['trim_status'] == 'trimmed'
+        else:
+            assert report['trim_status'] == 'failed'
+            assert report['trimmed'] is None and report['trimmed_bytes'] is None
+            assert 'byte ' in report['trim_error']
+            assert 'trimmed_log' not in job['result']
+            assert job['result']['warnings'] == report['warnings']
+            assert any('no trimmed copy' in warning for warning in report['warnings'])
+            assert not list((tmp_path / '.bundles' / job_id).glob('*.trimmed.wpilog'))
+            if include_battery:
+                assert any('Battery analysis was skipped' in warning for warning in report['warnings'])
+        if include_battery and bad_timestamp is None:
             expected.update({'match.battery.html', 'match.battery.json'})
             report = json.loads(archive.read('match.battery.json'))
             assert report['analysis_scope'] == 'full-original-log'
@@ -145,9 +193,11 @@ def test_one_job_fetches_trims_downloads_and_imports(tmp_path, monkeypatch, incl
     response = client.post('/api/import/zip', files={'file': ('match.zip', download.content, 'application/zip')})
     assert response.status_code == 200, response.text
     assert response.json()['log'] == 'match.wpilog'
-    assert (imported / 'match.trimmed.wpilog').is_file()
-    assert (imported / 'match.wpilog').read_bytes() == sample()
-    assert main.bundles.vision_dir_for(imported / 'match.trimmed.wpilog') == imported / 'match.vision'
+    assert (imported / 'match.trimmed.wpilog').is_file() == (bad_timestamp is None)
+    assert (imported / 'match.wpilog').read_bytes() == raw
+    assert (imported / 'match.vision' / 'RightCam' / 'boot0001' / 'recorder.log').read_text() == 'captured'
+    if bad_timestamp is None:
+        assert main.bundles.vision_dir_for(imported / 'match.trimmed.wpilog') == imported / 'match.vision'
 
 
 def test_battery_analysis_receives_recovery_current_beyond_trimmed_window(tmp_path, monkeypatch):

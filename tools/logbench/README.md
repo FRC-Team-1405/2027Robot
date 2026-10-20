@@ -138,8 +138,13 @@ engine: all enabled periods with two seconds before/after, original timestamps,
 and full-log battery/DS/match context. Out-of-order logs are sorted only in a working
 copy and verified before trimming. Vision timestamps stay aligned. If no enabled
 periods can be identified, the derived copy keeps the entire original and the page
-and report explain why. Processing/verification failures stop the download with an
-error; successfully fetched originals stay available locally.
+and report explain why. If timestamp parsing, ordering, or trim verification fails,
+the download still contains the exact original log, selected recordings, and a
+`<name>.trim.json` report explaining the failure. The page shows the same warning;
+no unverified `.trimmed.wpilog` is included. This covers the oversized timestamp
+error in `logs/logbench-20261020-191034-010167.log` (a 259,823,168-byte RIO log had
+already finished downloading before trim indexing failed). Transfer failures,
+cancellation, and filesystem/ZIP write errors still stop the job.
 
 Use **Open log** to review the fetched original or **Download ZIP again** to repeat
 the prepared download. ZIP import accepts both original-only legacy bundles and
@@ -159,6 +164,8 @@ analysis. Both report files are also retained when the ZIP is imported. After
 completion, **Open Battery Insights** opens the original full log for interactive
 review. The normal button skips battery analysis. Missing telemetry is explained
 in the report; analysis errors stop the job visibly without altering the original.
+If trimming cannot safely process the log, battery analysis is skipped with a warning
+and the original-plus-recordings ZIP is still available for diagnosis.
 
 The Fetch Bundle page runs remote directory discovery and downloads as tracked jobs. It
 shows the current remote phase, elapsed time, bytes/files transferred, rolling throughput,

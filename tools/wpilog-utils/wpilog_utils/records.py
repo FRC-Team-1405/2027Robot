@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 # Above this many trailing unparsed bytes, an early stop in iter_records is
 # treated as a loud anomaly rather than the normal "writer was killed
 # mid-record" tail. The largest a legitimate record header can ever be is
-# 4 (entry id) + 4 (payload size) + 16 (timestamp) = 24 bytes, so anything
+# 1 (bitfield) + 4 (entry id) + 4 (payload size) + 8 (timestamp) = 17 bytes, so anything
 # meaningfully larger than that indicates real data is being dropped.
 TRUNCATION_WARN_BYTES = 256
 
@@ -68,6 +68,9 @@ def iter_records(raw: bytes, pos: int) -> Iterator[Tuple[int, float, bytes, int,
     each well-formed record. record_start:record_end is the exact byte range of
     the record in `raw`, including its bitfield/entry-id/size/timestamp header —
     useful for byte-for-byte copying (e.g. trimming) without re-encoding.
+    Invalid header bits or timestamps outside the supported signed 64-bit range
+    raise ValueError with the record's byte offset; they must not be silently
+    indexed as an enormous cycle/time histogram. Truncated tails are logged.
     """
     n_yielded = 0
     last_ts = 0.0
@@ -78,7 +81,12 @@ def iter_records(raw: bytes, pos: int) -> Iterator[Tuple[int, float, bytes, int,
 
         eid_sz = (bitfield & 0x3) + 1
         psz_sz = ((bitfield >> 2) & 0x3) + 1
-        tsz    = ((bitfield >> 4) & 0xF) + 1
+        # WPILog v1 uses three bits for timestamp width (1..8 bytes).
+        # Bit 7 is reserved, not a fourth length bit. Treat it as corruption
+        # rather than reading payload bytes as a >64-bit timestamp.
+        tsz    = ((bitfield >> 4) & 0x7) + 1
+        if bitfield & 0x80:
+            raise ValueError(f'Invalid WPILog record at byte {record_start}: reserved header bit is set')
 
         needed = eid_sz + psz_sz + tsz
         if pos + needed > len(raw):
@@ -94,6 +102,8 @@ def iter_records(raw: bytes, pos: int) -> Iterator[Tuple[int, float, bytes, int,
         pos         += psz_sz
         ts_us        = int.from_bytes(raw[pos:pos + tsz],    'little')
         pos         += tsz
+        if ts_us >= 1 << 63:
+            raise ValueError(f'Invalid WPILog timestamp at byte {record_start}: {ts_us} exceeds signed 64-bit range')
         ts_sec       = ts_us / 1_000_000.0
 
         if pos + payload_size > len(raw):
