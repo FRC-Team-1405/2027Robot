@@ -174,7 +174,7 @@ public class Robot extends LoggedRobot {
         t = LoopTimings.begin();
         // Keep the coprocessor clock reference at its original cadence.
         RobotContainer.publishRobotData();
-        if (!FeatureSwitches.ROBOT_DASHBOARD_10_HZ || dashboardGate.ready(Timer.getFPGATimestamp(), 0.1)) {
+        if (!RobotBase.isReal() || !FeatureSwitches.ROBOT_DASHBOARD_10_HZ || dashboardGate.ready(Timer.getFPGATimestamp(), 0.1)) {
             RobotContainer.updateNT();
             m_robotContainer.drivetrain.publishDriveOutputVoltage();
             m_robotContainer.drivetrain.publishMotorCurrent();
