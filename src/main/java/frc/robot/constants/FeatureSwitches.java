@@ -39,7 +39,7 @@ public class FeatureSwitches {
      *  rate (mostly 100 Hz). OFF = devices are still declared and their configuration read once, but
      *  no status signals, so no extra bus traffic and no per-loop reads. Motor current, temperature and
      *  health then vanish from logs: use for testing, not for matches. */
-    public static final boolean POWER_TELEMETRY_SIGNALS = true;
+    public static final boolean POWER_TELEMETRY_SIGNALS = false;
 
     /** Status-signal rate (Hz) for the Hopper, Indexer, Pickup and Intake-pickup motors: the signals
      *  their IO classes read and PowerTelemetry's. 0 = leave Phoenix's default (usually 100 Hz).
@@ -50,17 +50,17 @@ public class FeatureSwitches {
     /** On those same four mechanism motors, call optimizeBusUtilization() once every signal the code
      *  reads has an explicit rate (MECHANISM_STATUS_SIGNAL_HZ, or 50 Hz if that is 0). Everything else
      *  the device would send (accelerations, rotor velocity, ...) stops. OFF = no change. */
-    public static final boolean OPTIMIZE_BUS_UTILIZATION = false;
+    public static final boolean OPTIMIZE_BUS_UTILIZATION = true;
 
     /** PowerTelemetry stops refreshing a motor that has reported a bad CAN status (e.g. RxTimeout)
      *  for 5 s, re-checking every 5 s, so an unplugged or dead motor stops costing time every loop.
      *  OFF = every motor is refreshed every loop. */
-    public static final boolean SKIP_ABSENT_DEVICES = false;
+    public static final boolean SKIP_ABSENT_DEVICES = true;
 
     /** Log how long each part of robotPeriodic and each subsystem's periodic() took, every loop, as
      *  RealOutputs/Timing/<Name>Ms, and mirror the Tracer (Vision) timings into the log. Shows in the
      *  log where the ~38 ms loop goes. Costs a little itself, so it is OFF until you are measuring. */
-    public static final boolean LOG_SUBSYSTEM_TIMINGS = false;
+    public static final boolean LOG_SUBSYSTEM_TIMINGS = true;
     //#endregion
 
     //#region VisionTestSwitches

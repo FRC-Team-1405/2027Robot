@@ -219,3 +219,17 @@ od @ index-CsBvv-6G.js:8
 
 # Strange photon vision camera mismatch error
 Camera Mismatch Detected! Visit the Camera Matching page for more information. Note: Camera matching is done by USB port. Ensure cameras are plugged into the same USB ports as when they were activated.
+
+
+# another health check error
+Uncaught TypeError: Cannot read properties of null (reading 'toFixed')
+    at Dt (index-CsBvv-6G.js:9:115117)
+    at Eo (index-CsBvv-6G.js:8:47507)
+    at _c (index-CsBvv-6G.js:8:69941)
+    at Pc (index-CsBvv-6G.js:8:80191)
+    at Mu (index-CsBvv-6G.js:8:115514)
+    at ku (index-CsBvv-6G.js:8:114598)
+    at Ou (index-CsBvv-6G.js:8:114437)
+    at gu (index-CsBvv-6G.js:8:111307)
+    at cd (index-CsBvv-6G.js:8:122813)
+    at MessagePort.ne (index-CsBvv-6G.js:1:9770)
