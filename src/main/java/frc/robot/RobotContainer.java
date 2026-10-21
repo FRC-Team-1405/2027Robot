@@ -42,6 +42,9 @@ import frc.robot.lib.CommandTracker;
 import edu.wpi.first.wpilibj.RobotBase;
 import frc.robot.subsystems.AdjustableHood;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.DriveIO;
+import frc.robot.subsystems.DriveIOSim;
+import frc.robot.subsystems.DriveIOTalonFX;
 import frc.robot.subsystems.HoodIO;
 import frc.robot.subsystems.HoodIOSim;
 import frc.robot.subsystems.HoodIOServo;
@@ -139,6 +142,9 @@ public class RobotContainer {
         }
 
         public RobotContainer() {
+                // Replay gets a no-op IO: the drive state comes from the log, and no sim physics runs.
+                drivetrain.setIO(RobotBase.isReal() ? new DriveIOTalonFX(drivetrain)
+                                : Logger.hasReplaySource() ? new DriveIO() {} : new DriveIOSim(drivetrain));
                 configureBindings();
                 // configureBindings_CTReDefault();
                 drivetrain.configureAutoBuilder();
@@ -164,7 +170,7 @@ public class RobotContainer {
                 // }
 
                 List<VisionSample> visionSamples = vision.flushSamples();
-                vision.updateSpeeds(drivetrain.getState().Speeds);
+                vision.updateSpeeds(drivetrain.getLoggedState().Speeds);
                 // System.out.println("vision sample count: " + visionSamples.size());
                 for (var sample : visionSamples) {
 
@@ -197,7 +203,7 @@ public class RobotContainer {
                         // P2: Log correction magnitude (distance between vision estimate and
                         // current odometry pose) for AdvantageScope tuning.
                         if (FeatureSwitches.VISION_EXTENDED_NT_LOGGING) {
-                                Pose2d odomNow = drivetrain.getState().Pose;
+                                Pose2d odomNow = drivetrain.getLoggedState().Pose;
                                 double correctionMag = sample.pose().getTranslation()
                                                 .getDistance(odomNow.getTranslation());
                                 // Logger.recordOutput writes into the AKit WPILog so replay
@@ -211,7 +217,7 @@ public class RobotContainer {
                 }
 
                 Pose2d visionPose = null;
-                Pose2d odomPose = drivetrain.getState().Pose;
+                Pose2d odomPose = drivetrain.getLoggedState().Pose;
                 for (int i = 0; i < 2; i++) {
                         if (i + 1 <= visionSamples.size()) {
                                 cameraEstimatedPosesPublisher.get(i).set(visionSamples.get(i).pose());

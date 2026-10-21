@@ -38,7 +38,7 @@ public class PointAtTarget extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    double currentAngle = drivetrain.getState().Pose.getRotation().getRadians();
+    double currentAngle = drivetrain.getLoggedState().Pose.getRotation().getRadians();
 
     double rateToRotate = rotationController.calculate(currentAngle);
     if (frc.robot.constants.FeatureSwitches.ENABLE_SUBSYSTEM_DEBUG_PRINTS) System.out.printf("PID error: %.3f, target: %.3f, current: %.3f, rateToRotate: %.3f\n",
