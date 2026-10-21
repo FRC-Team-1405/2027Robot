@@ -6,8 +6,10 @@
 // the report: every section, group and row with a status icon, the value, the rule that was applied
 // in words, and any detail. Red/amber rows open by default; everything fine stays collapsed so the
 // page can be scanned for icons that are not green.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { errorMessage, requestJson } from '../lib/request';
+import { HealthBoundary } from './HealthBoundary';
 import { CameraCard } from '../pit/CameraCard';
 import { usePitConnection } from '../pit/usePitConnection';
 import type { SeverityBand } from '../lib/severity';
@@ -38,10 +40,31 @@ interface LogEntry {
 type Mode = 'live' | 'log';
 
 export function HealthCheckPage() {
+  return <HealthBoundary label="Health Check"><HealthCheckContent /></HealthBoundary>;
+}
+
+function HealthCheckContent() {
   const params = new URLSearchParams(window.location.search);
   const [mode, setMode] = useState<Mode>(params.get('log') ? 'log' : 'live');
   const [problemsOnly, setProblemsOnly] = useState(false);
   const [showNa, setShowNa] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [auxRetry, setAuxRetry] = useState(0);
+  const [renderErrors, setRenderErrors] = useState<string[]>([]);
+  const notify = useCallback((message: string) => {
+    setRenderErrors((previous) => previous.includes(message) ? previous : [...previous.slice(-4), message]);
+  }, []);
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => notify(event.message || 'Unexpected page error.');
+    const onRejection = (event: PromiseRejectionEvent) => notify(errorMessage(event.reason));
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, [notify]);
 
   // Live robot
   const pit = usePitConnection();
@@ -55,24 +78,47 @@ export function HealthCheckPage() {
   const logReport = useLogReport(mode === 'log' ? logPath : null);
 
   useEffect(() => {
-    fetch('/api/logs')
-      .then((r) => r.json())
-      .then((d: { logs: LogEntry[] }) => {
-        const sorted = [...d.logs].sort((a, b) => b.mtime - a.mtime);
-        setLogs(sorted);
-        setLogPath((current) => current ?? sorted[0]?.path ?? null);
-      })
-      .catch(() => setLogs([]));
-  }, []);
+    const controller = new AbortController();
+    setListError(null);
+    void requestJson('/api/logs', { signal: controller.signal }).then((body) => {
+      if (!body || typeof body !== 'object' || !('logs' in body) || !Array.isArray(body.logs)) throw new Error('Invalid log list.');
+      const entries = body.logs.filter((item): item is LogEntry => item && typeof item.path === 'string' && typeof item.mtime === 'number' && Number.isFinite(item.mtime));
+      if (controller.signal.aborted) return;
+      if (entries.length !== body.logs.length) setListError('Some log-list entries were invalid and were omitted.');
+      const sorted = [...entries].sort((a, b) => b.mtime - a.mtime);
+      setLogs(sorted); setLogPath((current) => current ?? sorted[0]?.path ?? null);
+    }).catch((error) => { if (!controller.signal.aborted) setListError(errorMessage(error)); });
+    return () => controller.abort();
+  }, [auxRetry]);
 
   const report = mode === 'live' ? live.report : logReport.report;
   const [bands, setBands] = useState<SeverityBand[]>([]);
   useEffect(() => {
-    fetch('/api/metric-catalog')
-      .then((r) => r.json())
-      .then((d) => setBands(d.severity ?? []))
-      .catch(() => setBands([]));
-  }, []);
+    const controller = new AbortController();
+    setCatalogError(null);
+    void requestJson('/api/metric-catalog', { signal: controller.signal }).then((body) => {
+      if (!body || typeof body !== 'object' || !('severity' in body) || !Array.isArray(body.severity)) throw new Error('Invalid score color settings.');
+      const valid = body.severity.filter((band): band is SeverityBand => band && typeof band.min === 'number' && Number.isFinite(band.min) && typeof band.color === 'string');
+      if (controller.signal.aborted) return;
+      setBands(valid);
+      if (valid.length !== body.severity.length) setCatalogError('Some score color settings were invalid.');
+    }).catch((error) => { if (!controller.signal.aborted) setCatalogError(errorMessage(error)); });
+    return () => controller.abort();
+  }, [auxRetry]);
+
+  const notices = [...new Set([
+    ...(mode === 'live' ? [
+      pit.error && `Live camera connection: ${pit.error}`,
+      live.error && `Live health report: ${live.error}`,
+      live.resetError,
+      ...pit.warnings, ...live.warnings,
+      (pit.stale || live.stale) && 'Live updates are stale. Any last good readings remain visible; automatic retries continue.',
+      pit.stale && pit.lastUpdated && `Last camera snapshot received at ${new Date(pit.lastUpdated).toLocaleTimeString()}.`,
+      live.stale && live.lastUpdated && `Last health report received at ${new Date(live.lastUpdated).toLocaleTimeString()}.`,
+    ] : [logReport.error && `Log health report: ${logReport.error}${report ? ' Showing the last successful report for this log.' : ''}`, ...logReport.warnings]),
+    listError && `Log list: ${listError}`, catalogError && `Score colors: ${catalogError}`,
+    ...(report?.config_errors ?? []), ...renderErrors,
+  ].filter((message): message is string => typeof message === 'string' && message.length > 0))];
 
   const cameras = pit.snapshot ? Object.entries(pit.snapshot.cameras) : [];
   const shownSections = useMemo(() => {
@@ -104,6 +150,12 @@ export function HealthCheckPage() {
           </button>
         </div>
       </div>
+      {notices.length > 0 && <div className="health__notification" role="alert">
+        <strong>Health Check needs attention</strong>
+        <ul>{notices.map((message) => <li key={message}>{message}</li>)}</ul>
+        {(listError || catalogError) && <button className="health__btn" onClick={() => setAuxRetry((v) => v + 1)}>Retry page data</button>}
+        {renderErrors.length > 0 && <button className="health__btn" onClick={() => setRenderErrors([])}>Dismiss page errors</button>}
+      </div>}
       <p className="health__hint">
         {mode === 'live'
           ? 'Connect to the robot in the pits and scan for anything that is not green. Enable and disable the robot to see how it behaves under load: a row that goes red keeps a note even after it recovers, until you press Reset.'
@@ -153,7 +205,7 @@ export function HealthCheckPage() {
             {pit.status === 'disconnected' && 'not connected'}
             {pit.status === 'error' && 'error'}
           </span>
-          {live.stale && <span className="health__chip health__chip--error">lost contact with the server</span>}
+          {live.stale && <span className="health__chip health__chip--error">health updates unavailable</span>}
         </div>
       ) : (
         <div className="health__connect">
@@ -181,31 +233,6 @@ export function HealthCheckPage() {
         </div>
       )}
 
-      {mode === 'live' && pit.status === 'error' && (
-        <div className="status status--error">
-          <strong>Could not connect.</strong>
-          <pre>{pit.error}</pre>
-        </div>
-      )}
-      {mode === 'log' && logReport.error && (
-        <div className="status status--error">
-          <strong>Could not check that log.</strong>
-          <pre>{logReport.error}</pre>
-        </div>
-      )}
-
-      {report && report.config_errors && report.config_errors.length > 0 && (
-        <div className="health__config-errors" role="alert">
-          <strong>health_checks.toml has {report.config_errors.length === 1 ? 'a problem' : 'problems'}</strong>
-          <ul>
-            {report.config_errors.map((e) => (
-              <li key={e}>{e}</li>
-            ))}
-          </ul>
-          <span>The other checks still ran.</span>
-        </div>
-      )}
-
       {mode === 'live' && pit.status !== 'connected' && !report && (
         <div className="health__empty">Connect to the robot to see its health.</div>
       )}
@@ -215,11 +242,11 @@ export function HealthCheckPage() {
 
       {report && report.sections.length > 0 && (
         <>
-          <Verdict report={report} problemsOnly={problemsOnly} onToggleProblems={setProblemsOnly} showNa={showNa} onToggleNa={setShowNa} />
+          <HealthBoundary label="Health summary" resetKey={report} onError={notify}><Verdict report={report} problemsOnly={problemsOnly} onToggleProblems={setProblemsOnly} showNa={showNa} onToggleNa={setShowNa} /></HealthBoundary>
           <Legend showNa={showNa} />
           <div className="health__sections">
             {shownSections.map((section) => (
-              <SectionCard key={section.id} section={section} />
+              <HealthBoundary key={section.id} label={section.label || 'Health section'} resetKey={section} onError={notify}><SectionCard section={section} /></HealthBoundary>
             ))}
             {problemsOnly && shownSections.length === 0 && (
               <div className="health__empty">Nothing to show: no warnings or problems.</div>
@@ -235,12 +262,12 @@ export function HealthCheckPage() {
             The same VisionHealth.java score the robot already computes, broken into its eight factors. A calibration
             diagnostic, not a match-accuracy score.
           </p>
-          {pit.snapshot && (Math.abs(pit.snapshot.lin_speed) > 0.06 || Math.abs(pit.snapshot.ang_speed) > 0.06) && (
+          {pit.snapshot && (Math.abs(pit.snapshot.lin_speed ?? 0) > 0.06 || Math.abs(pit.snapshot.ang_speed ?? 0) > 0.06) && (
             <p className="health__warn">The robot is moving. Hold it still for a clean reading.</p>
           )}
           <div className="pit-cards">
             {cameras.map(([name, reading]) => (
-              <CameraCard key={name} name={name} reading={reading} bands={bands} />
+              <HealthBoundary key={name} label={`Camera ${name}`} resetKey={reading} onError={notify}><CameraCard name={name} reading={reading} bands={bands} /></HealthBoundary>
             ))}
           </div>
         </details>

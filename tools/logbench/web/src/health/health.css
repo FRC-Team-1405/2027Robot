@@ -394,3 +394,14 @@
     width: 100%;
   }
 }
+
+.health__notification {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--warn, #f2a33a);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+.health__notification ul { margin: 8px 0 0; padding-left: 20px; }
+.health__notification li + li { margin-top: 4px; }

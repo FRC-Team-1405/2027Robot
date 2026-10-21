@@ -13,6 +13,18 @@ list of checks:
 Open it from the **Health Check** tab, or `?view=health` (the old `?view=pit` still works). A log can be
 opened directly with `?view=health&log=<name>.wpilog`.
 
+Missing camera numbers (including JSON `null`) show **n/a**, rather than zero.
+Request, response-data, reset, and rendering failures appear in a notification directly
+below the page heading. A bad health section or camera does not take down the rest of
+the page. Unexpected rendering failures have a **Retry** button.
+
+Live requests time out after ten seconds and retry automatically, with one request at
+a time per endpoint. Failed polls retain the last good readings and explicitly mark
+them **stale**; the notification clears when updates recover. Disconnecting or leaving
+the page cancels pending requests so late responses cannot restore an old connection.
+Failed log rechecks retain the last report for that same file; selecting a different
+file clears the old report. **Retry page data** retries log-list and score-color loads.
+
 ## Reading the page
 
 | Icon | Meaning |
