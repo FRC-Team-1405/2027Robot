@@ -99,3 +99,9 @@ rather than further slowing a few roller motors.
 - [WPILib DataLogManager](https://github.wpilib.org/allwpilib/docs/release/java/edu/wpi/first/wpilibj/DataLogManager.html)
 - Tests: `PeriodicGateTest`, `CoprocessorHealthLoggerTest`, `CanLoadSwitchesTest`. Tests no longer assert
   that intentionally user-adjustable experiment switches must equal historical defaults.
+
+## Console follow-up
+
+See [console load and 20 ms diagnostics](console-load-ab-test.md) for the October 20 warning samples,
+quiet-console switches, persistent controller alerts, and timing counters that remain active when
+verbose scheduler reporting is reduced. Fewer warning messages do not establish lower CPU or CAN load.

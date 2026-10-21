@@ -33,8 +33,12 @@ public class RumbleJoystick extends SequentialCommandGroup {
   public RumbleJoystick(CommandXboxController joystick, RumbleType rumbleType, double rumbleStrength,
       double rumbleDuration) {
     addCommands(
-        Commands.print(String.format("Running RumbleJoystick rumbleType: %s, rumbleStrenth: %s, rumbleDuration: %s",
-            rumbleType.name(), rumbleStrength, rumbleDuration)),
+        Commands.runOnce(() -> {
+          if (frc.robot.constants.FeatureSwitches.ENABLE_SUBSYSTEM_DEBUG_PRINTS) {
+            System.out.printf("RumbleJoystick: %s, strength=%s, duration=%s%n",
+                rumbleType.name(), rumbleStrength, rumbleDuration);
+          }
+        }),
         runRumbleStart(joystick, rumbleType, rumbleStrength),
         new WaitCommand(rumbleDuration),
         runRumbleStop(joystick));

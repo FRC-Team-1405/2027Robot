@@ -91,6 +91,16 @@ public class FeatureSwitches {
     /** Throttle diagnostic dashboard publishing to 10 Hz; subsystem IO and RobotTime clock stay 50 Hz. */
     public static final boolean ROBOT_DASHBOARD_10_HZ = true;
 
+    /** Suppress WPILib's repeated missing-axis/button/POV warnings on the bench. Controller
+     *  alerts and logged capabilities remain; WPILib ignores this suppression under FMS. */
+    public static final boolean QUIET_JOYSTICK_WARNINGS = true;
+    /** Raise only the scheduler diagnostic watchdog from 20 ms to 1 s. The robot period and
+     *  outer watchdog stay 20 ms; Diagnostics/SchedulerOverrunCount still counts 20 ms misses.
+     *  OFF restores stock verbose scheduler epoch dumps for diagnosis. */
+    public static final boolean QUIET_SCHEDULER_OVERRUN_WARNINGS = true;
+    /** Optional port-2 shooter test controls. OFF avoids polling an absent test controller. */
+    public static final boolean ENABLE_SHOOTER_TEST_CONTROLLER = true;
+
     // Additional CAN experiments; independent of CPU-side sampling.
     /** Phoenix 2026 defaults unused optimized signals to 4 Hz. With OPTIMIZE_BUS_UTILIZATION,
      *  explicitly use 0 Hz on the already-tuned simple mechanisms only. */

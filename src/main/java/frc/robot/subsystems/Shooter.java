@@ -210,8 +210,12 @@ public class Shooter extends SubsystemBase {
     }
 
     private void periodicImpl() {
+        long t = frc.robot.util.LoopTimings.begin();
         io.updateInputs(inputs);
+        frc.robot.util.LoopTimings.end("Timing/Shooter/ReadInputs", t);
+        t = frc.robot.util.LoopTimings.begin();
         Logger.processInputs("Shooter", inputs);
+        frc.robot.util.LoopTimings.end("Timing/Shooter/ProcessInputs", t);
 
         double motor1RPS = inputs.motor1VelocityRPS;
         double motor2RPS = inputs.motor2VelocityRPS;

@@ -36,6 +36,7 @@ public class Robot extends LoggedRobot {
 
     private final PeriodicGate dashboardGate = new PeriodicGate();
 
+    private final frc.robot.util.RuntimeDiagnostics diagnostics = new frc.robot.util.RuntimeDiagnostics();
     private HootAutoReplay m_timeAndJoystickReplay;
 
     // TODO(2027): Verify autonomous duration for 2027 game rules (was 20.0s in 2026).
@@ -98,6 +99,9 @@ public class Robot extends LoggedRobot {
             DriverStation.startDataLog(DataLogManager.getLog());
         }
 
+        DriverStation.silenceJoystickConnectionWarning(FeatureSwitches.QUIET_JOYSTICK_WARNINGS);
+        CommandScheduler.getInstance().setPeriod(
+                FeatureSwitches.QUIET_SCHEDULER_OVERRUN_WARNINGS ? 1.0 : getPeriod());
         m_robotContainer = new RobotContainer();
 
         var modules = m_robotContainer.drivetrain.getModules();
@@ -116,6 +120,17 @@ public class Robot extends LoggedRobot {
         frc.robot.power.PowerTelemetry.initialize();
 
         GamePeriod.elasticInit();
+    }
+
+    @Override
+    protected void loopFunc() {
+        long start = System.nanoTime();
+        try {
+            super.loopFunc();
+        } finally {
+            // Includes WPILib dashboard updates and epoch printing outside robotPeriodic.
+            diagnostics.recordLoop((System.nanoTime() - start) / 1e6, getPeriod() * 1000);
+        }
     }
 
     private void resetSubsystems_init() {
@@ -144,7 +159,9 @@ public class Robot extends LoggedRobot {
         m_robotContainer.correctOdometry();
         LoopTimings.end("Timing/CorrectOdometry", t);
         t = LoopTimings.begin();
+        long schedulerStart = System.nanoTime();
         CommandScheduler.getInstance().run();
+        diagnostics.recordScheduler((System.nanoTime() - schedulerStart) / 1e6, getPeriod() * 1000);
         LoopTimings.end("Timing/CommandScheduler", t);
         t = LoopTimings.begin();
         frc.robot.power.PowerTelemetry.periodic();
@@ -152,6 +169,7 @@ public class Robot extends LoggedRobot {
         t = LoopTimings.begin();
         frc.robot.util.CoprocessorHealthLogger.periodic(); // Orange Pi + recorder health into the log
         LoopTimings.end("Timing/CoprocessorHealthLogger", t);
+        diagnostics.updateControllers();
         frc.robot.util.WallClockEpoch.periodic(); // which roboRIO boot this log is (LogBench ties Pi frames to it)
         t = LoopTimings.begin();
         // Keep the coprocessor clock reference at its original cadence.

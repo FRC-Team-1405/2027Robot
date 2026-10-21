@@ -219,12 +219,17 @@ public class Vision extends SubsystemBase {
             String name = ios[i].getName();
             Tracer.startTrace(name + "Periodic");
 
+            long ioStart = frc.robot.util.LoopTimings.begin();
             try {
                 ios[i].updateInputs(inputs[i]);
             } catch (Exception e) {
                 DriverStation.reportError("Error in VisionIO " + name, e.getStackTrace());
+            } finally {
+                frc.robot.util.LoopTimings.end("Timing/Vision/" + name + "/ReadInputs", ioStart);
             }
+            long logStart = frc.robot.util.LoopTimings.begin();
             Logger.processInputs("Vision/" + name, inputs[i]);
+            frc.robot.util.LoopTimings.end("Timing/Vision/" + name + "/ProcessInputs", logStart);
 
             // -------------------------------------------------------------------
             // All filter logic below runs AFTER processInputs() — this is the

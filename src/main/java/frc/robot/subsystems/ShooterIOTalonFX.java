@@ -98,7 +98,9 @@ public class ShooterIOTalonFX implements ShooterIO {
 
     @Override
     public void updateInputs(ShooterIOInputs inputs) {
+        long t = frc.robot.util.LoopTimings.begin();
         BaseStatusSignal.refreshAll(closedLoopError, closedLoopReference);
+        frc.robot.util.LoopTimings.end("Timing/Shooter/RefreshSignals", t);
 
         inputs.motor1VelocityRPS = motor1.getVelocity().getValueAsDouble();
         inputs.motor2VelocityRPS = motor2.getVelocity().getValueAsDouble();
