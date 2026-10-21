@@ -5,11 +5,21 @@ import { usePolling } from '../lib/usePolling';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
+function parseConnectedSnapshot(body: unknown) {
+  // The NT client can momentarily lose its socket while the robot/cameras are fine.
+  // Do not replace a good snapshot with cached/default camera values from that gap.
+  if (body && typeof body === 'object' && (Object.keys(body).length === 0
+      || ('nt_connected' in body && body.nt_connected === false))) {
+    throw new Error('Waiting for the robot NetworkTables connection.');
+  }
+  return parseLiveSnapshot(body);
+}
+
 export function usePitConnection() {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState<string | null>(null);
   const request = useRef<AbortController | null>(null);
-  const poll = usePolling('/api/live/snapshot', status === 'connected', parseLiveSnapshot, 400);
+  const poll = usePolling('/api/live/snapshot', status === 'connected', parseConnectedSnapshot, 400);
   useEffect(() => () => request.current?.abort(), []);
 
   const connect = async (server: string, rootTable: string) => {

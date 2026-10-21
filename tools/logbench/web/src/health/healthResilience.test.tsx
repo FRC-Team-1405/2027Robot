@@ -42,7 +42,7 @@ function LiveHarness() {
 }
 
 describe('live health recovery', () => {
-  it('retains the report through HTTP, invalid JSON, and invalid-schema responses then recovers', async () => {
+  it('tolerates brief HTTP, JSON and schema failures without flashing an outage', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(json(report()))
       .mockResolvedValueOnce(json({ detail: 'Robot read failed' }, 503))
       .mockResolvedValueOnce(new Response('not JSON')).mockResolvedValueOnce(json({ sections: null }))
@@ -51,10 +51,10 @@ describe('live health recovery', () => {
     await render(<LiveHarness />);
     expect(host.textContent).toContain('72 %');
     await tick(1000);
-    expect(host.querySelector('[role=alert]')!.textContent).toContain('Robot read failed');
-    expect(host.textContent).toContain('stale'); expect(host.textContent).toContain('72 %');
-    await tick(1000); expect(host.textContent).toContain('invalid JSON');
-    await tick(1000); expect(host.textContent).toContain('invalid kind');
+    expect(host.querySelector('[role=alert]')!.textContent).toBe('');
+    expect(host.textContent).toContain('current'); expect(host.textContent).toContain('72 %');
+    await tick(1000); expect(host.querySelector('[role=alert]')!.textContent).toBe('');
+    await tick(1000); expect(host.querySelector('[role=alert]')!.textContent).toBe('');
     await tick(1000);
     expect(host.textContent).toContain('current'); expect(host.textContent).toContain('40 %');
     expect(host.querySelector('[role=alert]')!.textContent).toBe('');
@@ -133,11 +133,14 @@ it('renders the real Health Check with null camera telemetry and reports poll fa
   await click('Connect');
   expect(host.textContent).toContain('n/a fps'); expect(host.textContent).toContain('CPU load');
   failing = true; await tick(1000);
+  expect(host.querySelector('[role=alert]')).toBeNull();
+  await tick(4000);
   const notice = host.querySelector('[role=alert]')!;
   expect(notice.textContent).toContain('Live robot unavailable');
   expect(notice.compareDocumentPosition(host.querySelector('.health__connect')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(host.textContent).toContain('CPU load'); expect(host.textContent).toContain('Disconnect');
-  failing = false; await tick(1000); expect(host.querySelector('[role=alert]')).toBeNull();
+  failing = false; await tick(1000); expect(host.querySelector('[role=alert]')).not.toBeNull();
+  await tick(1000); expect(host.querySelector('[role=alert]')).toBeNull();
   vi.spyOn(console, 'error').mockImplementation(() => {});
   const broken = vi.spyOn(cameraModule, 'CameraCard').mockImplementation(() => { throw new Error('camera render failed'); });
   await tick(400);
@@ -175,4 +178,78 @@ it('shows auxiliary-load and unexpected async errors above usable page controls'
   vi.stubGlobal('fetch', vi.fn(async (url) => json(String(url) === '/api/logs' ? { logs: [] } : { severity: [] })));
   await click('Retry page data'); await click('Dismiss page errors');
   expect(host.querySelector('[role=alert]')).toBeNull();
+});
+
+it('only announces sustained failures and requires consecutive good reports to recover', async () => {
+  let healthy = true;
+  vi.stubGlobal('fetch', vi.fn(async () => healthy ? json(report()) : json({ detail: 'Robot unavailable' }, 503)));
+  await render(<LiveHarness />);
+  healthy = false; await tick(4000);
+  expect(host.querySelector('[role=alert]')!.textContent).toBe('');
+  await tick(1000); expect(host.textContent).toContain('Robot unavailable');
+  healthy = true; await tick(1000);
+  expect(host.textContent).toContain('stale'); // first success does not flicker the warning off
+  healthy = false; await tick(1000);
+  healthy = true; await tick(1000);
+  expect(host.textContent).toContain('stale');
+  await tick(1000); expect(host.textContent).toContain('current');
+  expect(host.querySelector('[role=alert]')!.textContent).toBe('');
+});
+
+it('allows the initial NT handshake ten seconds before showing an outage', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => json({ connected: false })));
+  await render(<LiveHarness />); await tick(9999);
+  expect(host.querySelector('[role=alert]')!.textContent).toBe('');
+  await tick(1);
+  expect(host.querySelector('[role=alert]')!.textContent).toContain('Waiting for the robot NetworkTables connection');
+});
+
+it('holds connection/camera state and open sections through alternating NT gaps', async () => {
+  let gap = false;
+  let status = 'warn';
+  vi.stubGlobal('fetch', vi.fn(async (url) => {
+    if (String(url) === '/api/logs') return json({ logs: [] });
+    if (String(url) === '/api/metric-catalog') return json({ severity: [] });
+    if (String(url) === '/api/live/snapshot') return json({ nt_connected: !gap,
+      cameras: { Right: { connected: !gap, current_fps: 50, health_score: 100 } } });
+    if (String(url) === '/api/health/live') {
+      if (gap) return json({ connected: false });
+      const body = report();
+      const section = body.sections[0];
+      section.status = status; section.groups[0].status = status;
+      section.groups[0].subjects[0].status = status; section.groups[0].subjects[0].checks[0].status = status;
+      return json(body);
+    }
+    return json({});
+  }));
+  await render(<HealthCheckPage />);
+  const input = host.querySelector<HTMLInputElement>('input[placeholder="Team number or IP address"]')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '1405');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await click('Connect');
+  const panel = host.querySelector('.health__notification--live')!;
+  const section = host.querySelector('.health__section-head')!;
+  expect(section.getAttribute('aria-expanded')).toBe('true');
+  for (let i = 0; i < 12; i++) {
+    gap = i % 2 === 0; await tick(1000);
+    expect(host.querySelector('[role=alert]')).toBeNull();
+    expect(host.querySelector('.health__chip')!.textContent).toBe('connected');
+    expect(host.querySelector('.pit-dot--on')).not.toBeNull();
+    expect(host.querySelector('.health__notification--live')).toBe(panel);
+    expect(host.textContent).toContain('CPU load');
+  }
+  gap = false; status = 'ok'; await tick(1000);
+  expect(host.querySelector('.health__section-head')).toBe(section);
+  expect(section.getAttribute('aria-expanded')).toBe('true'); // recovery doesn't collapse content
+  await act(async () => { (section as HTMLButtonElement).click(); });
+  expect(section.getAttribute('aria-expanded')).toBe('false');
+  status = 'warn'; await tick(1000);
+  expect(section.getAttribute('aria-expanded')).toBe('false'); // user's choice wins
+  gap = true; await tick(5000);
+  expect(host.querySelector('.health__chip')!.textContent).toBe('reconnecting…');
+  expect(host.querySelector('[role=alert]')!.textContent).toContain('NetworkTables connection');
+  expect(host.querySelector('.health__notification--live')).toBe(panel);
+  expect(host.querySelector('.pit-dot--on')).not.toBeNull(); // explicitly showing retained readings
 });

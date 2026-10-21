@@ -405,3 +405,11 @@
 }
 .health__notification ul { margin: 8px 0 0; padding-left: 20px; }
 .health__notification li + li { margin-top: 4px; }
+
+/* Keep the live content anchored when a sustained outage adds/removes details. */
+.health__notification--live {
+  height: 128px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}

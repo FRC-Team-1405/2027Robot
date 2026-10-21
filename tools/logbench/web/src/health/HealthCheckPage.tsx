@@ -112,13 +112,20 @@ function HealthCheckContent() {
       live.error && `Live health report: ${live.error}`,
       live.resetError,
       ...pit.warnings, ...live.warnings,
-      (pit.stale || live.stale) && 'Live updates are stale. Any last good readings remain visible; automatic retries continue.',
+      (pit.stale || live.stale) && 'Live updates are interrupted or recovering. Last received readings remain visible; automatic retries continue.',
       pit.stale && pit.lastUpdated && `Last camera snapshot received at ${new Date(pit.lastUpdated).toLocaleTimeString()}.`,
       live.stale && live.lastUpdated && `Last health report received at ${new Date(live.lastUpdated).toLocaleTimeString()}.`,
     ] : [logReport.error && `Log health report: ${logReport.error}${report ? ' Showing the last successful report for this log.' : ''}`, ...logReport.warnings]),
     listError && `Log list: ${listError}`, catalogError && `Score colors: ${catalogError}`,
     ...(report?.config_errors ?? []), ...renderErrors,
   ].filter((message): message is string => typeof message === 'string' && message.length > 0))];
+  const liveSession = mode === 'live' && pit.status === 'connected';
+  const interrupted = pit.stale || live.stale;
+  const receivedLiveData = Boolean(pit.snapshot || live.report);
+  // Either endpoint can confirm robot contact. An isolated report/camera request
+  // failure should not relabel the whole NT connection as disconnected.
+  const hasCurrentEndpoint = Boolean((pit.snapshot && !pit.stale) || (live.report && !live.stale));
+  const reconnecting = interrupted && !hasCurrentEndpoint;
 
   const cameras = pit.snapshot ? Object.entries(pit.snapshot.cameras) : [];
   const shownSections = useMemo(() => {
@@ -150,9 +157,13 @@ function HealthCheckContent() {
           </button>
         </div>
       </div>
-      {notices.length > 0 && <div className="health__notification" role="alert">
-        <strong>Health Check needs attention</strong>
-        <ul>{notices.map((message) => <li key={message}>{message}</li>)}</ul>
+      {(notices.length > 0 || liveSession) && <div
+        className={`health__notification${liveSession ? ' health__notification--live' : ''}`}
+        role={notices.length > 0 ? 'alert' : 'status'}>
+        <strong>{notices.length > 0 ? 'Health Check needs attention' : 'Live connection'}</strong>
+        {notices.length > 0 ? <ul>{notices.map((message) => <li key={message}>{message}</li>)}</ul>
+          : <p>{receivedLiveData ? 'Live updates are current. Brief interruptions are retried automatically.'
+            : 'Client started. Waiting for the first robot readings…'}</p>}
         {(listError || catalogError) && <button className="health__btn" onClick={() => setAuxRetry((v) => v + 1)}>Retry page data</button>}
         {renderErrors.length > 0 && <button className="health__btn" onClick={() => setRenderErrors([])}>Dismiss page errors</button>}
       </div>}
@@ -196,16 +207,15 @@ function HealthCheckContent() {
               {pit.status === 'connecting' ? 'Connecting…' : 'Connect'}
             </button>
           )}
-          <span className={`health__chip health__chip--${pit.status}`}>
+          <span className={`health__chip health__chip--${pit.status === 'connected' && reconnecting ? 'connecting' : pit.status}`}>
             {pit.status === 'connected' &&
-              (pit.snapshot?.nt_connected
+              (reconnecting ? 'reconnecting…' : receivedLiveData
                 ? `connected${live.report?.meta?.robot ? ` · robot ${live.report.meta.robot}` : ''}`
                 : 'client started, waiting for the robot…')}
             {pit.status === 'connecting' && 'connecting…'}
             {pit.status === 'disconnected' && 'not connected'}
             {pit.status === 'error' && 'error'}
           </span>
-          {live.stale && <span className="health__chip health__chip--error">health updates unavailable</span>}
         </div>
       ) : (
         <div className="health__connect">
@@ -341,19 +351,32 @@ function CountsLine({ counts }: { counts: Counts }) {
   return <span className="health__counts">{summarize(counts)}</span>;
 }
 
-function useOpenState() {
+function useOpenState(section: Section) {
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
-  const isOpen = (key: string, status: Status) => overrides[key] ?? startsOpen(status);
-  const toggle = (key: string, status: Status) => setOverrides((o) => ({ ...o, [key]: !(o[key] ?? startsOpen(status)) }));
+  const [opened, setOpened] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setOpened((previous) => {
+      const keys = section.groups.filter((group) => startsOpen(group.status)).map((group) => toggleKey(section.id, group.label));
+      if (keys.every((key) => previous.has(key))) return previous;
+      return new Set([...previous, ...keys]);
+    });
+  }, [section]);
+  const defaultOpen = (key: string, status: Status) => opened.has(key) || startsOpen(status);
+  const isOpen = (key: string, status: Status) => overrides[key] ?? defaultOpen(key, status);
+  const toggle = (key: string, status: Status) => setOverrides((o) => ({ ...o, [key]: !(o[key] ?? defaultOpen(key, status)) }));
   return { isOpen, toggle };
 }
 
 function SectionCard({ section }: { section: Section }) {
-  const { isOpen, toggle } = useOpenState();
+  const { isOpen, toggle } = useOpenState(section);
   const [sectionOverride, setSectionOverride] = useState<boolean | null>(null);
+  const [openedForAttention, setOpenedForAttention] = useState(startsOpen(section.status) || section.status === 'nodata');
+  useEffect(() => {
+    if (startsOpen(section.status) || section.status === 'nodata') setOpenedForAttention(true);
+  }, [section.status]);
   // Sections open when something needs a look (or there is no data, which the page should say);
   // a section that is all green stays collapsed to its one-line summary.
-  const sectionOpen = sectionOverride ?? (startsOpen(section.status) || section.status === 'nodata');
+  const sectionOpen = sectionOverride ?? (openedForAttention || startsOpen(section.status) || section.status === 'nodata');
 
   return (
     <section className={`health__section health__section--${section.status}`}>

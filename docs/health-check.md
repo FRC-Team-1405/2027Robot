@@ -19,8 +19,19 @@ below the page heading. A bad health section or camera does not take down the re
 the page. Unexpected rendering failures have a **Retry** button.
 
 Live requests time out after ten seconds and retry automatically, with one request at
-a time per endpoint. Failed polls retain the last good readings and explicitly mark
-them **stale**; the notification clears when updates recover. Disconnecting or leaving
+a time per endpoint. The initial NT handshake gets ten seconds; after the first valid
+response a gap must last **five seconds** before an outage notification appears.
+Brief missed polls and NT reconnects retain the last good report/camera readings without
+flashing a warning or an offline camera. A sustained failure marks those readings as
+retained and shows their last-received time; **two consecutive good polls** clear it.
+Either live endpoint can confirm robot contact, so a camera-only request failure does
+not relabel a working health connection as disconnected. This grace applies to live
+transport/response failures; published check failures, configuration errors, reset
+errors and rendering errors still appear directly.
+
+The live status panel reserves its height to avoid moving the controls/results when
+connection messages change. A section/group opened for a problem stays open when it
+recovers; explicit expand/collapse choices remain in control. Disconnecting or leaving
 the page cancels pending requests so late responses cannot restore an old connection.
 Failed log rechecks retain the last report for that same file; selecting a different
 file clears the old report. **Retry page data** retries log-list and score-color loads.
