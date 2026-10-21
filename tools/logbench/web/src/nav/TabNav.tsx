@@ -13,6 +13,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { label: 'Vision Logs', view: null },
+  { label: 'Vision Insights', view: 'vision' },
   { label: 'Compare', view: 'compare' },
   { label: 'Battery Insights', view: 'battery' },
   { label: 'Health Check', view: 'health' },

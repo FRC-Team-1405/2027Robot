@@ -1,0 +1,20 @@
+.vision-insights { max-width: 1280px; margin: 0 auto; padding: 24px; }
+.vision-insights h1 { margin: 8px 0; }
+.vision-insights > p { max-width: 90ch; line-height: 1.6; }
+.vision-controls { display: flex; flex-wrap: wrap; gap: 24px; margin: 20px 0; align-items: center; }
+.vision-controls label { display: flex; align-items: center; gap: 10px; }
+.vision-controls select { padding: 8px; }
+.vision-analyze { margin: 20px 0; padding: 12px 24px; cursor: pointer; }
+.vision-camera { padding: 24px; margin: 24px 0; border: 1px solid #334155; border-radius: 12px; background: #111c2e; }
+.vision-camera h2 { margin-top: 0; }
+.vision-muted { color: #a7b4c8; font-size: 13px; line-height: 1.5; }
+.vision-summary { width: 100%; border-collapse: collapse; margin: 20px 0; font-variant-numeric: tabular-nums; }
+.vision-summary th, .vision-summary td { padding: 12px 8px; text-align: right; border-bottom: 1px solid #334155; }
+.vision-summary th:first-child { text-align: left; }
+.vision-summary tbody th { font-weight: normal; }
+.vision-chart { overflow-x: auto; }
+.vision-chart svg { width: 100%; min-width: 600px; min-height: 180px; display: block; }
+.vision-chart text { fill: #a7b4c8; font-size: 12px; }
+.vision-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; margin: 6px 0 24px; }
+.vision-insights details { margin: 24px 0; line-height: 1.7; }
+@media (max-width: 600px) { .vision-insights { padding: 12px; } .vision-camera { padding: 12px; } .vision-summary { font-size: 12px; } .vision-summary th, .vision-summary td { padding: 10px 3px; } }

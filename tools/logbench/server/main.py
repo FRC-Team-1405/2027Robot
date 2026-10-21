@@ -51,6 +51,7 @@ from core.compare import WindowSelector, compare, make_run
 from core.composites import COMPOSITES
 from core.log import Log
 from core.metrics import METRICS
+from core import throughput
 from core.severity import BANDS as SEVERITY_BANDS
 from health import config as health_config
 from health import engine as health_engine
@@ -273,6 +274,19 @@ def metric_catalog() -> dict:
                 'description': desc.get(c.id, '')} for c in COMPOSITES.values()]
         ),
     }
+
+
+@app.get('/api/vision-insights')
+def vision_insights(log: str = Query(...), mode: str = Query('whole'),
+                    window: Optional[str] = Query(None), rolling_sec: float = Query(1.0)) -> dict:
+    try:
+        loaded = _load_log(_resolve(log))
+        selector = WindowSelector(manual=_parse_manual_window(window)) if window else WindowSelector(mode=mode)
+        result = throughput.analyze(make_run(loaded, selector), rolling_sec)
+        result['order'] = _order_notice(loaded.order_stats)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.get('/api/battery')

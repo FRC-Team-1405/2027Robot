@@ -51,6 +51,7 @@ body {
 }
 
 .tab-nav {
+  overflow-x: auto;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -59,6 +60,7 @@ body {
 }
 
 .tab-nav__tab {
+  flex-shrink: 0;
   padding: 4px 9px;
   border-radius: 5px;
   color: var(--muted);

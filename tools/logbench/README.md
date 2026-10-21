@@ -28,6 +28,41 @@ Measured on a 5.5-minute log with 26 tracks and 199k samples:
 | data sent | all traces, 5×/second | 0.47 MB gzipped, once |
 | trail lookup | O(N) scan ×3 per tick | O(1) amortized |
 
+## Vision throughput
+
+**Vision Insights** (`?view=vision`) shows generated and accepted poses/sec per camera.
+Choose a whole log, the longest autonomous/teleop/disabled period, or a custom interval
+(seconds relative to the log start). Enable **Compare A/B** to overlay two intervals,
+including two sections of the same log. Charts align each selected interval at zero;
+different lengths are explicit and the shorter trace ends when its data ends.
+
+The summary reports average rates, totals, literal accepted/generated acceptance, mean
+received FPS, the existing multi-tag health factor, and the best full sliding three-second
+accepted rate. Pick 1s, 3s or 5s rolling charts; the initial incomplete window is blank.
+An interval shorter than three seconds has no best-3s measurement. Generated means a
+pose solve succeeded before robot rejection filters: no-tag frames and failed pose solves
+are excluded. FPS includes no-tag frames. Multi-tag remains the existing scored factor,
+not a literal fraction or a detection count. Accepted means queued by the vision filter;
+it does not measure accuracy or the weight ultimately applied to odometry.
+
+Intervals are half open `[start, end)` and use robot receipt/logging timestamps rather
+than capture times, so transport batching can affect short windows. Counts reconstruct
+unchanged pose arrays on logged `Timestamp` cycles; when those are absent, changed
+`RawTimestampsSec` batches anchor the counts. They never assume 50 Hz or count array
+records as frames. Logs missing both anchors report throughput as unavailable; missing
+raw/accepted arrays are also explicit. Use AdvantageKit logs retaining these signals.
+No robot code update is required. Removing cycles or pose data from a log removes evidence;
+choose a retained enabled interval in trimmed logs rather than interpreting removed time
+as measured zero output.
+
+The same average generated/accepted rates and best-3s accepted rate are available in
+**Compare**, its HTML/JSON exports and CLI defaults. These throughput metrics use the
+same counting and interval rules as Vision Insights. Other legacy analyzer metrics retain
+their existing definitions. For tuning, prefer the same meaningful section across repeated
+A/B trials, read multi-tag and acceptance alongside throughput, and treat the best-3s rate
+as supporting capacity evidence rather than a performance verdict. Range, speed, starting
+position, lighting and route changes can all affect the result.
+
 ## Running it
 
 **Battery Insights** (`?view=battery`) analyzes match power: brownouts and dips below a
