@@ -16,6 +16,7 @@ export function LogSide({
   logs,
   logPath,
   onLogChange,
+  locked = false,
   mode,
   manual,
   onManualChange,
@@ -24,6 +25,8 @@ export function LogSide({
   logs: LogEntry[];
   logPath: string | null;
   onLogChange: (path: string) => void;
+  /** The side is the open log chosen in the log bar, so it is shown rather than picked here. */
+  locked?: boolean;
   mode: Mode;
   manual: ManualWindow;
   onManualChange: (m: ManualWindow) => void;
@@ -34,20 +37,27 @@ export function LogSide({
   return (
     <div className="compare-side">
       <div className="compare-side__head">Log {label}</div>
-      <select
-        className="compare-side__select"
-        value={logPath ?? ''}
-        onChange={(e) => onLogChange(e.target.value)}
-      >
-        <option value="" disabled>
-          Choose a log…
-        </option>
-        {logs.map((l) => (
-          <option key={l.path} value={l.path}>
-            {l.path}
+      {locked ? (
+        <div className="compare-side__locked" title={logPath ?? undefined}>
+          {logPath ?? 'No log open — choose one in the Log menu above'}
+          {logPath && <span className="compare-side__hint"> (the open log)</span>}
+        </div>
+      ) : (
+        <select
+          className="compare-side__select"
+          value={logPath ?? ''}
+          onChange={(e) => onLogChange(e.target.value)}
+        >
+          <option value="" disabled>
+            Choose a log…
           </option>
-        ))}
-      </select>
+          {logs.map((l) => (
+            <option key={l.path} value={l.path}>
+              {l.path}
+            </option>
+          ))}
+        </select>
+      )}
 
       {info && (
         <>

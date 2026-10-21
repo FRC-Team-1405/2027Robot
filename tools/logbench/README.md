@@ -7,6 +7,24 @@ Built for camera health, but the player itself knows nothing about cameras. "Met
 a match timeline" is a shape we keep wanting (shooter tuning, swerve module health, intake
 state), so the domain knowledge is isolated in one file per view.
 
+## Opening a log
+
+The bar above the tabs holds the log folder (**Change folder…**) and the **open log**. Choose a
+log once and every page analyses it: Health Check, Vision Logs, Vision Insights, Compare (as
+side A), and Battery Insights (as its first window). Pages that compare two logs or windows
+still pick the second one themselves. Switching tabs does not reload the app, so nothing
+resets, and changing the open log on a page keeps you on that page.
+
+The open log lives in the URL (`?view=health&log=…`), so refreshes, bookmarks and pasted links
+reopen the same page and log. The last log is also remembered by the browser: launching with no
+`?log=` reopens it if the folder still has it. Fetch Bundle's **Open log** lands on Health Check.
+
+**Browse logs…** opens a full-page browser (`?view=logs`): every log with when it was recorded,
+size, folder and which cameras have vision video, sortable and filterable. **Inspect** reads a log
+(it has to parse it, so it is on request) to show the event and match the driver station
+recorded, how long it was enabled, and its cameras; those fields are then searchable too.
+Opening a log from the browser returns you to the page you came from.
+
 ## Why this exists
 
 The Replay tab in the camera-calibration Streamlit app had the right features and was

@@ -2,26 +2,45 @@ import { VisionInsightsPage } from './vision/VisionInsightsPage';
 import { ConnectionsPage } from './connections/ConnectionsPage';
 import { PlayerProvider } from './player/PlayerContext';
 import { BatteryPage } from './battery/BatteryPage';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ComparePage } from './compare/ComparePage';
 import { FetchBundlePage } from './fetch/FetchBundlePage';
 import { PanelHost } from './panels/PanelHost';
 import { HealthCheckPage } from './health/HealthCheckPage';
 import { TransportBar } from './controls/TransportBar';
 import { TabNav } from './nav/TabNav';
-import { LogPicker } from './loader/LogPicker';
+import { LogBar } from './logpicker/LogBar';
+import { LogBrowserPage } from './logpicker/LogBrowserPage';
+import { LogSelectionProvider } from './logpicker/LogSelection';
+import { NeedLog } from './logpicker/NeedLog';
+import { handleLinkClick, navigate, resolveView, useRoute } from './nav/route';
 import { OrderNotice } from './loader/OrderNotice';
 import { useSpec } from './loader/useSpec';
 
 export function App() {
-  const params = new URLSearchParams(window.location.search);
-  const debug = params.has('debug');
-  const view = params.get('view');
+  // The standalone export embeds exactly one log: no server, no log list, no tab bar.
+  if (window.__MATCH_SPEC__) return <ReplayView debug={new URLSearchParams(window.location.search).has('debug')} log={null} />;
+  return (
+    <LogSelectionProvider>
+      <Shell />
+    </LogSelectionProvider>
+  );
+}
 
-  // Query-param-driven, like ?log=/?spec= elsewhere in this app -- no router dependency
-  // for four views. The standalone export never sets ?view, so it always gets Replay --
-  // and sets window.__MATCH_SPEC__, since it embeds exactly one log with nowhere else to
-  // navigate to, so the tab bar doesn't render at all in that build.
+// Which page is showing and which log is open both come from the URL (nav/route.ts), so switching
+// pages never reloads the app and every page sees the same open log (logpicker/LogSelection.tsx).
+function Shell() {
+  const route = useRoute();
+  const debug = new URLSearchParams(window.location.search).has('debug');
+  const view = resolveView(route);
+
+  useEffect(() => {
+    document.addEventListener('click', handleLinkClick);
+    return () => document.removeEventListener('click', handleLinkClick);
+  }, []);
+  // Spell the view out in the URL so a refresh or a pasted link lands on the same page.
+  useEffect(() => { if (route.view !== view) navigate({ view }, { replace: true }); }, [route.view, view]);
+
   let content;
   if (view === 'vision') {
     content = <VisionInsightsPage />;
@@ -31,32 +50,34 @@ export function App() {
     content = <BatteryPage />;
   } else if (view === 'compare') {
     content = <ComparePage />;
-  } else if (view === 'health' || view === 'pit') {
-    // 'pit' is the old name of this page (it only checked AprilTag detection); old links still work.
+  } else if (view === 'health') {
     content = <HealthCheckPage />;
   } else if (view === 'fetch') {
     content = <FetchBundlePage />;
+  } else if (view === 'logs') {
+    content = <LogBrowserPage />;
   } else {
-    content = <ReplayView debug={debug} />;
+    content = <ReplayView key={route.log ?? 'none'} debug={debug} log={route.log} />;
   }
 
   return (
     <>
-      {!window.__MATCH_SPEC__ && <TabNav />}
+      <LogBar />
+      <TabNav />
       {content}
     </>
   );
 }
 
-function ReplayView({ debug }: { debug: boolean }) {
-  const state = useSpec();
+function ReplayView({ debug, log }: { debug: boolean; log: string | null }) {
+  const state = useSpec(log);
   const [dismissedWarnings, setDismissedWarnings] = useState<ReadonlySet<number>>(() => new Set());
 
   if (state.status === 'loading') {
     return <div className="status">Loading…</div>;
   }
   if (state.status === 'picker') {
-    return <LogPicker />;
+    return <NeedLog what="the replay" />;
   }
   if (state.status === 'error') {
     return (

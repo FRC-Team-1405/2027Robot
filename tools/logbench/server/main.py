@@ -51,6 +51,7 @@ from core.compare import WindowSelector, compare, make_run
 from core.composites import COMPOSITES
 from core.log import Log
 from core.metrics import METRICS
+from core import signals as sig
 from core import throughput
 from core.severity import BANDS as SEVERITY_BANDS
 from health import config as health_config
@@ -154,11 +155,15 @@ def list_logs() -> dict:
         if '.bundles' in p.relative_to(root).parts:
             continue  # prepared downloads are job artifacts, not additional input logs
         stat = p.stat()
+        rel = p.relative_to(root)
         out.append({
-            'path': p.relative_to(root).as_posix(),
+            'path': rel.as_posix(),
             'name': p.name,
             'size': stat.st_size,
             'mtime': stat.st_mtime,
+            'folder': rel.parent.as_posix() if rel.parent.parts else '',
+            # Cheap directory listing only (no parsing): cameras that have a recorded .vision session.
+            'vision_cameras': sorted(c or '(unnamed)' for c, sessions in bundles.list_vision_sessions(p).items() if sessions),
         })
     return {'root': str(root), 'logs': out, 'specs': specs.listing()}
 
@@ -251,6 +256,41 @@ def log_info(log: str = Query(..., description='log path relative to the log roo
             {'lo': lo, 'hi': hi, 'mode': mode} for lo, hi, mode in parsed.mode_spans()
         ],
         'order': _order_notice(parsed.order_stats),
+    }
+
+
+def _last_value(parsed, name, empty=(None, '', 0)):
+    """Latest non-empty value of a DriverStation signal, or None. Event and match fields start out blank
+    and fill in once the robot connects to FMS, so the first sample is not the interesting one."""
+    series = sig.find_signal(parsed.signals, name) or []
+    for _, value in reversed(series):
+        if value not in empty:
+            return value
+    return None
+
+
+_MATCH_TYPES = {1: 'Practice', 2: 'Qualification', 3: 'Elimination'}
+
+
+@app.get('/api/log-details')
+def log_details(log: str = Query(..., description='log path relative to the log root')) -> dict:
+    """What the log browser shows when asked to inspect a log: log-info plus the match identity the
+    driver station recorded and how long the robot was enabled. Parses the log (cached like the rest)."""
+    info = log_info(log)
+    parsed = _load_log(_resolve(log))
+    seconds = {'auto': 0.0, 'teleop': 0.0}
+    for span in info['mode_spans']:
+        if span['mode'] in seconds:
+            seconds[span['mode']] += span['hi'] - span['lo']
+    match_type = _last_value(parsed, 'DriverStation/MatchType')
+    return {
+        **info,
+        'event': _last_value(parsed, 'DriverStation/EventName'),
+        'match_type': _MATCH_TYPES.get(match_type) if isinstance(match_type, int) else None,
+        'match_number': _last_value(parsed, 'DriverStation/MatchNumber'),
+        'fms': bool(_last_value(parsed, 'DriverStation/FMSAttached', empty=(None, False))),
+        'auto_sec': seconds['auto'],
+        'teleop_sec': seconds['teleop'],
     }
 
 

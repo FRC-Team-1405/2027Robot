@@ -9,6 +9,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { errorMessage, requestJson } from '../lib/request';
+import { formatSize, formatWhen, logTime, parseLogName } from '../lib/logName';
+import { useLogSelection } from '../logpicker/LogSelection';
 import { HealthBoundary } from './HealthBoundary';
 import { CameraCard } from '../pit/CameraCard';
 import { usePitConnection } from '../pit/usePitConnection';
@@ -31,12 +33,6 @@ import './health.css';
 
 const DEFAULT_ROOT_TABLE = 'AdvantageKit';
 
-interface LogEntry {
-  path: string;
-  name: string;
-  mtime: number;
-}
-
 type Mode = 'live' | 'log';
 
 export function HealthCheckPage() {
@@ -44,11 +40,12 @@ export function HealthCheckPage() {
 }
 
 function HealthCheckContent() {
-  const params = new URLSearchParams(window.location.search);
-  const [mode, setMode] = useState<Mode>(params.get('log') ? 'log' : 'live');
+  // With a log open this is a match-log check; the robot-in-the-pits live mode is one click away.
+  const { selected: logPath, selectedEntry, status: logsStatus, error: listError, refresh: refreshLogs } = useLogSelection();
+  const [chosenMode, setMode] = useState<Mode | null>(null);
+  const mode: Mode = chosenMode ?? (logPath ? 'log' : 'live');
   const [problemsOnly, setProblemsOnly] = useState(false);
   const [showNa, setShowNa] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [auxRetry, setAuxRetry] = useState(0);
   const [renderErrors, setRenderErrors] = useState<string[]>([]);
@@ -73,23 +70,7 @@ function HealthCheckContent() {
   const live = useLiveReport(mode === 'live' && pit.status === 'connected');
 
   // Finished log
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [logPath, setLogPath] = useState<string | null>(params.get('log'));
   const logReport = useLogReport(mode === 'log' ? logPath : null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setListError(null);
-    void requestJson('/api/logs', { signal: controller.signal }).then((body) => {
-      if (!body || typeof body !== 'object' || !('logs' in body) || !Array.isArray(body.logs)) throw new Error('Invalid log list.');
-      const entries = body.logs.filter((item): item is LogEntry => item && typeof item.path === 'string' && typeof item.mtime === 'number' && Number.isFinite(item.mtime));
-      if (controller.signal.aborted) return;
-      if (entries.length !== body.logs.length) setListError('Some log-list entries were invalid and were omitted.');
-      const sorted = [...entries].sort((a, b) => b.mtime - a.mtime);
-      setLogs(sorted); setLogPath((current) => current ?? sorted[0]?.path ?? null);
-    }).catch((error) => { if (!controller.signal.aborted) setListError(errorMessage(error)); });
-    return () => controller.abort();
-  }, [auxRetry]);
 
   const report = mode === 'live' ? live.report : logReport.report;
   const [bands, setBands] = useState<SeverityBand[]>([]);
@@ -164,7 +145,7 @@ function HealthCheckContent() {
         {notices.length > 0 ? <ul>{notices.map((message) => <li key={message}>{message}</li>)}</ul>
           : <p>{receivedLiveData ? 'Live updates are current. Brief interruptions are retried automatically.'
             : 'Client started. Waiting for the first robot readings…'}</p>}
-        {(listError || catalogError) && <button className="health__btn" onClick={() => setAuxRetry((v) => v + 1)}>Retry page data</button>}
+        {(listError || catalogError) && <button className="health__btn" onClick={() => { setAuxRetry((v) => v + 1); void refreshLogs(); }}>Retry page data</button>}
         {renderErrors.length > 0 && <button className="health__btn" onClick={() => setRenderErrors([])}>Dismiss page errors</button>}
       </div>}
       <p className="health__hint">
@@ -219,24 +200,19 @@ function HealthCheckContent() {
         </div>
       ) : (
         <div className="health__connect">
-          <select
-            className="health__input health__input--wide"
-            value={logPath ?? ''}
-            onChange={(e) => setLogPath(e.target.value)}
-            aria-label="Log to check"
-          >
-            {logs.length === 0 && <option value="">No logs in the log folder</option>}
-            {logs.map((l) => (
-              <option key={l.path} value={l.path}>
-                {l.path}
-              </option>
-            ))}
-          </select>
+          {logPath ? (
+            <span className="health__log" title={logPath}>
+              <strong>{parseLogName(selectedEntry?.name ?? logPath).tag || logPath}</strong>
+              {selectedEntry && <span className="health__hint"> {formatWhen(logTime(selectedEntry))} · {formatSize(selectedEntry.size)}</span>}
+            </span>
+          ) : (
+            <span className="health__log">{logsStatus === 'loading' ? 'Looking for logs…' : 'No log open. Choose one in the Log menu above, or browse logs.'}</span>
+          )}
           <button className="health__btn" onClick={() => void logReport.reload()} disabled={!logPath || logReport.loading}>
             {logReport.loading ? 'Checking…' : 'Check again'}
           </button>
           {logPath && (
-            <a className="health__link" href={`?log=${encodeURIComponent(logPath)}`}>
+            <a className="health__link" href="?view=replay">
               Open in Vision Logs
             </a>
           )}
