@@ -105,7 +105,7 @@ public class CircleFacingTagCommand extends Command {
 
     /** Orbits wherever the robot is when the command starts. Prefer {@link #atFixedStart}. */
     public CircleFacingTagCommand(CommandSwerveDrivetrain drivetrain, int tagId) {
-        this(drivetrain, tagId, () -> drivetrain.getState().Pose.getTranslation());
+        this(drivetrain, tagId, () -> drivetrain.getLoggedState().Pose.getTranslation());
     }
 
     /** Orbits the point {@code centerSource} returns when the command starts. */
@@ -190,7 +190,7 @@ public class CircleFacingTagCommand extends Command {
             directionOfTravel = new Translation2d(1.0, angleOnCircle.plus(Rotation2d.fromDegrees(90)));
         }
 
-        Pose2d currentPose = drivetrain.getState().Pose;
+        Pose2d currentPose = drivetrain.getLoggedState().Pose;
         Translation2d positionError = referencePoint.minus(currentPose.getTranslation());
         Translation2d velocity = directionOfTravel.times(speed).plus(positionError.times(POSITION_CORRECTION_KP));
 

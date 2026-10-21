@@ -156,6 +156,9 @@ public class Robot extends LoggedRobot {
         if (m_timeAndJoystickReplay != null) m_timeAndJoystickReplay.update();
         LoopTimings.end("Timing/PhoenixReplay", t);
         t = LoopTimings.begin();
+        m_robotContainer.drivetrain.updateInputs();
+        LoopTimings.end("Timing/DriveInputs", t);
+        t = LoopTimings.begin();
         m_robotContainer.correctOdometry();
         LoopTimings.end("Timing/CorrectOdometry", t);
         t = LoopTimings.begin();
