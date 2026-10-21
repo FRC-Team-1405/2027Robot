@@ -258,6 +258,13 @@ recorded akit_26-10-21_01-21-36-bundle
 disabled LOG_NETWORKTABLES_TO_WPILOG
 recorded akit_26-10-21_01-23-34-bundle
 
+a bunch of changes:
+    public static final boolean POWER_REQUEST_DETAILS = false;
+    public static final boolean COPROCESSOR_HEALTH_LOGGING = false;
+    public static final boolean MIRROR_TRACER_TIMINGS = false;
+recorded akit_26-10-21_01-32-18-bundle
+drastically reduced robot loop times! still almost hit 100ms and i saw the robot jump/drop for a split second when going around in the circle. i'm wondering if that's a loop issue or an odometry update that made it shift quickly
+
 
 # console logs examples
 

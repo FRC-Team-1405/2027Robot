@@ -72,14 +72,14 @@ public class FeatureSwitches {
      *  Short current spikes can be missed. Replay still consumes recorded inputs every loop. */
     public static final boolean POWER_TELEMETRY_10_HZ = false;
     /** OFF removes request-map/string decoding at motor.setControl call sites. Requests still run. */
-    public static final boolean POWER_REQUEST_DETAILS = true;
+    public static final boolean POWER_REQUEST_DETAILS = false;
     /** OFF removes OrangePi -> AKit mirroring; Pi NT publishers and live health still run. */
-    public static final boolean COPROCESSOR_HEALTH_LOGGING = true;
+    public static final boolean COPROCESSOR_HEALTH_LOGGING = false;
     /** Use a flat topic discovery every 5 s and mirror at most 8 entries per robot loop.
      *  Avoids recursive 0.5 s bursts; a full sweep takes ceil(topic count / 8) loops. */
     public static final boolean BATCH_COPROCESSOR_HEALTH_LOGGING = false;
     /** OFF keeps direct subsystem timings but removes the every-loop recursive Tracer NT mirror. */
-    public static final boolean MIRROR_TRACER_TIMINGS = true;
+    public static final boolean MIRROR_TRACER_TIMINGS = false;
     /** OFF stops DataLogManager duplicating all NT changes into FRC_*.wpilog. The main AKit
      *  .wpilog and DriverStation logging remain. Select the akit_ log for analysis/replay. */
     public static final boolean LOG_NETWORKTABLES_TO_WPILOG = false;
