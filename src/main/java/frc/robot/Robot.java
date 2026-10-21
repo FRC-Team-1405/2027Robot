@@ -17,6 +17,9 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.util.LoopTimings;
+import frc.robot.constants.FeatureSwitches;
+import frc.robot.util.PerformanceProfile;
+import frc.robot.util.PeriodicGate;
 import frc.robot.util.GamePeriod;
 
 import org.littletonrobotics.junction.LogFileUtil;
@@ -31,6 +34,8 @@ public class Robot extends LoggedRobot {
 
     private final RobotContainer m_robotContainer;
 
+    private final PeriodicGate dashboardGate = new PeriodicGate();
+
     private HootAutoReplay m_timeAndJoystickReplay;
 
     // TODO(2027): Verify autonomous duration for 2027 game rules (was 20.0s in 2026).
@@ -40,6 +45,11 @@ public class Robot extends LoggedRobot {
     public Robot() {
         // ── AdvantageKit setup — must run before any other initialization ──────
         Logger.recordMetadata("ProjectName", "2027Robot");
+        Logger.recordMetadata("FeatureSwitches", PerformanceProfile.describe());
+        if (!FeatureSwitches.PHOENIX_SIGNAL_LOGGING) {
+            com.ctre.phoenix6.SignalLogger.enableAutoLogging(false);
+            com.ctre.phoenix6.SignalLogger.stop();
+        }
         Logger.recordMetadata("RuntimeType", getRuntimeType().toString());
 
         if (isReal()) {
@@ -74,12 +84,17 @@ public class Robot extends LoggedRobot {
         Logger.start();
 
         // CTRE Hoot replay — initialized after Logger.start() per AKit guidance
-        m_timeAndJoystickReplay = new HootAutoReplay()
-                .withTimestampReplay()
-                .withJoystickReplay();
+        if (!isReal() || FeatureSwitches.PHOENIX_SIGNAL_LOGGING) {
+            m_timeAndJoystickReplay = new HootAutoReplay()
+                    .withTimestampReplay()
+                    .withJoystickReplay();
+        }
 
         if (RobotBase.isReal()) {
+            // logNetworkTables() implicitly starts the logger when absent, so establish
+            // the explicit directory first (otherwise WPILib may choose a USB/default path).
             DataLogManager.start("/home/lvuser/logs");
+            DataLogManager.logNetworkTables(FeatureSwitches.LOG_NETWORKTABLES_TO_WPILOG);
             DriverStation.startDataLog(DataLogManager.getLog());
         }
 
@@ -122,8 +137,10 @@ public class Robot extends LoggedRobot {
     @Override
     public void robotPeriodic() {
         long loopStart = LoopTimings.begin();
-        m_timeAndJoystickReplay.update();
         long t = LoopTimings.begin();
+        if (m_timeAndJoystickReplay != null) m_timeAndJoystickReplay.update();
+        LoopTimings.end("Timing/PhoenixReplay", t);
+        t = LoopTimings.begin();
         m_robotContainer.correctOdometry();
         LoopTimings.end("Timing/CorrectOdometry", t);
         t = LoopTimings.begin();
@@ -137,16 +154,21 @@ public class Robot extends LoggedRobot {
         LoopTimings.end("Timing/CoprocessorHealthLogger", t);
         frc.robot.util.WallClockEpoch.periodic(); // which roboRIO boot this log is (LogBench ties Pi frames to it)
         t = LoopTimings.begin();
-        RobotContainer.updateNT();
+        // Keep the coprocessor clock reference at its original cadence.
         RobotContainer.publishRobotData();
-        m_robotContainer.drivetrain.publishDriveOutputVoltage();
-        m_robotContainer.drivetrain.publishMotorCurrent();
-        m_robotContainer.drivetrain.publishDrivePidErrors();
-        m_robotContainer.drivetrain.publishDistanceToHub();
-        m_robotContainer.intake.publishMotorCurrents();
+        if (!FeatureSwitches.ROBOT_DASHBOARD_10_HZ || dashboardGate.ready(Timer.getFPGATimestamp(), 0.1)) {
+            RobotContainer.updateNT();
+            m_robotContainer.drivetrain.publishDriveOutputVoltage();
+            m_robotContainer.drivetrain.publishMotorCurrent();
+            m_robotContainer.drivetrain.publishDrivePidErrors();
+            m_robotContainer.drivetrain.publishDistanceToHub();
+            m_robotContainer.intake.publishMotorCurrents();
+        }
         LoopTimings.end("Timing/Publishing", t);
-        LoopTimings.end("Timing/RobotPeriodic", loopStart);
+        t = LoopTimings.begin();
         LoopTimings.mirrorTracer();
+        LoopTimings.end("Timing/TracerMirror", t);
+        LoopTimings.end("Timing/RobotPeriodic", loopStart);
     }
 
     @Override

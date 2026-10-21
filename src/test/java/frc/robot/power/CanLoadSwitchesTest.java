@@ -11,12 +11,11 @@ import frc.robot.constants.FeatureSwitches;
 /** Pure logic behind the CAN-load switches: signal-rate selection and the absent-device tracker. */
 class CanLoadSwitchesTest {
     @Test
-    void shippedDefaultsKeepTheRuckusBehavior() {
-        assertTrue(FeatureSwitches.POWER_TELEMETRY_SIGNALS);
-        assertEquals(0.0, FeatureSwitches.MECHANISM_STATUS_SIGNAL_HZ);
-        assertFalse(FeatureSwitches.OPTIMIZE_BUS_UTILIZATION);
-        assertFalse(FeatureSwitches.SKIP_ABSENT_DEVICES);
-        assertFalse(FeatureSwitches.LOG_SUBSYSTEM_TIMINGS);
+    void profileRecordsActualCompiledValuesWithoutForbiddingExperiments() {
+        String profile = frc.robot.util.PerformanceProfile.describe();
+        assertTrue(profile.contains("POWER_TELEMETRY_SIGNALS=" + FeatureSwitches.POWER_TELEMETRY_SIGNALS));
+        assertTrue(profile.contains("MECHANISM_STATUS_SIGNAL_HZ=" + FeatureSwitches.MECHANISM_STATUS_SIGNAL_HZ));
+        assertTrue(profile.contains("ENABLE_POWER_TELEMETRY=" + FeatureSwitches.ENABLE_POWER_TELEMETRY));
     }
 
     @Test

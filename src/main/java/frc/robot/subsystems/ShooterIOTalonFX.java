@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import frc.robot.Constants;
 import frc.robot.Constants.ShooterPIDConfig;
+import frc.robot.constants.FeatureSwitches;
 
 public class ShooterIOTalonFX implements ShooterIO {
     private final TalonFX motor1 = new TalonFX(Constants.CANBus.SHOOTER_MOTOR_1);
@@ -63,6 +64,22 @@ public class ShooterIOTalonFX implements ShooterIO {
         closedLoopError.setUpdateFrequency(100);
         closedLoopReference.setUpdateFrequency(100);
         motor1.getVelocity().setUpdateFrequency(100);
+        if (FeatureSwitches.LOW_RATE_SHOOTER_DIAGNOSTICS) {
+            for (TalonFX motor : new TalonFX[] {motor1, motor2, motor3}) {
+                motor.getSupplyCurrent().setUpdateFrequency(20);
+                motor.getStatorCurrent().setUpdateFrequency(20);
+                motor.getTorqueCurrent().setUpdateFrequency(20);
+                motor.getMotorVoltage().setUpdateFrequency(20);
+                motor.getSupplyVoltage().setUpdateFrequency(20);
+                motor.getDeviceTemp().setUpdateFrequency(4);
+                motor.getVelocity().setUpdateFrequency(100);
+            }
+            // Phoenix followers consume these leader output signals, not velocity.
+            // Never slow them as part of a diagnostic-data experiment.
+            motor1.getDutyCycle().setUpdateFrequency(100);
+            motor1.getMotorVoltage().setUpdateFrequency(100);
+            motor1.getTorqueCurrent().setUpdateFrequency(100);
+        }
     }
 
     private void applyConfig(TalonFX motor, TalonFXConfiguration cfg, String name) {

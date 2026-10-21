@@ -100,4 +100,37 @@ class CoprocessorHealthLoggerTest {
         assertNull(CoprocessorHealthLogger.toLoggable(NetworkTableValue.makeRaw(new byte[] {1})));
         assertFalse(CoprocessorHealthLogger.toLoggable(NetworkTableValue.makeBoolean(true)) == null);
     }
+
+    @Test
+    void batchedMirrorBoundsEachLoopAndEventuallyVisitsEveryTopic() {
+        for (int i = 0; i < 23; i++) inst.getEntry("/OrangePi/Test/value" + i).setDouble(i);
+        var mirror = new CoprocessorHealthLogger.BatchedMirror();
+        Map<String, Object> all = new HashMap<>();
+        for (int loop = 0; loop < 3; loop++) {
+            Map<String, Object> batch = new HashMap<>();
+            mirror.update(inst, "OrangePi", batch::put, loop * 0.02, 8);
+            assertTrue(batch.size() <= 8);
+            all.putAll(batch);
+        }
+        assertEquals(23, all.size());
+        Map<String, Object> unchanged = new HashMap<>();
+        mirror.update(inst, "OrangePi", unchanged::put, 0.1, 23);
+        assertTrue(unchanged.isEmpty(), "unchanged topics must not be logged again");
+    }
+
+    @Test
+    void batchedMirrorDiscoversLateTopicsAndMirrorsChangedValues() {
+        var mirror = new CoprocessorHealthLogger.BatchedMirror();
+        Map<String, Object> out = new HashMap<>();
+        mirror.update(inst, "OrangePi", out::put, 0, 8);
+        inst.getEntry("/OrangePi/Late/State").setString("idle");
+        inst.getEntry("/NotOrangePi/State").setString("ignored");
+        mirror.update(inst, "OrangePi", out::put, 4.9, 8);
+        assertTrue(out.isEmpty());
+        mirror.update(inst, "OrangePi", out::put, 5, 8);
+        assertEquals(Map.of("OrangePi/Late/State", "idle"), out);
+        inst.getEntry("/OrangePi/Late/State").setString("recording");
+        mirror.update(inst, "OrangePi", out::put, 5.02, 8);
+        assertEquals("recording", out.get("OrangePi/Late/State"));
+    }
 }

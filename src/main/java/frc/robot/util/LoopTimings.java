@@ -49,7 +49,7 @@ public final class LoopTimings {
 
     /** Copy the Tracer table's current values into the log; call once per loop when timings are on. */
     public static void mirrorTracer() {
-        if (!ENABLED || Logger.hasReplaySource()) return;
+        if (!ENABLED || !FeatureSwitches.MIRROR_TRACER_TIMINGS || Logger.hasReplaySource()) return;
         CoprocessorHealthLogger.mirror(NetworkTableInstance.getDefault().getTable("Tracer"), "Timing/Tracer",
                 CoprocessorHealthLogger::record, tracerEntries);
     }

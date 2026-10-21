@@ -32,7 +32,8 @@ public class FeatureSwitches {
     // enabled, 100% at peaks), and the robot loop took ~38 ms against its 20 ms period, ~90% of it
     // robot code. These switches let each suspect be turned off or down one at a time and compared
     // on Health Check ("CAN utilization while disabled", "Mean robot loop time"). Every default
-    // below is the behavior the robot had at Ruckus; flip one, redeploy, compare.
+    // started from the Ruckus behavior; the values below include ongoing bench experiments.
+    // Flip one, redeploy, compare Metadata/FeatureSwitches and the resulting metrics.
 
     /** Subscribe PowerTelemetry to its ~14 status signals on every motor (all 16 CAN devices) and
      *  refresh/log them each loop. Subscribing turns each signal's CAN frame on at Phoenix's default
@@ -49,7 +50,8 @@ public class FeatureSwitches {
 
     /** On those same four mechanism motors, call optimizeBusUtilization() once every signal the code
      *  reads has an explicit rate (MECHANISM_STATUS_SIGNAL_HZ, or 50 Hz if that is 0). Everything else
-     *  the device would send (accelerations, rotor velocity, ...) stops. OFF = no change. */
+     *  the device would send slows to 4 Hz on Phoenix 2026 (or 0 Hz with the explicit zero switch).
+     *  OFF = no optimization. */
     public static final boolean OPTIMIZE_BUS_UTILIZATION = true;
 
     /** PowerTelemetry stops refreshing a motor that has reported a bad CAN status (e.g. RxTimeout)
@@ -61,6 +63,42 @@ public class FeatureSwitches {
      *  RealOutputs/Timing/<Name>Ms, and mirror the Tracer (Vision) timings into the log. Shows in the
      *  log where the ~38 ms loop goes. Costs a little itself, so it is OFF until you are measuring. */
     public static final boolean LOG_SUBSYSTEM_TIMINGS = true;
+
+    // CPU/logging experiments. Defaults preserve the current beta behavior.
+    /** OFF bypasses PowerTelemetry initialization, request decoding and periodic logging entirely.
+     *  Existing IO/control and built-in AKit battery logging continue. Diagnostic test only. */
+    public static final boolean ENABLE_POWER_TELEMETRY = true;
+    /** Sample/log PowerTelemetry at 10 Hz instead of every loop (not a CAN frame-rate change).
+     *  Short current spikes can be missed. Replay still consumes recorded inputs every loop. */
+    public static final boolean POWER_TELEMETRY_10_HZ = false;
+    /** OFF removes request-map/string decoding at motor.setControl call sites. Requests still run. */
+    public static final boolean POWER_REQUEST_DETAILS = true;
+    /** OFF removes OrangePi -> AKit mirroring; Pi NT publishers and live health still run. */
+    public static final boolean COPROCESSOR_HEALTH_LOGGING = true;
+    /** Use a flat topic discovery every 5 s and mirror at most 8 entries per robot loop.
+     *  Avoids recursive 0.5 s bursts; a full sweep takes ceil(topic count / 8) loops. */
+    public static final boolean BATCH_COPROCESSOR_HEALTH_LOGGING = false;
+    /** OFF keeps direct subsystem timings but removes the every-loop recursive Tracer NT mirror. */
+    public static final boolean MIRROR_TRACER_TIMINGS = true;
+    /** OFF stops DataLogManager duplicating all NT changes into FRC_*.wpilog. The main AKit
+     *  .wpilog and DriverStation logging remain. Select the akit_ log for analysis/replay. */
+    public static final boolean LOG_NETWORKTABLES_TO_WPILOG = true;
+    /** OFF disables automatic and explicit Phoenix .hoot logging. AKit .wpilog stays enabled. */
+    public static final boolean PHOENIX_SIGNAL_LOGGING = true;
+    /** Throttle only Telemetry.telemeterize's NT/Mechanism2d/custom-Hoot outputs to 10 Hz.
+     *  Does not change CTRE odometry, control-loop frequency or automatic Phoenix signal capture. */
+    public static final boolean SWERVE_TELEMETRY_10_HZ = false;
+    /** Throttle diagnostic dashboard publishing to 10 Hz; subsystem IO and RobotTime clock stay 50 Hz. */
+    public static final boolean ROBOT_DASHBOARD_10_HZ = false;
+
+    // Additional CAN experiments; independent of CPU-side sampling.
+    /** Phoenix 2026 defaults unused optimized signals to 4 Hz. With OPTIMIZE_BUS_UTILIZATION,
+     *  explicitly use 0 Hz on the already-tuned simple mechanisms only. */
+    public static final boolean ZERO_UNUSED_MECHANISM_STATUS_SIGNALS = false;
+    /** Give shooter diagnostic currents/voltage/temperature explicit slower rates. All three
+     *  velocities, leader error/reference, and leader follower-output signals stay at 100 Hz.
+     *  Shared status frames run at the fastest member's rate, so savings must be measured. */
+    public static final boolean LOW_RATE_SHOOTER_DIAGNOSTICS = false;
     //#endregion
 
     //#region VisionTestSwitches

@@ -10,7 +10,9 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTableValue;
+import edu.wpi.first.networktables.Topic;
 import edu.wpi.first.wpilibj.Timer;
+import frc.robot.constants.FeatureSwitches;
 
 /**
  * Copies everything the Orange Pis publish under /OrangePi/ (CPU, RAM, disk and temperature from
@@ -31,15 +33,58 @@ public final class CoprocessorHealthLogger {
 
     private static double lastRun = Double.NEGATIVE_INFINITY;
     private static final Map<String, NetworkTableEntry> entries = new HashMap<>();
+    private static final BatchedMirror batched = new BatchedMirror();
 
     private CoprocessorHealthLogger() {}
 
     /** Call every robot loop; mirrors at most every {@value #PERIOD_SEC} s. */
     public static void periodic() {
+        if (!FeatureSwitches.COPROCESSOR_HEALTH_LOGGING || Logger.hasReplaySource()) return;
         double now = Timer.getFPGATimestamp();
-        if (now - lastRun < PERIOD_SEC || Logger.hasReplaySource()) return;
+        if (FeatureSwitches.BATCH_COPROCESSOR_HEALTH_LOGGING) {
+            batched.update(NetworkTableInstance.getDefault(), ROOT,
+                    CoprocessorHealthLogger::record, now, 8);
+            return;
+        }
+        if (now - lastRun < PERIOD_SEC) return;
         lastRun = now;
         mirror(NetworkTableInstance.getDefault().getTable(ROOT), ROOT, CoprocessorHealthLogger::record, entries);
+    }
+
+    /** Flat discovery is infrequent; entry lookup/read/log work is spread across loops. No threads,
+     *  sleeps or blocking NT waits. Each topic is logged only when its NT timestamp changes. */
+    static final class BatchedMirror {
+        private final PeriodicGate discovery = new PeriodicGate();
+        private Topic[] topics = new Topic[0];
+        private int cursor;
+        private final Map<String, NetworkTableEntry> cached = new HashMap<>();
+        private final Map<String, Long> timestamps = new HashMap<>();
+
+        void update(NetworkTableInstance inst, String root, BiConsumer<String, Object> sink,
+                double now, int budget) {
+            if (discovery.ready(now, 5.0)) {
+                topics = inst.getTopics("/" + root + "/", 0);
+                // Drop vanished topics rather than retaining handles forever.
+                var live = new java.util.HashSet<String>();
+                for (Topic topic : topics) live.add(topic.getName());
+                cached.keySet().retainAll(live);
+                timestamps.keySet().retainAll(live);
+                if (topics.length > 0) cursor %= topics.length;
+            }
+            for (int i = 0; i < Math.min(budget, topics.length); i++) {
+                Topic topic = topics[cursor];
+                cursor = (cursor + 1) % topics.length;
+                String name = topic.getName();
+                NetworkTableEntry entry = cached.computeIfAbsent(name, inst::getEntry);
+                long timestamp = entry.getLastChange();
+                if (timestamps.containsKey(name) && timestamps.get(name) == timestamp) continue;
+                Object value = toLoggable(entry.getValue());
+                if (value != null) {
+                    sink.accept(name.substring(1), value);
+                    timestamps.put(name, timestamp);
+                }
+            }
+        }
     }
 
     /** Hands a mirrored value to the matching typed Logger.recordOutput overload. */

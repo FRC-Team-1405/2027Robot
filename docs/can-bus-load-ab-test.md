@@ -1,63 +1,101 @@
-# CAN bus load and loop time: A/B switches
+# CAN bus load, RIO CPU and loop time experiments
 
-At Ruckus 2026 the roboRIO's CAN bus idled at about **65 %** with the robot *disabled and still* (about 77 %
-enabled, 100 % at peaks), and the robot loop took a median of **38 ms against a 20 ms period** (about 90 % of
-that is our code, not WPILib or logging). Everything is on the roboRIO's classic 1 Mbit/s bus: all motors are
-`rio-N`, there is no CANivore.
+All switches are in `src/main/java/frc/robot/constants/FeatureSwitches.java`. New switches preserve
+current beta behavior until changed; the existing CAN switches retain your committed settings.
+Every run now records **Metadata/FeatureSwitches** with the actual compiled values. Check it before
+comparing runs: at implementation time beta still had `MECHANISM_STATUS_SIGNAL_HZ = 0.0`, while the
+bench report described a deployment at 20 Hz. Uncommitted/deployed settings can differ.
+Mechanism rate/optimization results and applied IO signal frequencies are also recorded once at
+startup under `RealOutputs/Performance/CAN/<bus-id>/`. Check for configuration failures and shared
+frame rate floors instead of assuming a requested 20 Hz was applied.
 
-This page is the protocol for finding out which of the suspects costs what. Every switch lives in
-[`FeatureSwitches.java`](../src/main/java/frc/robot/constants/FeatureSwitches.java) and **defaults to the
-behavior the robot had at Ruckus**, so nothing changes until you flip one.
+## What the code explains
 
-## The suspects and their switches
+- `POWER_TELEMETRY_SIGNALS = false` only removes extra status reads/subscriptions. It still calls
+  `Logger.processInputs` for roughly 45 fields per motor every loop, and motor control call sites
+  still decode/format request maps. It does **not** switch PowerTelemetry off. This is a plausible
+  remaining CPU cost even with the existing switch off.
+- `CoprocessorHealthLogger` recursively enumerates/read/logs the whole OrangePi table in a burst
+  every 0.5 s. `LoopTimings.mirrorTracer` does a similar recursive walk **every robot loop** when
+  timings are on. Cache of entry handles does not eliminate those table enumerations.
+- AKit `.wpilog`, DataLogManager's NT-mirrored `FRC_*.wpilog`, and Phoenix `.hoot` logging all run.
+  The extra loggers are candidates for CPU, allocation and disk overhead, not proof of CAN load.
+- `Telemetry.telemeterize` runs from the CTRE swerve callback, not just `robotPeriodic`. It publishes
+  structs and updates four Mechanism2d widgets at that callback's rate.
+- The earlier CAN switches cover simple mechanisms, not the eight swerve motors or three shooter
+  motors. Phoenix 2026 also changed no-argument `optimizeBusUtilization()` to slow unspecified
+  signals to **4 Hz**, not zero. Signals sharing a CAN frame use the fastest requested rate in that
+  frame. Setting a few individual signals to 20 Hz need not reduce utilization much.
 
-| Suspect | Switch | Default | What flipping it does |
+A 30 ms timing sample is elapsed time, including time spent paused by garbage collection or scheduling.
+It does not prove 30 ms of active CPU work in that particular method. Use the removal experiments
+below to establish causation. CPU, loop latency and CAN utilization are separate measurements.
+
+## Highest benefit for least cost: test in this order
+
+These are hypotheses ranked from the reported timings and code, not measured savings. Restore the
+baseline between runs. Once individual benefits are known, combine the winners and verify again.
+
+| Order | Change for one run | Primary target | Cost / interpretation |
 |---|---|---|---|
-| `PowerTelemetry` subscribes 14 status signals on all ~16 devices (≈100 Hz each) and logs ~45 fields per device every loop | `POWER_TELEMETRY_SIGNALS` | `true` | `false`: devices stay declared and their config is read once, but no status signals are subscribed or refreshed. **Motor current/temperature/fault data disappears from logs**, so this is a test, not a match setting. |
-| The simple mechanism motors report at 100 Hz | `MECHANISM_STATUS_SIGNAL_HZ` | `0` (Phoenix default) | `> 0` (try `20`): Hopper, Indexer, Pickup and Intake-pickup status signals are set to that rate. Swerve modules and the shooter are never touched. |
-| Phoenix sends signals nobody reads | `OPTIMIZE_BUS_UTILIZATION` | `false` | `true`: on those same four motors, every signal the code reads gets an explicit rate first (the configured one, else 50 Hz), then `optimizeBusUtilization()` silences the rest. |
-| Dead or unplugged motors are read every loop | `SKIP_ABSENT_DEVICES` | `false` | `true`: a motor whose status has been bad for 5 s is only re-checked every 5 s; its rows read `SkippedAbsent`. |
-| Vision logs a lot every loop (39 `recordOutput`s, per-camera traces) | `VISION_EXTENDED_NT_LOGGING` (existing) | `true` | `false` drops the extended vision logging. |
-| Where the 38 ms goes | `LOG_SUBSYSTEM_TIMINGS` | `false` | `true`: logs `RealOutputs/Timing/<Section>Ms` for each part of `robotPeriodic` and each subsystem's `periodic()`, and mirrors the `Tracer` table (Vision) to `RealOutputs/Timing/Tracer/...`. |
+| 1 | `ENABLE_POWER_TELEMETRY = false` | CPU + loop time | Bypasses registration/config readback, request decoding and all periodic PowerTelemetry work. Motor commands/IO and AKit built-in battery/PDH data continue. Per-motor Power diagnostics and state context are absent. With `POWER_TELEMETRY_SIGNALS` already false, expect mainly CPU savings, not additional CAN savings. |
+| 2 | `COPROCESSOR_HEALTH_LOGGING = false` | Periodic spikes | Disables only Pi-to-AKit mirroring. Live NT health and Pi recorder services continue; finished-log Pi/recorder checks lose these fields. |
+| 3 | `MIRROR_TRACER_TIMINGS = false`, keep `LOG_SUBSYSTEM_TIMINGS = true` | CPU + loop time | Removes recursive NT timing copies while retaining the direct subsystem measurements. Vision's original Tracer itself still runs. |
+| 4 | `LOG_NETWORKTABLES_TO_WPILOG = false` | CPU + disk/NT duplication | Keeps the authoritative AKit `.wpilog` and DS logging. The separate FRC log no longer has all NT topics; select the **akit_** log for analysis/replay. |
+| 5 | `SWERVE_TELEMETRY_10_HZ = true` | CPU + NT/visualization overhead | Only dashboard/custom-Hoot callback outputs become 10 Hz. Swerve odometry/control and automatic Phoenix capture keep their rates. |
+| 6 | `ROBOT_DASHBOARD_10_HZ = true` | CPU + repeated diagnostic reads | Throttles diagnostic publishing, including drive diagnostic getter calls. IO, scheduler, commands, vision fusion and the RobotTime clock reference continue every loop. Widgets become slower. |
+| 7 | `PHOENIX_SIGNAL_LOGGING = false` | CPU + disk | Stops automatic/manual `.hoot` logging and real-robot Hoot timestamp/joystick capture. AKit stays enabled. Loses CTRE high-rate forensic data and Hoot replay capture. |
 
-Why only four motors for the rate switches: a Phoenix status signal's rate belongs to the *device*, not to
-whoever asked for it. Lowering a swerve module's or the shooter's signals would slow odometry and shooter
-lock. The four mechanism motors are only read for their own inputs and logging.
+If steps 1/2 help, try the less disruptive alternatives **with those features enabled again**:
 
-## The protocol (pit test, one change at a time)
+| Switch | Behavior / limit |
+|---|---|
+| `POWER_TELEMETRY_10_HZ = true` | Refreshes/processes PowerTelemetry once per 0.1 s instead of every loop. Reduces average CPU but still does a full batch on sample loops, so a 15 ms burst might remain. Short current spikes can be missed. Does not change CAN frame rates. AKit replay still processes recorded inputs every loop. |
+| `POWER_REQUEST_DETAILS = false` | Removes request map construction/string formatting/decoding from command call sites and telemetry fallback. The same request object still reaches `setControl`. Request provenance fields become unknown. Combine with 10 Hz sampling only after testing independently. |
+| `BATCH_COPROCESSOR_HEALTH_LOGGING = true` | Flat topic discovery every 5 s; at most 8 entry reads per robot loop, only changed NT timestamps logged. Full sweep takes `ceil(topic count / 8)` loops (200 topics: about 0.5 s at 50 Hz). New topics can take up to 5 s plus a sweep to appear. Discovery still has a cost; this is bounded entry processing, not a hard wall-time guarantee. No background Logger calls. |
 
-1. Baseline: deploy as-is. Power up, leave the robot **disabled** for about a minute, enable for a
-   minute or two in teleop (drive, intake, shoot if you can), disable.
-2. Open **Health Check** on the log (or live) and note two numbers:
-   - *roboRIO / CAN bus / CAN utilization while disabled (idle baseline)*: this is the number the signal
-     switches move.
-   - *roboRIO / Controller / Robot loop time (mean while enabled)*: this is the number the code-time
-     switches move.
-3. Flip **one** switch, redeploy, repeat the same routine, compare. Keep what helped.
-4. To see *where* loop time goes, set `LOG_SUBSYSTEM_TIMINGS = true` for one run: Health Check gets a
-   **Loop time breakdown** group (one row per section, mean while enabled). `RobotPeriodic` is the whole
-   loop body; `CommandScheduler` contains each subsystem's `Timing/<Subsystem>` plus commands, so
-   `CommandScheduler − Σ subsystems` is the commands themselves.
+## CAN-specific experiments
 
-Expected shape if the theory holds: `POWER_TELEMETRY_SIGNALS = false` drops the idle baseline sharply (the
-extra signals are most of the idle traffic); `MECHANISM_STATUS_SIGNAL_HZ = 20` takes a smaller bite. Loop
-time moves with `POWER_TELEMETRY_SIGNALS` (no refresh/log of ~45 fields × 16 devices) and with
-`VISION_EXTENDED_NT_LOGGING`.
+Try these separately from the CPU experiments so their effect is attributable.
 
-## One finding to act on
+| Switch | Scope |
+|---|---|
+| `MECHANISM_STATUS_SIGNAL_HZ = 20.0` | Existing rate experiment: Hopper, Indexer, Pickup and Intake pickup roller. Intake and Pickup share a CAN ID in this robot, so these are not four independent physical motors. Does not change swerve/shooter or intake deploy rates. |
+| `OPTIMIZE_BUS_UTILIZATION = true` + `ZERO_UNUSED_MECHANISM_STATUS_SIGNALS = true` | Explicitly sets unspecified status signals to 0 Hz on those already-tuned simple mechanisms after preserving IO/telemetry signals. No extra effect if optimization is off. Mechanism optimization remains active even when `ENABLE_POWER_TELEMETRY` is false. Disabled diagnostics are unavailable to Hoot. |
+| `LOW_RATE_SHOOTER_DIAGNOSTICS = true` | Requests 20 Hz for shooter currents/diagnostic voltages, 4 Hz for temperature. All three motor velocities remain 100 Hz; leader closed-loop error/reference remain 100 Hz. Leader DutyCycle/MotorVoltage/TorqueCurrent stay 100 Hz for Phoenix followers. Shared-frame constraints may limit savings. Does not optimize/disable unspecified shooter signals. |
+| `SKIP_ABSENT_DEVICES = true` | Existing PowerTelemetry-only skip/reprobe for devices with repeated bad status. Does not stop subsystem IO polling an absent device, and does not remove frames from healthy devices. |
 
-`IntakeIOTalonFX.setupDeployMotor()` calls `deployMotor.optimizeBusUtilization()` after setting only the
-position signal to 10 Hz. That disables the velocity/current signals, so in Ruckus logs the **Intake Deploy**
-motor was `Valid` 0.2 % of the time with about 49 velocity/current samples against about 4,500 for the other
-motors. `PowerTelemetry` subscribing afterwards does not re-enable them. The deploy current and velocity in
-the logs are therefore effectively missing. It has not been changed (it is a behavior change on a
-mechanism that works); if you want that data, give the deploy signals explicit rates before the optimize
-call.
+No new switch lowers swerve odometry, CANcoder/gyro feedback, motor control request frequency, motor
+current limits, or shooter follower-output rates. Those changes require a separate controls review.
+If utilization stays high, check CAN TxFull/Rx/Tx errors and bus-off counts before treating all traffic
+as useful load: wiring/termination problems cannot be fixed by logging switches. If there are no errors,
+more savings likely require a complete frame-rate audit of the swerve/encoders/gyro or a CANivore,
+rather than further slowing a few roller motors.
 
-## Developer notes
+## Repeatable bench procedure
 
-- `power/BusLoad.java`: rate selection and the order of operations (IO constructors list what they read via
-  `tuneMechanismMotor`; `PowerTelemetry.initialize()` then finishes and optimizes).
-- `power/AbsenceTracker.java`: time-based skip logic, no hardware.
-- `util/LoopTimings.java`: no-op (a constant-folded branch) while `LOG_SUBSYSTEM_TIMINGS` is false.
-- Tests: `CanLoadSwitchesTest.java`, `tools/logbench/tests/test_health_loadswitches.py`.
+1. Use the same wiring, battery and robot state. Hold dashboards/Health Check clients constant;
+   disconnect Phoenix Tuner plots during comparisons. Change one switch, redeploy/restart, and
+   confirm **Metadata/FeatureSwitches** in the resulting AKit log.
+2. Allow 20 s for startup, record 60 s disabled/still, then repeat a fixed enabled routine. Run each
+   candidate more than once so a single garbage-collection pause or radio change does not win.
+3. Compare CAN mean/p95/peak and error counters, RIO CPU mean/p95, loop mean/p95/p99/maximum and
+   fraction exceeding 20 ms. Health Check's means are useful but insufficient for 30 ms spikes;
+   graph `RealOutputs/Timing/*Ms` and built-in `LoggedRobot`/SystemStats CPU/GC fields too.
+4. `Timing/RobotPeriodicMs` now includes Tracer copying, with new separate `Timing/TracerMirrorMs`
+   and `Timing/PhoenixReplayMs`. Do not sum inclusive timers: CommandScheduler contains subsystem
+   timings. CTRE callback work, background NT/disk threads and GC also affect overall CPU.
+5. Working headroom targets (bench goals, not guarantees): loops comfortably below their 20 ms
+   deadline, ideally p99 below 15 ms; CPU below about 70% sustained; CAN below about 70% sustained
+   with no recurring errors. Keep peak/overrun measurements even if averages meet those goals.
+6. Combine demonstrated wins; validate drive, mechanism transitions and shooting readiness before
+   keeping a lower-diagnostic profile. Switches that remove evidence are isolation experiments,
+   not a substitute for fixing excessive overhead.
+
+## References and verification
+
+- [Phoenix 2026 changes](https://v6.docs.ctr-electronics.com/en/stable/docs/yearly-changes/yearly-changelog.html)
+- [Phoenix status signals and shared-frame/follower requirements](https://v6.docs.ctr-electronics.com/en/stable/docs/api-reference/api-usage/status-signals.html)
+- [WPILib DataLogManager](https://github.wpilib.org/allwpilib/docs/release/java/edu/wpi/first/wpilibj/DataLogManager.html)
+- Tests: `PeriodicGateTest`, `CoprocessorHealthLoggerTest`, `CanLoadSwitchesTest`. Tests no longer assert
+  that intentionally user-adjustable experiment switches must equal historical defaults.
