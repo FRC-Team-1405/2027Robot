@@ -63,7 +63,7 @@ fail above 90 %") and detail. Hover for the check's help text.
 | **Vision** | per camera: connected to robot code, frame rate; live only: tags in view, tag-detection health score and why it is low, camera agreement. The old per-factor tag-detection cards are under **Tag detection detail**. |
 | **Vision recording** | log only, and only for a log opened with its `.vision` folder. Per camera: share of the enabled (auto + teleop) time within 0.5 s of a recorded frame (warn below 90 %, fail below 50 %) and the longest stretch with no frame (warn above 10 s, fail above 60 s; the largest gaps, in seconds into the log, are in the row's detail). A camera the robot logged with no recording folder fails. Computed from the bundle's files, not health_checks.toml (`server/vision_coverage.py`). |
 | **Orange Pis** | per Pi: reporting (silent over 5 s fails), CPU, RAM, disk, temperature, and the diagnostics below. Per recorder: state (idle/recording ok; no_stream/error not), camera stream delivering frames, stream rate, share of an enabled match that was recorded (log), disk free, errors, clock synced to the robot, version. |
-| **roboRIO** | CAN utilization (worst), bus-off, TX-full, RX/TX errors; battery voltage (lowest while enabled, and now), brownout, rail faults, comms disables; PDH faults and peak current; controller CPU temperature, loop time (worst and mean), logging backlog, radio; CAN utilization while disabled (the idle baseline) and mean while enabled, used to A/B the CAN-load switches in [can-bus-load-ab-test.md](can-bus-load-ab-test.md); an optional loop-time breakdown per section when `LOG_SUBSYSTEM_TIMINGS` is on; errors/warnings/PhotonVision alerts logged by robot code. |
+| **roboRIO** | CAN utilization (worst), bus-off, TX-full, RX/TX errors; battery voltage (lowest while enabled, and now), brownout, rail faults, comms disables; PDH faults and peak current; controller CPU temperature, loop time (worst, mean per loop, 95th percentile, share of loops over 20 ms), Java GC time per loop, code time per loop, logging backlog, radio; log only: the feature switches the deployed code was built with and the NetworkTables clients connected while enabled (dashboards cost the roboRIO CPU, so compare loop times only between logs with the same clients); CAN utilization while disabled (the idle baseline) and mean while enabled, used to A/B the CAN-load switches in [can-bus-load-ab-test.md](can-bus-load-ab-test.md); an optional loop-time breakdown per section when `LOG_SUBSYSTEM_TIMINGS` is on; errors/warnings/PhotonVision alerts logged by robot code. |
 | **Robot** | one group per subsystem, one cluster per motor: responding on CAN, newest status age, last status, temperature, undervoltage, time at the current limit, peak supply current. |
 
 ### When the Pi's cameras and clients all drop at once: reboot, link flap or camera loss?
@@ -137,7 +137,11 @@ swap `signal`, pick a `measure`, add a threshold.
 - **`measure`** (how a log collapses to one number): `last`, `first`, `max`, `min`, `mean` (time-weighted),
   `seconds_above` / `seconds_below` (need `above` / `below`), `seconds_true`, `seconds_false`,
   `fraction_true`, `fraction_false`, `seconds_equals`, `fraction_equals` (need `equals`), `any_true`,
-  `all_true`, `changes`, `delta`, `max_len`, `last_len` (lists and text: alerts). A log is a sample-and-hold
+  `all_true`, `changes`, `delta`, `max_len`, `last_len` (lists and text: alerts).
+  Per record instead of per second, for one-value-per-loop signals such as loop time: `sample_mean`,
+  `percentile` (needs `q`, 0-100; nearest rank) and `share_above` (needs `above`; the share of records above
+  it). A time-weighted `mean` of loop times counts a 100 ms loop five times as much as a 20 ms one and reads
+  high, so use `sample_mean` for them. A log is a sample-and-hold
   series, so durations are real time, not record counts. Live always uses the current value; measures
   that need history are shown as "log only" there.
 - **`window`**: which part of a log counts: `all` (default), `enabled`, `auto`, `teleop`, `disabled`.

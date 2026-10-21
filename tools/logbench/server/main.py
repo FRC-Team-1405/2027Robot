@@ -32,6 +32,7 @@ import paths  # noqa: F401  (side effect: sys.path bridges)
 import bundles
 import bundle_pairing
 import vision_coverage
+import nt_clients
 import match_bundle
 import app_logging
 import compare_export
@@ -452,6 +453,7 @@ def health_for_log(path: str = Query(..., description='log path relative to the 
     lo, hi = log_.bounds()
     # Rows that need the bundle's files, not just the log: how much of the match each Pi camera saw.
     coverage_rows = vision_coverage.for_log(p, log_.mode_spans(), lo, log_.cameras())
+    coverage_rows += nt_clients.for_log(log_.signals, log_.mode_spans(), lo)
     report = health_engine.evaluate(specs_, source, extra_rows=coverage_rows)
     report['config_errors'] = errors
     report['meta'] = {

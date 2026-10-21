@@ -16,6 +16,7 @@ A check block (every field but id/section/label/signal is optional):
     unit = "%"
     scale = 100                     # the value is multiplied by this for display and thresholds
     measure = "max"                 # how a log's samples collapse to one number (see MEASURES)
+    q = 95                          # for percentile: which one (0-100)
     equals = "OK"                  # for seconds_equals / fraction_equals: the value that counts
     window = "enabled"              # which part of a log counts: all|enabled|auto|teleop|disabled
     warn_above = 70                 # numeric rules, applied to the scaled value
@@ -56,10 +57,14 @@ MEASURES = (
     'seconds_above', 'seconds_below', 'seconds_true', 'seconds_false',
     'fraction_true', 'fraction_false', 'seconds_equals', 'fraction_equals', 'any_true', 'all_true',
     'changes', 'delta', 'max_len', 'last_len',
+    'sample_mean', 'percentile', 'share_above',
 )
+# Measures over the records themselves, not sample-and-hold time: right for one-value-per-loop
+# signals (loop time), where a time-weighted mean counts a 100 ms loop five times as much as a 20 ms one.
+SAMPLE_MEASURES = ('sample_mean', 'percentile', 'share_above')
 # Measures that need a log's history; in a live view they have nothing to measure.
 HISTORY_MEASURES = ('seconds_above', 'seconds_below', 'seconds_true', 'seconds_false', 'seconds_equals',
-                    'changes', 'delta')
+                    'changes', 'delta') + SAMPLE_MEASURES
 WINDOWS = ('all', 'enabled', 'auto', 'teleop', 'disabled')
 MISSING = ('nodata', 'ok', 'warn', 'fail')
 MODES = ('both', 'live', 'log')
@@ -82,6 +87,7 @@ class CheckSpec:
     measure: str = 'last'
     window: str = 'all'
     above: Optional[float] = None
+    q: Optional[float] = None
     below: Optional[float] = None
     equals: Any = None
     has_equals: bool = False
@@ -111,7 +117,7 @@ _FIELDS: Dict[str, Tuple[tuple, Any]] = {
     'id': ((str,), None), 'section': ((str,), None), 'label': ((str,), None), 'signal': ((str,), None),
     'group': ((str,), None), 'subject': ((str,), None), 'lookup': ((dict,), None), 'unit': ((str,), None),
     'scale': (_NUMBER, None), 'measure': ((str,), MEASURES), 'window': ((str,), WINDOWS),
-    'above': (_NUMBER, None), 'below': (_NUMBER, None), 'equals': ((bool, int, float, str), None),
+    'above': (_NUMBER, None), 'q': (_NUMBER, None), 'below': (_NUMBER, None), 'equals': ((bool, int, float, str), None),
     'warn_above': (_NUMBER, None), 'fail_above': (_NUMBER, None),
     'warn_below': (_NUMBER, None), 'fail_below': (_NUMBER, None),
     'expect': ((bool, int, float, str), None), 'expect_in': ((list,), None),
@@ -144,6 +150,10 @@ def _build(raw: dict, defaults: dict) -> CheckSpec:
             raise ValueError(f'{ident}: {key} must be one of {", ".join(allowed)} (got {value!r})')
     if merged.get('measure') == 'seconds_above' and 'above' not in merged:
         raise ValueError(f'{ident}: measure "seconds_above" needs an `above` value')
+    if merged.get('measure') == 'share_above' and 'above' not in merged:
+        raise ValueError(f'{ident}: measure "share_above" needs an `above` value')
+    if merged.get('measure') == 'percentile' and not 0 <= merged.get('q', -1) <= 100:
+        raise ValueError(f'{ident}: measure "percentile" needs `q` between 0 and 100')
     if merged.get('measure') == 'seconds_below' and 'below' not in merged:
         raise ValueError(f'{ident}: measure "seconds_below" needs a `below` value')
     if merged.get('measure') in ('seconds_equals', 'fraction_equals') and 'equals' not in merged:

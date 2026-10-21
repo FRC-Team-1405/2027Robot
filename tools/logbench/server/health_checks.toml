@@ -644,14 +644,60 @@ section = "roboRIO"
 group = "Controller"
 label = "Robot loop time (mean while enabled)"
 signal = "RealOutputs/LoggedRobot/FullCycleMS"
-measure = "mean"
+measure = "sample_mean"
 window = "enabled"
 unit = "ms"
 decimals = 1
 warn_above = 25
 fail_above = 45
 mode = "log"
-help = "The typical loop, not the worst: the target is 20 ms. Ruckus 2026 averaged about 38 ms. Turn on FeatureSwitches LOG_SUBSYSTEM_TIMINGS to see where it goes."
+help = "The typical loop, not the worst: the target is 20 ms. Ruckus 2026 averaged about 38 ms. A mean of loops (each loop counted once), not of time: a time-weighted mean counts a 100 ms loop five times and reads high. Turn on FeatureSwitches LOG_SUBSYSTEM_TIMINGS to see where it goes."
+
+[[check]]
+id = "rio.loop_p95"
+section = "roboRIO"
+group = "Controller"
+label = "Robot loop time (95th percentile while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "percentile"
+q = 95
+window = "enabled"
+unit = "ms"
+decimals = 1
+warn_above = 30
+fail_above = 60
+mode = "log"
+help = "1 loop in 20 was slower than this. Steadier than the worst loop (one GC pause sets that) and shows the tail the mean hides. Bench 2026-10-20: 56 ms before the CPU switches, 20.5 ms after."
+
+[[check]]
+id = "rio.loop_overrun_share"
+section = "roboRIO"
+group = "Controller"
+label = "Loops over 20 ms (share while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "share_above"
+above = 20
+scale = 100
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 10
+fail_above = 50
+mode = "log"
+help = "How many loops overran the 20 ms period. Bench 2026-10-20: 99 % before the CPU switches, 6 % after."
+
+[[check]]
+id = "rio.gc_time_mean"
+section = "roboRIO"
+group = "Controller"
+label = "Java garbage collection per loop (mean while enabled)"
+signal = "RealOutputs/LoggedRobot/GCTimeMS"
+measure = "sample_mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+mode = "log"
+help = "Time the JVM reported in garbage collection each loop. Allocation-heavy code (string building, new objects every loop) raises it; one long collection is a whole-robot freeze."
 
 [[check]]
 id = "rio.loop_usercode_mean"
@@ -659,7 +705,7 @@ section = "roboRIO"
 group = "Controller"
 label = "Robot code time per loop (mean while enabled)"
 signal = "RealOutputs/LoggedRobot/UserCodeMS"
-measure = "mean"
+measure = "sample_mean"
 window = "enabled"
 unit = "ms"
 decimals = 1
@@ -674,7 +720,7 @@ section = "roboRIO"
 group = "Loop time breakdown"
 label = "{1} (mean while enabled)"
 signal = "RealOutputs/Timing/*"
-measure = "mean"
+measure = "sample_mean"
 window = "enabled"
 unit = "ms"
 decimals = 1
@@ -692,6 +738,16 @@ decimals = 0
 warn_above = 10
 fail_above = 40
 help = "AdvantageKit cycles waiting to be written; a growing queue risks dropped log data."
+
+[[check]]
+id = "rio.feature_switches"
+section = "roboRIO"
+group = "Build"
+label = "Feature switches deployed"
+signal = "RealMetadata/FeatureSwitches"
+measure = "last"
+mode = "log"
+help = "What the deployed code was compiled with (PerformanceProfile), not what the laptop's file says now. Compare two logs' values before comparing their numbers."
 
 [[check]]
 id = "rio.radio"

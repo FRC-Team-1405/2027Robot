@@ -88,6 +88,30 @@ def test_mean_is_time_weighted_not_a_mean_of_records():
     assert c['value'] == pytest.approx(0.5, abs=0.01)         # ~50% of one second, not 50% of the log
 
 
+def test_sample_measures_count_each_record_once_not_each_second():
+    # loop times: three 20 ms loops and one 100 ms loop. A time-weighted mean would favour the 100.
+    src = log({'X': ts((40, 20), (41, 20), (42, 20), (43, 100), (95, 999))})   # 999 is outside teleop
+    assert one(check_toml('measure="sample_mean"\nwindow="enabled"'), src)['value'] == pytest.approx(40.0)
+    assert one(check_toml('measure="percentile"\nq=50\nwindow="enabled"'), src)['value'] == 20.0
+    assert one(check_toml('measure="percentile"\nq=95\nwindow="enabled"'), src)['value'] == 100.0
+    c = one(check_toml('measure="share_above"\nabove=20\nscale=100\nwindow="enabled"\nwarn_above=10'), src)
+    assert (c['value'], c['status']) == (25.0, WARN)
+    # no record inside the window: nothing to count (a held-in value is not a record)
+    assert one(check_toml('measure="sample_mean"\nwindow="auto"'), src)['status'] == NODATA
+
+
+def test_sample_measures_need_their_parameters():
+    _specs, errors = config.parse(check_toml('measure="percentile"'))
+    assert errors and 'q' in errors[0]
+    _specs, errors = config.parse(check_toml('measure="share_above"'))
+    assert errors and 'above' in errors[0]
+
+
+def test_sample_measures_need_a_log():
+    c = one(check_toml('measure="percentile"\nq=95'), engine.SnapshotSource({'X': (12.0, 0.1)}))
+    assert c['status'] == NA
+
+
 def test_seconds_above_and_below():
     src = log({'X': ts((0, 0), (40, 10), (60, 0))})           # above 5 for 20 s, all inside teleop
     c = one(check_toml('measure="seconds_above"\nabove=5\nwindow="enabled"\nunit="s"\nwarn_above=15'), src)

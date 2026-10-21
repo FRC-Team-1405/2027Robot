@@ -19,7 +19,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from core import signals as sig
 
-from .config import CheckSpec, HISTORY_MEASURES
+from .config import CheckSpec, HISTORY_MEASURES, SAMPLE_MEASURES
 
 OK, WARN, FAIL, NODATA, NA = 'ok', 'warn', 'fail', 'nodata', 'na'
 # na (does not apply here) < ok < nodata (could not tell) < warn < fail
@@ -175,12 +175,30 @@ class LogSource:
             r = Reduced(None)
             r.sample = 'this log has no driver-station mode data, so "%s" cannot be selected' % spec.window
             return r
+        if spec.measure in SAMPLE_MEASURES:
+            # a record exactly at a window's end belongs to the next mode, as in the spans themselves
+            values = [x for t, v in series if spec.window == 'all' or any(a <= t < b for a, b in spans)
+                      for x in (_num(v),) if x is not None]
+            return _reduce_samples(values, spec)
         pieces = sig.hold_intervals(series, self.t0, self.t1)
         if spec.window != 'all':
             pieces = sig.clip_to_spans(pieces, spans)
         if not pieces:
             return None
         return _reduce_pieces(pieces, spec, self.t0)
+
+
+def _reduce_samples(values: List[float], spec: CheckSpec) -> Optional[Reduced]:
+    """One number from the records inside the window, each record counted once."""
+    if not values:
+        return None
+    if spec.measure == 'sample_mean':
+        return Reduced(sum(values) / len(values))
+    if spec.measure == 'share_above':
+        return Reduced(sum(x > spec.above for x in values) / len(values))
+    ordered = sorted(values)                     # percentile: nearest rank
+    rank = max(1, math.ceil(spec.q / 100 * len(ordered)))
+    return Reduced(ordered[rank - 1])
 
 
 def _reduce_pieces(pieces: List[sig.Piece], spec: CheckSpec, t0: float) -> Reduced:
