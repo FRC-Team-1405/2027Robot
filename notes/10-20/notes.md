@@ -257,3 +257,90 @@ recorded akit_26-10-21_01-21-36-bundle
 
 disabled LOG_NETWORKTABLES_TO_WPILOG
 recorded akit_26-10-21_01-23-34-bundle
+
+
+# console logs examples
+
+plugged in
+Loop time of 0.02s overrun
+Warning at edu.wpi.first.wpilibj.IterativeRobotBase.printLoopOverrunMessage(IterativeRobotBase.java:436): Loop time of 0.02s overrun
+CommandScheduler loop overrun
+Hopper.periodic(): 0.000760s
+Pickup.periodic(): 0.000241s
+CommandSwerveDrivetrain.periodic(): 0.001002s
+buttons.run(): 0.000111s
+Intake.periodic(): 0.000557s
+Vision.periodic(): 0.014246s
+Shooter.periodic(): 0.013987s
+AdjustableHood.periodic(): 0.000056s
+Indexer.periodic(): 0.000352s
+Warning at edu.wpi.first.wpilibj.Tracer.lambda$printEpochs$0(Tracer.java:62): Hopper.periodic(): 0.000760s
+Pickup.periodic(): 0.000241s
+CommandSwerveDrivetrain.periodic(): 0.001002s
+buttons.run(): 0.000111s
+Intake.periodic(): 0.000557s
+Vision.periodic(): 0.014246s
+Shooter.periodic(): 0.013987s
+AdjustableHood.periodic(): 0.000056s
+Indexer.periodic(): 0.000352s
+SmartDashboard.updateValues(): 0.000482s
+robotPeriodic(): 0.022093s
+LiveWindow.updateValues(): 0.000000s
+Shuffleboard.update(): 0.000000s
+disabledPeriodic(): 0.000223s
+Warning at edu.wpi.first.wpilibj.Tracer.lambda$printEpochs$0(Tracer.java:62): SmartDashboard.updateValues(): 0.000482s
+robotPeriodic(): 0.022093s
+LiveWindow.updateValues(): 0.000000s
+Shuffleboard.update(): 0.000000s
+disabledPeriodic(): 0.000223s
+Joystick POV 0 on port 1 not available, check if controller is plugged in
+Warning at edu.wpi.first.wpilibj.DriverStation.reportJoystickUnpluggedWarning(DriverStation.java:1345): Joystick POV 0 on port 1 not available, check if controller is plugged in
+Loop time of 0.02s overrun
+Warning at edu.wpi.first.wpilibj.IterativeRobotBase.printLoopOverrunMessage(IterativeRobotBase.java:436): Loop time of 0.02s overrun
+SmartDashboard.updateValues(): 0.000464s
+robotPeriodic(): 0.026156s
+LiveWindow.updateValues(): 0.000018s
+Shuffleboard.update(): 0.000000s
+disabledPeriodic(): 0.000111s
+Warning at edu.wpi.first.wpilibj.Tracer.lambda$printEpochs$0(Tracer.java:62): SmartDashboard.updateValues(): 0.000464s
+robotPeriodic(): 0.026156s
+LiveWindow.updateValues(): 0.000018s
+Shuffleboard.update(): 0.000000s
+disabledPeriodic(): 0.000111s
+Joystick POV 0 on port 1 not available, check if controller is plugged in
+Warning at edu.wpi.first.wpilibj.DriverStation.reportJoystickUnpluggedWarning(DriverStation.java:1345): Joystick POV 0 on port 1 not available, check if controller is plugged in
+CommandScheduler loop overrun
+Hopper.periodic(): 0.000241s
+Pickup.periodic(): 0.000260s
+CommandSwerveDrivetrain.periodic(): 0.000316s
+buttons.run(): 0.010295s
+Intake.periodic(): 0.000575s
+Vision.periodic(): 0.006270s
+Shooter.periodic(): 0.002114s
+AdjustableHood.periodic(): 0.000056s
+Indexer.periodic(): 0.000389s
+Warning at edu.wpi.first.wpilibj.Tracer.lambda$printEpochs$0(Tracer.java:62): Hopper.periodic(): 0.000241s
+Pickup.periodic(): 0.000260s
+CommandSwerveDrivetrain.periodic(): 0.000316s
+buttons.run(): 0.010295s
+Intake.periodic(): 0.000575s
+Vision.periodic(): 0.006270s
+Shooter.periodic(): 0.002114s
+AdjustableHood.periodic(): 0.000056s
+Indexer.periodic(): 0.000389s
+Loop time of 0.02s overrun
+Warning at edu.wpi.first.wpilibj.IterativeRobotBase.printLoopOverrunMessage(IterativeRobotBase.java:436): Loop time of 0.02s overrun
+SmartDashboard.updateValues(): 0.001076s
+robotPeriodic(): 0.034429s
+LiveWindow.updateValues(): 0.000000s
+Shuffleboard.update(): 0.000000s
+disabledPeriodic(): 0.000241s
+Warning at edu.wpi.first.wpilibj.Tracer.lambda$printEpochs$0(Tracer.java:62): SmartDashboard.updateValues(): 0.001076s
+robotPeriodic(): 0.034429s
+LiveWindow.updateValues(): 0.000000s
+Shuffleboard.update(): 0.000000s
+disabledPeriodic(): 0.000241s
+Joystick POV 0 on port 1 not available, check if controller is plugged in
+Warning at edu.wpi.first.wpilibj.DriverStation.reportJoystickUnpluggedWarning(DriverStation.java:1345): Joystick POV 0 on port 1 not available, check if controller is plugged in
+Loop time of 0.02s overrun
+Warning at edu.wpi.first.wpilibj.IterativeRobotBase.printLoopOverrunMessage(IterativeRobotBase.java:436): Loop time of 0.02s overrun
