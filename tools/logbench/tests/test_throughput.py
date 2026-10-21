@@ -105,3 +105,73 @@ def test_chart_warmup_and_interval_summary_share_counts():
 def test_invalid_windows_rejected(lo, hi, rolling):
     with pytest.raises(ValueError):
         analyze(run(signals(), lo, hi), rolling)
+
+
+def tracking_signals():
+    # 0.1s loops over 20s: poses (2 per loop) 0-3s, a 0.8s dropout, poses 3.8-5s, then nothing until 15-16s.
+    return {
+        '/Timestamp': [(i / 10, i * 100000) for i in range(201)],
+        'Vision/Left/RawEstimatedPoses': [(0, [{}, {}]), (3, []), (3.8, [{}, {}]), (5, []), (15, [{}, {}]), (16, [])],
+        'RealOutputs/Vision/Left/AcceptedPoses': [(0, [{}, {}]), (3, []), (3.8, [{}, {}]), (5, []), (15, [{}, {}]), (16, [])],
+    }
+
+
+def test_tracking_bridges_short_dropouts_and_drops_long_silence():
+    from core.throughput import tracking
+    r = run(tracking_signals(), 0, 20)
+    result = tracking(r, 'Left', gap=1.0)
+    # One span 0-5s (the 0.8s dropout is flapping) and one 15-16s; 10s of silence between is not tracking.
+    assert [(round(s['lo'], 1), round(s['hi'], 1)) for s in result['spans']] == [(0.0, 5.0), (15.0, 16.0)]
+    assert result['active_sec'] == pytest.approx(6.0)
+    assert result['coverage_pct'] == pytest.approx(30.0)
+    assert result['accepted_count'] == 2 * (30 + 12 + 10)
+    # The whole-interval rate is diluted by the silence; the tracking rate is not.
+    assert result['accepted_poses_per_sec'] == pytest.approx(104 / 6)
+    assert summary(r, 'Left')['accepted_poses_per_sec'] == pytest.approx(104 / 20)
+
+
+def test_tracking_gap_controls_what_counts_as_flapping():
+    from core.throughput import tracking
+    r = run(tracking_signals(), 0, 20)
+    assert len(tracking(r, 'Left', gap=0.5)['spans']) == 3  # the 0.8s dropout now splits the span
+    assert len(tracking(r, 'Left', gap=11)['spans']) == 1
+
+
+def test_rejected_poses_still_count_as_tracking():
+    from core.throughput import tracking
+    s = tracking_signals()
+    s['RealOutputs/Vision/Left/AcceptedPoses'] = [(0, [])]
+    result = tracking(run(s, 0, 20), 'Left')
+    assert result['basis'] == 'generated'
+    assert result['accepted_poses_per_sec'] == 0
+    assert result['acceptance_pct'] == 0
+
+
+def test_no_tags_is_zero_coverage_and_unknown_rate_not_zero_throughput():
+    from core.throughput import tracking
+    s = tracking_signals()
+    s['Vision/Left/RawEstimatedPoses'] = [(0, [])]
+    s['RealOutputs/Vision/Left/AcceptedPoses'] = [(0, [])]
+    result = tracking(run(s, 0, 20), 'Left')
+    assert result['coverage_pct'] == 0 and result['spans'] == []
+    assert result['accepted_poses_per_sec'] is None
+
+
+def test_robot_tracking_is_the_union_of_cameras_without_double_counting_time():
+    from core.throughput import tracking
+    s = tracking_signals()
+    s['Vision/Right/RawEstimatedPoses'] = [(0, []), (2, [{}]), (4, [])]
+    s['RealOutputs/Vision/Right/AcceptedPoses'] = [(0, []), (2, [{}]), (4, [])]
+    robot = tracking(run(s, 0, 20))
+    assert robot['active_sec'] == pytest.approx(6.0)  # Right's 2-4s lies inside Left's span
+    assert robot['accepted_count'] == 104 + 20
+
+
+def test_analyze_reports_tracking_per_camera_and_rejects_bad_gap():
+    r = run(tracking_signals(), 0, 20)
+    report = analyze(r, 1.0, 2.0)
+    assert report['tracking_gap_sec'] == 2.0
+    assert report['cameras'][0]['tracking']['span_count'] == 2
+    assert report['tracking']['coverage_pct'] == pytest.approx(30.0)
+    with pytest.raises(ValueError):
+        analyze(r, 1.0, 0)

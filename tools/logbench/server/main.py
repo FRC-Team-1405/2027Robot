@@ -278,11 +278,12 @@ def metric_catalog() -> dict:
 
 @app.get('/api/vision-insights')
 def vision_insights(log: str = Query(...), mode: str = Query('whole'),
-                    window: Optional[str] = Query(None), rolling_sec: float = Query(1.0)) -> dict:
+                    window: Optional[str] = Query(None), rolling_sec: float = Query(1.0),
+                    tracking_gap_sec: float = Query(throughput.DEFAULT_TRACKING_GAP_SEC)) -> dict:
     try:
         loaded = _load_log(_resolve(log))
         selector = WindowSelector(manual=_parse_manual_window(window)) if window else WindowSelector(mode=mode)
-        result = throughput.analyze(make_run(loaded, selector), rolling_sec)
+        result = throughput.analyze(make_run(loaded, selector), rolling_sec, tracking_gap_sec)
         result['order'] = _order_notice(loaded.order_stats)
         return result
     except ValueError as exc:

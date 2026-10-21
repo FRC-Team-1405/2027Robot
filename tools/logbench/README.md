@@ -36,7 +36,17 @@ Choose a whole log, the longest autonomous/teleop/disabled period, or a custom i
 including two sections of the same log. Charts align each selected interval at zero;
 different lengths are explicit and the shorter trace ends when its data ends.
 
-The summary reports average rates, totals, literal accepted/generated acceptance, mean
+The headline number is **accepted poses/sec while tracking**: time with no tags measures
+coverage, not throughput, so it is reported separately and left out of the rate. A camera
+is tracking while it generates poses (rejected poses still count, so a filter that throws
+everything away shows up as low acceptance rather than as missing coverage). Silence up to
+the **tracking gap tolerance** (default 1s) is treated as flapping and stays inside the
+tracking stretch; a longer silence ends it, and the next pose starts a new one. A lone pose
+counts as one robot loop of tracking. The robot-level "All cameras" figure uses the union
+of the cameras' stretches, so overlapping time is not double counted. Idle time is shaded on
+the charts, and the whole-interval averages remain in the cards and per-camera tables.
+
+The summary also reports average rates, totals, literal accepted/generated acceptance, mean
 received FPS, the existing multi-tag health factor, and the best full sliding three-second
 accepted rate. Pick 1s, 3s or 5s rolling charts; the initial incomplete window is blank.
 An interval shorter than three seconds has no best-3s measurement. Generated means a
