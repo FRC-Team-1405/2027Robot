@@ -47,6 +47,16 @@ public class Robot extends LoggedRobot {
         // ── AdvantageKit setup — must run before any other initialization ──────
         Logger.recordMetadata("ProjectName", "2027Robot");
         Logger.recordMetadata("FeatureSwitches", PerformanceProfile.describe());
+        // Which code this log came from: check out GitSHA to replay a match with the code that ran in it.
+        Logger.recordMetadata("GitSHA", BuildConstants.GIT_SHA);
+        Logger.recordMetadata("GitBranch", BuildConstants.GIT_BRANCH);
+        Logger.recordMetadata("GitDate", BuildConstants.GIT_DATE);
+        Logger.recordMetadata("BuildDate", BuildConstants.BUILD_DATE);
+        Logger.recordMetadata("GitDirty", switch (BuildConstants.DIRTY) {
+            case 0 -> "All changes committed";
+            case 1 -> "Uncommitted changes";
+            default -> "Unknown";
+        });
         if (!FeatureSwitches.PHOENIX_SIGNAL_LOGGING) {
             com.ctre.phoenix6.SignalLogger.enableAutoLogging(false);
             com.ctre.phoenix6.SignalLogger.stop();
