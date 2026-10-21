@@ -46,7 +46,7 @@ public class FeatureSwitches {
      *  their IO classes read and PowerTelemetry's. 0 = leave Phoenix's default (usually 100 Hz).
      *  Try 20. The swerve modules and the shooter are never touched (odometry and shooter lock need
      *  their own 100 Hz+ rates). */
-    public static final double MECHANISM_STATUS_SIGNAL_HZ = 0.0;
+    public static final double MECHANISM_STATUS_SIGNAL_HZ = 20.0;
 
     /** On those same four mechanism motors, call optimizeBusUtilization() once every signal the code
      *  reads has an explicit rate (MECHANISM_STATUS_SIGNAL_HZ, or 50 Hz if that is 0). Everything else
@@ -77,7 +77,7 @@ public class FeatureSwitches {
     public static final boolean COPROCESSOR_HEALTH_LOGGING = false;
     /** Use a flat topic discovery every 5 s and mirror at most 8 entries per robot loop.
      *  Avoids recursive 0.5 s bursts; a full sweep takes ceil(topic count / 8) loops. */
-    public static final boolean BATCH_COPROCESSOR_HEALTH_LOGGING = false;
+    public static final boolean BATCH_COPROCESSOR_HEALTH_LOGGING = true;
     /** OFF keeps direct subsystem timings but removes the every-loop recursive Tracer NT mirror. */
     public static final boolean MIRROR_TRACER_TIMINGS = false;
     /** OFF stops DataLogManager duplicating all NT changes into FRC_*.wpilog. The main AKit

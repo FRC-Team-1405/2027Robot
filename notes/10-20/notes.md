@@ -265,6 +265,8 @@ a bunch of changes:
 recorded akit_26-10-21_01-32-18-bundle
 drastically reduced robot loop times! still almost hit 100ms and i saw the robot jump/drop for a split second when going around in the circle. i'm wondering if that's a loop issue or an odometry update that made it shift quickly
 
+pulled git commit "Reduce repeated bench console warnings and retain loop deadline diagnostics"
+recorded akit_26-10-21_01-39-52-bundle
 
 # console logs examples
 
