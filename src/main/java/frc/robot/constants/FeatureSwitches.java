@@ -67,7 +67,7 @@ public class FeatureSwitches {
     // CPU/logging experiments. Defaults preserve the current beta behavior.
     /** OFF bypasses PowerTelemetry initialization, request decoding and periodic logging entirely.
      *  Existing IO/control and built-in AKit battery logging continue. Diagnostic test only. */
-    public static final boolean ENABLE_POWER_TELEMETRY = true;
+    public static final boolean ENABLE_POWER_TELEMETRY = false;
     /** Sample/log PowerTelemetry at 10 Hz instead of every loop (not a CAN frame-rate change).
      *  Short current spikes can be missed. Replay still consumes recorded inputs every loop. */
     public static final boolean POWER_TELEMETRY_10_HZ = false;
@@ -82,23 +82,23 @@ public class FeatureSwitches {
     public static final boolean MIRROR_TRACER_TIMINGS = true;
     /** OFF stops DataLogManager duplicating all NT changes into FRC_*.wpilog. The main AKit
      *  .wpilog and DriverStation logging remain. Select the akit_ log for analysis/replay. */
-    public static final boolean LOG_NETWORKTABLES_TO_WPILOG = true;
+    public static final boolean LOG_NETWORKTABLES_TO_WPILOG = false;
     /** OFF disables automatic and explicit Phoenix .hoot logging. AKit .wpilog stays enabled. */
-    public static final boolean PHOENIX_SIGNAL_LOGGING = true;
+    public static final boolean PHOENIX_SIGNAL_LOGGING = false;
     /** Throttle only Telemetry.telemeterize's NT/Mechanism2d/custom-Hoot outputs to 10 Hz.
      *  Does not change CTRE odometry, control-loop frequency or automatic Phoenix signal capture. */
-    public static final boolean SWERVE_TELEMETRY_10_HZ = false;
+    public static final boolean SWERVE_TELEMETRY_10_HZ = true;
     /** Throttle diagnostic dashboard publishing to 10 Hz; subsystem IO and RobotTime clock stay 50 Hz. */
-    public static final boolean ROBOT_DASHBOARD_10_HZ = false;
+    public static final boolean ROBOT_DASHBOARD_10_HZ = true;
 
     // Additional CAN experiments; independent of CPU-side sampling.
     /** Phoenix 2026 defaults unused optimized signals to 4 Hz. With OPTIMIZE_BUS_UTILIZATION,
      *  explicitly use 0 Hz on the already-tuned simple mechanisms only. */
-    public static final boolean ZERO_UNUSED_MECHANISM_STATUS_SIGNALS = false;
+    public static final boolean ZERO_UNUSED_MECHANISM_STATUS_SIGNALS = true;
     /** Give shooter diagnostic currents/voltage/temperature explicit slower rates. All three
      *  velocities, leader error/reference, and leader follower-output signals stay at 100 Hz.
      *  Shared status frames run at the fastest member's rate, so savings must be measured. */
-    public static final boolean LOW_RATE_SHOOTER_DIAGNOSTICS = false;
+    public static final boolean LOW_RATE_SHOOTER_DIAGNOSTICS = true;
     //#endregion
 
     //#region VisionTestSwitches

@@ -233,3 +233,27 @@ Uncaught TypeError: Cannot read properties of null (reading 'toFixed')
     at gu (index-CsBvv-6G.js:8:111307)
     at cd (index-CsBvv-6G.js:8:122813)
     at MessagePort.ne (index-CsBvv-6G.js:1:9770)
+
+
+
+disabled ENABLE_POWER_TELEMETRY
+recorded akit_26-10-21_00-57-37-bundle
+
+disabled PHOENIX_SIGNAL_LOGGING
+recorded akit_26-10-21_01-03-57-bundle
+
+enabled LOW_RATE_SHOOTER_DIAGNOSTICS
+recorded akit_26-10-21_01-07-50-bundle
+
+enabled ZERO_UNUSED_MECHANISM_STATUS_SIGNALS
+recorded akit_26-10-21_01-14-29-bundle
+no effect?
+
+enabled ROBOT_DASHBOARD_10_HZ
+recorded akit_26-10-21_01-17-36-bundle
+
+enabled SWERVE_TELEMETRY_10_HZ
+recorded akit_26-10-21_01-21-36-bundle
+
+disabled LOG_NETWORKTABLES_TO_WPILOG
+recorded akit_26-10-21_01-23-34-bundle
