@@ -9,6 +9,10 @@ export interface LogEntry {
   name: string;
   size: number;
   mtime: number;
+  /** Folder under the log root, '' for the root itself. */
+  folder?: string;
+  /** Cameras with a recorded .vision session beside this log. */
+  vision_cameras?: string[];
 }
 
 export interface LogListing {
@@ -29,6 +33,16 @@ export interface LogInfo {
   cameras: string[];
   mode_spans: ModeSpan[];
   order: OrderInfo | null;
+}
+
+/** What /api/log-details reads out of a log (it has to parse the log, so the browser asks on demand). */
+export interface LogDetails extends LogInfo {
+  event: string | null;
+  match_type: string | null;
+  match_number: number | null;
+  fms: boolean;
+  auto_sec: number;
+  teleop_sec: number;
 }
 
 // availability / quality / context are the three kinds of question a metric can answer

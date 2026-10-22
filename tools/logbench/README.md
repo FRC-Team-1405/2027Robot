@@ -7,6 +7,24 @@ Built for camera health, but the player itself knows nothing about cameras. "Met
 a match timeline" is a shape we keep wanting (shooter tuning, swerve module health, intake
 state), so the domain knowledge is isolated in one file per view.
 
+## Opening a log
+
+The bar above the tabs holds the log folder (**Change folder…**) and the **open log**. Choose a
+log once and every page analyses it: Health Check, Vision Logs, Vision Insights, Compare (as
+side A), and Battery Insights (as its first window). Pages that compare two logs or windows
+still pick the second one themselves. Switching tabs does not reload the app, so nothing
+resets, and changing the open log on a page keeps you on that page.
+
+The open log lives in the URL (`?view=health&log=…`), so refreshes, bookmarks and pasted links
+reopen the same page and log. The last log is also remembered by the browser: launching with no
+`?log=` reopens it if the folder still has it. Fetch Bundle's **Open log** lands on Health Check.
+
+**Browse logs…** opens a full-page browser (`?view=logs`): every log with when it was recorded,
+size, folder and which cameras have vision video, sortable and filterable. **Inspect** reads a log
+(it has to parse it, so it is on request) to show the event and match the driver station
+recorded, how long it was enabled, and its cameras; those fields are then searchable too.
+Opening a log from the browser returns you to the page you came from.
+
 ## Why this exists
 
 The Replay tab in the camera-calibration Streamlit app had the right features and was
@@ -27,6 +45,51 @@ Measured on a 5.5-minute log with 26 tracks and 199k samples:
 | per frame | seconds | **0.09 ms** mean, 1.3 ms worst |
 | data sent | all traces, 5×/second | 0.47 MB gzipped, once |
 | trail lookup | O(N) scan ×3 per tick | O(1) amortized |
+
+## Vision throughput
+
+**Vision Insights** (`?view=vision`) shows generated and accepted poses/sec per camera.
+Choose a whole log, the longest autonomous/teleop/disabled period, or a custom interval
+(seconds relative to the log start). Enable **Compare A/B** to overlay two intervals,
+including two sections of the same log. Charts align each selected interval at zero;
+different lengths are explicit and the shorter trace ends when its data ends.
+
+The headline number is **accepted poses/sec while tracking**: time with no tags measures
+coverage, not throughput, so it is reported separately and left out of the rate. A camera
+is tracking while it generates poses (rejected poses still count, so a filter that throws
+everything away shows up as low acceptance rather than as missing coverage). Silence up to
+the **tracking gap tolerance** (default 1s) is treated as flapping and stays inside the
+tracking stretch; a longer silence ends it, and the next pose starts a new one. A lone pose
+counts as one robot loop of tracking. The robot-level "All cameras" figure uses the union
+of the cameras' stretches, so overlapping time is not double counted. Idle time is shaded on
+the charts, and the whole-interval averages remain in the cards and per-camera tables.
+
+The summary also reports average rates, totals, literal accepted/generated acceptance, mean
+received FPS, the existing multi-tag health factor, and the best full sliding three-second
+accepted rate. Pick 1s, 3s or 5s rolling charts; the initial incomplete window is blank.
+An interval shorter than three seconds has no best-3s measurement. Generated means a
+pose solve succeeded before robot rejection filters: no-tag frames and failed pose solves
+are excluded. FPS includes no-tag frames. Multi-tag remains the existing scored factor,
+not a literal fraction or a detection count. Accepted means queued by the vision filter;
+it does not measure accuracy or the weight ultimately applied to odometry.
+
+Intervals are half open `[start, end)` and use robot receipt/logging timestamps rather
+than capture times, so transport batching can affect short windows. Counts reconstruct
+unchanged pose arrays on logged `Timestamp` cycles; when those are absent, changed
+`RawTimestampsSec` batches anchor the counts. They never assume 50 Hz or count array
+records as frames. Logs missing both anchors report throughput as unavailable; missing
+raw/accepted arrays are also explicit. Use AdvantageKit logs retaining these signals.
+No robot code update is required. Removing cycles or pose data from a log removes evidence;
+choose a retained enabled interval in trimmed logs rather than interpreting removed time
+as measured zero output.
+
+The same average generated/accepted rates and best-3s accepted rate are available in
+**Compare**, its HTML/JSON exports and CLI defaults. These throughput metrics use the
+same counting and interval rules as Vision Insights. Other legacy analyzer metrics retain
+their existing definitions. For tuning, prefer the same meaningful section across repeated
+A/B trials, read multi-tag and acceptance alongside throughput, and treat the best-3s rate
+as supporting capacity evidence rather than a performance verdict. Range, speed, starting
+position, lighting and route changes can all affect the result.
 
 ## Running it
 
