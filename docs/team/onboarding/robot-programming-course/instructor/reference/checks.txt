@@ -1,0 +1,17 @@
+PASS 50 motor rotations -> 1 meter
+PASS negative rotations preserve direction
+PASS clamp +9 to +6
+PASS clamp -9 to -6
+PASS keep +2
+PASS block down at lower limit
+PASS allow up at lower limit
+PASS block up at upper limit
+PASS allow down at upper limit
+PASS disabled returns zero
+PASS small error and speed are at goal
+PASS high speed is not at goal
+PASS large negative error is not at goal
+PASS P control direction and magnitude
+PASS gravity hold at rest
+PASS damping opposes positive speed
+PASS manual mode does not add gravity
