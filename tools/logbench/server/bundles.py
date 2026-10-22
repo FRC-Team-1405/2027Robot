@@ -42,7 +42,13 @@ def ffmpeg_available() -> bool:
 def vision_dir_for(log_path) -> pathlib.Path:
     """The sibling `.vision` directory for a given .wpilog path (need not exist)."""
     log_path = pathlib.Path(log_path)
-    return log_path.parent / (log_path.stem + VISION_SUFFIX)
+    own = log_path.parent / (log_path.stem + VISION_SUFFIX)
+    if not own.exists() and log_path.stem.endswith('.trimmed'):
+        source_stem = log_path.stem[:-len('.trimmed')]
+        shared = log_path.parent / (source_stem + VISION_SUFFIX)
+        if shared.is_dir() and (log_path.parent / (source_stem + '.wpilog')).is_file():
+            return shared
+    return own
 
 
 def list_vision_sessions(log_path) -> Dict[str, List[pathlib.Path]]:
