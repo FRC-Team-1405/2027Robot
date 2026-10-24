@@ -142,8 +142,8 @@ public class AutoCommands {
                                     new PathPlannerAuto("PP_Right_Quad"));
                 commandsToAddToChooser.put("Sit_And_Shoot",
                                     new PathPlannerAuto("Sit_And_Shoot"));
-                commandsToAddToChooser.put("BACK_Right_Bump_To_Alliance",
-                                    new PathPlannerAuto("BACK_Right_Bump_To_Alliance"));
+                commandsToAddToChooser.put("BACK_Left_Bump_To_Alliance",
+                                    new PathPlannerAuto("BACK_Left_Bump_To_Alliance"));
                 commandsToAddToChooser.put("BACK_Right_Bump_To_Field",
                                     new PathPlannerAuto("BACK_Right_Bump_To_Field"));
                 // Add all commands in Map to chooser

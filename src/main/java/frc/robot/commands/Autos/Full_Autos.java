@@ -612,6 +612,7 @@ public class Full_Autos {
                 NamedCommands.registerCommand("runPickupStop", cmds.pickup.runPickupStop());
                 NamedCommands.registerCommand("runIntakeOut", cmds.intake.runIntakeOut());
                 NamedCommands.registerCommand("mediumShoot", cmds.mediumShoot.get());
+                NamedCommands.registerCommand("ClosestShootingPos", cmds.MoveTo_ClosestShootingPosition_MEDIUM.get());
                 
                 // TODO: Actually cook in autos
                 // TODO: Random circle auto, Ask leeland about get those leftovers, tweak get
