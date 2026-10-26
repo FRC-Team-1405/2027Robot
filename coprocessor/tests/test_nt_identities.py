@@ -35,6 +35,18 @@ class SharedTable:
         return SimpleNamespace(publish=lambda: SimpleNamespace(set=lambda value: self.values.__setitem__(path, value)))
 
     getStringTopic = getIntegerTopic = getBooleanTopic = getDoubleTopic
+    getDoubleArrayTopic = getStringArrayTopic = getIntegerArrayTopic = getDoubleTopic
+
+
+def fake_sampler(names, cpu):
+    """Stands in for PerformanceSampler (tested against a fake /proc and /sys in test_publisher_system)."""
+    class Sampler:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def sample(self):
+            return {**{name: 0 for name in names}, "CPU_Pct": cpu}
+    return Sampler
 
 
 SYSTEM = {"uptime_sec": 120.5, "boot_id": "boot-1", "iface": "eth0", "carrier_changes": 3, "operstate": "up",
@@ -47,11 +59,13 @@ class NetworkTablesIdentityTests(unittest.TestCase):
         clients = []
         for board, cpu, ip in (("LeftPi", 11.0, "10.14.5.21"), ("RightPi", 29.0, "10.14.5.22")):
             module = load_script("orangepi-nt-publisher.py", board)
+            perf_names = tuple(module.PERFORMANCE_TOPICS)
+            sampler = fake_sampler(perf_names, cpu)
             instance = MagicMock()
             instance.getTable.side_effect = lambda name: SharedTable(values, f"/{name}")
             ntcore = SimpleNamespace(NetworkTableInstance=SimpleNamespace(getDefault=lambda: instance))
             with patch.dict(sys.modules, ntcore=ntcore), \
-                 patch.object(module, "read_cpu_pct", return_value=cpu), \
+                 patch.object(module, "PerformanceSampler", sampler), \
                  patch.object(module, "read_ram", return_value=(100, 200, 50)), \
                  patch.object(module, "read_disk", return_value=(1, 10, 10)), \
                  patch.object(module, "read_system", return_value=SYSTEM), \
@@ -66,7 +80,10 @@ class NetworkTablesIdentityTests(unittest.TestCase):
         # How to reach each board, for tools/logbench's Pi discovery.
         self.assertEqual(values["/OrangePi/LeftPi/IP"], "10.14.5.21")
         self.assertEqual(values["/OrangePi/RightPi/Host"], "rightpi.local")
-        self.assertEqual(len(values), 36)  # eight metrics, IP, Host and eight system diagnostics per board
+        # seven basic metrics, IP, Host, eight system diagnostics and the 21 performance values per board
+        self.assertEqual(len(perf_names), 21)
+        self.assertEqual(len(values), 2 * (7 + 2 + 8 + 21))
+        self.assertEqual(values["/OrangePi/LeftPi/CpuCorePct"], 0)
         self.assertEqual(values["/OrangePi/LeftPi/BootId"], "boot-1")
         self.assertEqual(values["/OrangePi/RightPi/NetCarrierChanges"], 3)
         self.assertNotIn("/OrangePi/CPU_Pct", values)

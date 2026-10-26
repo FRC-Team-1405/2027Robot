@@ -118,8 +118,43 @@ A healthy run prints `Connecting to roboRIO (team 1405)…` once and then stays 
 
 Confirm the data is actually reaching NetworkTables:
 - With the robot/radio powered and the roboRIO running, open **Glass** or **OutlineViewer** pointed at the roboRIO's NT4 server (or check the Driver Station / AdvantageScope NT tab).
-- Look for the `/OrangePi` table (or `/OrangePi/LeftPi` and `/OrangePi/RightPi` for a named two-board install) with keys: `CPU_Pct`, `RAM_Used_MB`, `RAM_Total_MB`, `RAM_Pct`, `Disk_Used_GB`, `Disk_Total_GB`, `Disk_Pct`, `Temp_C`, `IP`, `Host`.
-- Values should update roughly once per second and look sane (e.g. `Temp_C` matches what `cat /sys/class/thermal/thermal_zone0/temp` shows on the Pi, divided by 1000).
+- Look for the `/OrangePi` table (or `/OrangePi/LeftPi` and `/OrangePi/RightPi` for a named two-board install) with keys: `CPU_Pct`, `RAM_Used_MB`, `RAM_Total_MB`, `RAM_Pct`, `Disk_Used_GB`, `Disk_Total_GB`, `Disk_Pct`, `Temp_C`, `IP`, `Host`, the reboot/link/camera diagnostics (`SystemUptimeSec`, `BootId`, `NetCarrierChanges`, `UsbCameras`, ...) and the throughput-headroom values below.
+- Values should update about twice a second (`ORANGEPI_METRICS_INTERVAL_SEC` changes that; disk usage is read every 10 s) and look sane (e.g. `Temp_C` matches what `cat /sys/class/thermal/thermal_zone0/temp` shows on the Pi, divided by 1000).
+
+### Throughput-headroom values
+
+Added for the vision throughput tests (`notes/10-27/notes.md`): can the Pi take a lower decimate or a
+higher resolution without running out of CPU or throttling? All read from `/proc` and `/sys` with no
+subprocesses; the robot copies them into the match log (`RealOutputs/OrangePi/...`) when
+`FeatureSwitches.COPROCESSOR_HEALTH_LOGGING` is on. Arrays keep the topic count (and so the robot's
+mirroring cost) low.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `CPU_Pct` | double | All cores averaged over the last interval. One maxed-out core shows as only ~12%. |
+| `CpuCorePct` | double[] | Each core's use (core 0 first). On the RK3588S cores 0-3 are the slower A55s, 4-7 the faster A76s. |
+| `CpuCoreMaxPct` | double | The busiest core. Near 100 while `CPU_Pct` is low = one thread is the limit. |
+| `CpuFreqCpus` | string[] | Each CPU cluster (cores sharing one clock), e.g. `0-3`, `4-5`, `6-7`. The arrays below line up with it. |
+| `CpuFreqMHz` | double[] | Current clock. It also drops when idle; that's normal power saving, not throttling. |
+| `CpuFreqMaxMHz` | double[] | The cluster's hardware maximum. |
+| `CpuFreqCapMHz` | double[] | The current upper limit. Below `CpuFreqMaxMHz` = the kernel is throttling that cluster. |
+| `CpuThrottled` | boolean | Any cluster capped below its maximum. |
+| `ThermalZones` | string[] | Every temperature sensor the kernel exposes, by name (its `type`). On an RK3588 typically `soc-thermal` (whole chip), `bigcore0-thermal` / `bigcore1-thermal` (each pair of A76 cores), `littlecore-thermal` (the A55s), `center-thermal`, `gpu-thermal`, `npu-thermal`. Check the real list on each board. |
+| `ThermalTempC` | double[] | Each zone's temperature, in `ThermalZones` order. |
+| `ThermalPassiveTripC` | double[] | Where each zone starts throttling (its lowest "passive" trip); -1 = none. |
+| `ThermalCriticalTripC` | double[] | Where each zone forces a shutdown; -1 = none. |
+| `TempMaxC` / `TempMaxZone` | double / string | The hottest zone right now, and which one. `Temp_C` is only the first zone. |
+| `PvPid` | integer | PhotonVision's process id (-1 = not found; it is looked for every 5 s). A change = PhotonVision restarted. |
+| `PvCpuPct` | double | All PhotonVision threads together, in cores' worth: 150 = one and a half cores busy. |
+| `PvThreadCount` | integer | How many threads PhotonVision has. |
+| `PvTopThreads` | string[] | The 8 busiest PhotonVision threads as `name/tid`, busiest first. |
+| `PvTopThreadPct` | double[] | Each one's use, as % of one core. |
+| `PvTopThreadCore` | integer[] | The core each last ran on (0-3 = A55, 4-7 = A76 on the RK3588S). |
+| `PublisherCpuPct` | double | This publisher's own CPU use, as % of one core. Expected well under 1%. |
+
+To see the same thing by hand on a Pi: `top -H -p $(pgrep -f photonvision)` (per thread),
+`mpstat -P ALL 1` (per core, from the `sysstat` package), and
+`grep . /sys/class/thermal/thermal_zone*/type /sys/class/thermal/thermal_zone*/temp`.
 
 ## 6. Clean up internet access
 

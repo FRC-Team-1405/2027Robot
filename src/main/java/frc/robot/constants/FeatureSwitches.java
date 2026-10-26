@@ -73,8 +73,10 @@ public class FeatureSwitches {
     public static final boolean POWER_TELEMETRY_10_HZ = false;
     /** OFF removes request-map/string decoding at motor.setControl call sites. Requests still run. */
     public static final boolean POWER_REQUEST_DETAILS = false;
-    /** OFF removes OrangePi -> AKit mirroring; Pi NT publishers and live health still run. */
-    public static final boolean COPROCESSOR_HEALTH_LOGGING = false;
+    /** OFF removes OrangePi -> AKit mirroring; Pi NT publishers and live health still run.
+     *  ON because the 2026-10-24 camera dropout couldn't be diagnosed without it: the Pis'
+     *  UsbCameras / NetCarrierChanges / recorder heartbeat were published but never logged. */
+    public static final boolean COPROCESSOR_HEALTH_LOGGING = true;
     /** Use a flat topic discovery every 5 s and mirror at most 8 entries per robot loop.
      *  Avoids recursive 0.5 s bursts; a full sweep takes ceil(topic count / 8) loops. */
     public static final boolean BATCH_COPROCESSOR_HEALTH_LOGGING = true;
@@ -121,6 +123,14 @@ public class FeatureSwitches {
     /** P1: Reject vision estimates whose 3D pose falls outside field boundaries.
      *  OFF = 2026 behavior (no boundary check). ON = reject out-of-bounds poses. */
     public static final boolean VISION_FIELD_BOUNDARY_REJECTION = true;
+
+    /** Reject vision estimates whose capture timestamp is ahead of the robot clock (beyond
+     *  Filtering.MAX_FUTURE_TIMESTAMP_SEC). Right after a coprocessor reconnects, PhotonVision
+     *  can publish results before its time sync recovers; on 2026-10-24 those were ~234 s in the
+     *  future, were fused into odometry, and then poisoned the velocity filter so every later
+     *  RightCam result was rejected. A bug fix rather than an A/B candidate, so ON by default.
+     *  OFF = previous behavior (no timestamp check). */
+    public static final boolean VISION_FUTURE_TIMESTAMP_REJECTION = true;
 
     /** P1: Use a smooth LerpTable for theta stddev instead of the binary weight>0.9 threshold.
      *  OFF = 2026 behavior (binary: >0.9 -> 10.0 rad, else 99999.0). ON = smooth curve. */

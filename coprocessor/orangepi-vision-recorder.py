@@ -58,6 +58,7 @@ and docs/orangepi-vision-recorder-setup.md).
 
 import json
 import collections
+import hashlib
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -70,8 +71,29 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 TEAM_NUMBER = 1405
-RECORDER_VERSION = "2026.10.18.1"
+RECORDER_VERSION = "2026.10.25.1"
 MAX_WALL_CLOCK_AGE_SEC = 5.0
+
+
+def script_blob_id(path=__file__):
+    """Git blob id of this script's contents: what `git hash-object` prints for it.
+
+    RECORDER_VERSION is bumped by hand and has gone unbumped across several commits, so on its own
+    it can't say which code a Pi runs. The blob id is exact and needs nothing from the deploy step;
+    `git log --all --find-object=<id> -- coprocessor/orangepi-vision-recorder.py` names the commit.
+    CRLF is normalised to LF first, matching what git stores, so a Windows checkout copied to the
+    Pi gives the same id. Returns "unknown" if the file can't be read."""
+    try:
+        with open(path, "rb") as f:
+            data = f.read().replace(b"\r\n", b"\n")
+    except OSError:
+        return "unknown"
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+SCRIPT_BLOB = script_blob_id()
+# What gets logged and published as Version: the hand-set version plus the exact code identity.
+RECORDER_BUILD = f"{RECORDER_VERSION}+{SCRIPT_BLOB[:12]}"
 
 
 def _env_number(name, default, cast, minimum_exclusive=0):
@@ -117,6 +139,18 @@ MAX_STORAGE_BYTES = _env_number("MAX_STORAGE_BYTES", 5 * 1024 * 1024 * 1024, int
 
 # Frames older than this (arrival to write) are skipped rather than recorded: it means the stream stalled.
 MAX_FRAME_AGE_SEC = 2.0
+
+# fsync every frame, manifest row and recorder.log line as it is written. The robot is usually
+# powered off seconds after a match, before the kernel writes its cache back: on 2026-10-24 the
+# RightPi lost its last ~20 s of recorder.log (zero-filled), the "session ended" line and 30 frames
+# (0-byte files). At 3 Hz the cost is small. FSYNC_WRITES=0 turns it off (e.g. for fast local tests).
+FSYNC_WRITES = os.environ.get("FSYNC_WRITES", "1").strip() != "0"
+
+# PhotonVision keeps serving its raw stream when the USB camera disappears, but every frame is the
+# same static "Camera Lost" card, so the stream still looks fresh and healthy. A real sensor never
+# produces two byte-identical JPEGs, so this many identical sampled frames in a row means the camera
+# is gone (or PhotonVision is frozen on one frame). 3 samples is about 1 s at the default 3 Hz.
+CAMERA_LOST_REPEATS = 3
 # A robot that loses comms is disabled by the field, but a mere NT dropout (Pi's link, roboRIO code
 # restart) reads as control word 0 == "disabled". Hold the current session through a dropout this
 # long instead of ending it, so one continuous enabled period stays one session. 45 s because
@@ -155,6 +189,117 @@ JPEG_SOI = b"\xff\xd8"
 JPEG_EOI = b"\xff\xd9"
 
 
+def sync_file(f):
+    """Flush and fsync an open file so it survives a power cut. Never raises: losing durability is
+    better than losing the recording."""
+    try:
+        f.flush()
+        if FSYNC_WRITES:
+            os.fsync(f.fileno())
+    except (OSError, ValueError):
+        pass
+
+
+def sync_dir(path):
+    """fsync a directory so a newly created entry in it survives a power cut (POSIX only; a no-op
+    where directories can't be opened, e.g. Windows)."""
+    if not FSYNC_WRITES:
+        return
+    try:
+        fd = os.open(path, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
+
+
+class SyncedRotatingFileHandler(RotatingFileHandler):
+    """recorder.log handler that fsyncs each line. Lines are infrequent (a status line every 10 s
+    plus events), and the last ones before a power-off are the ones a diagnosis needs most."""
+
+    def emit(self, record):
+        super().emit(record)
+        if self.stream is not None:
+            sync_file(self.stream)
+
+
+def jpeg_size(frame):
+    """(width, height) from a JPEG's start-of-frame marker, or None if it can't be found."""
+    i = 2
+    n = len(frame)
+    while i + 4 <= n:
+        if frame[i] != 0xFF:
+            return None
+        marker = frame[i + 1]
+        if marker == 0xFF:  # fill byte
+            i += 1
+            continue
+        length = int.from_bytes(frame[i + 2:i + 4], "big")
+        if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+            if i + 9 > n:
+                return None
+            return int.from_bytes(frame[i + 7:i + 9], "big"), int.from_bytes(frame[i + 5:i + 7], "big")
+        i += 2 + length
+    return None
+
+
+class CameraLostDetector:
+    """Notices PhotonVision's "Camera Lost" card (or any frozen stream) in the sampled frames.
+
+    Why: on 2026-10-24 LeftCam's USB camera dropped mid-teleop and the recorder wrote 93 s of the
+    105x60 "Camera Lost" card while reporting 0 stale frames and 0 errors. The stream was fresh;
+    only its content said the camera was gone. Feed it each newly sampled frame; it logs when the
+    camera is lost and when it comes back, logs frame-size changes (the card is a different size),
+    and counts losses and lost time for the heartbeat and the session summary. Times are in the
+    NT-server clock (t_sec), the same domain as the robot log."""
+
+    def __init__(self, repeats=CAMERA_LOST_REPEATS):
+        self._repeats_needed = max(2, int(repeats))
+        self._last_digest = None
+        self._same = 1
+        self._lost_since = None
+        self.lost = False
+        self.lost_count = 0
+        self.lost_sec = 0.0
+        self.size = None
+
+    def observe(self, frame, t_sec, log=None):
+        size = jpeg_size(frame)
+        if size is not None and size != self.size:
+            if self.size is not None and log is not None:
+                log.info("Camera stream frame size changed %dx%d -> %dx%d at nt_time=%.3f",
+                         *self.size, *size, t_sec)
+            self.size = size
+        digest = hashlib.blake2b(frame, digest_size=16).digest()
+        self._same = self._same + 1 if digest == self._last_digest else 1
+        self._last_digest = digest
+        if not self.lost and self._same >= self._repeats_needed:
+            self.lost = True
+            self.lost_count += 1
+            self._lost_since = t_sec
+            if log is not None:
+                size_note = "%dx%d" % self.size if self.size else "unknown size"
+                log.warning("Camera lost: %d identical frames in a row (%s, %d bytes) at nt_time=%.3f - "
+                            "PhotonVision shows a static 'Camera Lost' card when the USB camera disappears",
+                            self._same, size_note, len(frame), t_sec)
+        elif self.lost and self._same == 1:
+            outage = max(0.0, t_sec - self._lost_since)
+            self.lost_sec += outage
+            self.lost = False
+            self._lost_since = None
+            if log is not None:
+                log.info("Camera back after %.1fs at nt_time=%.3f", outage, t_sec)
+
+    def snapshot(self, t_sec):
+        """(times lost, total seconds lost), counting a loss still in progress."""
+        ongoing = max(0.0, t_sec - self._lost_since) if self.lost and self._lost_since is not None else 0.0
+        return self.lost_count, round(self.lost_sec + ongoing, 1)
+
+
 class RecorderDiagnostics(logging.Handler):
     """Keep startup context, then mirror diagnostics into the selected session.
 
@@ -179,7 +324,7 @@ class RecorderDiagnostics(logging.Handler):
             self.file_handler.handle(record)
 
     def start_session(self, session_dir):
-        handler = RotatingFileHandler(
+        handler = SyncedRotatingFileHandler(
             os.path.join(session_dir, "recorder.log"), maxBytes=1024 * 1024,
             backupCount=1, encoding="utf-8")
         handler.setFormatter(self.formatter)
@@ -435,6 +580,7 @@ def new_session_dir(base, boot_id, offset_sec):
     os.makedirs(base, exist_ok=True)
     session = os.path.join(base, f"boot{boot_id:04d}-{session_timestamp_str(offset_sec)}")
     os.makedirs(session, exist_ok=True)
+    sync_dir(base)
     return session
 
 
@@ -520,14 +666,20 @@ class RecorderHeartbeat:
       NtDownSec        double   total seconds it was disconnected
       NtLongestOutageSec double longest single outage; with UptimeSec still counting up, a link flap
                                 (not a reboot or a crash) is what happened
+      CameraLost       boolean  the stream is repeating one identical frame: PhotonVision's 'Camera Lost'
+                                card (USB camera gone) or a frozen stream. StreamOk stays true then.
+      CameraLostCount  integer  times the camera was lost since this process started
+      CameraLostSec    double   total seconds lost, counting a loss in progress
+      FrameSize        string   'WxH' of the newest sampled frame ('' until one arrives)
       UptimeSec        double   seconds since this process started
       HeartbeatSec     double   increments every publish; also lets a consumer see a frozen loop
-      Version, BootId, SampleHz   static identity
+      Version, ScriptBlob, BootId, SampleHz   static identity. Version is RECORDER_VERSION plus the
+                                start of ScriptBlob, the script's git blob id (see script_blob_id())
     """
 
     def __init__(self, table, version, boot_id, sample_hz, recordings_dir, recordings_base,
                  clock=time.monotonic, disk_usage=shutil.disk_usage, dir_bytes=directory_bytes,
-                 interval=HEARTBEAT_INTERVAL_SEC):
+                 interval=HEARTBEAT_INTERVAL_SEC, script_blob=""):
         self._clock = clock
         self._disk_usage = disk_usage
         self._dir_bytes = dir_bytes
@@ -553,11 +705,14 @@ class RecorderHeartbeat:
                 ("Sessions", "Integer"), ("TotalFrames", "Integer"), ("Errors", "Integer"),
                 ("LastError", "String"), ("DiskFreeGB", "Double"), ("RecordingsUsedGB", "Double"),
                 ("ClockSynced", "Boolean"), ("NtDisconnects", "Integer"), ("NtDownSec", "Double"),
-                ("NtLongestOutageSec", "Double"), ("UptimeSec", "Double"), ("HeartbeatSec", "Double"),
-                ("Version", "String"), ("BootId", "Integer"), ("SampleHz", "Double"),
+                ("NtLongestOutageSec", "Double"), ("CameraLost", "Boolean"), ("CameraLostCount", "Integer"),
+                ("CameraLostSec", "Double"), ("FrameSize", "String"),
+                ("UptimeSec", "Double"), ("HeartbeatSec", "Double"),
+                ("Version", "String"), ("ScriptBlob", "String"), ("BootId", "Integer"), ("SampleHz", "Double"),
             ):
                 self._pubs[name] = getattr(table, f"get{kind}Topic")(name).publish()
             self._pubs["Version"].set(version)
+            self._pubs["ScriptBlob"].set(script_blob)
             self._pubs["BootId"].set(int(boot_id))
             self._pubs["SampleHz"].set(float(sample_hz))
             self._pubs["State"].set("starting")
@@ -587,7 +742,8 @@ class RecorderHeartbeat:
 
     def update(self, *, recording, stream_age_sec, stream_seq, session_frames, sessions, total_frames,
                errors, last_error, last_error_age_sec, clock_synced, nt_disconnects=0, nt_down_sec=0.0,
-               nt_longest_outage_sec=0.0, log=None):
+               nt_longest_outage_sec=0.0, camera_lost=False, camera_lost_count=0, camera_lost_sec=0.0,
+               frame_size=None, log=None):
         """Call every loop; publishes at most once per interval. Returns True if it published."""
         now = self._clock()
         if self._failed:
@@ -620,6 +776,9 @@ class RecorderHeartbeat:
             "DiskFreeGB": self._disk_free_gb, "RecordingsUsedGB": self._used_gb,
             "ClockSynced": bool(clock_synced), "NtDisconnects": int(nt_disconnects),
             "NtDownSec": float(nt_down_sec), "NtLongestOutageSec": float(nt_longest_outage_sec),
+            "CameraLost": bool(camera_lost), "CameraLostCount": int(camera_lost_count),
+            "CameraLostSec": float(camera_lost_sec),
+            "FrameSize": "%dx%d" % frame_size if frame_size else "",
             "UptimeSec": round(now - self._started, 1),
             "HeartbeatSec": float(self._beats),
         }
@@ -638,10 +797,12 @@ def _session_summary(stats):
     """One-line summary of a finished session: frames written, how old each was when written
     (arrival to write, so roughly the sampling jitter), and any frames skipped."""
     ages = sorted(stats["age_ms"])
+    lost = stats.get("camera_lost")
+    lost_note = f"; camera lost {lost[0]} time(s), {lost[1]:.1f}s" if lost else ""
     if not ages:
-        return "no frames written"
+        return "no frames written" + lost_note
     return (f"{len(ages)} frames written, age at write ms median/max {ages[len(ages) // 2]:.0f}/{ages[-1]:.0f}, "
-            f"skipped {stats['stale']} stale + {stats['nonew']} with no new frame")
+            f"skipped {stats['stale']} stale + {stats['nonew']} with no new frame{lost_note}")
 
 
 def main():
@@ -660,14 +821,14 @@ def main():
     robot_time_entry = inst.getTable(ROBOT_TIME_TABLE).getIntegerTopic(ROBOT_TIME_TOPIC).getEntry(0)
 
     boot_id = next_boot_id(RECORDINGS_BASE)
-    heartbeat = RecorderHeartbeat(inst.getTable(heartbeat_path()), RECORDER_VERSION, boot_id, SAMPLE_HZ,
-                                  RECORDINGS_DIR, RECORDINGS_BASE)
+    heartbeat = RecorderHeartbeat(inst.getTable(heartbeat_path()), RECORDER_BUILD, boot_id, SAMPLE_HZ,
+                                  RECORDINGS_DIR, RECORDINGS_BASE, script_blob=SCRIPT_BLOB)
 
     diagnostics = RecorderDiagnostics()
     log = diagnostics.log
     cam_note = f" [camera {CAMERA_NAME}]" if CAMERA_NAME else ""
     target = server_desc or f"roboRIO (team {TEAM_NUMBER})"
-    context = (f"version={RECORDER_VERSION} board={BOARD_NAME} camera={CAMERA_NAME or 'default'} "
+    context = (f"version={RECORDER_BUILD} board={BOARD_NAME} camera={CAMERA_NAME or 'default'} "
                f"boot={boot_id} team={TEAM_NUMBER} stream={CAMERA_STREAM_URL} sample_hz={SAMPLE_HZ}")
     log.info("Recorder started: %s", context)
     log.info("Connecting to %s%s [boot %s, local clock reads %s]", target, cam_note, boot_id,
@@ -696,11 +857,14 @@ def main():
     total_errors = 0
     last_error = ""
     last_error_at = None
+    camera = CameraLostDetector()
+    observed_seq = 0
+    camera_lost_at_start = (0, 0.0)
 
     try:
         while True:
             loop_start = time.monotonic()
-            newest = None  # the newest camera frame, if the capture step below fetched it
+            newest = None  # the newest camera frame, fetched at the top of every loop
             nt_outages.observe(inst.isConnected(), loop_start)
             try:
                 if inst.isConnected():
@@ -752,10 +916,16 @@ def main():
                     sync_note = f"synced to roboRIO, offset {offset_sec:+.1f}s" if offset_sec is not None \
                         else "NOT synced to roboRIO — using Pi's own possibly-stale clock"
                     stats = {"age_ms": [], "stale": 0, "nonew": 0}
+                    camera_lost_at_start = camera.snapshot(server_time_sec(inst))
                     log.info("Enabled — starting session %s (%s); %s", session_dir, sync_note, context)
                 elif not enabled and was_enabled:
                     if manifest:
+                        sync_file(manifest)
                         manifest.close()
+                    lost_count, lost_sec = camera.snapshot(server_time_sec(inst))
+                    if lost_count > camera_lost_at_start[0] or camera.lost:
+                        stats["camera_lost"] = (lost_count - camera_lost_at_start[0],
+                                                lost_sec - camera_lost_at_start[1])
                     manifest = None
                     nt_note = "NT connected" if inst.isConnected() else "NT NOT connected"
                     log.info("Disabled — session ended (%s): frames=%d errors=%d; %s",
@@ -763,8 +933,16 @@ def main():
 
                 was_enabled = enabled
 
+                # Check every new frame for the "Camera Lost" card, enabled or not, so a camera that
+                # fell off in the pits shows up before the match too. After the enable/disable
+                # handling above, so a problem here can't delay starting or ending a session.
+                newest = frame_source.latest()
+                if newest is not None and newest[2] != observed_seq:
+                    observed_seq = newest[2]
+                    camera.observe(newest[0], newest[1], log)
+
                 if enabled and session_dir:
-                    latest = newest = frame_source.latest()
+                    latest = newest
                     if latest is None or latest[2] == last_seq:
                         stats["nonew"] += 1
                     else:
@@ -775,10 +953,12 @@ def main():
                         else:
                             filename = f"frame_{t_sec:.6f}.jpg"
                             row = frame_manifest_row(filename, t_sec, inst, robot_time_entry)
+                            row["camera_lost"] = camera.lost
                             with open(os.path.join(session_dir, filename), "wb") as f:
                                 f.write(frame)
+                                sync_file(f)
                             manifest.write(json.dumps(row) + "\n")
-                            manifest.flush()
+                            sync_file(manifest)
                             frames += 1
                             total_frames += 1
                             stats["age_ms"].append(age_sec * 1000.0)
@@ -803,6 +983,10 @@ def main():
                         clock_synced=inst.getServerTimeOffset() is not None and bool(robot_time_entry.get(0)),
                         **dict(zip(("nt_disconnects", "nt_down_sec", "nt_longest_outage_sec"),
                                    nt_outages.snapshot(time.monotonic()))),
+                        camera_lost=camera.lost,
+                        **dict(zip(("camera_lost_count", "camera_lost_sec"),
+                                   camera.snapshot(server_time_sec(inst)))),
+                        frame_size=camera.size,
                         log=log)
             except Exception:
                 log.exception("Heartbeat update failed")
@@ -812,6 +996,7 @@ def main():
     finally:
         log.info("Recorder stopping: frames=%d errors=%d", frames, errors)
         if manifest:
+            sync_file(manifest)
             manifest.close()
         frame_source.close()
         diagnostics.close()

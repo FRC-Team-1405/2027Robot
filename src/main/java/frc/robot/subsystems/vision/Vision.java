@@ -34,6 +34,8 @@ public class Vision extends SubsystemBase {
     // the rest of the filter logic.
     private final Pose2d[] lastAcceptedPose;
     private final double[] lastAcceptedTimestamp;
+    // Last PhotonVision sequence id seen per camera (-1 = none yet), for MissedResults.
+    private final long[] lastSequenceId;
 
     // Rolling window of accepted poses per camera, used to compute a pose
     // stability metric — mirrors PhotonVision's dashboard "multi-tag pose
@@ -87,6 +89,8 @@ public class Vision extends SubsystemBase {
         this.inputs = new VisionIOInputsAutoLogged[ios.length];
         this.lastAcceptedPose = new Pose2d[ios.length];
         this.lastAcceptedTimestamp = new double[ios.length];
+        this.lastSequenceId = new long[ios.length];
+        Arrays.fill(lastSequenceId, -1L);
         this.recentAcceptedPoses = new ArrayList<>(ios.length);
         this.recentAcceptedPosesTimed = new ArrayList<>(ios.length);
         this.recentHealthAreas = new ArrayList<>(ios.length);
@@ -241,12 +245,14 @@ public class Vision extends SubsystemBase {
             int rejBoundary = 0;
             int rejVelocity = 0;
             int rejAmbiguity = 0;
+            int rejTimestamp = 0;
             int tagIdOffset = 0;
             ArrayList<Pose2d> acceptedPoses = new ArrayList<>();
             ArrayList<Double> acceptedTimestamps = new ArrayList<>();
             ArrayList<Pose2d> rejectedBoundaryPoses = new ArrayList<>();
             ArrayList<Pose2d> rejectedVelocityPoses = new ArrayList<>();
             ArrayList<Pose2d> rejectedAmbiguityPoses = new ArrayList<>();
+            ArrayList<Pose2d> rejectedTimestampPoses = new ArrayList<>();
             double healthNow = Timer.getFPGATimestamp();
 
             Deque<TimestampedScalar> healthAreas = recentHealthAreas.get(i);
@@ -271,6 +277,16 @@ public class Vision extends SubsystemBase {
                 int[] resultTagIds = Arrays.copyOfRange(
                         inputs[i].rawTagIdsFlat, tagIdOffset, tagIdOffset + tagCount);
                 tagIdOffset += tagCount;
+
+                // Future-timestamp rejection — must run before anything uses ts, and before
+                // lastAcceptedTimestamp can take a bad value (a future ts there makes dt negative
+                // for every later result, so the velocity filter rejects them all).
+                if (FeatureSwitches.VISION_FUTURE_TIMESTAMP_REJECTION
+                        && ts > healthNow + Filtering.MAX_FUTURE_TIMESTAMP_SEC) {
+                    rejTimestamp++;
+                    rejectedTimestampPoses.add(pose3d.toPose2d());
+                    continue;
+                }
 
                 // P3: Ambiguity filter — skip single-tag estimates the PnP solver can't
                 // distinguish. Multi-tag results report ambiguity = -1 and always pass.
@@ -346,6 +362,9 @@ public class Vision extends SubsystemBase {
             Logger.recordOutput("Vision/" + name + "/RejectedBoundary", rejBoundary);
             Logger.recordOutput("Vision/" + name + "/RejectedVelocity", rejVelocity);
             Logger.recordOutput("Vision/" + name + "/RejectedAmbiguity", rejAmbiguity);
+            Logger.recordOutput("Vision/" + name + "/RejectedTimestamp", rejTimestamp);
+            Logger.recordOutput("Vision/" + name + "/RejectedTimestampPoses",
+                    rejectedTimestampPoses.toArray(new Pose2d[0]));
             Logger.recordOutput("Vision/" + name + "/RejectedBoundaryPoses",
                     rejectedBoundaryPoses.toArray(new Pose2d[0]));
             Logger.recordOutput("Vision/" + name + "/RejectedVelocityPoses",
@@ -398,6 +417,18 @@ public class Vision extends SubsystemBase {
                        - inputs[i].rawTimestampsSec[inputs[i].rawTimestampsSec.length - 1]) * 1000.0
                     : 0.0;
             Logger.recordOutput("Vision/" + name + "/LatencyMsLatest", latencyMs);
+
+            // Coprocessor-side view: PhotonVision's own processing time, and results it published that
+            // never reached us (gaps in its sequence id, carried across loops).
+            double pipelineLatencyMax = 0.0;
+            for (double ms : inputs[i].pipelineLatenciesMs) pipelineLatencyMax = Math.max(pipelineLatencyMax, ms);
+            Logger.recordOutput("Vision/" + name + "/PipelineLatencyMsMax", pipelineLatencyMax);
+            int missed = 0;
+            for (long seq : inputs[i].sequenceIds) {
+                if (lastSequenceId[i] >= 0 && seq > lastSequenceId[i] + 1) missed += (int) (seq - lastSequenceId[i] - 1);
+                lastSequenceId[i] = seq;
+            }
+            Logger.recordOutput("Vision/" + name + "/MissedResults", missed);
 
             // Live camera-health score (calibration tool Tab 5) — see VisionHealth.java. Raw
             // signals above stay available for diagnosis; the score uses time-windowed values.
