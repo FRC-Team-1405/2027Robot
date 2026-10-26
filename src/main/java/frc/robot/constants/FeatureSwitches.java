@@ -75,6 +75,15 @@ public class FeatureSwitches {
      *  SET: KEEP true. CHANGE WHEN: replay A/B testing the filter. */
     public static final boolean VISION_FIELD_BOUNDARY_REJECTION = true;
 
+    /** Reject vision estimates whose capture timestamp is ahead of the robot clock (beyond
+     *  Filtering.MAX_FUTURE_TIMESTAMP_SEC). Right after a coprocessor reconnects, PhotonVision can publish
+     *  results before its time sync recovers; on 2026-10-24 those were ~234 s in the future, were fused
+     *  into odometry, then stuck in the velocity filter so every later RightCam result was rejected.
+     *  true  = reject them. false = previous behavior (no timestamp check).
+     *  SET: KEEP true. A bug fix, not an A/B candidate.
+     *  CHANGE WHEN: never needed. */
+    public static final boolean VISION_FUTURE_TIMESTAMP_REJECTION = true;
+
     /** P1: Theta stddev from a smooth LerpTable instead of the binary weight>0.9 threshold.
      *  true  = smooth curve. false = 2026 behavior (binary: >0.9 -> 10.0 rad, else 99999.0).
      *  SET: KEEP true. CHANGE WHEN: replay A/B testing the filter. */
@@ -248,11 +257,12 @@ public class FeatureSwitches {
      *  Pi section on a match log (reboots, link flaps, camera drops). Pi publishers and the live Health
      *  Check work either way.
      *  true  = Pi health in match logs. false = live only.
-     *  SET: COMPETITION true once BATCH_COPROCESSOR_HEALTH_LOGGING's cost is measured (it's the evidence
-     *  for "why did vision drop in Q12"); false until then. TESTING false unless diagnosing a Pi.
-     *  CHANGE WHEN: diagnosing a Pi/camera dropout after the fact.
-     *  MEASURED: CoprocessorHealthLoggerMs ~1.4 ms per loop with batching off. */
-    public static final boolean COPROCESSOR_HEALTH_LOGGING = false;
+     *  SET: true. The 2026-10-24 camera dropout couldn't be diagnosed without it (the Pis' UsbCameras,
+     *  NetCarrierChanges and recorder heartbeat were published but never logged), and the 10-27
+     *  throughput tests need the Pi CPU/clock/thermal data. Those runs also measure its batched cost.
+     *  CHANGE WHEN: CoprocessorHealthLoggerMs (batched) turns out too costly for competition.
+     *  MEASURED: CoprocessorHealthLoggerMs ~1.4 ms per loop with batching off; batched not yet. */
+    public static final boolean COPROCESSOR_HEALTH_LOGGING = true;
 
     /** Phoenix .hoot signal logging (automatic and explicit). The AKit .wpilog is unaffected.
      *  true  = .hoot logs for Tuner X / CTRE analysis. false = no .hoot.

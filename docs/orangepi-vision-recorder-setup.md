@@ -87,12 +87,30 @@ recorder, and after setting up a new Pi (`coprocessor/Bootstrap-OrangePi.ps1` do
   shorter than `NT_DROP_GRACE_SEC` (default 45 s; field logs show ~21 s dropouts repeating through teleop) and ignores a stale "disabled" for 2 s after a
   reconnect, so one continuous enabled period stays one session. A dropout longer than the grace
   period ends the session. During a hold, `t_sec` keeps using the last known server clock offset.
+- **Camera Lost detection.** When the USB camera disappears, PhotonVision keeps serving its raw
+  stream but every frame is the same static "Camera Lost" card, so the stream still looks fresh
+  (`StreamOk` stays true). The recorder treats `CAMERA_LOST_REPEATS` (3) byte-identical sampled
+  frames in a row as a lost camera (a real sensor never produces two identical JPEGs), logs
+  `Camera lost` / `Camera back after N s` and frame-size changes to `recorder.log`, flags each
+  manifest row with `camera_lost`, adds the count and lost time to the "session ended" line, and
+  publishes `CameraLost`, `CameraLostCount`, `CameraLostSec` and `FrameSize` in the heartbeat. Added
+  after the 2026-10-24 practice log, where LeftCam recorded 93 s of the card as healthy frames.
+- **Writes survive a power cut.** Every frame, manifest row and `recorder.log` line is fsynced as it
+  is written (`FSYNC_WRITES=0` turns this off). The robot is usually powered off seconds after a
+  match; before this, a Pi could lose the last ~20 s of its log (zero-filled), the "session ended"
+  line and its last frames (0-byte files).
+- **Version.** `Version` is `RECORDER_VERSION+<first 12 hex of the script's git blob id>`; the full id
+  is in the `ScriptBlob` topic and the log's startup line. The blob id is exactly what
+  `git hash-object` prints for the deployed file, so
+  `git log --all --find-object=<id> -- coprocessor/orangepi-vision-recorder.py` names the commit, even
+  when `RECORDER_VERSION` wasn't bumped.
 - **Auto and teleop are separate sessions** (the pause is a disable), but nothing in a recording
   says which is which; infer it from order and time.
 - **Health heartbeat.** About once a second the recorder publishes its own status to NetworkTables under
   `/OrangePi/[<ORANGEPI_METRICS_NAME>/]Recorders/<camera>/`: `State` (`idle` = stream fine and waiting for the
   robot to enable, `recording`, `no_stream`, `error`), `StreamOk`, `StreamFps`, session and frame counters,
-  `Errors`/`LastError`, `DiskFreeGB`, `ClockSynced`, `Version`, and the recorder's own view of its NetworkTables
+  `Errors`/`LastError`, `DiskFreeGB`, `ClockSynced`, `Version`/`ScriptBlob`, `CameraLost`/`CameraLostCount`/
+  `CameraLostSec`/`FrameSize`, and the recorder's own view of its NetworkTables
   connection (`NtDisconnects`, `NtDownSec`, `NtLongestOutageSec`), so after a reconnect the Pi can show it never
   rebooted and the link dropped N times. It reports while the robot is disabled too, so the
   camera stream and disk can be checked in the pits. LogBench's **Health Check** page reads it

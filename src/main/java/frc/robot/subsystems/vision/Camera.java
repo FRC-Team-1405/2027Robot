@@ -86,6 +86,11 @@ public class Camera {
 
     private ArrayList<Integer> seenTags = new ArrayList<>();
     private ArrayList<RawVisionData> rawData = new ArrayList<>();
+    // Per result received (with or without targets) since the last flush: PhotonVision's own
+    // capture-to-publish time on the coprocessor, and its sequence id. Unlike LatencyMsLatest these
+    // exclude NT transport and the wait for the next robot loop, so they show coprocessor load.
+    private ArrayList<Double> pipelineLatenciesMs = new ArrayList<>();
+    private ArrayList<Long> sequenceIds = new ArrayList<>();
 
     private int fpsResultCount = 0;
     private double fpsWindowStart = 0.0;
@@ -183,6 +188,20 @@ public class Camera {
         return out;
     }
 
+    /** PhotonVision capture-to-publish latency (ms) of every result since the last call. */
+    public double[] flushPipelineLatenciesMs() {
+        double[] out = pipelineLatenciesMs.stream().mapToDouble(Double::doubleValue).toArray();
+        pipelineLatenciesMs.clear();
+        return out;
+    }
+
+    /** PhotonVision sequence id of every result since the last call; a gap means results were missed. */
+    public long[] flushSequenceIds() {
+        long[] out = sequenceIds.stream().mapToLong(Long::longValue).toArray();
+        sequenceIds.clear();
+        return out;
+    }
+
     public int[] getSeenTagIds() {
         return seenTags.stream().mapToInt(Integer::intValue).toArray();
     }
@@ -211,6 +230,10 @@ public class Camera {
             seenTags.clear();
             final var results = camera.getAllUnreadResults();
             for (var result : results) {
+                if (result.metadata != null) {
+                    pipelineLatenciesMs.add(result.metadata.getLatencyMillis());
+                    sequenceIds.add(result.metadata.getSequenceID());
+                }
                 if (result.hasTargets()) {
                     result = pruneTags(result);
                     Optional<EstimatedRobotPose> estRoboPose = poseEstimator.update(

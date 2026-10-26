@@ -40,6 +40,8 @@ public class VisionIOPhotonVision implements VisionIO {
         inputs.connected = camera.isConnected();
         inputs.currentFps = camera.getCurrentFps();
         inputs.visibleTagIds = camera.getSeenTagIds();
+        inputs.pipelineLatenciesMs = camera.flushPipelineLatenciesMs();
+        inputs.sequenceIds = camera.flushSequenceIds();
 
         List<Camera.RawVisionData> raw = camera.flushRawData();
         int n = raw.size();

@@ -96,6 +96,11 @@ public class VisionConstants {
                 // call sites derive from one number instead of two copies of "0.2" drifting apart.
                 public static final double AMBIGUITY_REJECT_AT = 0.2;
 
+                // A capture timestamp can't legitimately be later than "now"; this only allows for
+                // time-sync jitter. Anything further ahead means PhotonVision's time sync is broken
+                // (see FeatureSwitches.VISION_FUTURE_TIMESTAMP_REJECTION).
+                public static final double MAX_FUTURE_TIMESTAMP_SEC = 0.1;
+
                 /**
                  * P2: Distance-based XY stddev - a more principled alternative to area-proxy weighting.
                  * Maps estimated distance from camera to tag (meters) -> XY stddev multiplier.

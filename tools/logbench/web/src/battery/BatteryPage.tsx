@@ -4,7 +4,7 @@ import type { Spec, WireSpec } from '../player/types';
 import { PlayerProvider, usePlayer, useThrottledTime } from '../player/PlayerContext';
 import { TransportBar } from '../controls/TransportBar';
 import { TimeSeriesPanel } from '../panels/TimeSeriesPanel';
-import { LogRootButton } from '../loader/LogRootButton';
+import { useLogSelection } from '../logpicker/LogSelection';
 import { OrderNotice, type OrderInfo } from '../loader/OrderNotice';
 import './battery.css';
 
@@ -62,39 +62,22 @@ export function observedDelta(a: number | null | undefined, b: number | null | u
 }
 
 export function BatteryPage() {
-  const [logs, setLogs] = useState<{ path: string; name: string }[]>([]);
-  const [root, setRoot] = useState<string | null>(null);
-  // Bumped when the log folder changes, to reload the list and remount the slots so they
-  // drop selections that belonged to the old folder.
-  const [generation, setGeneration] = useState(0);
-  const [error, setError] = useState('');
+  // The first window is the open log (chosen in the log bar); a second window can be any log. Changing
+  // the open log or the folder remounts the slots so ranges and selections from the old one are dropped.
+  const { logs, selected, error: listError, folderVersion } = useLogSelection();
   const [compare, setCompare] = useState(false);
   const [a, setA] = useState<BatteryReport | null>(null);
   const [b, setB] = useState<BatteryReport | null>(null);
   const comparisonQuery = a && b ? new URLSearchParams({ log: a.source_log, log_b: b.source_log,
     window: a.window.join(','), window_b: b.window.join(','),
     low_voltage: String(a.low_voltage_warning), low_voltage_b: String(b.low_voltage_warning) }) : null;
-  useEffect(() => {
-    const abort = new AbortController();
-    fetch('/api/logs', { signal: abort.signal }).then(async r => {
-      if (!r.ok) throw new Error(await r.text());
-      const body = await r.json();
-      setLogs(body.logs); setRoot(body.root); setError('');
-    }).catch(e => { if (!abort.signal.aborted) setError(String(e)); });
-    return () => abort.abort();
-  }, [generation]);
-  const changeRoot = () => {
-    // The slots seed their log from ?log=, which named a log in the old folder.
-    const url = new URL(window.location.href); url.searchParams.delete('log'); window.history.replaceState(null, '', url);
-    setA(null); setB(null); setGeneration(g => g + 1);
-  };
   return <main className="battery-page">
     <header><p className="battery-eyebrow">MATCH DIAGNOSTICS</p><h1>Battery Insights</h1>
       <p>Find voltage dips, inspect motor demand, and see evidence of current limiting.</p></header>
     <div className="battery-note">Requested output, measured current, and reported limiting are different evidence.
       Unrestricted amperage and “amps saved” are unknown without a validated model.</div>
-    <LogRootButton root={root} onChanged={changeRoot} />
-    {error && <p role="alert">{error}</p>}
+    {listError && <p role="alert">{listError}</p>}
+    {!selected && <p role="status">No log open. Choose one in the Log menu above to analyze its power telemetry.</p>}
     <label><input type="checkbox" checked={compare} onChange={e => setCompare(e.target.checked)} /> Compare a second window</label>
     {compare && a && b && <section className="battery-card"><h2>Observed change: B − A</h2>
       <p>Different driving, battery condition, state, and policy can affect these deltas. These are not causal savings.</p>
@@ -119,15 +102,18 @@ export function BatteryPage() {
             <td>{formatValue(ma?.tracking_error.average)} / {formatValue(mb?.tracking_error.average)}</td></tr>;
         })}
       </tbody></table></section>}
-    <AnalysisSlot key={`a${generation}`} label={compare ? 'Window A' : 'Match'} logs={logs} onReport={setA} />
-    {compare && <AnalysisSlot key={`b${generation}`} label="Window B" logs={logs} onReport={setB} />}
+    <AnalysisSlot key={`a${folderVersion}-${selected}`} label={compare ? 'Window A' : 'Match'} logs={logs} fixedLog={selected} onReport={setA} />
+    {compare && <AnalysisSlot key={`b${folderVersion}-${selected}`} label="Window B" logs={logs} initialLog={selected ?? ''} onReport={setB} />}
   </main>;
 }
 
-function AnalysisSlot({ label, logs, onReport }: {
+function AnalysisSlot({ label, logs, onReport, fixedLog, initialLog = '' }: {
   label: string; logs: { path: string; name: string }[]; onReport: (r: BatteryReport | null) => void;
+  /** Set when the slot analyzes the open log, so there is nothing to pick here. */
+  fixedLog?: string | null; initialLog?: string;
 }) {
-  const [log, setLog] = useState(new URLSearchParams(window.location.search).get('log') ?? '');
+  const [ownLog, setLog] = useState(initialLog);
+  const log = fixedLog !== undefined ? (fixedLog ?? '') : ownLog;
   const [range, setRange] = useState('');
   const [lo, setLo] = useState('0');
   const [hi, setHi] = useState('');
@@ -150,9 +136,10 @@ function AnalysisSlot({ label, logs, onReport }: {
   const spec = useMemo(() => report ? decodeSpec(report.spec) : null, [report]);
   return <section className="battery-slot"><h2>{label}</h2>
     <div className="battery-selectors">
-      <label>Log<select value={log} onChange={e => { setRange(''); setLog(e.target.value); }}>
-        <option value="">Choose a log…</option>{logs.map(l => <option key={l.path} value={l.path}>{l.path}</option>)}
-      </select></label>
+      {fixedLog !== undefined ? <span className="battery-log" title={log}>Log: <strong>{log || 'none open'}</strong></span>
+        : <label>Log<select value={log} onChange={e => { setRange(''); setLog(e.target.value); }}>
+          <option value="">Choose a log…</option>{logs.map(l => <option key={l.path} value={l.path}>{l.path}</option>)}
+        </select></label>}
       <label>Warning voltage<input type="number" min="1" max="15" step="0.25" value={warning} onChange={e => setWarning(e.target.value)} /></label>
     </div>
     {report && <div className="battery-selectors"><label>Recorded interval<select value={range} onChange={e => setRange(e.target.value)}>

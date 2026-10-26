@@ -76,7 +76,7 @@ drop usually takes them all down together. Which kind of drop it was is what the
 | **The board rebooted** (power loss, crash) | **Rebooted during the match** goes red: `BootId` (the kernel's per-boot id) changed. Live, **Time since the board booted** is small. |
 | **A service restarted** (recorder or PhotonVision, board still up) | `BootId` unchanged and `SystemUptimeSec` still counting, but the recorder's **Recorder process uptime** is small. |
 | **The network link flapped** (cable, connector, switch/radio port or its power) | **Network link flaps while enabled** (`NetCarrierChanges` climbing) and each recorder's **NetworkTables drops / time disconnected while enabled** (counted by the Pi itself and published after the reconnect), with `BootId` unchanged. Live, **Network link** and **link speed** show the port's state. |
-| **One camera fell off USB** | **USB camera count changed** (`UsbCameras` dropped) while the link rows are clean and the other camera's recorder is fine; that recorder's `StreamOk` goes false. |
+| **One camera fell off USB** | **Camera lost while enabled** (the recorder's `CameraLostCount` climbed: PhotonVision was serving its static "Camera Lost" card) and **USB camera count changed** (`UsbCameras` dropped), while the link rows are clean. `StreamOk` stays **true**: PhotonVision keeps streaming the card, so only these rows show it. |
 
 Published by `orangepi-nt-publisher.py` (`SystemUptimeSec`, `BootId`, `NetIface`, `NetCarrierChanges`,
 `NetOperState`, `NetSpeedMbps`, `VideoDevices`, `UsbCameras`; set `ORANGEPI_NET_IFACE` to pick the interface if the
@@ -84,6 +84,15 @@ default route is not the one that reaches the robot) and by the recorder heartbe
 `NtLongestOutageSec`). The recorder samples its connection about three times a second, so each outage is good to
 about a third of a second. Only logs recorded after the robot code's `CoprocessorHealthLogger` mirror and these
 Pi changes have these rows; older logs show them as grey "no data".
+
+### Vision throughput headroom (CPU, clocks, temperature)
+
+**Busiest CPU core**, **CPU clock capped (thermal throttling)** and **Hottest thermal zone** read the
+publisher's `CpuCoreMaxPct`, `CpuThrottled` and `TempMaxC` (meanings in
+`docs/orangepi-nt-publisher-setup.md`). They exist because the older **CPU** and **Temperature** rows
+can't see the limit: the CPU row averages all 8 cores, so one saturated core shows as ~12%, and the
+temperature row reads only the first thermal zone. A capped clock is the direct sign of throttling,
+whatever any temperature reads.
 
 ### Where the data comes from
 
@@ -93,7 +102,8 @@ Pi changes have these rows; older logs show them as grey "no data".
   `orangepi-vision-recorder.py` publishes a heartbeat per camera under
   `/OrangePi/[<board>/]Recorders/<camera>/`: `State`, `Recording`, `StreamOk`, `StreamAgeSec`, `StreamFps`,
   `SessionFrames`, `Sessions`, `TotalFrames`, `Errors`, `LastError`, `DiskFreeGB`, `RecordingsUsedGB`,
-  `ClockSynced`, `UptimeSec`, `HeartbeatSec`, `Version`, `BootId`, `SampleHz`. It reports even while the robot is
+  `ClockSynced`, `NtDisconnects`, `NtDownSec`, `NtLongestOutageSec`, `CameraLost`, `CameraLostCount`,
+  `CameraLostSec`, `FrameSize`, `UptimeSec`, `HeartbeatSec`, `Version`, `ScriptBlob`, `BootId`, `SampleHz`. It reports even while the robot is
   disabled, so the camera stream and the disk can be checked in the pits.
 - **In a match log**, those Pi topics are only there if the robot code copies them in:
   `CoprocessorHealthLogger` mirrors `/OrangePi/**` into the AdvantageKit log (`RealOutputs/OrangePi/...`)

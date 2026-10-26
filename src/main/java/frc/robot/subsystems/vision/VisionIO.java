@@ -12,6 +12,13 @@ public interface VisionIO {
         public int[] visibleTagIds = new int[0];
         public double latestResultTimestampSec = 0.0;
 
+        // One entry per pipeline result received this cycle, including results with no targets.
+        // pipelineLatenciesMs: PhotonVision's capture-to-publish time on the coprocessor (its own
+        // processing load, without NT transport or robot-loop wait). sequenceIds: PhotonVision's
+        // per-frame counter; a jump of more than 1 means results the robot never received.
+        public double[] pipelineLatenciesMs = new double[0];
+        public long[] sequenceIds = new long[0];
+
         // Raw pose estimates — one entry per pipeline result this cycle, BEFORE any filtering.
         // Vision.periodic() applies all rejection logic after Logger.processInputs() so that
         // changes to ambiguity threshold, boundary margins, velocity limit, and trust LerpTables

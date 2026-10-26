@@ -3,7 +3,7 @@
 //   1. Standalone export: server/export.py inlines `window.__MATCH_SPEC__` ahead of the
 //      bundle. No network at all -- which is the point, since a competition venue's wifi
 //      cannot be relied on.
-//   2. Server app: fetch from FastAPI, chosen by ?log=... in the query string.
+//   2. Server app: fetch from FastAPI, for the log that is open (see logpicker/LogSelection.tsx).
 //   3. Dev: falls back to the checked-in fixture in public/.
 //
 // Because the app just asks for "a spec", the same build serves all three.
@@ -25,11 +25,12 @@ export type SpecState =
   | { status: 'picker' }
   | { status: 'error'; message: string };
 
-export function useSpec(): SpecState {
+export function useSpec(log: string | null): SpecState {
   const [state, setState] = useState<SpecState>({ status: 'loading' });
 
   useEffect(() => {
     let cancelled = false;
+    setState({ status: 'loading' });
 
     // Inlined by the standalone export -- decode synchronously, never touch the network.
     if (window.__MATCH_SPEC__) {
@@ -41,9 +42,7 @@ export function useSpec(): SpecState {
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const log = params.get('log');
-    const specName = params.get('spec');
+    const specName = new URLSearchParams(window.location.search).get('spec');
 
     // No log chosen: in dev, fall through to the checked-in fixture so `npm run dev`
     // needs no server; in a real build, ask the user which log they want.
@@ -82,7 +81,7 @@ export function useSpec(): SpecState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [log]);
 
   return state;
 }

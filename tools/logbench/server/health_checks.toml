@@ -121,7 +121,7 @@ mode = "live"
 stale_after = 5
 expect_items = ["LeftPi", "RightPi"]
 missing = "fail"
-help = "The Pi's metrics publisher updates once a second. Silent for 5 s means the Pi is off, rebooting, or off the network."
+help = "The Pi's metrics publisher updates twice a second. Silent for 5 s means the Pi is off, rebooting, or off the network."
 
 [[check]]
 id = "pi.cpu"
@@ -172,6 +172,50 @@ decimals = 0
 warn_above = 70
 fail_above = 85
 help = "The board throttles when it gets hot, which slows detection."
+
+[[check]]
+id = "pi.temp_max"
+section = "Orange Pis"
+group = "{1}"
+label = "Hottest thermal zone"
+signal = "OrangePi/*/TempMaxC"
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 75
+fail_above = 85
+help = "The hottest of every thermal zone (TempMaxZone names it; ThermalZones/ThermalTempC have all of them). Temperature above reads only the first zone, which may not be the one that throttles. ThermalPassiveTripC is where each zone starts throttling."
+
+[[check]]
+id = "pi.throttled"
+section = "Orange Pis"
+group = "{1}"
+label = "CPU clock capped (thermal throttling)"
+signal = "OrangePi/*/CpuThrottled"
+measure = "fraction_true"
+window = "enabled"
+mode = "log"
+scale = 100
+unit = "% of enabled time"
+decimals = 0
+warn_above = 0
+fail_above = 10
+help = "A CPU cluster's clock limit (CpuFreqCapMHz) was below its hardware maximum (CpuFreqMaxMHz): the kernel was throttling, so PhotonVision had less CPU than normal."
+
+[[check]]
+id = "pi.core_max"
+section = "Orange Pis"
+group = "{1}"
+label = "Busiest CPU core (average while enabled)"
+signal = "OrangePi/*/CpuCoreMaxPct"
+measure = "mean"
+window = "enabled"
+mode = "log"
+unit = "%"
+decimals = 0
+warn_above = 80
+fail_above = 95
+help = "One saturated core shows as only ~12% in the 8-core CPU average. If this sits near 100% while the average is low, a single thread is the limit; PvTopThreads / PvTopThreadPct / PvTopThreadCore say which."
 
 # ── Why did the Pi's clients drop? Reboot vs link flap vs camera loss ─────────────────────────
 # When the cameras and every other Pi client vanish from the robot's log together, these say which
@@ -442,7 +486,33 @@ subject = "Recorder ({2})"
 label = "Recorder version"
 signal = "OrangePi/*/Recorders/*/Version"
 measure = "last"
-help = "Which recorder code is running."
+help = "Which recorder code is running: RECORDER_VERSION+<start of the script's git blob id>. `git log --all --find-object=<id> -- coprocessor/orangepi-vision-recorder.py` names the commit (full id in ScriptBlob)."
+
+[[check]]
+id = "rec.camera_lost_match"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Camera lost while enabled"
+signal = "OrangePi/*/Recorders/*/CameraLostCount"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+fail_above = 0
+help = "Times the stream showed PhotonVision's static 'Camera Lost' card (the USB camera disappeared) while enabled. StreamOk stays true during this, so only this row shows it. Check the camera's USB cable and connectors at both ends."
+
+[[check]]
+id = "rec.camera_lost_live"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Camera present"
+signal = "OrangePi/*/Recorders/*/CameraLost"
+measure = "last"
+mode = "live"
+expect = false
+help = "False when the stream is repeating one identical frame: PhotonVision's 'Camera Lost' card, or a frozen stream."
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
