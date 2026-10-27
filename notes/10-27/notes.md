@@ -1,3 +1,7 @@
+# TODO
+- Add roboRIO CPU to health check, akit_26-10-27_22-13-27.wpilog shows it consistently high but the health check doesn't surface this.
+- could network bandwith limiting cause issues? should this be added to the health check? if so what is the threshold? can we currently measure how much bandwith we are using?
+
 # Vision throughput test (10-27)
 
 Goal: find out whether we can lower decimate, raise resolution, or both, on one OV9281 per
@@ -33,6 +37,8 @@ Pass = ~100 results/s, dropped frames not climbing, PV processing time well unde
 never drops below max, temperature levels off.
 
 ## Test 1: baseline (800x600, decimate 3)
+akit_26-10-27_22-13-27-bundle
+swapped out battery after test
 
 | Metric | Result |
 |---|---|
@@ -49,6 +55,8 @@ never drops below max, temperature levels off.
 Notes:
 
 ## Test 2: 800x600, decimate 2
+"fresh" test battery
+akit_26-10-27_22-37-33-bundle
 
 | Metric | Result |
 |---|---|
@@ -65,6 +73,8 @@ Notes:
 Notes:
 
 ## Test 3: 800x600, decimate 1
+restarted robot code before running test
+akit_26-10-27_22-42-57-bundle
 
 | Metric | Result |
 |---|---|
@@ -81,6 +91,7 @@ Notes:
 Notes:
 
 ## Test 4: 1280x800, decimate 3 (after recalibrating)
+akit_26-10-27_23-07-45-bundle
 
 | Metric | Result |
 |---|---|
@@ -97,6 +108,7 @@ Notes:
 Notes:
 
 ## Test 5: 1280x800, decimate 2
+akit_26-10-27_23-21-27-bundle
 
 | Metric | Result |
 |---|---|
@@ -112,7 +124,13 @@ Notes:
 
 Notes:
 
+## Test 5.1: more FPS? (800x600@120FPS, decimate 3)
+previous 800x600 testing was @100FPS, turns out it can go higher at decimate 3
+akit_26-10-27_23-27-43-bundle
+
 ## Test 6: best setting from 1-5, recorder stopped
+best setting: (800x600@120FPS, decimate 3)
+akit_26-10-27_23-37-01-bundle
 
 Stop the recorder on both Pis (`sudo systemctl stop 'orangepi-vision-recorder@*'`), rerun the best
 setting, then start it again. Shows how much CPU the recorder's stream costs.
@@ -134,6 +152,7 @@ Setting used:
 Notes:
 
 ## Test 7: heat soak (best setting, full match length)
+akit_26-10-27_23-42-41-bundle
 
 Enable for ~2.5 minutes (or several back to back) with the best setting and the recorder running.
 Watch whether temperature levels off or keeps climbing, and whether the CPU clock drops.
