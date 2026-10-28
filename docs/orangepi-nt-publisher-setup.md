@@ -152,6 +152,22 @@ mirroring cost) low.
 | `PvTopThreadCore` | integer[] | The core each last ran on (0-3 = A55, 4-7 = A76 on the RK3588S). |
 | `PublisherCpuPct` | double | This publisher's own CPU use, as % of one core. Expected well under 1%. |
 
+### Network traffic values
+
+Added after the 10-27 tests to answer "could bandwidth be limiting vision?". Read from
+`/sys/class/net/<NetIface>/statistics`, the same interface as `NetSpeedMbps`.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `NetRxMbps` / `NetTxMbps` | double | Received / sent over the last interval, Mbit/s (first sample 0; a counter reset reads 0, not a spike). Sent includes every camera stream someone is viewing. |
+| `NetRxErrors` / `NetTxErrors` | integer | Damaged frames since boot (-1 = unreadable). Climbing during a match points at the cable, like a low `NetSpeedMbps`. |
+| `NetRxDropped` | integer | Received packets the kernel dropped since boot. Some background count (unwanted multicast) is normal; watch for a jump. |
+
+The Pi's own link (100/1000 Mbit/s) is not the field's 7 Mbit/s limit: Pi-to-roboRIO traffic stays on
+the robot's switch. Streams to a laptop do cross the radio; that limit shows as the Health Check's
+**Radio bandwidth used** row (AdvantageKit's `RadioStatus/Status`). roboRIO-side CPU and traffic are
+`RealOutputs/RIO/*` (`RioSystemStats.java`).
+
 To see the same thing by hand on a Pi: `top -H -p $(pgrep -f photonvision)` (per thread),
 `mpstat -P ALL 1` (per core, from the `sysstat` package), and
 `grep . /sys/class/thermal/thermal_zone*/type /sys/class/thermal/thermal_zone*/temp`.
