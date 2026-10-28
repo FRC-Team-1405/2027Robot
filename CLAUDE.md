@@ -96,6 +96,11 @@ Robot test write-ups live in `docs/experiments/<area>/YYYY-MM-DD-<slug>/` (READM
 gitignored logs, and its `results.json`). `notes/<date>/` stays the rough lab notebook and links to
 the write-up. Index and conventions: `docs/experiments/README.md`.
 
+### To-do list
+
+`TODO.md` at the repo root is the one open to-do list. When a note, experiment or change leaves
+something undone, add it there with its source in brackets; move finished items to its Done table.
+
 ### Tools
 
 `tools/logbench/` is the primary tool: a generic (not vision-specific) metric/composite-score comparison library over `.wpilog`s, with a CLI and a Vite + React + TypeScript / FastAPI web UI as two views over the same core. It's in the process of absorbing `tools/vision-analyzer` and `tools/ab-metrics` (see `tools/logbench/README.md` for migration status) — check there before assuming a tool listed below still owns a piece of functionality.
