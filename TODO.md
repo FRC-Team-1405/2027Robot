@@ -50,6 +50,14 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
       publish them.
 - [ ] **Add a vision gap row to the Health Check**: the longest time between results per camera,
       warning over 80 ms. That would have flagged the 10-27 stalls without reading the charts.
+- [ ] **Make every time on a downloaded log agree.** This covers the file name, the `.wpilog` start
+      metadata, LogBench's display, the bundle and trim names, and the vision-recorder folders.
+      The 10-27 logs (run about 6–8 pm EDT) are named `akit_26-10-27_22-13-27` to `23-42-41`. That is
+      UTC: AdvantageKit names logs in UTC once the DS has synced the clock, and it showed up as
+      "11 pm" in LogBench. The Pi has no clock battery, so its recorder times have their own
+      offset. Pick one rule: store UTC and show local time with the zone. Then apply it when
+      fetching from the robot (rename or add a manifest field) and wherever LogBench shows a
+      time. [user, 10-28]
 - [ ] **Log LogBench's own live connects and disconnects, with the reason**, in its run log. Why it
       reconnected every 2.4 s on 10-27 is still unconfirmed. [10-27 write-up, learning 8]
 
