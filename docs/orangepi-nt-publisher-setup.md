@@ -156,6 +156,51 @@ To see the same thing by hand on a Pi: `top -H -p $(pgrep -f photonvision)` (per
 `mpstat -P ALL 1` (per core, from the `sysstat` package), and
 `grep . /sys/class/thermal/thermal_zone*/type /sys/class/thermal/thermal_zone*/temp`.
 
+### PhotonVision settings and camera modes
+
+So every log records how PhotonVision was set up, instead of relying on hand-written notes. On
+10-27 the camera mode, decimate and Low Latency Mode were only in the notes. The publisher checks
+every 5 s and publishes a value only when it changes, so each change lands in the match log once,
+as `RealOutputs/OrangePi/<Pi>/...`. No robot code change is needed for that.
+
+**Settings** come from PhotonVision's own settings file,
+`/opt/photonvision/photonvision_config/photon.sqlite`. It is opened read-only, and only after the file
+has been unchanged for 2 s. PhotonVision writes it 1–2 s after a change in the UI, so a new
+value shows up within about 10 s. Set `PHOTONVISION_CONFIG_DB` in
+`/etc/default/orangepi-nt-publisher` if the file is somewhere else.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `PvSettingsOk` / `PvSettingsError` | boolean / string | Whether the last read worked, and why not. |
+| `PvCameras` | string[] | The active cameras, by nickname. Each has a `PhotonVision/<nickname>/` table. |
+| `PhotonVision/<cam>/PipelineIndex`, `PipelineName`, `PipelineType`, `PipelineCount` | | The active pipeline. Index -1 = driver mode, -2 = calibration; then the pipeline values below keep their last values. |
+| `.../Decimate`, `Threads`, `RefineEdges`, `Blur`, `DecisionMargin`, `PoseIterations`, `HammingDist`, `TagFamily`, `MultiTag` | | AprilTag tab. |
+| `.../LowLatencyMode` | boolean | PhotonVision's `blockForFrames`. On = the ÷2 frame-rate cliff when a frame takes longer than one frame period (`docs/experiments/vision/2026-10-28-pv-frame-pacing/`). |
+| `.../AutoExposure`, `Exposure`, `Brightness`, `Gain` | | Input tab. |
+| `.../VideoModeIndex` | integer | Which entry of PhotonVision's resolution list is selected. The real mode is under `Video/` below. |
+| `.../StreamDivisor`, `InputStream`, `OutputStream` | | Stream resolution and which streams are on. |
+| `.../CalibratedResolutions` | string[] | Resolutions that have a calibration, e.g. `1280x800`. The current mode should be one of them. |
+| `.../PipelineJson` | string | The whole active pipeline, for anything without its own key. |
+
+**Camera modes** come from the V4L2 driver, which reports what the camera is really doing.
+PhotonVision only saves the mode's index, so the driver is the place to read it. Read-only queries
+are safe while PhotonVision is streaming. There is one table per capture node (a UVC camera's
+metadata node is skipped):
+
+| Key | Type | Meaning |
+|---|---|---|
+| `Video/<videoN>/Mode` | string | For example `800x600 MJPG @120`. |
+| `Video/<videoN>/Width`, `Height`, `Fps`, `PixelFormat`, `Card` | | The same mode split into fields, plus the camera's name. |
+
+**Verify on the bench before trusting it.** It was written without a Pi or PhotonVision to hand:
+1. `PvSettingsOk` is true, and each value under `PhotonVision/<cam>/` matches the PhotonVision UI.
+2. Change decimate in the UI. Within about 10 s, `Decimate` and `PipelineJson` update and nothing
+   else changes.
+3. `Video/<videoN>/Mode` matches the resolution and fps picked in the UI. Compare with
+   `v4l2-ctl -d /dev/video0 --get-fmt-video --get-parm`.
+4. PhotonVision still saves settings normally:
+   `journalctl -u photonvision --since "10 min ago" | grep -i locked` should print nothing.
+
 ## 6. Clean up internet access
 
 Before trusting the Pi on a robot again, finish the "disable Wi-Fi" step from `docs/orangepi-internet-access.md` (or revert ICS / unplug the radio's temporary WAN cable, whichever method you used). Re-check `nmcli device status` or equivalent shows no active wireless association.

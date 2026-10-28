@@ -14,6 +14,11 @@ threads (CPU use and the core each last ran on). See PerformanceSampler. All of 
 /proc and /sys (no subprocesses) and costs a few milliseconds of CPU per sample; the publisher
 reports its own cost as PublisherCpuPct.
 
+And how PhotonVision is set up: each camera's active pipeline settings (decimate, threads, Low
+Latency Mode, exposure, streams, ...) from PhotonVision's own settings file, and each camera's real
+capture mode (size, fps, pixel format) from the V4L2 driver, published only when they change. See
+PvSettingsReader.
+
 Install dependency and service (creates a shared venv with pyntcore):
     bash setup-orangepi.sh
 
@@ -24,10 +29,14 @@ To run on boot, add a systemd service (see orangepi-nt-publisher.service).
 """
 
 import glob
+import json
 import time
 import os
 import shutil
 import socket
+import sqlite3
+import struct
+from pathlib import Path
 
 TEAM_NUMBER = 1405
 
@@ -50,6 +59,10 @@ TOP_THREADS = 8                 # PhotonVision threads published, busiest first
 METRICS_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip()
 # Which network interface to report link health for. Default: the one carrying the default route.
 NET_IFACE = os.environ.get("ORANGEPI_NET_IFACE", "").strip()
+# PhotonVision's saved settings (its SQL config store, the default since 2024).
+PV_CONFIG_DB = os.environ.get("PHOTONVISION_CONFIG_DB",
+                              "/opt/photonvision/photonvision_config/photon.sqlite").strip()
+PV_SETTINGS_INTERVAL_S = 5.0    # how often to check the settings file and the camera modes
 
 
 def read_ip():
@@ -441,6 +454,256 @@ def read_system(root="", iface_override=None):
             "video_devices": video_nodes, "usb_cameras": usb_cameras}
 
 
+# ---- PhotonVision settings and camera modes ----
+#
+# So a log says how PhotonVision was set up, instead of relying on hand-written notes (on 10-27 the
+# camera mode, decimate and Low Latency Mode were only in the notes). Two sources:
+#  - PhotonVision's saved settings, read straight from its SQLite file (read-only). It saves about
+#    1-2 s after a change in the UI, so a new value shows up within ~PV_SETTINGS_INTERVAL_S + 2 s.
+#  - Each camera's real capture mode (size, fps, pixel format) from the V4L2 driver. PhotonVision only
+#    saves the mode's index in its own list, which isn't in the file.
+
+# Active-pipeline fields published per camera: (topic, PhotonVision field, NT kind). A field the
+# pipeline type doesn't have (decimate on a colored-shape pipeline) is simply not published.
+PV_PIPELINE_FIELDS = (
+    ("Decimate", "decimate", "Integer"),
+    ("Threads", "threads", "Integer"),
+    ("RefineEdges", "refineEdges", "Boolean"),
+    ("Blur", "blur", "Double"),
+    ("DecisionMargin", "decisionMargin", "Integer"),
+    ("PoseIterations", "numIterations", "Integer"),
+    ("HammingDist", "hammingDist", "Integer"),
+    ("TagFamily", "tagFamily", "String"),
+    ("MultiTag", "doMultiTarget", "Boolean"),
+    ("LowLatencyMode", "blockForFrames", "Boolean"),
+    ("AutoExposure", "cameraAutoExposure", "Boolean"),
+    ("Exposure", "cameraExposureRaw", "Double"),
+    ("Brightness", "cameraBrightness", "Integer"),
+    ("Gain", "cameraGain", "Integer"),
+    ("VideoModeIndex", "cameraVideoModeIndex", "Integer"),
+    ("StreamDivisor", "streamingFrameDivisor", "String"),
+    ("InputStream", "inputShouldShow", "Boolean"),
+    ("OutputStream", "outputShouldShow", "Boolean"),
+)
+# PhotonVision's special pipeline indexes (they aren't in the pipeline list).
+PV_SPECIAL_PIPELINES = {-1: "DriverMode", -2: "Calibration"}
+
+
+def _topic_name(text):
+    """A camera nickname as one topic path segment."""
+    return str(text).replace("/", "_").strip() or "unnamed"
+
+
+def _pipeline_settings(text):
+    """(type name, settings dict) from one stored pipeline. PhotonVision stores each as a JSON string
+    of Jackson's wrapper-array form: ["AprilTagPipelineSettings", {...}]."""
+    value = json.loads(text) if isinstance(text, str) else text
+    if isinstance(value, list) and len(value) == 2 and isinstance(value[1], dict):
+        return str(value[0]), value[1]
+    if isinstance(value, dict):
+        return str(value.get("type", value.get("pipelineType", ""))), value
+    raise ValueError("unrecognized pipeline settings")
+
+
+def _resolution(calibration):
+    """'1280x800' from one calibration's resolution, or None."""
+    res = calibration.get("resolution") if isinstance(calibration, dict) else None
+    try:
+        return f"{int(res['width'])}x{int(res['height'])}"
+    except (TypeError, KeyError, ValueError):
+        return None
+
+
+def camera_settings(config_json, pipeline_jsons):
+    """{topic: (kind, value)} for one camera row of PhotonVision's `cameras` table."""
+    config = json.loads(config_json)
+    pipelines = json.loads(pipeline_jsons)
+    index = int(config.get("currentPipelineIndex", 0))
+    out = {
+        "UniqueName": ("String", str(config.get("uniqueName", ""))),
+        "PipelineIndex": ("Integer", index),
+        "PipelineCount": ("Integer", len(pipelines)),
+        "CalibratedResolutions": ("StringArray", sorted(
+            {r for r in map(_resolution, config.get("calibrations") or []) if r})),
+    }
+    if index in PV_SPECIAL_PIPELINES or not 0 <= index < len(pipelines):
+        out["PipelineType"] = ("String", PV_SPECIAL_PIPELINES.get(index, "Unknown"))
+        out["PipelineName"] = ("String", "")
+        return out
+    kind, settings = _pipeline_settings(pipelines[index])
+    out["PipelineType"] = ("String", kind)
+    out["PipelineName"] = ("String", str(settings.get("pipelineNickname", "")))
+    for topic, field, nt_kind in PV_PIPELINE_FIELDS:
+        value = settings.get(field)
+        if value is None:
+            continue
+        cast = {"Integer": int, "Double": float, "Boolean": bool, "String": str}[nt_kind]
+        out[topic] = (nt_kind, cast(value))
+    # Everything else (target model, solvePnP options, ...) without a topic of its own.
+    out["PipelineJson"] = ("String", json.dumps(settings, sort_keys=True, separators=(",", ":")))
+    return out
+
+
+def read_pv_settings(db_path):
+    """{camera nickname: {topic: (kind, value)}} for every active camera in PhotonVision's settings
+    file. Read-only and short: PhotonVision's own saves wait for the read lock to clear."""
+    uri = Path(db_path).resolve().as_uri() + "?mode=ro"
+    con = sqlite3.connect(uri, uri=True, timeout=0.5)
+    try:
+        rows = con.execute("SELECT unique_name, config_json, pipeline_jsons FROM cameras").fetchall()
+    finally:
+        con.close()
+    cameras = {}
+    for unique_name, config_json, pipeline_jsons in rows:
+        config = json.loads(config_json)
+        if config.get("deactivated"):
+            continue
+        cameras[_topic_name(config.get("nickname") or unique_name)] = camera_settings(config_json, pipeline_jsons)
+    return cameras
+
+
+# V4L2 ioctls (64-bit Linux): QUERYCAP, G_FMT and G_PARM only read the current mode, so they are
+# safe on a device PhotonVision is streaming from. Buffers are passed as bytes so fcntl.ioctl returns
+# the filled-in copy (a bytearray would be filled in place and the call would return 0).
+_VIDIOC_QUERYCAP = 0x80685600   # struct v4l2_capability, 104 bytes
+_VIDIOC_G_FMT = 0xC0D05604      # struct v4l2_format, 208 bytes
+_VIDIOC_G_PARM = 0xC0CC5615     # struct v4l2_streamparm, 204 bytes
+_V4L2_BUF_TYPE_VIDEO_CAPTURE = 1
+_V4L2_CAP_VIDEO_CAPTURE = 0x1
+_V4L2_CAP_DEVICE_CAPS = 0x80000000
+
+
+def parse_v4l2_capability(buf):
+    """(card name, is a capture node). A UVC camera also has a metadata node that can't capture."""
+    card = buf[16:48].split(b"\0", 1)[0].decode(errors="replace")
+    caps, device_caps = struct.unpack_from("<II", buf, 84)
+    effective = device_caps if caps & _V4L2_CAP_DEVICE_CAPS else caps
+    return card, bool(effective & _V4L2_CAP_VIDEO_CAPTURE)
+
+
+def parse_v4l2_format(buf):
+    """(width, height, pixel format fourcc such as 'MJPG') from a struct v4l2_format."""
+    width, height, fourcc = struct.unpack_from("<III", buf, 8)
+    return width, height, struct.pack("<I", fourcc).decode(errors="replace").strip("\0 ")
+
+
+def parse_v4l2_fps(buf):
+    """Frames per second from a struct v4l2_streamparm (1 / timeperframe); 0 if the driver says none."""
+    numerator, denominator = struct.unpack_from("<II", buf, 12)
+    return round(denominator / numerator, 2) if numerator else 0.0
+
+
+def read_camera_modes(root="", ioctl=None):
+    """{'video0': {topic: (kind, value)}} with each capture node's current mode. Linux only; a node
+    that can't be opened or queried is skipped."""
+    if ioctl is None:
+        import fcntl
+        ioctl = fcntl.ioctl
+    modes = {}
+    for node in sorted(glob.glob(f"{root}/dev/video[0-9]*")):
+        try:
+            fd = os.open(node, os.O_RDWR | getattr(os, "O_NONBLOCK", 0))
+        except OSError:
+            continue
+        try:
+            card, can_capture = parse_v4l2_capability(ioctl(fd, _VIDIOC_QUERYCAP, bytes(104)))
+            if not can_capture:
+                continue
+            fmt = bytearray(208)
+            struct.pack_into("<I", fmt, 0, _V4L2_BUF_TYPE_VIDEO_CAPTURE)
+            width, height, pixel_format = parse_v4l2_format(ioctl(fd, _VIDIOC_G_FMT, bytes(fmt)))
+            parm = bytearray(204)
+            struct.pack_into("<I", parm, 0, _V4L2_BUF_TYPE_VIDEO_CAPTURE)
+            fps = parse_v4l2_fps(ioctl(fd, _VIDIOC_G_PARM, bytes(parm)))
+        except OSError:
+            continue
+        finally:
+            os.close(fd)
+        modes[os.path.basename(node)] = {
+            "Card": ("String", card), "Width": ("Integer", width), "Height": ("Integer", height),
+            "Fps": ("Double", fps), "PixelFormat": ("String", pixel_format),
+            "Mode": ("String", f"{width}x{height} {pixel_format} @{fps:g}"),
+        }
+    return modes
+
+
+class PvSettingsReader:
+    """Checks PhotonVision's settings and the camera modes every PV_SETTINGS_INTERVAL_S and returns only
+    what changed, as {topic path: (kind, value)}, so the robot logs a setting once per change.
+
+    The settings file is re-read only when its modification time changes, and only once it has been
+    unchanged for `settle_s`: PhotonVision writes it 1-2 s after a change, and reading in the middle
+    of its write would make PhotonVision wait for the read to finish."""
+
+    def __init__(self, db_path=PV_CONFIG_DB, root="", interval_s=PV_SETTINGS_INTERVAL_S, settle_s=2.0,
+                 clock=time.monotonic, wall=time.time, read_modes=None):
+        self._db, self._root = db_path, root
+        self._interval, self._settle = interval_s, settle_s
+        self._clock, self._wall = clock, wall
+        self._read_modes = read_modes if read_modes is not None else (lambda: read_camera_modes(root))
+        self._checked_at = None
+        self._mtime = None
+        self._published = {}
+
+    def poll(self):
+        now = self._clock()
+        if self._checked_at is not None and now - self._checked_at < self._interval:
+            return {}
+        self._checked_at = now
+        current = dict(self._settings())
+        try:
+            for node, values in self._read_modes().items():
+                current.update({f"Video/{node}/{k}": v for k, v in values.items()})
+        except Exception:
+            pass        # no V4L2 (not Linux) or no cameras: the settings still publish
+        changed = {path: kv for path, kv in current.items() if self._published.get(path) != kv}
+        self._published.update(changed)
+        return changed
+
+    def _status(self, ok, error="", cameras=None):
+        out = {"PvSettingsOk": ("Boolean", ok), "PvSettingsError": ("String", error)}
+        if cameras is not None:
+            out["PvCameras"] = ("StringArray", sorted(cameras))
+        return out
+
+    def _settings(self):
+        try:
+            mtime = os.stat(self._db).st_mtime
+        except OSError:
+            self._mtime = None
+            return self._status(False, f"no PhotonVision settings file at {self._db}", [])
+        if mtime == self._mtime or self._wall() - mtime < self._settle:
+            return {}   # unchanged, or PhotonVision may still be writing it
+        try:
+            cameras = read_pv_settings(self._db)
+        except Exception as e:
+            return self._status(False, f"{type(e).__name__}: {e}")   # retried next poll
+        self._mtime = mtime
+        out = self._status(True, "", cameras)
+        for name, values in cameras.items():
+            out.update({f"PhotonVision/{name}/{k}": v for k, v in values.items()})
+        return out
+
+
+class DynamicPublisher:
+    """Publishes values whose topics aren't known up front (one set per camera), creating each
+    publisher the first time its path is set."""
+
+    def __init__(self, table):
+        self._table = table
+        self._pubs = {}
+
+    def set(self, path, kind, value):
+        pub = self._pubs.get(path)
+        if pub is None:
+            *subtables, name = path.split("/")
+            table = self._table
+            for sub in subtables:
+                table = table.getSubTable(sub)
+            pub = self._pubs[path] = getattr(table, f"get{kind}Topic")(name).publish()
+        pub.set(value)
+
+
 def main():
     import ntcore
 
@@ -481,6 +744,9 @@ def main():
     perf_pubs = {name: getattr(table, f"get{kind}Topic")(name).publish()
                  for name, kind in PERFORMANCE_TOPICS.items()}
     perf = PerformanceSampler()
+    # PhotonVision settings and camera modes, published under PhotonVision/<camera>/ and Video/<node>/.
+    pv_settings = PvSettingsReader()
+    dynamic = DynamicPublisher(table)
     disk = None
     disk_read_at = None
 
@@ -517,6 +783,9 @@ def main():
             speed_pub.set(system["speed_mbps"])
             video_pub.set(system["video_devices"])
             usbcam_pub.set(system["usb_cameras"])
+
+            for path, (kind, value) in pv_settings.poll().items():
+                dynamic.set(path, kind, value)
 
         except Exception as e:
             print(f"Metrics error: {e}")
