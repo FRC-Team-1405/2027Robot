@@ -159,7 +159,7 @@ public class SwerveFeatures {
      * @return The angle the robot should face, relative to operator perspective
      */
     public Rotation2d getAngleToTarget(Pose2d targetPose) {
-        Pose2d currentPose = m_drivetrain.getState().Pose;
+        Pose2d currentPose = m_drivetrain.getLoggedState().Pose;
         Rotation2d fieldAngle = targetPose.getTranslation().minus(currentPose.getTranslation()).getAngle();
 
         // if (DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red) {
@@ -198,8 +198,8 @@ public class SwerveFeatures {
      *         perspective
      */
     public Rotation2d getAngleToTargetWithVelocityCompensation(Pose2d targetPose) {
-        Pose2d currentPose = m_drivetrain.getState().Pose;
-        ChassisSpeeds currentSpeeds = m_drivetrain.getState().Speeds;
+        Pose2d currentPose = m_drivetrain.getLoggedState().Pose;
+        ChassisSpeeds currentSpeeds = m_drivetrain.getLoggedState().Speeds;
 
         // Convert robot-relative speeds to field-relative speeds
         ChassisSpeeds fieldRelativeSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
@@ -358,12 +358,12 @@ public class SwerveFeatures {
     }
 
     public static double getRobotVelocity(CommandSwerveDrivetrain drivetrain) {
-        ChassisSpeeds currentSpeeds = drivetrain.getState().Speeds;
+        ChassisSpeeds currentSpeeds = drivetrain.getLoggedState().Speeds;
         return Math.hypot(currentSpeeds.vxMetersPerSecond, currentSpeeds.vyMetersPerSecond);
     }
 
     public static double getRobotAngularVelocity(CommandSwerveDrivetrain drivetrain) {
-        ChassisSpeeds currentSpeeds = drivetrain.getState().Speeds;
+        ChassisSpeeds currentSpeeds = drivetrain.getLoggedState().Speeds;
         return currentSpeeds.omegaRadiansPerSecond;
     }
 
@@ -388,7 +388,7 @@ public class SwerveFeatures {
      */
     public void publishRobotAcceleration() {
         try {
-            ChassisSpeeds currentSpeeds = m_drivetrain.getState().Speeds;
+            ChassisSpeeds currentSpeeds = m_drivetrain.getLoggedState().Speeds;
             double speed = Math.hypot(currentSpeeds.vxMetersPerSecond, currentSpeeds.vyMetersPerSecond);
             double now = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
 
@@ -417,7 +417,7 @@ public class SwerveFeatures {
      * @return The distance to the hub in meters
      */
     public static double getDistanceToHub(CommandSwerveDrivetrain drivetrain, Supplier<Pose2d> hubPosition) {
-        return drivetrain.getState().Pose.getTranslation().getDistance(hubPosition.get().getTranslation());
+        return drivetrain.getLoggedState().Pose.getTranslation().getDistance(hubPosition.get().getTranslation());
     }
 
     public double getDistancePoses(Pose2d firstPose, Pose2d secondPose) {

@@ -295,7 +295,7 @@ public class ChainedAutoPilotCommand extends FinneyCommand {
 
         // Start at first waypoint
         currentWaypointIndex = 0;
-        startingPosition = drivetrain.getState().Pose;
+        startingPosition = drivetrain.getLoggedState().Pose;
 
         // Reset controllers
         thetaController.reset(startingPosition.getRotation().getRadians());
@@ -322,8 +322,8 @@ public class ChainedAutoPilotCommand extends FinneyCommand {
 
     @Override
     public void execute() {
-        ChassisSpeeds robotRelativeSpeeds = drivetrain.getState().Speeds;
-        Pose2d pose = drivetrain.getState().Pose;
+        ChassisSpeeds robotRelativeSpeeds = drivetrain.getLoggedState().Speeds;
+        Pose2d pose = drivetrain.getLoggedState().Pose;
 
         // Debug: publish autopilot outputs vs drivetrain measured speeds to help find
         // scaling issues (why robot is limited to ~0.3 m/s)
@@ -405,7 +405,7 @@ public class ChainedAutoPilotCommand extends FinneyCommand {
                     out.vx(),
                     out.vy(),
                     AngularVelocity.ofBaseUnits(thetaOutput, RadiansPerSecond),
-                    drivetrain.getState().Pose.getRotation());
+                    drivetrain.getLoggedState().Pose.getRotation());
 
             drivetrain.setControl(applyRobotSpeeds.withSpeeds(outRobotRelativeSpeeds));
 
@@ -422,7 +422,7 @@ public class ChainedAutoPilotCommand extends FinneyCommand {
                     out.vx(),
                     out.vy(),
                     AngularVelocity.ofBaseUnits(thetaOutput, RadiansPerSecond),
-                    drivetrain.getState().Pose.getRotation());
+                    drivetrain.getLoggedState().Pose.getRotation());
 
             drivetrain.setControl(applyRobotSpeeds.withSpeeds(outRobotRelativeSpeeds));
 
@@ -454,7 +454,7 @@ public class ChainedAutoPilotCommand extends FinneyCommand {
         }
 
         APTarget finalTarget = waypoints.get(waypoints.size() - 1);
-        return kAutopilot.atTarget(drivetrain.getState().Pose, finalTarget);
+        return kAutopilot.atTarget(drivetrain.getLoggedState().Pose, finalTarget);
     }
 
     @Override
@@ -464,9 +464,9 @@ public class ChainedAutoPilotCommand extends FinneyCommand {
         drivetrain.setControl(request
                 .withVelocityX(0)
                 .withVelocityY(0)
-                .withTargetDirection(drivetrain.getState().Pose.getRotation()));
+                .withTargetDirection(drivetrain.getLoggedState().Pose.getRotation()));
 
-        Pose2d finalPose = drivetrain.getState().Pose;
+        Pose2d finalPose = drivetrain.getLoggedState().Pose;
         APTarget finalTarget = waypoints.get(waypoints.size() - 1);
 
         fLogger.log(
