@@ -116,20 +116,50 @@ class FakeEntry:
 
 class FakeMulti:
     closed = False
+    made = []
 
-    def __init__(self, inst, prefixes):
+    def __init__(self, inst, prefixes, options=None):
         self.prefixes = list(prefixes)
+        self.options = options
         FakeMulti.last = self
+        FakeMulti.made.append(self)
 
     def close(self):
         FakeMulti.closed = True
 
 
+class FakePoller:
+    """Delivers one value event per subscribed topic that has a value, like kImmediate does."""
+
+    def __init__(self, inst):
+        self.inst, self.subs = inst, []
+
+    def addListener(self, sub, mask):
+        self.subs.append(sub)
+        self.sent = False
+
+    def readQueue(self):
+        if self.sent:
+            return []
+        self.sent = True
+        out = []
+        for name, value in sorted(self.inst.generic.items()):
+            if value[0] is not None and any(name.startswith(p) for s in self.subs for p in s.prefixes):
+                out.append(types.SimpleNamespace(data=types.SimpleNamespace(
+                    topic=types.SimpleNamespace(getName=lambda n=name: n), value=FakeValue(*value))))
+        return out
+
+    def close(self):
+        pass
+
+
 def _fake_ntcore(inst: FakeInst):
     return types.SimpleNamespace(
         NetworkTableInstance=types.SimpleNamespace(getDefault=lambda: inst),
-        EventFlags=types.SimpleNamespace(kConnected=1),
+        EventFlags=types.SimpleNamespace(kConnected=1, kValueAll=2, kImmediate=4),
         MultiSubscriber=FakeMulti,
+        NetworkTableListenerPoller=FakePoller,
+        PubSubOptions=lambda **kw: types.SimpleNamespace(**kw),
         _now=lambda: 10_000_000,
     )
 
@@ -206,8 +236,14 @@ def _snapshot_inst():
         '/OrangePi/LeftPi/Recorders/LeftCam/State': ('idle', 9_900_000),
         '/Other/Thing': (1, 9_900_000),            # outside every prefix: not read
         '/AdvantageKit/Never/Published': (None, 0),  # invalid value: skipped
+        '/AdvantageKit/Vision/Left/RawEstimatedPoses': ([1, 2, 3], 9_999_000),  # no check reads it
     }
     return inst
+
+
+# What the snapshot tests' "health_checks.toml" reads; `*` and a lookup's {1} are one segment.
+SIGNALS = ['SystemStats/CANBus/Utilization', 'Vision/*/Health/ScorePercent', 'Alerts/errors',
+           'OrangePi/*/CPU_Pct', 'OrangePi/{1}/Recorders/*/State', 'Never/Published']
 
 
 def test_health_snapshot_is_empty_when_not_connected():
@@ -217,6 +253,7 @@ def test_health_snapshot_is_empty_when_not_connected():
 def test_health_snapshot_uses_log_style_keys_and_reports_ages():
     inst = _snapshot_inst()
     ntcore = _fake_ntcore(inst)
+    live_nt.set_health_signals(SIGNALS)
     live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=ntcore)
     snap = live_nt.health_snapshot(_ntcore=ntcore)
     assert set(snap) == {
@@ -228,15 +265,54 @@ def test_health_snapshot_uses_log_style_keys_and_reports_ages():
     assert snap['OrangePi/LeftPi/CPU_Pct'][1] == pytest.approx(0.5)
 
 
-def test_health_snapshot_subscribes_to_the_root_and_the_pi_tables_and_reuses_entries():
+def test_names_are_discovered_topics_only_and_only_under_the_checks_prefixes():
+    # On 10-27 the old client subscribed to every AdvantageKit value and then once more per topic,
+    # and each connect delayed both cameras' results to robot code by 100-280 ms (learning 8).
     inst = _snapshot_inst()
     ntcore = _fake_ntcore(inst)
+    FakeMulti.made = []
+    live_nt.set_health_signals(SIGNALS)
     live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=ntcore)
-    assert FakeMulti.last.prefixes == ['/AdvantageKit/', '/OrangePi/']
+    names_sub = FakeMulti.made[-1]
+    assert names_sub.options.topicsOnly is True
+    # each check's path up to its first `*`, with and without RealOutputs/, plus the Pis' own table
+    assert names_sub.prefixes == [
+        '/AdvantageKit/Alerts/errors', '/AdvantageKit/DriverStation/Autonomous',
+        '/AdvantageKit/DriverStation/Enabled', '/AdvantageKit/Never/Published', '/AdvantageKit/OrangePi/',
+        '/AdvantageKit/RealOutputs/Alerts/errors', '/AdvantageKit/RealOutputs/DriverStation/Autonomous',
+        '/AdvantageKit/RealOutputs/DriverStation/Enabled', '/AdvantageKit/RealOutputs/Never/Published',
+        '/AdvantageKit/RealOutputs/OrangePi/', '/AdvantageKit/RealOutputs/SystemStats/CANBus/Utilization',
+        '/AdvantageKit/RealOutputs/Vision/', '/AdvantageKit/SystemStats/CANBus/Utilization',
+        '/AdvantageKit/Vision/', '/OrangePi/']
+
+
+def test_values_come_from_one_subscription_to_exactly_the_checked_topics():
+    inst = _snapshot_inst()
+    ntcore = _fake_ntcore(inst)
+    live_nt.set_health_signals(SIGNALS)
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=ntcore)
+    FakeMulti.made = []
+    inst.entry_requests = 0
+    snap = live_nt.health_snapshot(_ntcore=ntcore)
     live_nt.health_snapshot(_ntcore=ntcore)
-    first = inst.entry_requests
-    live_nt.health_snapshot(_ntcore=ntcore)
-    assert inst.entry_requests == first            # entries are cached, not recreated every poll
+    assert inst.entry_requests == 0                 # no per-topic subscriptions at all
+    assert len(FakeMulti.made) == 1                 # one value subscription, not rebuilt every poll
+    values_sub = FakeMulti.made[0]
+    assert getattr(values_sub.options, "topicsOnly", False) is False
+    assert '/AdvantageKit/Vision/Left/RawEstimatedPoses' not in values_sub.prefixes
+    assert '/AdvantageKit/RealOutputs/Vision/Left/Health/ScorePercent' in values_sub.prefixes
+    assert 'Vision/Left/RawEstimatedPoses' not in snap
+
+
+def test_mode_signals_are_always_read_and_patterns_are_updated_when_checks_change(monkeypatch):
+    monkeypatch.setattr(live_nt, 'REBUILD_MIN_SEC', 0.0)
+    inst = _snapshot_inst()
+    ntcore = _fake_ntcore(inst)
+    live_nt.set_health_signals([])
+    live_nt.connect('10.14.5.2', cameras=('Left',), _ntcore=ntcore)
+    assert set(live_nt.health_snapshot(_ntcore=ntcore)) == {'DriverStation/Enabled'}
+    live_nt.set_health_signals(['RealOutputs/Vision/*/Health/ScorePercent'])
+    assert 'RealOutputs/Vision/Left/Health/ScorePercent' in live_nt.health_snapshot(_ntcore=ntcore)
 
 
 def test_disconnect_closes_the_health_subscriber():

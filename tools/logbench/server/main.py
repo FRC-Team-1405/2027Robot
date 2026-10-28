@@ -454,6 +454,7 @@ def live_connect(
     Check page polls. There is exactly one live connection at a time -- this tool runs on
     a laptop on a bench next to one robot, not a fleet."""
     try:
+        _want_health_signals(_health_specs()[0])
         live_nt.connect(server, root_table)
     except ModuleNotFoundError as exc:
         raise HTTPException(status_code=501, detail=(
@@ -491,6 +492,11 @@ def _health_specs():
     return specs_, errors
 
 
+def _want_health_signals(specs_) -> None:
+    """Tell the live client which topics' values the checks read, so it never subscribes to all."""
+    live_nt.set_health_signals([s.signal for s in specs_] + [p for s in specs_ for _n, p in s.lookup])
+
+
 @app.get('/api/health/config')
 def health_config_info() -> dict:
     specs_, errors = _health_specs()
@@ -526,6 +532,7 @@ def health_live() -> dict:
     specs_, errors = _health_specs()
     if not live_nt.is_connected():
         return {'connected': False, 'config_errors': errors}
+    _want_health_signals(specs_)
     data = live_nt.health_snapshot()
     report = health_engine.evaluate(specs_, health_engine.SnapshotSource(data), latch=_health_latch)
     enabled = data.get('DriverStation/Enabled', (None, None))[0]
