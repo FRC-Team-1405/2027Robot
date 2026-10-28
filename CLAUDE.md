@@ -89,6 +89,13 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 `coprocessor/orangepi-vision-recorder.py` also runs on the Orange Pi alongside PhotonVision: taps PhotonVision's own raw (pre-AprilTag-processing) MJPEG stream, gated on robot-enabled, and saves a low-rate JPEG sequence with NT-synced timestamps locally under a 5GB rotating cap — for post-match diagnosis of missed detections. Managed as a systemd service (`orangepi-vision-recorder.service`); see `docs/orangepi-vision-recorder-setup.md` for the two bench-verification steps (raw stream port, `/FMSInfo` bit decoding) required before trusting it on a given Pi/camera config.
 
+### Experiments
+
+Robot test write-ups live in `docs/experiments/<area>/YYYY-MM-DD-<slug>/` (README from
+`docs/experiments/_template.md`, plus an `analyze.py` that regenerates every number from the
+gitignored logs, and its `results.json`). `notes/<date>/` stays the rough lab notebook and links to
+the write-up. Index and conventions: `docs/experiments/README.md`.
+
 ### Tools
 
 `tools/logbench/` is the primary tool: a generic (not vision-specific) metric/composite-score comparison library over `.wpilog`s, with a CLI and a Vite + React + TypeScript / FastAPI web UI as two views over the same core. It's in the process of absorbing `tools/vision-analyzer` and `tools/ab-metrics` (see `tools/logbench/README.md` for migration status) — check there before assuming a tool listed below still owns a piece of functionality.
