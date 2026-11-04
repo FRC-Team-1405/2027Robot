@@ -5,7 +5,7 @@ area: vision
 date: 2026-11-03            # R1–R3 run 11-03; folder keeps the planned date so existing links work
 status: running             # planned | running | analyzed | decided
 decision: pending           # Low Latency Mode off is a clear win so far; decide after R4+
-robot_code: beta @338bcfa (has Pi Net* logging; does NOT have RIO/* logging)
+robot_code: beta @338bcfa (has Pi Net* logging; did NOT have RIO/* logging yet)
 logs: logs/offseason/11-3/
 analysis: analyze.py → results.json
 raw_notes: notes.md (this folder)
@@ -84,9 +84,9 @@ effect (54 → 101/s) is about 50 times the run-to-run drift, so one repeat (R5)
 
 ### Before the next session
 
-- [ ] **Deploy robot code that has `RioSystemStats`** (roboRIO CPU, memory and network logging).
-  It's on branch `vision-throughput-10-27`, not on `beta`. The robot ran `beta` on 11-03, so
-  R1–R3 have no roboRIO CPU numbers. They don't need to be redone; R4+ should have them.
+- [ ] **Deploy robot code from `beta`** (merged 11-04, now has `RioSystemStats` for roboRIO CPU,
+  memory and network). R1–R3 have no roboRIO CPU numbers; they don't need to be redone. The
+  11-7 checklist is [notes/11-7/notes.md](../../../../notes/11-7/notes.md).
 - [ ] Confirm in the PhotonVision UI that R3 was Low Latency off. The notes don't say; the data
   leave no doubt (see "How we know R3 was Low Latency off").
 - [ ] Set Low Latency Mode **off** on both Pis. It's per pipeline, so check every pipeline in use.
@@ -247,7 +247,7 @@ Logging added for this experiment:
   (orangepi-nt-publisher, needs `Bootstrap-OrangePi.ps1`). **Working on 11-03.**
 - roboRIO: `RIO/CpuPct`, `RIO/CpuCorePct`, `RIO/MemUsedPct`, `RIO/MemAvailableMB`, `RIO/NetRxMbps`,
   `RIO/NetTxMbps`, `RIO/NetRxErrors`, `RIO/NetRxDropped` (`RioSystemStats`, switch
-  `RIO_SYSTEM_STATS_LOGGING`). **Not deployed yet** (branch `vision-throughput-10-27`).
+  `RIO_SYSTEM_STATS_LOGGING`). **On `beta` since 11-04, not deployed yet.**
 - Health Check rows for all of the above.
 
 </details>

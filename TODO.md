@@ -9,14 +9,16 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Next time on the robot
 
+- [ ] **11-7: work through [notes/11-7/notes.md](notes/11-7/notes.md)** — checks for everything
+      merged into `beta` on 11-04 (none of it has run on the robot yet), then the experiments.
 - [ ] **Deploy robot code and re-bootstrap both Orange Pis**, then check that `RIO/*` and
       `/OrangePi/*/Net*` show up in the log and in the Health Check. [10-27 notes, branch
-      `vision-throughput-10-27`] Pi `Net*` confirmed 11-03; `RIO/*` still missing because the
-      robot ran `beta`, which doesn't have `RioSystemStats` yet. [11-03]
+      `vision-throughput-10-27`] Pi `Net*` confirmed 11-03; `RIO/*` still missing on 11-03; it's on
+      `beta` since 11-04. [11-03]
 - [ ] **Confirm the LogBench live fix.** With robot code already running, connect LogBench live,
       leave the Health Check open, and check that no camera has a gap between results over 80 ms.
       This is the case that stalled vision on 10-27 (T1, T2). [10-27 write-up, learning 8]
-- [ ] **Confirm the LogBench still-recording download fix** (branch `logbench-active-log-download`):
+- [ ] **Confirm the LogBench still-recording download fix** (on `beta` since 11-04):
       over the access point, fetch the newest log while robot code is running. It should finish
       in seconds with a "still writing" note, not follow the file. [11-03 notes]
 - [ ] **Check why the Left Pi links at 100 Mbit/s** when the Right Pi gets 1000. Try another cable
@@ -122,7 +124,7 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 | Item | Where it landed |
 |---|---|
-| roboRIO CPU in the Health Check [10-27] | `RioSystemStats`, `rio.cpu` rows (branch `vision-throughput-10-27`) |
+| roboRIO CPU in the Health Check [10-27] | `RioSystemStats`, `rio.cpu` rows (on `beta`, 11-04) |
 | Bandwidth logging, rows and thresholds [10-27] | Pi `Net*` topics, `RIO/Net*`, radio bandwidth rows (same branch) |
 | Each camera mode's real fps (`v4l2-ctl`) [10-27 open question 1] | `docs/experiments/vision/2026-10-28-pv-frame-pacing/notes.md`: 1280x800 and 800x600 both offer 100 and 120 |
 | Periodic vision dropouts in 10-27 T1/T2 | Traced to LogBench live; fixed in `7363770`, still to confirm on the robot |

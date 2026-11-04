@@ -5,7 +5,7 @@ area: roborio
 date: 2026-11-03            # written; rename the folder to the day it runs
 status: planned             # planned | running | analyzed | decided
 decision: pending
-robot_code: needs RioSystemStats (branch vision-throughput-10-27) deployed
+robot_code: beta (has RioSystemStats since 11-04)
 logs: logs/offseason/<run date>/
 analysis: analyze.py → results.json (already computes the baseline from 10-27 and 11-03)
 raw_notes: notes/<run date>/notes.md
@@ -103,8 +103,8 @@ it's close.
 
 ### Before the session
 
-- [ ] Deploy code with `RioSystemStats` and `RIO_SYSTEM_STATS_LOGGING = true` (branch
-  `vision-throughput-10-27`, or `beta` once it's merged). Check that `RIO/CpuPct` shows up.
+- [ ] Deploy code from `beta` (has `RioSystemStats`, `RIO_SYSTEM_STATS_LOGGING = true`). Check that
+  `RIO/CpuPct` shows up (check 2a in [notes/11-7](../../../../notes/11-7/notes.md)).
 - [ ] Note which dashboards are open in each run. The log lists NT clients under
   `SystemStats/NTClients/`, and `analyze.py` counts them.
 - [ ] Have a second deploy ready with `VISION_EXTENDED_NT_LOGGING = false`, for L5–L6.
