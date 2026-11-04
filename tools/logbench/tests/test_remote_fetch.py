@@ -187,21 +187,100 @@ def test_list_pi_sessions_flags_an_unparseable_session_name():
 
 # ── fetch_rio_log / fetch_pi_session ────────────────────────────────────────────────
 
-def test_fetch_rio_log_downloads_into_dest_dir(tmp_path):
+class _FakeRemoteFile:
+    """A remote file that grows by `growth` bytes every time it is stat'ed, like a log the
+    robot is still writing. Records every prefetch so a test can check none is unbounded."""
+
+    def __init__(self, content=b'', growth=b''):
+        self.data = bytearray(content)
+        self.growth = growth
+        self.pos = 0
+        self.prefetches = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def stat(self):
+        size = len(self.data)
+        self.data.extend(self.growth)
+        attr = MagicMock()
+        attr.st_size = size
+        return attr
+
+    def seek(self, offset):
+        self.pos = offset
+
+    def prefetch(self, file_size):
+        self.prefetches.append((self.pos, file_size))
+
+    def read(self, size):
+        out = bytes(self.data[self.pos:self.pos + size])
+        self.pos += len(out)
+        return out
+
+
+def _sftp_with(remote_file):
     sftp = MagicMock()
-    sftp.get.side_effect = lambda remote, local: pathlib.Path(local).write_bytes(b"log")
-    patcher, _ = _mock_paramiko(sftp)
+    sftp.open.return_value = remote_file
+    return sftp
+
+
+def test_fetch_rio_log_downloads_into_dest_dir(tmp_path):
+    remote = _FakeRemoteFile(b'WPILOG' + b'x' * 100_000)
+    patcher, _ = _mock_paramiko(_sftp_with(remote))
+    progress = []
     with patcher:
-        local_path = remote_fetch.fetch_rio_log(_cfg(), 'FRC_20260115_143022.wpilog', tmp_path)
+        local_path = remote_fetch.fetch_rio_log(_cfg(), 'FRC_20260115_143022.wpilog', tmp_path,
+                                                progress=lambda n, d, t: progress.append((d, t)))
 
     assert local_path == tmp_path / 'FRC_20260115_143022.wpilog'
-    sftp.get.assert_called_once_with(
-        '/home/lvuser/logs/FRC_20260115_143022.wpilog', str(local_path))
+    assert local_path.read_bytes() == bytes(remote.data)
+    assert progress[-1] == (len(remote.data), len(remote.data))
+
+
+def test_a_log_that_grew_during_the_download_is_caught_up(tmp_path):
+    # Grows once during the copy, then the robot code stops writing (the log closed): every byte arrives.
+    class _StopsGrowing(_FakeRemoteFile):
+        def stat(self):
+            if self.prefetches:
+                self.growth = b''
+            return super().stat()
+
+    remote = _StopsGrowing(b'a' * 50_000, growth=b'b' * 5_000)
+    grew = []
+    patcher, _ = _mock_paramiko(_sftp_with(remote))
+    with patcher:
+        local_path = remote_fetch.fetch_rio_log(_cfg(), 'akit_live.wpilog', tmp_path,
+                                                on_still_growing=lambda *a: grew.append(a))
+
+    assert local_path.read_bytes() == bytes(remote.data)
+    assert grew == []
+
+
+def test_a_log_still_being_written_is_snapshotted_not_chased(tmp_path):
+    # 11-03: the robot kept appending while LogBench downloaded, and sftp.get() followed the end
+    # of the file for 10 minutes. The download must stop and say how much it left behind.
+    remote = _FakeRemoteFile(b'a' * 50_000, growth=b'b' * 5_000)
+    grew = []
+    patcher, _ = _mock_paramiko(_sftp_with(remote))
+    with patcher:
+        local_path = remote_fetch.fetch_rio_log(_cfg(), 'akit_live.wpilog', tmp_path,
+                                                on_still_growing=lambda *a: grew.append(a))
+
+    copied = local_path.stat().st_size
+    assert copied == 50_000 + 5_000 * remote_fetch._CATCH_UP_PASSES
+    assert local_path.read_bytes() == bytes(remote.data[:copied])
+    assert len(remote.prefetches) == 1 + remote_fetch._CATCH_UP_PASSES
+    assert all(end > start for start, end in remote.prefetches)
+    assert grew and grew[0][0] == copied and grew[0][1] > copied
 
 
 def test_fetch_rio_log_wraps_a_download_failure(tmp_path):
     sftp = MagicMock()
-    sftp.get.side_effect = OSError('no such file')
+    sftp.open.side_effect = OSError('no such file')
     patcher, _ = _mock_paramiko(sftp)
     with patcher:
         with pytest.raises(remote_fetch.RemoteFetchError):
