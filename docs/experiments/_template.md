@@ -13,59 +13,76 @@ raw_notes: notes/<date>/notes.md
 
 # <Title>
 
-## Question
+<!-- Write this for a team member who has never read one of these. The first screen should tell
+     them what we're doing and what we found, without scrolling into the details. -->
 
-What we want to know, and why now (link the log or experiment that raised it).
+## In short
 
-## Hypothesis and pass criteria
+Three or four sentences: the problem, what we're trying, and the answer so far ("not run yet"
+is fine). Someone who reads only this paragraph should know the result.
 
-What we expect, and what result would change what we do. Write criteria relative to the setup
-(e.g. "results/s ≥ 95% of the camera's frame rate", not a fixed number).
+## What we're testing
 
-## Setup
+A numbered list of the questions, in plain words, each with the runs that answer it:
 
-| | |
-|---|---|
-| Hardware | |
-| Robot code | branch @ sha, relevant `FeatureSwitches` |
-| Coprocessor / PV config | camera mode (resolution, fps, format), exposure, pipeline settings |
-| Maneuver | which auto/command, or "stationary at X m". Use the same one for every run |
-| Window | which part of each log is measured (e.g. enabled spans > 5 s) |
-| Controls | what is held constant; how runs are ordered (interleave A/B/A/B when drift is possible) |
+1. **<Question>?** <One sentence on how we'll tell.> *(R1–R3)*
 
-### Pre-test checklist
+A setting **passes** if:
 
-- [ ] ...
-- [ ] Settings for every run written in the run table **before** enabling
+| Check | Pass if | Why |
+|---|---|---|
+| | | |
 
-## Runs
+Write criteria relative to the setup (e.g. "results/s ≥ 90% of the camera's fps", not a fixed
+number).
 
-| ID | Change from previous | Log file | Bench notes (battery, restarts, anything odd) |
+### Words used here
+
+Define every term a new student wouldn't know (e.g. decimate, results/s, dropped frame) and any
+short form used in the tables.
+
+## The runs
+
+What every run has in common (maneuver, camera mode, what to keep closed), in one or two lines.
+**Write each run's settings in this table before enabling.**
+
+| Run | What changes | What it checks | Status |
 |---|---|---|---|
-| R1 | baseline | | |
+| R1 | baseline | | to do |
 
-Change one variable per run. Runs added mid-session get a decimal ID (R2.1) and a line saying why.
+Change one thing per run. A run added mid-session gets a decimal ID (R2.1) and a line saying why.
+Interleave A/B/A/B only when the expected effect is about as small as the run-to-run drift.
+
+### Before the session
+
+- [ ] Code deployed (branch @ sha) with the logging this experiment needs
+- [ ] ...
 
 ## Results
 
-One table, one column per run, rows = metrics. Put the signal each metric comes from in the
-metric definitions below the table, not in every cell.
+One table, one column per run, rows = metrics. Bold the rows the pass criteria use.
 
-## Run-by-run verdicts
+### Verdicts
 
-| Run | vs | Verdict (gain / loss / neutral) | Why (numbers) |
+| Run | Compared with | Verdict (gain / loss / same) | Why (numbers) |
 |---|---|---|---|
 
-## Learnings
+### What we learned
 
 What we now know that we didn't, including surprises and anything that affects other areas.
 
-## Open questions
+## Next experiment
 
-Each one should be phrased so it can become the next experiment's Question.
-
-## Recommendation / decision
+Open questions, each phrased so it can become the next experiment's question. Link the new
+experiment once it exists.
 
 ## Reproduce
 
-Command that regenerates every number in this file from the logs.
+The command that regenerates every number in this file, and a table of run → log file.
+
+---
+
+## Background
+
+<!-- Source-code reading, option surveys, metric definitions, logging details. Put each in a
+     <details> block so the page stays short. -->

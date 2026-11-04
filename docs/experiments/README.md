@@ -28,6 +28,9 @@ brownout), `drivetrain`, `mechanisms`, `tools`. Add an area when the first exper
   enabled time.
 - **One question per experiment, one variable per run.** A run added mid-session gets a decimal
   ID (e.g. T5.1) and a line saying why.
+- **Write for someone who has never read one.** "In short", "What we're testing" and "The runs"
+  come first, in plain words, with a "Words used here" glossary. Source-code reading, option
+  surveys and metric definitions go in a Background section at the end. Follow `_template.md`.
 - **Write the setting into the run table before enabling.** PhotonVision and Pi settings are not
   in the robot log, so the notes are the only record.
 - **Use the same maneuver for every run** (e.g. `CircleFacingTag`), or say why not.
@@ -43,7 +46,9 @@ brownout), `drivetrain`, `mechanisms`, `tools`. Add an area when the first exper
 | Date | Area | Experiment | Status | Result |
 |---|---|---|---|---|
 | 2026-10-27 | vision | [PhotonVision throughput vs resolution, decimate, fps, recorder](vision/2026-10-27-pv-throughput/README.md) | analyzed | 800x600@120 dec 3 is best; heavier settings halve results/s; recorder (or a browser stream) costs frames |
-| 2026-10-28 | vision | [PhotonVision frame pacing: Low Latency Mode, detector threads, streams](vision/2026-10-28-pv-frame-pacing/README.md) | planned | Hypothesis: Low Latency Mode (on by default) causes the half-rate cliff |
+| 2026-10-28 | vision | [PhotonVision frame pacing: Low Latency Mode, detector threads, streams](vision/2026-10-28-pv-frame-pacing/README.md) | running | R1–R3 (11-03): Low Latency Mode was the whole cliff; off, decimate 2 runs at the full 100/s with no drops |
+| 2026-11-03 | vision | [PhotonVision range vs decimate and resolution](vision/2026-11-03-pv-range/README.md) | planned | Does a finer image see tags further and more accurately? Stationary at 2–8 m |
+| 2026-11-03 | roborio | [roboRIO loop overruns: what takes the 20 ms away](roborio/2026-11-03-loop-overruns/README.md) | planned | 5–29% of loops run over 20 ms; every section stretches together, so something takes the CPU |
 
 ### Earlier experiment docs (not yet moved into this layout)
 

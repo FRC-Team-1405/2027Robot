@@ -11,10 +11,14 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 - [ ] **Deploy robot code and re-bootstrap both Orange Pis**, then check that `RIO/*` and
       `/OrangePi/*/Net*` show up in the log and in the Health Check. [10-27 notes, branch
-      `vision-throughput-10-27`]
+      `vision-throughput-10-27`] Pi `Net*` confirmed 11-03; `RIO/*` still missing because the
+      robot ran `beta`, which doesn't have `RioSystemStats` yet. [11-03]
 - [ ] **Confirm the LogBench live fix.** With robot code already running, connect LogBench live,
       leave the Health Check open, and check that no camera has a gap between results over 80 ms.
       This is the case that stalled vision on 10-27 (T1, T2). [10-27 write-up, learning 8]
+- [ ] **Confirm the LogBench still-recording download fix** (branch `logbench-active-log-download`):
+      over the access point, fetch the newest log while robot code is running. It should finish
+      in seconds with a "still writing" note, not follow the file. [11-03 notes]
 - [ ] **Check why the Left Pi links at 100 Mbit/s** when the Right Pi gets 1000. Try another cable
       and radio/switch port. Not the cause of the frame-rate cliff, but it shouldn't be that way.
       [10-27 write-up]
@@ -24,12 +28,14 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Vision experiments
 
-- [ ] **Run the 10-28 frame-pacing experiment**: decimate 2 with Low Latency Mode on vs off, then
-      the other levers. [`docs/experiments/vision/2026-10-28-pv-frame-pacing/`]
-- [ ] **Find each camera mode's real fps** with `v4l2-ctl --list-formats-ext`, so we know whether
-      the 1280x800 runs hit the camera's limit or PhotonVision's. [10-27 open question 1]
-- [ ] **Range test**: stationary at 2 / 4 / 6 / 8 m, 800x600 vs 1280x800, to see whether higher
-      resolution buys anything. [10-27 open question 2]
+- [ ] **Finish the frame-pacing experiment**, R4–R14 (Low Latency off as the new baseline; dec 1,
+      thread sweep at dec 1, streams, 800x600@120 and 1280x800). R1–R3 done 11-03. [`docs/experiments/vision/2026-10-28-pv-frame-pacing/`]
+- [ ] **Confirm R3 was Low Latency off** in the PhotonVision UI; the notes don't say, the data
+      do. [11-03]
+- [ ] **Run the range experiment** after frame-pacing R6/R13: stationary at 2 / 4 / 6 / 8 m, one
+      pipeline per setting. [`docs/experiments/vision/2026-11-03-pv-range/`, 10-27 open question 2]
+- [ ] **Run the roboRIO loop-overrun experiment** once `RioSystemStats` is deployed: 5–29% of
+      loops are over 20 ms in every vision run. [`docs/experiments/roborio/2026-11-03-loop-overruns/`]
 - [ ] **Repeat the recorder on/off comparison interleaved** with no browser streams over the radio,
       and see whether the recorder can read a lower-rate stream. [10-27 open questions 3–4]
 - [ ] **Make the intrinsics in `VisionConstants` match whichever resolution we settle on.** The
@@ -40,6 +46,9 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
       15% FPS. [9-5] *(carried)*
 
 ## Logging and diagnostics
+
+- [ ] **Mark the log the robot is still writing in LogBench's Fetch Bundle list**, so it's obvious
+      before the download that you'll get a snapshot. [11-03, follow-up to the download fix]
 
 - [ ] **Log the robot's NetworkTables clients.** Record `NetworkTableInstance.getConnections()`
       (client name, IP, connect time) once a second. On 10-27 we had to work out from timing gaps
@@ -115,6 +124,7 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 |---|---|
 | roboRIO CPU in the Health Check [10-27] | `RioSystemStats`, `rio.cpu` rows (branch `vision-throughput-10-27`) |
 | Bandwidth logging, rows and thresholds [10-27] | Pi `Net*` topics, `RIO/Net*`, radio bandwidth rows (same branch) |
+| Each camera mode's real fps (`v4l2-ctl`) [10-27 open question 1] | `docs/experiments/vision/2026-10-28-pv-frame-pacing/notes.md`: 1280x800 and 800x600 both offer 100 and 120 |
 | Periodic vision dropouts in 10-27 T1/T2 | Traced to LogBench live; fixed in `7363770`, still to confirm on the robot |
 | Vision recorder manifest with a real timestamp per frame [10-17] | Manifest rows carry a UTC receipt time (`orangepi-vision-recorder.py`) |
 
