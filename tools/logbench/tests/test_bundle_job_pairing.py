@@ -138,3 +138,15 @@ def test_the_listing_gives_both_logs_of_a_boot_the_same_sessions(remote):
     assert chosen[LOG] == chosen[FRC] == expected
     assert pairings[LOG]['method'] == 'inferred'
     assert all(s['epoch'] for s in sessions['pi_sessions'])
+
+
+def test_a_log_the_robot_is_still_writing_says_so_in_the_result(remote, monkeypatch):
+    def fetch_live_log(cfg, name, dest, on_still_growing=None, **kwargs):
+        path = dest / name
+        path.write_bytes(remote['log'])
+        on_still_growing(len(remote['log']), len(remote['log']) + 1_000_000)
+        return path
+    monkeypatch.setattr(remote_fetch, 'fetch_rio_log', fetch_live_log)
+    job = run_job({'rio_log': LOG, 'manual': True, 'pi_sessions': [], 'prepare_download': True})
+    assert job['status'] == 'complete', job
+    assert any('still writing' in w for w in job['result']['warnings'])

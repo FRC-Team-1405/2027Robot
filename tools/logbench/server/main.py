@@ -821,10 +821,19 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
         def rio_progress(name: str, done: int, total: int) -> None:
             remote_jobs.file_progress(job_id, name, done, total)
 
+        log_warnings: List[str] = []
+
+        def still_growing(copied: int, remote_size: int) -> None:
+            log_warnings.append(
+                'The robot was still writing %s, so this bundle has it up to the moment of the '
+                'download (%.1f of %.1f MB so far). Fetch it again after the robot code restarts '
+                'to get the rest.' % (body.rio_log, copied / 1e6, remote_size / 1e6))
+
         remote_jobs.set_phase(job_id, 'Downloading RoboRIO log', body.rio_log)
         local_log = remote_fetch.fetch_rio_log(
             cfg.rio, body.rio_log, LOG_ROOT, progress=rio_progress,
-            idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
+            idle_timeout_seconds=cfg.transfer_idle_timeout_seconds,
+            on_still_growing=still_growing)
         remote_jobs.file_complete(job_id, body.rio_log)
 
         pairing_note = None
@@ -867,6 +876,8 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
                 cancelled=lambda: remote_jobs.cancelled(job_id), include_battery=body.include_battery)
             result.update(prepared)
             result['download_url'] = f'/api/remote/jobs/{job_id}/download'
+        if log_warnings:
+            result['warnings'] = log_warnings + list(result.get('warnings') or [])
         remote_jobs.set_phase(job_id, 'Ready')
         return result
 

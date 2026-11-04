@@ -287,11 +287,52 @@ def _download_error(remote_path: str, cfg: HostConfig, exc: Exception,
     return RemoteFetchError('could not fetch %s from %s -- %s' % (remote_path, cfg.host, exc))
 
 
+# How many times a download re-checks a file that grew while it was being copied. A finished log
+# needs none. A log the robot is still writing gets one pass for what arrived during the copy; the
+# robot is almost always disabled by then, so anything after that isn't worth waiting for.
+_CATCH_UP_PASSES = 1
+_READ_SIZE = 32768
+
+
+def _copy_snapshot(sftp, remote_path: str, local_path: pathlib.Path,
+                   callback: Optional[Callable[[int, int], None]] = None) -> tuple:
+    """Copy remote_path as it is now, plus what is appended during the copy, without chasing it.
+
+    sftp.get() reads until EOF but only prefetches the size it saw when it opened the file. On a
+    log the robot is still writing, everything past that is read one 32 KB round trip at a time,
+    which over the access point (11-03) was no faster than AdvantageKit writes (~100 kB/s): the
+    download ran for 10 minutes and never reached the end. Here every pass is bounded by a fresh
+    stat and fully prefetched, and after one catch-up pass whatever is still arriving is left behind.
+    Returns (bytes copied, remote size at the end)."""
+    done = 0
+    with sftp.open(remote_path, 'rb') as remote, open(local_path, 'wb') as local:
+        target = int(remote.stat().st_size)
+        for _ in range(1 + _CATCH_UP_PASSES):
+            if target <= done:
+                break
+            remote.seek(done)
+            remote.prefetch(target)
+            while done < target:
+                data = remote.read(min(_READ_SIZE, target - done))
+                if not data:
+                    break
+                local.write(data)
+                done += len(data)
+                if callback:
+                    callback(done, target)
+            if done < target:  # the file shrank or was replaced under us; keep what we have
+                break
+            target = int(remote.stat().st_size)
+    return done, max(done, target)
+
+
 def fetch_rio_log(cfg: HostConfig, name: str, dest_dir: pathlib.Path,
                   progress: Optional[ProgressCallback] = None,
-                  idle_timeout_seconds: Optional[int] = None) -> pathlib.Path:
+                  idle_timeout_seconds: Optional[int] = None,
+                  on_still_growing: Optional[Callable[[int, int], None]] = None) -> pathlib.Path:
     """Downloads <logs_path>/<name> into dest_dir (typically LOG_ROOT). Returns the local
-    path."""
+    path. If the robot is still writing the log, this keeps a snapshot rather than following it
+    (see _copy_snapshot) and calls on_still_growing(bytes copied, remote size now)."""
     dest_dir = pathlib.Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
     remote_path = posixpath.join(cfg.path, name)
@@ -307,12 +348,14 @@ def fetch_rio_log(cfg: HostConfig, name: str, dest_dir: pathlib.Path,
                 if progress:
                     progress(name, done, total)
 
-            if progress:
-                sftp.get(remote_path, str(local_path), callback=callback)
-            else:
-                sftp.get(remote_path, str(local_path))
-            log.info('downloaded RIO log %s (%d bytes) in %.2fs', name, local_path.stat().st_size,
+            copied, remote_size = _copy_snapshot(sftp, remote_path, local_path, callback)
+            log.info('downloaded RIO log %s (%d bytes) in %.2fs', name, copied,
                      time.monotonic() - started)
+            if remote_size > copied:
+                log.warning('RIO log %s is still being written: kept the first %d of %d bytes',
+                            name, copied, remote_size)
+                if on_still_growing:
+                    on_still_growing(copied, remote_size)
         except (OSError, IOError) as exc:
             raise _download_error(remote_path, cfg, exc, idle_timeout_seconds) from exc
     finally:

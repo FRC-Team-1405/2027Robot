@@ -240,7 +240,11 @@ shows the current remote phase, elapsed time, bytes/files transferred, rolling t
 and ETA when a byte total is known. A transfer that receives no data for 60 seconds fails
 instead of appearing stalled; set the optional top-level
 `"transfer_idle_timeout_seconds"` value in the ignored
-`server/remote_config.json` to adjust that per network. Each server run writes a detailed
+`server/remote_config.json` to adjust that per network. A roboRIO log the robot is still
+writing (the newest one, while robot code runs) is copied as it is at the moment of the
+download, plus one catch-up pass, and the result says how much was left on the robot; fetch
+it again after the robot code restarts for the rest. Before this, the download followed the end
+of the growing file, and over a slow link it never finished (11-03). Each server run writes a detailed
 diagnostic log under `tools/logbench/logs/`; the newest ten runs are retained locally and
 the folder is ignored by Git.
 
