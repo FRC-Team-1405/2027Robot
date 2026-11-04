@@ -117,6 +117,11 @@ cd web && npm install && npm run build && cd ..
 python server/main.py --logs ../../logs
 ```
 
+Missing Python?
+```
+winget install -e --id Python.Python.3.13
+`
+
 Install NPM if you see an error indicating NPM missing: `winget install OpenJS.NodeJS.LTS`
 
 `--logs` is only the starting folder. The pages that list logs (Vision Logs, Compare,

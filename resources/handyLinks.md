@@ -10,6 +10,7 @@
 | Wireless (DHCP) Factory Default | Status | http://10.0.1.1/status |
 | Wireless (DHCP) Team Number Previously Set | Configuration | http://10.14.5.1/configuration |
 | Wireless (DHCP) Team Number Previously Set | Status | http://10.14.5.1/status |
+| Access Point | Configuration | http://10.14.5.4/configuration
 
 # Photon Vision Local URL
 
