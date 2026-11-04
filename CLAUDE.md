@@ -85,7 +85,7 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 ### Coprocessor
 
-`coprocessor/orangepi-nt-publisher.py` runs on the Orange Pi alongside PhotonVision, publishing CPU/RAM/disk/temp to NT4 under `/OrangePi/`. Managed as a systemd service (`orangepi-nt-publisher.service`).
+`coprocessor/orangepi-nt-publisher.py` runs on the Orange Pi alongside PhotonVision, publishing CPU/RAM/disk/temp to NT4 under `/OrangePi/`, plus PhotonVision's active pipeline settings (read-only from its `photon.sqlite`) and each camera's real V4L2 mode, on change. The robot mirrors all of `/OrangePi/` into the log (`CoprocessorHealthLogger`). Managed as a systemd service (`orangepi-nt-publisher.service`).
 
 `coprocessor/orangepi-vision-recorder.py` also runs on the Orange Pi alongside PhotonVision: taps PhotonVision's own raw (pre-AprilTag-processing) MJPEG stream, gated on robot-enabled, and saves a low-rate JPEG sequence with NT-synced timestamps locally under a 5GB rotating cap — for post-match diagnosis of missed detections. Managed as a systemd service (`orangepi-vision-recorder.service`); see `docs/orangepi-vision-recorder-setup.md` for the two bench-verification steps (raw stream port, `/FMSInfo` bit decoding) required before trusting it on a given Pi/camera config.
 
