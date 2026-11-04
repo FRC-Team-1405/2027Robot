@@ -80,9 +80,11 @@ class NetworkTablesIdentityTests(unittest.TestCase):
         # How to reach each board, for tools/logbench's Pi discovery.
         self.assertEqual(values["/OrangePi/LeftPi/IP"], "10.14.5.21")
         self.assertEqual(values["/OrangePi/RightPi/Host"], "rightpi.local")
-        # seven basic metrics, IP, Host, eight system diagnostics and the 21 performance values per board
+        # seven basic metrics, IP, Host, eight system diagnostics, the 21 performance values and the
+        # five network traffic values per board
         self.assertEqual(len(perf_names), 21)
-        self.assertEqual(len(values), 2 * (7 + 2 + 8 + 21))
+        self.assertEqual(len(module.NET_TRAFFIC_TOPICS), 5)
+        self.assertEqual(len(values), 2 * (7 + 2 + 8 + 21 + 5))
         self.assertEqual(values["/OrangePi/LeftPi/CpuCorePct"], 0)
         self.assertEqual(values["/OrangePi/LeftPi/BootId"], "boot-1")
         self.assertEqual(values["/OrangePi/RightPi/NetCarrierChanges"], 3)

@@ -410,6 +410,45 @@ def read_link(iface, root=""):
     }
 
 
+class NetTrafficSampler:
+    """How much this board sends and receives on one interface, in Mbit/s, from the kernel's byte
+    counters (deltas between samples, so nothing sleeps; the first sample reports zero). The error
+    and drop counters are cumulative since boot, like NetCarrierChanges: a count that climbs during
+    a match means packets were lost on this link.
+
+    Why: to tell whether network bandwidth limits vision. The Pi's own link (100 or 1000 Mbit/s,
+    NetSpeedMbps) is not the field's 7 Mbit/s radio limit -- Pi-to-roboRIO traffic stays on the
+    robot's switch -- but everything a laptop dashboard streams from the Pi does cross the radio."""
+
+    COUNTERS = ("rx_bytes", "tx_bytes", "rx_dropped", "rx_errors", "tx_errors")
+
+    def __init__(self, root="", clock=time.monotonic):
+        self._root = root
+        self._clock = clock
+        self._prev = None       # (iface, time, rx_bytes, tx_bytes)
+
+    def sample(self, iface):
+        base = f"{self._root}/sys/class/net/{iface}/statistics"
+        c = {name: _read_int(f"{base}/{name}") for name in self.COUNTERS} if iface else \
+            {name: -1 for name in self.COUNTERS}
+        now = self._clock()
+        rx_mbps = tx_mbps = 0.0
+        prev = self._prev
+        if prev and prev[0] == iface and now > prev[1] and c["rx_bytes"] >= prev[2] >= 0 and c["tx_bytes"] >= prev[3] >= 0:
+            rx_mbps = round((c["rx_bytes"] - prev[2]) * 8 / 1e6 / (now - prev[1]), 3)
+            tx_mbps = round((c["tx_bytes"] - prev[3]) * 8 / 1e6 / (now - prev[1]), 3)
+        self._prev = (iface, now, c["rx_bytes"], c["tx_bytes"])
+        return {"NetRxMbps": rx_mbps, "NetTxMbps": tx_mbps, "NetRxDropped": c["rx_dropped"],
+                "NetRxErrors": c["rx_errors"], "NetTxErrors": c["tx_errors"]}
+
+
+# NT type of each NetTrafficSampler value.
+NET_TRAFFIC_TOPICS = {
+    "NetRxMbps": "Double", "NetTxMbps": "Double",
+    "NetRxDropped": "Integer", "NetRxErrors": "Integer", "NetTxErrors": "Integer",
+}
+
+
 def read_video(root=""):
     """(video device nodes, distinct USB cameras). One physical camera exposes several /dev/video
     nodes, so USB cameras are counted by their parent USB device. A camera that fell off the USB
@@ -481,6 +520,9 @@ def main():
     perf_pubs = {name: getattr(table, f"get{kind}Topic")(name).publish()
                  for name, kind in PERFORMANCE_TOPICS.items()}
     perf = PerformanceSampler()
+    net_pubs = {name: getattr(table, f"get{kind}Topic")(name).publish()
+                for name, kind in NET_TRAFFIC_TOPICS.items()}
+    net = NetTrafficSampler()
     disk = None
     disk_read_at = None
 
@@ -515,6 +557,8 @@ def main():
             carrier_pub.set(system["carrier_changes"])
             operstate_pub.set(system["operstate"])
             speed_pub.set(system["speed_mbps"])
+            for name, value in net.sample(system["iface"]).items():
+                net_pubs[name].set(value)
             video_pub.set(system["video_devices"])
             usbcam_pub.set(system["usb_cameras"])
 

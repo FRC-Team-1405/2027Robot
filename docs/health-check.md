@@ -62,8 +62,8 @@ fail above 90 %") and detail. Hover for the check's help text.
 |---|---|
 | **Vision** | per camera: connected to robot code, frame rate; live only: tags in view, tag-detection health score and why it is low, camera agreement. The old per-factor tag-detection cards are under **Tag detection detail**. |
 | **Vision recording** | log only, and only for a log opened with its `.vision` folder. Per camera: share of the enabled (auto + teleop) time within 0.5 s of a recorded frame (warn below 90 %, fail below 50 %) and the longest stretch with no frame (warn above 10 s, fail above 60 s; the largest gaps, in seconds into the log, are in the row's detail). A camera the robot logged with no recording folder fails. Computed from the bundle's files, not health_checks.toml (`server/vision_coverage.py`). |
-| **Orange Pis** | per Pi: reporting (silent over 5 s fails), CPU, RAM, disk, temperature, and the diagnostics below. Per recorder: state (idle/recording ok; no_stream/error not), camera stream delivering frames, stream rate, share of an enabled match that was recorded (log), disk free, errors, clock synced to the robot, version. |
-| **roboRIO** | CAN utilization (worst), bus-off, TX-full, RX/TX errors; battery voltage (lowest while enabled, and now), brownout, rail faults, comms disables; PDH faults and peak current; controller CPU temperature, loop time (worst, mean per loop, 95th percentile, share of loops over 20 ms), Java GC time per loop, code time per loop, logging backlog, radio; log only: the feature switches the deployed code was built with and the NetworkTables clients connected while enabled (dashboards cost the roboRIO CPU, so compare loop times only between logs with the same clients); CAN utilization while disabled (the idle baseline) and mean while enabled, used to A/B the CAN-load switches in [can-bus-load-ab-test.md](can-bus-load-ab-test.md); an optional loop-time breakdown per section when `LOG_SUBSYSTEM_TIMINGS` is on; errors/warnings/PhotonVision alerts logged by robot code. |
+| **Orange Pis** | per Pi: reporting (silent over 5 s fails), CPU, RAM, disk, temperature, network link speed (lowest negotiated, live and log), network sent/received (peak) and receive errors while enabled, and the diagnostics below. Per recorder: state (idle/recording ok; no_stream/error not), camera stream delivering frames, stream rate, share of an enabled match that was recorded (log), disk free, errors, clock synced to the robot, version. |
+| **roboRIO** | CAN utilization (worst), bus-off, TX-full, RX/TX errors; battery voltage (lowest while enabled, and now), brownout, rail faults, comms disables; PDH faults and peak current; controller CPU use (mean and 95th percentile while enabled) and memory, from `RealOutputs/RIO/*` (`RioSystemStats`, logs from 2026-10-27 on); network: roboRIO ethernet sent/received and radio bandwidth used against the 7 Mbit/s field limit (R704); controller CPU temperature, loop time (worst, mean per loop, 95th percentile, share of loops over 20 ms), Java GC time per loop, code time per loop, logging backlog, radio; log only: the feature switches the deployed code was built with and the NetworkTables clients connected while enabled (dashboards cost the roboRIO CPU, so compare loop times only between logs with the same clients); CAN utilization while disabled (the idle baseline) and mean while enabled, used to A/B the CAN-load switches in [can-bus-load-ab-test.md](can-bus-load-ab-test.md); an optional loop-time breakdown per section when `LOG_SUBSYSTEM_TIMINGS` is on; errors/warnings/PhotonVision alerts logged by robot code. |
 | **Robot** | one group per subsystem, one cluster per motor: responding on CAN, newest status age, last status, temperature, undervoltage, time at the current limit, peak supply current. |
 
 ### When the Pi's cameras and clients all drop at once: reboot, link flap or camera loss?
@@ -98,6 +98,13 @@ whatever any temperature reads.
 
 - **roboRIO and robot rows** read what AdvantageKit already logs (`SystemStats/*`, `PowerDistribution/*`,
   `Power/Motors/*`, `RealOutputs/*`), live from `/AdvantageKit/...` or from the log.
+- **Live, LogBench reads only what the checks name.** It discovers topic names (no values) under
+  each check's `signal` prefix, then holds one subscription to exactly the matching topics, at 4 Hz.
+  A new check's topics start updating within a second of editing `health_checks.toml`. Don't go
+  back to subscribing to everything. On 2026-10-27 the old client (every AdvantageKit value, plus
+  one more subscription per topic on its first poll) delayed both cameras' results to robot code
+  by 100–280 ms after each connect. It then fell into a reconnect loop that repeated this every
+  2.4 s ([write-up](experiments/vision/2026-10-27-pv-throughput/README.md), learning 8).
 - **Orange Pi rows** read `/OrangePi/...`. `orangepi-nt-publisher.py` publishes CPU/RAM/disk/temperature;
   `orangepi-vision-recorder.py` publishes a heartbeat per camera under
   `/OrangePi/[<board>/]Recorders/<camera>/`: `State`, `Recording`, `StreamOk`, `StreamAgeSec`, `StreamFps`,
@@ -144,6 +151,9 @@ swap `signal`, pick a `measure`, add a threshold.
   A `*` matches one path segment and produces **one row per match**; `{1}`, `{2}` in `group`, `subject` and
   `label` are what the first and second `*` matched. `lookup = { name = "Power/Motors/{1}/Name" }` pulls
   display text (`{name}`) from another signal of the same item.
+- **`field`**: for a signal whose value is a JSON string, the dotted path to check inside it, e.g.
+  `signal = "RadioStatus/Status"`, `field = "networkStatus6.bandwidthUsedMbps"`. Samples without that
+  path are skipped.
 - **`measure`** (how a log collapses to one number): `last`, `first`, `max`, `min`, `mean` (time-weighted),
   `seconds_above` / `seconds_below` (need `above` / `below`), `seconds_true`, `seconds_false`,
   `fraction_true`, `fraction_false`, `seconds_equals`, `fraction_equals` (need `equals`), `any_true`,

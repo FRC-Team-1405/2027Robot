@@ -264,6 +264,14 @@ public class FeatureSwitches {
      *  MEASURED: CoprocessorHealthLoggerMs ~1.4 ms per loop with batching off; batched not yet. */
     public static final boolean COPROCESSOR_HEALTH_LOGGING = true;
 
+    /** Log roboRIO CPU (total and per core), memory and ethernet traffic once a second as RIO/*, for the
+     *  Health Check's roboRIO rows on a match log. A background thread reads /proc; the loop only logs.
+     *  true  = RIO CPU/network in match logs. false = not logged (the DS log still has CPU).
+     *  SET: true. The 10-27 logs had loop overruns in every run and no way to see CPU from the .wpilog.
+     *  CHANGE WHEN: never expected; the loop-side cost is ~8 recordOutput calls once a second.
+     *  MEASURED: not yet. */
+    public static final boolean RIO_SYSTEM_STATS_LOGGING = true;
+
     /** Phoenix .hoot signal logging (automatic and explicit). The AKit .wpilog is unaffected.
      *  true  = .hoot logs for Tuner X / CTRE analysis. false = no .hoot.
      *  SET: COMPETITION false. TESTING false; true when you need it.

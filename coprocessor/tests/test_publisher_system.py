@@ -139,6 +139,43 @@ class SystemDiagnosticsTests(unittest.TestCase):
         bare = self.module.read_system(empty.name)
         self.assertEqual((bare["uptime_sec"], bare["boot_id"], bare["iface"]), (-1.0, "", ""))
 
+    # ---- network traffic ----
+    def _counters(self, iface, rx, tx, dropped=0, rx_err=0, tx_err=0):
+        base = f"sys/class/net/{iface}/statistics"
+        for name, value in (("rx_bytes", rx), ("tx_bytes", tx), ("rx_dropped", dropped),
+                            ("rx_errors", rx_err), ("tx_errors", tx_err)):
+            write(self.root, f"{base}/{name}", f"{value}\n")
+
+    def test_traffic_is_the_byte_delta_in_megabits_per_second(self):
+        clock = [100.0]
+        net = self.module.NetTrafficSampler(self.root, clock=lambda: clock[0])
+        self._counters("end1", 1_000_000, 5_000_000)
+        first = net.sample("end1")
+        self.assertEqual((first["NetRxMbps"], first["NetTxMbps"]), (0.0, 0.0))
+        clock[0] = 100.5
+        self._counters("end1", 1_250_000, 5_625_000, dropped=3, rx_err=1, tx_err=2)
+        second = net.sample("end1")
+        # 250 kB in 0.5 s = 4 Mbit/s; 625 kB in 0.5 s = 10 Mbit/s
+        self.assertEqual(second, {"NetRxMbps": 4.0, "NetTxMbps": 10.0, "NetRxDropped": 3,
+                                  "NetRxErrors": 1, "NetTxErrors": 2})
+
+    def test_counter_reset_or_interface_change_reports_zero_not_a_spike(self):
+        clock = [0.0]
+        net = self.module.NetTrafficSampler(self.root, clock=lambda: clock[0])
+        self._counters("end1", 9_000_000, 9_000_000)
+        net.sample("end1")
+        clock[0] = 1.0
+        self._counters("end1", 100, 100)                 # driver reload resets the counters
+        self.assertEqual(net.sample("end1")["NetRxMbps"], 0.0)
+        clock[0] = 2.0
+        self._counters("eth0", 50_000_000, 50_000_000)
+        self.assertEqual(net.sample("eth0")["NetTxMbps"], 0.0)
+
+    def test_missing_counters_are_minus_one_and_no_interface_is_safe(self):
+        net = self.module.NetTrafficSampler(self.root)
+        self.assertEqual(net.sample("end1")["NetRxErrors"], -1)
+        self.assertEqual(net.sample("")["NetRxMbps"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

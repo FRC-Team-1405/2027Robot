@@ -1,0 +1,1318 @@
+[
+ {
+  "file": "akit_26-11-03_23-38-42.trimmed.wpilog",
+  "spans": [
+   [
+    35.6,
+    20.2
+   ]
+  ],
+  "enabled_s": 20.2,
+  "LeftCam": {
+   "results": 2010,
+   "results_per_s": 99.4,
+   "frame_ms_median": 8.04,
+   "nominal_fps": 100.9,
+   "dropped_frames": 33,
+   "drop_events": 33,
+   "dropped_pct": 1.62,
+   "gaps_ge_50ms": 0,
+   "max_gap_ms": 20.1,
+   "seq_missing": 0,
+   "MissedResults_max": null,
+   "pv_ms_med": 15.19,
+   "pv_ms_p95": 16.14,
+   "pv_ms_max": 20.38,
+   "total_lat_med": 22.6,
+   "total_lat_p95": 29.2,
+   "CurrentFps_med": 99.5,
+   "CurrentFps_min": 97.4,
+   "dist_med": 1.76,
+   "dist_max": 2.67,
+   "dist_min": 0.96,
+   "tag_ids": [
+    9,
+    10
+   ],
+   "tags_per_result_mean": 2,
+   "area_med": 1.805,
+   "x_std_cm": 57.673,
+   "y_std_cm": 50.748,
+   "x_p2p_cm": 172.05,
+   "h_std_deg": 17.082,
+   "h_p2p_deg": 57.145,
+   "pose_mean": [
+    14.142,
+    4.007,
+    -181.54
+   ],
+   "accept_med": 83.3,
+   "health_med": 11.0,
+   "interval_hist": {
+    "pct": {
+     "<0.75T": 0.0,
+     "1T": 98.4,
+     "1.5T": 0.0,
+     "2T": 1.6,
+     "2.5T": 0.0,
+     "3T": 0.0,
+     ">3.25T": 0.0
+    },
+    "n": 2009,
+    "fine_1ms": {
+     "7": 592,
+     "8": 442,
+     "11": 378,
+     "12": 564,
+     "19": 24,
+     "20": 9
+    },
+    "p10_ms": 7.97,
+    "p50_ms": 8.04,
+    "p90_ms": 12.03,
+    "mean_ms": 10.07
+   },
+   "recorder_pct_of_window": 95.8
+  },
+  "RightCam": {
+   "results": 2007,
+   "results_per_s": 99.3,
+   "frame_ms_median": 8.04,
+   "nominal_fps": 101.0,
+   "dropped_frames": 35,
+   "drop_events": 35,
+   "dropped_pct": 1.71,
+   "gaps_ge_50ms": 0,
+   "max_gap_ms": 20.1,
+   "seq_missing": 0,
+   "MissedResults_max": null,
+   "pv_ms_med": 15.24,
+   "pv_ms_p95": 16.22,
+   "pv_ms_max": 21.39,
+   "total_lat_med": 21.8,
+   "total_lat_p95": 27.8,
+   "CurrentFps_med": 99.4,
+   "CurrentFps_min": 96.3,
+   "dist_med": 1.83,
+   "dist_max": 2.76,
+   "dist_min": 1.02,
+   "tag_ids": [
+    9,
+    10
+   ],
+   "tags_per_result_mean": 1.99,
+   "area_med": 1.583,
+   "x_std_cm": 57.639,
+   "y_std_cm": 51.496,
+   "x_p2p_cm": 174.62,
+   "h_std_deg": 17.155,
+   "h_p2p_deg": 57.072,
+   "pose_mean": [
+    14.158,
+    4.005,
+    -180.01
+   ],
+   "accept_med": 66.7,
+   "health_med": 10.7,
+   "interval_hist": {
+    "pct": {
+     "<0.75T": 0.0,
+     "1T": 98.3,
+     "1.5T": 0.0,
+     "2T": 1.7,
+     "2.5T": 0.0,
+     "3T": 0.0,
+     ">3.25T": 0.0
+    },
+    "n": 2006,
+    "fine_1ms": {
+     "7": 540,
+     "8": 492,
+     "11": 424,
+     "12": 515,
+     "19": 19,
+     "20": 16
+    },
+    "p10_ms": 7.98,
+    "p50_ms": 8.04,
+    "p90_ms": 12.02,
+    "mean_ms": 10.08
+   },
+   "recorder_pct_of_window": 93.2
+  },
+  "LeftPi": {
+   "CpuCoreMaxPct": [
+    44.9,
+    51.0
+   ],
+   "CPU_Pct": [
+    22.4,
+    26.6
+   ],
+   "PvCpuPct": [
+    164.0,
+    178.0
+   ],
+   "PublisherCpuPct": [
+    4.2,
+    4.4
+   ],
+   "core_med": [
+    11,
+    4,
+    2,
+    0,
+    41,
+    40,
+    40,
+    40
+   ],
+   "CpuFreqMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "CpuFreqCapMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "CpuFreqMaxMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "throttled_any": false,
+   "temp_start": 51.8,
+   "temp_end": 50.8,
+   "temp_max": 51.8,
+   "temp_series": [
+    [
+     10,
+     50.8
+    ],
+    [
+     18,
+     50.8
+    ]
+   ],
+   "rec_streamfps_med": 99.1,
+   "rec_states": [
+    [
+     -2,
+     "idle"
+    ],
+    [
+     1,
+     "recording"
+    ],
+    [
+     21,
+     "idle"
+    ]
+   ],
+   "rec_session_frames": [
+    59
+   ],
+   "NetSpeedMbps": [
+    100
+   ],
+   "top_thread_med": 60,
+   "top_thread_max": 62.0,
+   "top_thread_core_mode": 4
+  },
+  "RightPi": {
+   "CpuCoreMaxPct": [
+    45.2,
+    52.0
+   ],
+   "CPU_Pct": [
+    22.8,
+    24.3
+   ],
+   "PvCpuPct": [
+    163.0,
+    178.0
+   ],
+   "PublisherCpuPct": [
+    4.3,
+    4.4
+   ],
+   "core_med": [
+    8,
+    0,
+    2,
+    4,
+    41,
+    41,
+    42,
+    41
+   ],
+   "CpuFreqMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "CpuFreqCapMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "CpuFreqMaxMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "throttled_any": false,
+   "temp_start": 49.9,
+   "temp_end": 49.0,
+   "temp_max": 50.8,
+   "temp_series": [
+    [
+     -1,
+     50.8
+    ],
+    [
+     5,
+     49.0
+    ],
+    [
+     11,
+     49.0
+    ],
+    [
+     16,
+     49.0
+    ]
+   ],
+   "rec_streamfps_med": 98.8,
+   "rec_states": [
+    [
+     -2,
+     "idle"
+    ],
+    [
+     1,
+     "recording"
+    ],
+    [
+     20,
+     "idle"
+    ]
+   ],
+   "rec_session_frames": [
+    58
+   ],
+   "NetSpeedMbps": [
+    1000
+   ],
+   "top_thread_med": 58,
+   "top_thread_max": 64.0,
+   "top_thread_core_mode": 5
+  },
+  "rio": {
+   "loop": [
+    13.17,
+    21.62,
+    59.32
+   ],
+   "fullcycle": [
+    16.12,
+    25.27,
+    65.43
+   ],
+   "visionms": [
+    5.63,
+    8.74,
+    20.09
+   ],
+   "usercode": [
+    13.3,
+    21.42,
+    59.38
+   ],
+   "batt": [
+    11.81,
+    12.17,
+    12.39
+   ],
+   "can": [
+    0.68,
+    0.93,
+    1.0
+   ],
+   "cycles_over_20ms_pct": 12.2,
+   "overruns_in_span": 52,
+   "LeftCam_read_ms": [
+    0.49,
+    1.21
+   ],
+   "RightCam_read_ms": [
+    0.45,
+    1.11
+   ],
+   "max_vx": 1.274,
+   "max_omega": 1.495,
+   "fused_x_std_cm": 57.028,
+   "fused_h_std_deg": 165.87,
+   "xcam_trans_m": [
+    0.0461,
+    0.1044,
+    0.1974
+   ],
+   "xcam_rot_deg": [
+    1.5501,
+    2.6715,
+    3.1019
+   ],
+   "xcam_score": [
+    60.3427,
+    85.0266,
+    93.0013
+   ],
+   "correction_m": [
+    0.0368,
+    0.0855,
+    0.1811
+   ],
+   "circle_phase_times": [
+    [
+     0.0,
+     "Positioning"
+    ],
+    [
+     0.9,
+     "Circle"
+    ],
+    [
+     18.6,
+     "Done"
+    ]
+   ],
+   "circle_phases": [
+    "Positioning",
+    "Circle",
+    "Done"
+   ],
+   "sha": "338bcfa7"
+  },
+  "id": "R1",
+  "setting": "800x600 @100, dec 3, Low Latency on, threads 8",
+  "net": {
+   "LeftPi_NetTxMbps": [
+    0.91,
+    0.93
+   ],
+   "LeftPi_NetRxMbps": [
+    0.07,
+    0.08
+   ],
+   "LeftPi_NetSpeedMbps": 100,
+   "LeftPi_NetRxErrors": 0,
+   "LeftPi_NetTxErrors": 0,
+   "LeftPi_NetRxDropped": 0,
+   "RightPi_NetTxMbps": [
+    0.9,
+    0.93
+   ],
+   "RightPi_NetRxMbps": [
+    0.07,
+    0.08
+   ],
+   "RightPi_NetSpeedMbps": 1000,
+   "RightPi_NetRxErrors": 0,
+   "RightPi_NetTxErrors": 0,
+   "RightPi_NetRxDropped": 0,
+   "radio_bw_mbps": [
+    0.35,
+    0.38,
+    6
+   ],
+   "rio_stats_logged": false
+  }
+ },
+ {
+  "file": "akit_26-11-03_23-58-01.trimmed.wpilog",
+  "spans": [
+   [
+    24.2,
+    21.1
+   ]
+  ],
+  "enabled_s": 21.1,
+  "LeftCam": {
+   "results": 1136,
+   "results_per_s": 53.9,
+   "frame_ms_median": 20.0,
+   "nominal_fps": 53.9,
+   "dropped_frames": 0,
+   "drop_events": 0,
+   "dropped_pct": 0.0,
+   "gaps_ge_50ms": 0,
+   "max_gap_ms": 20.2,
+   "seq_missing": 0,
+   "MissedResults_max": null,
+   "pv_ms_med": 16.57,
+   "pv_ms_p95": 17.24,
+   "pv_ms_max": 19.52,
+   "total_lat_med": 28.0,
+   "total_lat_p95": 37.2,
+   "CurrentFps_med": 52.8,
+   "CurrentFps_min": 52.1,
+   "dist_med": 1.65,
+   "dist_max": 2.68,
+   "dist_min": 0.96,
+   "tag_ids": [
+    9,
+    10
+   ],
+   "tags_per_result_mean": 2,
+   "area_med": 2.0,
+   "x_std_cm": 57.826,
+   "y_std_cm": 49.851,
+   "x_p2p_cm": 172.02,
+   "h_std_deg": 16.937,
+   "h_p2p_deg": 57.409,
+   "pose_mean": [
+    14.094,
+    3.996,
+    177.73
+   ],
+   "accept_med": 50.0,
+   "health_med": 5.6,
+   "interval_hist": {
+    "pct": {
+     "<0.75T": 0.0,
+     "1T": 12.6,
+     "1.5T": 0.0,
+     "2T": 87.4,
+     "2.5T": 0.0,
+     "3T": 0.0,
+     ">3.25T": 0.0
+    },
+    "n": 1135,
+    "fine_1ms": {
+     "7": 30,
+     "8": 90,
+     "11": 3,
+     "12": 20,
+     "19": 611,
+     "20": 381
+    },
+    "p10_ms": 8.06,
+    "p50_ms": 20.0,
+    "p90_ms": 20.02,
+    "mean_ms": 18.57
+   },
+   "recorder_pct_of_window": 94.2
+  },
+  "RightCam": {
+   "results": 1164,
+   "results_per_s": 55.2,
+   "frame_ms_median": 20.0,
+   "nominal_fps": 55.2,
+   "dropped_frames": 0,
+   "drop_events": 0,
+   "dropped_pct": 0.0,
+   "gaps_ge_50ms": 0,
+   "max_gap_ms": 20.1,
+   "seq_missing": 0,
+   "MissedResults_max": null,
+   "pv_ms_med": 16.59,
+   "pv_ms_p95": 17.31,
+   "pv_ms_max": 21.05,
+   "total_lat_med": 26.9,
+   "total_lat_p95": 36.8,
+   "CurrentFps_med": 52.9,
+   "CurrentFps_min": 52.1,
+   "dist_med": 1.7,
+   "dist_max": 2.77,
+   "dist_min": 1.02,
+   "tag_ids": [
+    9,
+    10
+   ],
+   "tags_per_result_mean": 2,
+   "area_med": 1.782,
+   "x_std_cm": 58.367,
+   "y_std_cm": 50.021,
+   "x_p2p_cm": 175.24,
+   "h_std_deg": 16.882,
+   "h_p2p_deg": 57.219,
+   "pose_mean": [
+    14.092,
+    3.983,
+    178.87
+   ],
+   "accept_med": 75.0,
+   "health_med": 5.3,
+   "interval_hist": {
+    "pct": {
+     "<0.75T": 0.0,
+     "1T": 17.1,
+     "1.5T": 0.0,
+     "2T": 82.9,
+     "2.5T": 0.0,
+     "3T": 0.0,
+     ">3.25T": 0.0
+    },
+    "n": 1163,
+    "fine_1ms": {
+     "7": 49,
+     "8": 99,
+     "11": 11,
+     "12": 40,
+     "19": 588,
+     "20": 376
+    },
+    "p10_ms": 8.03,
+    "p50_ms": 20.0,
+    "p90_ms": 20.03,
+    "mean_ms": 18.12
+   },
+   "recorder_pct_of_window": 94.5
+  },
+  "LeftPi": {
+   "CpuCoreMaxPct": [
+    33.3,
+    42.3
+   ],
+   "CPU_Pct": [
+    15.7,
+    19.5
+   ],
+   "PvCpuPct": [
+    110.0,
+    136.0
+   ],
+   "PublisherCpuPct": [
+    4.3,
+    4.4
+   ],
+   "core_med": [
+    6,
+    0,
+    0,
+    4,
+    28,
+    26,
+    26,
+    26
+   ],
+   "CpuFreqMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "CpuFreqCapMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "CpuFreqMaxMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "throttled_any": false,
+   "temp_start": 45.3,
+   "temp_end": 45.3,
+   "temp_max": 47.2,
+   "temp_series": [
+    [
+     0,
+     45.3
+    ],
+    [
+     2,
+     45.3
+    ],
+    [
+     7,
+     46.2
+    ],
+    [
+     10,
+     46.2
+    ],
+    [
+     18,
+     44.4
+    ]
+   ],
+   "rec_streamfps_med": 53.2,
+   "rec_states": [
+    [
+     -2,
+     "idle"
+    ],
+    [
+     1,
+     "recording"
+    ],
+    [
+     22,
+     "idle"
+    ]
+   ],
+   "rec_session_frames": [
+    61
+   ],
+   "NetSpeedMbps": [
+    100
+   ],
+   "top_thread_med": 34,
+   "top_thread_max": 42.0,
+   "top_thread_core_mode": 7
+  },
+  "RightPi": {
+   "CpuCoreMaxPct": [
+    33.0,
+    46.0
+   ],
+   "CPU_Pct": [
+    15.5,
+    20.9
+   ],
+   "PvCpuPct": [
+    109.0,
+    140.0
+   ],
+   "PublisherCpuPct": [
+    4.3,
+    4.6
+   ],
+   "core_med": [
+    6,
+    2,
+    0,
+    4,
+    28,
+    29,
+    29,
+    28
+   ],
+   "CpuFreqMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "CpuFreqCapMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "CpuFreqMaxMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "throttled_any": false,
+   "temp_start": 45.3,
+   "temp_end": 45.3,
+   "temp_max": 46.2,
+   "temp_series": [
+    [
+     4,
+     44.4
+    ],
+    [
+     6,
+     45.3
+    ],
+    [
+     10,
+     45.3
+    ],
+    [
+     13,
+     45.3
+    ],
+    [
+     16,
+     45.3
+    ]
+   ],
+   "rec_streamfps_med": 53.0,
+   "rec_states": [
+    [
+     -2,
+     "idle"
+    ],
+    [
+     1,
+     "recording"
+    ],
+    [
+     23,
+     "idle"
+    ]
+   ],
+   "rec_session_frames": [
+    59
+   ],
+   "NetSpeedMbps": [
+    1000
+   ],
+   "top_thread_med": 34,
+   "top_thread_max": 48.0,
+   "top_thread_core_mode": 5
+  },
+  "rio": {
+   "loop": [
+    12.23,
+    20.85,
+    75.96
+   ],
+   "fullcycle": [
+    15.38,
+    25.79,
+    82.6
+   ],
+   "visionms": [
+    4.93,
+    8.37,
+    24.18
+   ],
+   "usercode": [
+    12.34,
+    21.05,
+    76.07
+   ],
+   "batt": [
+    11.62,
+    12.09,
+    12.45
+   ],
+   "can": [
+    0.73,
+    0.78,
+    1.0
+   ],
+   "cycles_over_20ms_pct": 12.0,
+   "overruns_in_span": 52,
+   "LeftCam_read_ms": [
+    0.46,
+    1.29
+   ],
+   "RightCam_read_ms": [
+    0.41,
+    1.13
+   ],
+   "max_vx": 1.205,
+   "max_omega": 1.564,
+   "fused_x_std_cm": 57.465,
+   "fused_h_std_deg": 164.481,
+   "xcam_trans_m": [
+    0.0463,
+    0.1084,
+    0.1555
+   ],
+   "xcam_rot_deg": [
+    1.4931,
+    2.7183,
+    3.2623
+   ],
+   "xcam_score": [
+    60.2044,
+    85.089,
+    93.5173
+   ],
+   "correction_m": [
+    0.0451,
+    0.1023,
+    0.1662
+   ],
+   "circle_phase_times": [
+    [
+     0.0,
+     "Positioning"
+    ],
+    [
+     1.7,
+     "Circle"
+    ],
+    [
+     19.3,
+     "Done"
+    ]
+   ],
+   "circle_phases": [
+    "Positioning",
+    "Circle",
+    "Done"
+   ],
+   "sha": "338bcfa7"
+  },
+  "id": "R2",
+  "setting": "800x600 @100, dec 2, Low Latency on, threads 8",
+  "net": {
+   "LeftPi_NetTxMbps": [
+    0.49,
+    0.63
+   ],
+   "LeftPi_NetRxMbps": [
+    0.05,
+    0.06
+   ],
+   "LeftPi_NetSpeedMbps": 100,
+   "LeftPi_NetRxErrors": 0,
+   "LeftPi_NetTxErrors": 0,
+   "LeftPi_NetRxDropped": 0,
+   "RightPi_NetTxMbps": [
+    0.5,
+    0.68
+   ],
+   "RightPi_NetRxMbps": [
+    0.05,
+    0.06
+   ],
+   "RightPi_NetSpeedMbps": 1000,
+   "RightPi_NetRxErrors": 0,
+   "RightPi_NetTxErrors": 0,
+   "RightPi_NetRxDropped": 0,
+   "radio_bw_mbps": [
+    0.33,
+    0.49,
+    6
+   ],
+   "rio_stats_logged": false
+  }
+ },
+ {
+  "file": "akit_26-11-04_00-18-32.trimmed.wpilog",
+  "spans": [
+   [
+    113.6,
+    20.7
+   ]
+  ],
+  "enabled_s": 20.7,
+  "LeftCam": {
+   "results": 2093,
+   "results_per_s": 101.0,
+   "frame_ms_median": 8.04,
+   "nominal_fps": 100.9,
+   "dropped_frames": 0,
+   "drop_events": 0,
+   "dropped_pct": 0.0,
+   "gaps_ge_50ms": 0,
+   "max_gap_ms": 12.2,
+   "seq_missing": 0,
+   "MissedResults_max": null,
+   "pv_ms_med": 16.8,
+   "pv_ms_p95": 18.49,
+   "pv_ms_max": 25.79,
+   "total_lat_med": 24.2,
+   "total_lat_p95": 30.1,
+   "CurrentFps_med": 100.9,
+   "CurrentFps_min": 100.0,
+   "dist_med": 1.74,
+   "dist_max": 2.68,
+   "dist_min": 0.96,
+   "tag_ids": [
+    9,
+    10
+   ],
+   "tags_per_result_mean": 2,
+   "area_med": 1.817,
+   "x_std_cm": 56.494,
+   "y_std_cm": 52.315,
+   "x_p2p_cm": 173.75,
+   "h_std_deg": 17.347,
+   "h_p2p_deg": 57.238,
+   "pose_mean": [
+    14.148,
+    3.983,
+    176.49
+   ],
+   "accept_med": 83.3,
+   "health_med": 10.6,
+   "interval_hist": {
+    "pct": {
+     "<0.75T": 0.0,
+     "1T": 100.0,
+     "1.5T": 0.0,
+     "2T": 0.0,
+     "2.5T": 0.0,
+     "3T": 0.0,
+     ">3.25T": 0.0
+    },
+    "n": 2092,
+    "fine_1ms": {
+     "7": 220,
+     "8": 874,
+     "11": 781,
+     "12": 217
+    },
+    "p10_ms": 8.0,
+    "p50_ms": 8.04,
+    "p90_ms": 12.0,
+    "mean_ms": 9.91
+   },
+   "recorder_pct_of_window": 94.2
+  },
+  "RightCam": {
+   "results": 2092,
+   "results_per_s": 101.0,
+   "frame_ms_median": 8.05,
+   "nominal_fps": 100.9,
+   "dropped_frames": 0,
+   "drop_events": 0,
+   "dropped_pct": 0.0,
+   "gaps_ge_50ms": 0,
+   "max_gap_ms": 12.1,
+   "seq_missing": 0,
+   "MissedResults_max": null,
+   "pv_ms_med": 16.76,
+   "pv_ms_p95": 18.66,
+   "pv_ms_max": 25.38,
+   "total_lat_med": 24.0,
+   "total_lat_p95": 29.5,
+   "CurrentFps_med": 100.9,
+   "CurrentFps_min": 100.3,
+   "dist_med": 1.81,
+   "dist_max": 2.78,
+   "dist_min": 1.02,
+   "tag_ids": [
+    9,
+    10
+   ],
+   "tags_per_result_mean": 2,
+   "area_med": 1.682,
+   "x_std_cm": 56.438,
+   "y_std_cm": 52.793,
+   "x_p2p_cm": 175.75,
+   "h_std_deg": 17.321,
+   "h_p2p_deg": 57.073,
+   "pose_mean": [
+    14.165,
+    3.981,
+    178.07
+   ],
+   "accept_med": 75.0,
+   "health_med": 10.2,
+   "interval_hist": {
+    "pct": {
+     "<0.75T": 0.0,
+     "1T": 100.0,
+     "1.5T": 0.0,
+     "2T": 0.0,
+     "2.5T": 0.0,
+     "3T": 0.0,
+     ">3.25T": 0.0
+    },
+    "n": 2091,
+    "fine_1ms": {
+     "7": 336,
+     "8": 757,
+     "11": 699,
+     "12": 299
+    },
+    "p10_ms": 7.99,
+    "p50_ms": 8.05,
+    "p90_ms": 12.01,
+    "mean_ms": 9.91
+   },
+   "recorder_pct_of_window": 95.6
+  },
+  "LeftPi": {
+   "CpuCoreMaxPct": [
+    57.4,
+    70.0
+   ],
+   "CPU_Pct": [
+    27.9,
+    33.2
+   ],
+   "PvCpuPct": [
+    206.0,
+    260.0
+   ],
+   "PublisherCpuPct": [
+    4.5,
+    4.6
+   ],
+   "core_med": [
+    10,
+    2,
+    0,
+    2,
+    52,
+    53,
+    52,
+    52
+   ],
+   "CpuFreqMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "CpuFreqCapMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "CpuFreqMaxMHz": [
+    1800.0,
+    2256.0,
+    2256.0
+   ],
+   "throttled_any": false,
+   "temp_start": 51.8,
+   "temp_end": 52.7,
+   "temp_max": 55.5,
+   "temp_series": [
+    [
+     0,
+     51.8
+    ],
+    [
+     4,
+     51.8
+    ],
+    [
+     16,
+     53.6
+    ]
+   ],
+   "rec_streamfps_med": 100.9,
+   "rec_states": [
+    [
+     -2,
+     "idle"
+    ],
+    [
+     1,
+     "recording"
+    ],
+    [
+     22,
+     "idle"
+    ]
+   ],
+   "rec_session_frames": [
+    61
+   ],
+   "NetSpeedMbps": [
+    100
+   ],
+   "top_thread_med": 66,
+   "top_thread_max": 70.0,
+   "top_thread_core_mode": 5
+  },
+  "RightPi": {
+   "CpuCoreMaxPct": [
+    57.1,
+    65.4
+   ],
+   "CPU_Pct": [
+    28.4,
+    32.8
+   ],
+   "PvCpuPct": [
+    205.0,
+    240.0
+   ],
+   "PublisherCpuPct": [
+    4.4,
+    4.5
+   ],
+   "core_med": [
+    13,
+    2,
+    4,
+    0,
+    51,
+    51,
+    52,
+    52
+   ],
+   "CpuFreqMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "CpuFreqCapMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "CpuFreqMaxMHz": [
+    1800.0,
+    2304.0,
+    2304.0
+   ],
+   "throttled_any": false,
+   "temp_start": 54.5,
+   "temp_end": 54.5,
+   "temp_max": 55.5,
+   "temp_series": [
+    [
+     0,
+     54.5
+    ],
+    [
+     6,
+     54.5
+    ],
+    [
+     13,
+     54.5
+    ],
+    [
+     15,
+     54.5
+    ],
+    [
+     18,
+     54.5
+    ]
+   ],
+   "rec_streamfps_med": 100.9,
+   "rec_states": [
+    [
+     -2,
+     "idle"
+    ],
+    [
+     1,
+     "recording"
+    ],
+    [
+     22,
+     "idle"
+    ]
+   ],
+   "rec_session_frames": [
+    61
+   ],
+   "NetSpeedMbps": [
+    1000
+   ],
+   "top_thread_med": 64,
+   "top_thread_max": 72.0,
+   "top_thread_core_mode": 7
+  },
+  "rio": {
+   "loop": [
+    12.48,
+    16.38,
+    40.48
+   ],
+   "fullcycle": [
+    14.91,
+    19.49,
+    42.39
+   ],
+   "visionms": [
+    5.56,
+    7.52,
+    24.7
+   ],
+   "usercode": [
+    12.54,
+    16.46,
+    40.53
+   ],
+   "batt": [
+    11.61,
+    12.12,
+    12.26
+   ],
+   "can": [
+    0.69,
+    0.84,
+    1.0
+   ],
+   "cycles_over_20ms_pct": 4.8,
+   "overruns_in_span": 15,
+   "LeftCam_read_ms": [
+    0.48,
+    1.23
+   ],
+   "RightCam_read_ms": [
+    0.43,
+    1.03
+   ],
+   "max_vx": 1.268,
+   "max_omega": 1.505,
+   "fused_x_std_cm": 55.876,
+   "fused_h_std_deg": 165.781,
+   "xcam_trans_m": [
+    0.0445,
+    0.11,
+    0.1874
+   ],
+   "xcam_rot_deg": [
+    1.6513,
+    2.6848,
+    3.115
+   ],
+   "xcam_score": [
+    59.0718,
+    85.6114,
+    89.941
+   ],
+   "correction_m": [
+    0.0442,
+    0.0868,
+    0.1657
+   ],
+   "circle_phase_times": [
+    [
+     0.0,
+     "Positioning"
+    ],
+    [
+     1.7,
+     "Circle"
+    ],
+    [
+     19.4,
+     "Done"
+    ]
+   ],
+   "circle_phases": [
+    "Positioning",
+    "Circle",
+    "Done"
+   ],
+   "sha": "338bcfa7"
+  },
+  "id": "R3",
+  "setting": "800x600 @100, dec 2, Low Latency off, threads 8",
+  "net": {
+   "LeftPi_NetTxMbps": [
+    0.91,
+    1.06
+   ],
+   "LeftPi_NetRxMbps": [
+    0.08,
+    0.21
+   ],
+   "LeftPi_NetSpeedMbps": 100,
+   "LeftPi_NetRxErrors": 0,
+   "LeftPi_NetTxErrors": 0,
+   "LeftPi_NetRxDropped": 0,
+   "RightPi_NetTxMbps": [
+    0.92,
+    1.07
+   ],
+   "RightPi_NetRxMbps": [
+    0.07,
+    0.22
+   ],
+   "RightPi_NetSpeedMbps": 1000,
+   "RightPi_NetRxErrors": 0,
+   "RightPi_NetTxErrors": 0,
+   "RightPi_NetRxDropped": 0,
+   "radio_bw_mbps": [
+    0.38,
+    0.63,
+    6
+   ],
+   "rio_stats_logged": false
+  }
+ }
+]

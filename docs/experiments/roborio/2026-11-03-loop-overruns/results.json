@@ -1,0 +1,526 @@
+[
+ {
+  "enabled_s": 20.5,
+  "cycles": 886,
+  "slow_cycles_pct": 28.9,
+  "full_cycle_ms_median": 16.44,
+  "full_cycle_ms_max": 60.0,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 12.84,
+    "slow_ms": 22.55,
+    "ratio": 1.76
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.61,
+    "slow_ms": 4.1,
+    "ratio": 1.57
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.34,
+    "slow_ms": 4.44,
+    "ratio": 1.89
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 11.32,
+    "slow_ms": 19.0,
+    "ratio": 1.68
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 9.76,
+    "slow_ms": 16.15,
+    "ratio": 1.65
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.52,
+    "slow_ms": 9.63,
+    "ratio": 1.75
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.81,
+    "slow_ms": 1.21,
+    "ratio": 1.5
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.18,
+    "slow_ms": 1.74,
+    "ratio": 1.47
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.34,
+    "slow_ms": 0.59,
+    "ratio": 1.71
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.33,
+    "slow_ms": 0.85,
+    "ratio": 2.6
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@8",
+   "Elastic@1",
+   "Logbench@8",
+   "Logbench@9",
+   "LogbenchPiDiscovery@8",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@4",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@6",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@2",
+   "leftpi@3"
+  ],
+  "rio_cpu_pct_median": null,
+  "id": "B-10-27-T1",
+  "what": "10-27 T1, CircleFacingTag",
+  "log": "akit_26-10-27_22-13-27"
+ },
+ {
+  "enabled_s": 22.0,
+  "cycles": 938,
+  "slow_cycles_pct": 25.6,
+  "full_cycle_ms_median": 16.29,
+  "full_cycle_ms_max": 73.7,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 12.39,
+    "slow_ms": 23.47,
+    "ratio": 1.89
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.78,
+    "slow_ms": 4.37,
+    "ratio": 1.57
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.16,
+    "slow_ms": 6.15,
+    "ratio": 2.85
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 10.92,
+    "slow_ms": 19.43,
+    "ratio": 1.78
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 9.49,
+    "slow_ms": 16.3,
+    "ratio": 1.72
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 4.86,
+    "slow_ms": 9.0,
+    "ratio": 1.85
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.56,
+    "slow_ms": 0.89,
+    "ratio": 1.59
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.21,
+    "slow_ms": 1.94,
+    "ratio": 1.6
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.46,
+    "slow_ms": 0.74,
+    "ratio": 1.61
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.37,
+    "slow_ms": 1.21,
+    "ratio": 3.29
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@8",
+   "Elastic@9",
+   "Logbench@7",
+   "OrangePiMetrics-LeftPi@1",
+   "OrangePiMetrics-RightPi@5",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@3",
+   "OrangePiVisionRecorder-RightPi-RightCam@6",
+   "RightPi@4",
+   "leftpi@2"
+  ],
+  "rio_cpu_pct_median": null,
+  "id": "B-10-27-T2",
+  "what": "10-27 T2, CircleFacingTag",
+  "log": "akit_26-10-27_22-37-33"
+ },
+ {
+  "enabled_s": 20.8,
+  "cycles": 977,
+  "slow_cycles_pct": 12.1,
+  "full_cycle_ms_median": 15.27,
+  "full_cycle_ms_max": 64.4,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 12.06,
+    "slow_ms": 22.76,
+    "ratio": 1.89
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.95,
+    "slow_ms": 4.65,
+    "ratio": 1.58
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.26,
+    "slow_ms": 4.45,
+    "ratio": 1.97
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 10.49,
+    "slow_ms": 17.89,
+    "ratio": 1.71
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 9.08,
+    "slow_ms": 15.03,
+    "ratio": 1.65
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 4.8,
+    "slow_ms": 8.23,
+    "ratio": 1.71
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.57,
+    "slow_ms": 0.95,
+    "ratio": 1.67
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.17,
+    "slow_ms": 1.56,
+    "ratio": 1.33
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.38,
+    "slow_ms": 0.5,
+    "ratio": 1.34
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.37,
+    "slow_ms": 1.03,
+    "ratio": 2.81
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@3",
+   "Elastic@2",
+   "Logbench@1",
+   "OrangePiMetrics-LeftPi@8",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@9",
+   "OrangePiVisionRecorder-RightPi-RightCam@7",
+   "RightPi@4",
+   "leftpi@5"
+  ],
+  "rio_cpu_pct_median": null,
+  "id": "B-10-27-T3",
+  "what": "10-27 T3, CircleFacingTag",
+  "log": "akit_26-10-27_22-42-57"
+ },
+ {
+  "enabled_s": 150.0,
+  "cycles": 7257,
+  "slow_cycles_pct": 5.8,
+  "full_cycle_ms_median": 14.67,
+  "full_cycle_ms_max": 61.4,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 11.97,
+    "slow_ms": 23.26,
+    "ratio": 1.94
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.55,
+    "slow_ms": 4.33,
+    "ratio": 1.7
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.36,
+    "slow_ms": 6.07,
+    "ratio": 2.57
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 10.45,
+    "slow_ms": 19.32,
+    "ratio": 1.85
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 9.08,
+    "slow_ms": 16.54,
+    "ratio": 1.82
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.14,
+    "slow_ms": 10.57,
+    "ratio": 2.06
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.68,
+    "slow_ms": 1.26,
+    "ratio": 1.86
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.09,
+    "slow_ms": 1.54,
+    "ratio": 1.41
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.33,
+    "slow_ms": 0.49,
+    "ratio": 1.49
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.31,
+    "slow_ms": 0.83,
+    "ratio": 2.66
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@8",
+   "Elastic@9",
+   "Logbench@7",
+   "OrangePiMetrics-LeftPi@2",
+   "OrangePiMetrics-RightPi@5",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@1",
+   "OrangePiVisionRecorder-RightPi-RightCam@4",
+   "RightPi@6",
+   "leftpi@3"
+  ],
+  "rio_cpu_pct_median": null,
+  "id": "B-10-27-T7",
+  "what": "10-27 T7, driven heat soak",
+  "log": "akit_26-10-27_23-42-41"
+ },
+ {
+  "enabled_s": 20.2,
+  "cycles": 944,
+  "slow_cycles_pct": 12.2,
+  "full_cycle_ms_median": 16.12,
+  "full_cycle_ms_max": 65.4,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 13.22,
+    "slow_ms": 23.31,
+    "ratio": 1.76
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.75,
+    "slow_ms": 4.84,
+    "ratio": 1.76
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.28,
+    "slow_ms": 4.66,
+    "ratio": 2.05
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 11.68,
+    "slow_ms": 18.95,
+    "ratio": 1.62
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 10.0,
+    "slow_ms": 16.03,
+    "ratio": 1.6
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.62,
+    "slow_ms": 9.04,
+    "ratio": 1.61
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.87,
+    "slow_ms": 1.32,
+    "ratio": 1.51
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.11,
+    "slow_ms": 1.59,
+    "ratio": 1.43
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.41,
+    "slow_ms": 0.52,
+    "ratio": 1.27
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.36,
+    "slow_ms": 0.91,
+    "ratio": 2.54
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@5",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@6",
+   "RightPi@3",
+   "leftpi@4"
+  ],
+  "rio_cpu_pct_median": null,
+  "id": "B-11-03-R1",
+  "what": "11-03 R1, CircleFacingTag",
+  "log": "akit_26-11-03_23-38-42"
+ },
+ {
+  "enabled_s": 21.1,
+  "cycles": 992,
+  "slow_cycles_pct": 12.0,
+  "full_cycle_ms_median": 15.38,
+  "full_cycle_ms_max": 82.6,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 12.24,
+    "slow_ms": 22.57,
+    "ratio": 1.84
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.96,
+    "slow_ms": 4.86,
+    "ratio": 1.64
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 1.8,
+    "slow_ms": 5.93,
+    "ratio": 3.3
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 10.74,
+    "slow_ms": 17.85,
+    "ratio": 1.66
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 9.3,
+    "slow_ms": 14.91,
+    "ratio": 1.6
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 4.95,
+    "slow_ms": 8.37,
+    "ratio": 1.69
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.59,
+    "slow_ms": 1.13,
+    "ratio": 1.92
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.15,
+    "slow_ms": 1.8,
+    "ratio": 1.56
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.39,
+    "slow_ms": 0.5,
+    "ratio": 1.27
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.38,
+    "slow_ms": 1.06,
+    "ratio": 2.77
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@2",
+   "Elastic@1",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@5",
+   "OrangePiVisionRecorder-RightPi-RightCam@8",
+   "RightPi@3",
+   "leftpi@4"
+  ],
+  "rio_cpu_pct_median": null,
+  "id": "B-11-03-R2",
+  "what": "11-03 R2, CircleFacingTag",
+  "log": "akit_26-11-03_23-58-01"
+ },
+ {
+  "enabled_s": 20.7,
+  "cycles": 1012,
+  "slow_cycles_pct": 4.8,
+  "full_cycle_ms_median": 14.91,
+  "full_cycle_ms_max": 42.4,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 12.66,
+    "slow_ms": 20.77,
+    "ratio": 1.64
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.43,
+    "slow_ms": 4.66,
+    "ratio": 1.92
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.87,
+    "slow_ms": 4.87,
+    "ratio": 1.7
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 11.33,
+    "slow_ms": 17.99,
+    "ratio": 1.59
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 9.71,
+    "slow_ms": 14.96,
+    "ratio": 1.54
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.66,
+    "slow_ms": 8.44,
+    "ratio": 1.49
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.85,
+    "slow_ms": 1.58,
+    "ratio": 1.86
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.08,
+    "slow_ms": 1.23,
+    "ratio": 1.15
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.34,
+    "slow_ms": 0.41,
+    "ratio": 1.21
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.36,
+    "slow_ms": 0.73,
+    "ratio": 2.03
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@7",
+   "Elastic@8",
+   "OrangePiMetrics-LeftPi@4",
+   "OrangePiMetrics-RightPi@1",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@5",
+   "OrangePiVisionRecorder-RightPi-RightCam@2",
+   "RightPi@3",
+   "leftpi@6"
+  ],
+  "rio_cpu_pct_median": null,
+  "id": "B-11-03-R3",
+  "what": "11-03 R3, CircleFacingTag",
+  "log": "akit_26-11-04_00-18-32"
+ }
+]

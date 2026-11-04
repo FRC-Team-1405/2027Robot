@@ -179,6 +179,7 @@ public class Robot extends LoggedRobot {
         t = LoopTimings.begin();
         frc.robot.util.CoprocessorHealthLogger.periodic(); // Orange Pi + recorder health into the log
         LoopTimings.end("Timing/CoprocessorHealthLogger", t);
+        frc.robot.util.RioSystemStats.periodic(); // roboRIO CPU/memory/ethernet into the log
         diagnostics.updateControllers();
         frc.robot.util.WallClockEpoch.periodic(); // which roboRIO boot this log is (LogBench ties Pi frames to it)
         t = LoopTimings.begin();

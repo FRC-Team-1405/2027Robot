@@ -13,6 +13,8 @@ Everything the page needs comes back in one plain-dict report: sections -> group
 carrying a status, a display value, the rule that was applied in words, and any detail worth
 reading (when the worst value happened, what an alert said). Roll-ups take the worst child.
 """
+import functools
+import json
 import math
 import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -126,6 +128,27 @@ def _matches(v: Any, wanted: Any) -> bool:
     return str(v) == str(wanted)
 
 
+@functools.lru_cache(maxsize=256)
+def _json(text: str) -> Any:
+    try:
+        return json.loads(text)
+    except ValueError:
+        return None
+
+
+def _field(v: Any, path: str) -> Any:
+    """For a check with `field`: the value at a dotted path inside a JSON string sample
+    (RadioStatus/Status is one JSON object per sample), or None when it isn't there."""
+    if not isinstance(v, str):
+        return None
+    node = _json(v)
+    for part in path.split('.'):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node if isinstance(node, (bool, int, float, str)) else None
+
+
 def _length(v: Any) -> float:
     return float(len(v)) if isinstance(v, (str, list, tuple)) else 0.0
 
@@ -168,6 +191,8 @@ class LogSource:
 
     def reduce(self, canonical: str, spec: CheckSpec) -> Optional[Reduced]:
         series = self.signals.get(self.keys.real.get(canonical, ''))
+        if series and spec.field:
+            series = [(t, x) for t, v in series for x in (_field(v, spec.field),) if x is not None]
         if not series:
             return None
         spans = self._window(spec.window)
@@ -281,6 +306,10 @@ class SnapshotSource:
         if entry is None:
             return None
         v, age = entry
+        if spec.field:
+            v = _field(v, spec.field)
+            if v is None:
+                return None
         if spec.measure in HISTORY_MEASURES:
             return Reduced(None, age=age, history_needed=True)
         if spec.measure in ('any_true', 'all_true'):

@@ -32,6 +32,22 @@ src/main/java/frc/robot/
 ./gradlew simulateJava
 ```
 
+## Pushing to the repo
+
+#### 1. Configure the Repository Remote
+Open your terminal or Git Bash inside your local project folder and update the remote URL to use the team's secure SSH connection string:
+
+```bash
+git remote set-url origin git@github.com:FRC-Team-1405/2027Robot.git
+```
+
+#### 2. Install the Access Keys
+To authenticate with the repository, you will need the correct access keys set up on your machine. 
+* **Get** the keys directly from your software mentor. 
+* Do **not** sign in with your personal GitHub account on the shared laptop.
+
+
+
 ## Feature Switches
 
 `constants/FeatureSwitches.java` contains boolean flags to enable or disable

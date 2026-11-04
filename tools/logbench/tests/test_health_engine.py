@@ -56,6 +56,23 @@ def test_max_over_the_window_and_when_it_happened():
     assert 'at 50.0 s into the log' in c['detail']
 
 
+def test_field_reads_a_number_out_of_a_json_string_signal():
+    # RadioStatus/Status is one JSON object per sample; garbled or partial samples are skipped
+    def status(mbps):
+        return '{"networkStatus6": {"bandwidthUsedMbps": %s}, "status": "ACTIVE"}' % mbps
+    src = log({'Radio': ts((0, status(0.5)), (25, status(8.7)), (45, 'not json'), (50, '{"networkStatus6": {}}'),
+                           (60, status(1.0)))})
+    body = 'field="networkStatus6.bandwidthUsedMbps"\nmeasure="max"\nwindow="enabled"\nwarn_above=5\nfail_above=7'
+    c = one(check_toml(body, signal='Radio'), src)
+    assert (c['status'], c['value']) == (FAIL, 8.7)
+    live = one(check_toml(body.replace('measure="max"\nwindow="enabled"\n', ''), signal='Radio'),
+               engine.SnapshotSource({'Radio': (status(6.0), 0.1)}))
+    assert (live['status'], live['value']) == (WARN, 6.0)
+    missing = one(check_toml('field="networkStatus6.nope"', signal='Radio'),
+                  engine.SnapshotSource({'Radio': (status(6.0), 0.1)}))
+    assert missing['status'] == NODATA
+
+
 def test_the_window_selects_only_matching_modes():
     # a spike during the disabled lead-in must not count against "enabled"
     src = log({'X': ts((0, 10), (5, 99), (6, 10), (50, 40), (60, 10))})

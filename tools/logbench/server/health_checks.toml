@@ -267,13 +267,52 @@ section = "Orange Pis"
 group = "{1}"
 label = "Network link speed"
 signal = "OrangePi/*/NetSpeedMbps"
-measure = "last"
-mode = "live"
+measure = "min"
 unit = "Mbit/s"
 decimals = 0
 warn_below = 1000
 fail_below = 100
-help = "The Orange Pi's port is gigabit. Negotiating 100 Mbit/s (warning) or 10 (problem) often means a damaged cable or connector. Remove this check if a board uses a slower USB adapter."
+help = "The Orange Pi's port is gigabit. Negotiating 100 Mbit/s (warning) or 10 (problem) often means a damaged cable or connector. Remove this check if a board uses a slower USB adapter. Log: the slowest it negotiated (every 10-27 log had LeftPi at 100)."
+
+[[check]]
+id = "pi.net_tx"
+section = "Orange Pis"
+group = "{1}"
+label = "Network sent (peak)"
+signal = "OrangePi/*/NetTxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 50
+fail_above = 80
+help = "What the Pi sends: PhotonVision results to the roboRIO plus every camera stream someone is watching (PhotonVision UI, dashboards, the recorder reads its stream locally and does not count). Thresholds are against a 100 Mbit/s link; on gigabit they are cautious. Streams to a laptop also cross the radio, which is limited to 7 Mbit/s on the field: see roboRIO > Radio bandwidth."
+
+[[check]]
+id = "pi.net_rx"
+section = "Orange Pis"
+group = "{1}"
+label = "Network received (peak)"
+signal = "OrangePi/*/NetRxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 50
+fail_above = 80
+help = "What the Pi receives (NetworkTables from the roboRIO, browser requests). Normally well under 1 Mbit/s."
+
+[[check]]
+id = "pi.net_errors"
+section = "Orange Pis"
+group = "{1}"
+label = "Network receive errors while enabled"
+signal = "OrangePi/*/NetRxErrors"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+warn_above = 0
+fail_above = 20
+help = "Frames that arrived damaged (CRC errors). Any during a match points at the cable or connector, like a low link speed does."
 
 [[check]]
 id = "pi.link_flaps"
@@ -693,6 +732,101 @@ unit = "C"
 decimals = 0
 warn_above = 70
 fail_above = 85
+
+[[check]]
+id = "rio.cpu"
+section = "roboRIO"
+group = "Controller"
+label = "CPU (mean while enabled)"
+signal = "RealOutputs/RIO/CpuPct"
+measure = "sample_mean"
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 70
+fail_above = 85
+help = "Both roboRIO cores together, sampled once a second (RioSystemStats). A busy CPU makes every loop slow, not one subsystem, so read it next to the loop times below. Live: the latest second."
+
+[[check]]
+id = "rio.cpu_p95"
+section = "roboRIO"
+group = "Controller"
+label = "CPU (95th percentile while enabled)"
+signal = "RealOutputs/RIO/CpuPct"
+measure = "percentile"
+q = 95
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 90
+fail_above = 98
+mode = "log"
+help = "1 second in 20 was busier than this. Near 100 % means the loop has nothing left for spikes."
+
+[[check]]
+id = "rio.memory"
+section = "roboRIO"
+group = "Controller"
+label = "Memory used (peak)"
+signal = "RealOutputs/RIO/MemUsedPct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 85
+fail_above = 95
+help = "Share of RAM in use (MemAvailable). Low free memory on the roboRIO makes the JVM collect garbage more often."
+
+[[check]]
+id = "rio.net_rx"
+section = "roboRIO"
+group = "Network"
+label = "Ethernet received (peak)"
+signal = "RealOutputs/RIO/NetRxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+help = "Everything into the roboRIO's ethernet port: PhotonVision results from both Pis, Driver Station and dashboard traffic. Informational until we know a normal value."
+
+[[check]]
+id = "rio.net_tx"
+section = "roboRIO"
+group = "Network"
+label = "Ethernet sent (peak)"
+signal = "RealOutputs/RIO/NetTxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+help = "Everything out of the roboRIO's ethernet port: NetworkTables to dashboards (AdvantageScope live, Elastic, LogBench) and to the Pis. Informational until we know a normal value."
+
+[[check]]
+id = "rio.radio_bandwidth"
+section = "roboRIO"
+group = "Network"
+label = "Radio bandwidth used, 6 GHz link (peak while enabled)"
+signal = "RadioStatus/Status"
+field = "networkStatus6.bandwidthUsedMbps"
+measure = "max"
+window = "enabled"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 5
+fail_above = 7
+help = "What the radio reports crossing it, robot to Driver Station side. R704: at most 7 Mbit/s with the Vivid Hosting radio; above that the field limits it and packets are dropped or delayed. Camera streams viewed on a laptop are the usual cause. The radio reports this about every 5 s. 10-27: under 1.3 Mbit/s in every run except one at 7.2-8.7 (a PhotonVision stream open on the laptop)."
+
+[[check]]
+id = "rio.radio_bandwidth_24"
+section = "roboRIO"
+group = "Network"
+label = "Radio bandwidth used, 2.4 GHz link (peak while enabled)"
+signal = "RadioStatus/Status"
+field = "networkStatus24.bandwidthUsedMbps"
+measure = "max"
+window = "enabled"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 5
+fail_above = 7
+help = "Same as the 6 GHz row, for the 2.4 GHz link (zero when nothing is linked on 2.4 GHz)."
 
 [[check]]
 id = "rio.loop_time"

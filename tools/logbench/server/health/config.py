@@ -13,6 +13,7 @@ A check block (every field but id/section/label/signal is optional):
     subject = "{name}"              # optional: clusters rows about the same thing (one motor, one recorder)
     label = "CAN utilization"       # the row's name; same placeholders
     signal = "SystemStats/CANBus/Utilization"
+    field = "a.b"                   # optional: the signal is a JSON string; check this dotted path in it
     unit = "%"
     scale = 100                     # the value is multiplied by this for display and thresholds
     measure = "max"                 # how a log's samples collapse to one number (see MEASURES)
@@ -81,6 +82,7 @@ class CheckSpec:
     signal: str
     group: str = ''
     subject: str = ''
+    field: str = ''
     lookup: Tuple[Tuple[str, str], ...] = ()
     unit: str = ''
     scale: float = 1.0
@@ -115,7 +117,7 @@ class CheckSpec:
 # field -> (accepted python types, validator or None)
 _FIELDS: Dict[str, Tuple[tuple, Any]] = {
     'id': ((str,), None), 'section': ((str,), None), 'label': ((str,), None), 'signal': ((str,), None),
-    'group': ((str,), None), 'subject': ((str,), None), 'lookup': ((dict,), None), 'unit': ((str,), None),
+    'group': ((str,), None), 'subject': ((str,), None), 'field': ((str,), None), 'lookup': ((dict,), None), 'unit': ((str,), None),
     'scale': (_NUMBER, None), 'measure': ((str,), MEASURES), 'window': ((str,), WINDOWS),
     'above': (_NUMBER, None), 'q': (_NUMBER, None), 'below': (_NUMBER, None), 'equals': ((bool, int, float, str), None),
     'warn_above': (_NUMBER, None), 'fail_above': (_NUMBER, None),
