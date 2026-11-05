@@ -250,7 +250,7 @@ public class AutoPilotV2Command extends FinneyCommand {
 
         targetPublisher.set(m_target.getReference());
 
-        Pose2d currentPose = m_drivetrain.getState().Pose;
+        Pose2d currentPose = m_drivetrain.getLoggedState().Pose;
         double dist = currentPose.getTranslation().getDistance(m_target.getReference().getTranslation());
 
         fLogger.log(
@@ -268,8 +268,8 @@ public class AutoPilotV2Command extends FinneyCommand {
         m_cycleCount++;
 
         // --- 1. Read current state ---
-        Pose2d pose = m_drivetrain.getState().Pose;
-        ChassisSpeeds robotSpeeds = m_drivetrain.getState().Speeds;
+        Pose2d pose = m_drivetrain.getLoggedState().Pose;
+        ChassisSpeeds robotSpeeds = m_drivetrain.getLoggedState().Speeds;
 
         // --- 2. Convert robot-relative speeds → field-relative for diagnostics ---
         ChassisSpeeds fieldSpeeds = toFieldRelative(robotSpeeds, pose.getRotation());
@@ -321,11 +321,11 @@ public class AutoPilotV2Command extends FinneyCommand {
             double velocity = SwerveFeatures.getRobotVelocity(m_drivetrain);
             fLogger.log("VELTHRESH RobotVelocity: " + velocity);
             return velocity <= velocityThreshold
-                    && kAutopilot.atTarget(m_drivetrain.getState().Pose, m_target);
+                    && kAutopilot.atTarget(m_drivetrain.getLoggedState().Pose, m_target);
         } else {
             double velocity = SwerveFeatures.getRobotVelocity(m_drivetrain);
             fLogger.log("NO VELTHRESH RobotVelocity: " + velocity);
-            return kAutopilot.atTarget(m_drivetrain.getState().Pose, m_target);
+            return kAutopilot.atTarget(m_drivetrain.getLoggedState().Pose, m_target);
         }
     }
 
@@ -338,9 +338,9 @@ public class AutoPilotV2Command extends FinneyCommand {
         m_drivetrain.setControl(m_request
                 .withVelocityX(0)
                 .withVelocityY(0)
-                .withTargetDirection(m_drivetrain.getState().Pose.getRotation()));
+                .withTargetDirection(m_drivetrain.getLoggedState().Pose.getRotation()));
 
-        Pose2d finalPose = m_drivetrain.getState().Pose;
+        Pose2d finalPose = m_drivetrain.getLoggedState().Pose;
         double finalDist = finalPose.getTranslation()
                 .getDistance(m_target.getReference().getTranslation());
         double finalHdgErr = m_target.getReference().getRotation()

@@ -110,7 +110,7 @@ public class MoveMode {
             }
 
             if (Speed.BUMP.equals(currentSpeedMode) && drivetrain != null) {
-                double currentRobotRotationDeg = drivetrain.getState().Pose.getRotation().getDegrees();
+                double currentRobotRotationDeg = drivetrain.getLoggedState().Pose.getRotation().getDegrees();
                 if (Math.abs(currentRobotRotationDeg) >= 90) {
                     bumpTargetRotation = Rotation2d.k180deg;
                 } else {
@@ -277,7 +277,7 @@ public class MoveMode {
 
     public static BooleanSupplier inAllianceZone(CommandSwerveDrivetrain drivetrain) {
         return () -> {
-            double robotX = drivetrain.getState().Pose.getX();
+            double robotX = drivetrain.getLoggedState().Pose.getX();
             double allianceZoneBoundaryX = FieldConstants.BLUE_HUB.getX();
             if (AllianceSymmetry.isRed()) {
                 return robotX < AllianceSymmetry.flipX(allianceZoneBoundaryX,
@@ -404,7 +404,7 @@ public class MoveMode {
 
         // Otherwise PID-hold bumpTargetRotation
         double targetRad = bumpTargetRotation.getRadians();
-        double currentRad = drivetrain.getState().Pose.getRotation().getRadians();
+        double currentRad = drivetrain.getLoggedState().Pose.getRotation().getRadians();
         bumpRotationController.setSetpoint(targetRad);
         return bumpRotationController.calculate(currentRad);
     }
@@ -471,7 +471,7 @@ public class MoveMode {
 
         rotationController.setSetpoint(drivetrain.getAngleToTarget(targetPose).getRadians());
 
-        double currentAngle = drivetrain.getState().Pose.getRotation().getRadians();
+        double currentAngle = drivetrain.getLoggedState().Pose.getRotation().getRadians();
 
         double rateToRotate = rotationController.calculate(currentAngle);
 
@@ -536,7 +536,7 @@ public class MoveMode {
         Rotation2d compensatedAngle = drivetrain.getAngleToTargetWithVelocityCompensation(targetPose);
         rotationController.setSetpoint(compensatedAngle.getRadians());
 
-        double currentRad = drivetrain.getState().Pose.getRotation().getRadians();
+        double currentRad = drivetrain.getLoggedState().Pose.getRotation().getRadians();
         double rateToRotate = rotationController.calculate(currentRad);
 
         // System.out.printf("[VelComp] PID error: %.3f, target: %.3f, current: %.3f,
@@ -570,7 +570,7 @@ public class MoveMode {
         }
 
         goalAngle = -Math.atan2(joystickY, joystickX) - Math.PI / 2; // radians
-        currentAngle = drivetrain.getState().Pose.getRotation().getRadians();
+        currentAngle = drivetrain.getLoggedState().Pose.getRotation().getRadians();
 
         rotationController.setSetpoint(goalAngle);
         calculate = rotationController.calculate(currentAngle);

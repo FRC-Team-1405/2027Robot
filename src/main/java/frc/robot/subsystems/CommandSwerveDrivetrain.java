@@ -8,13 +8,16 @@ import java.util.function.Supplier;
 
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
+import org.littletonrobotics.junction.LogTable;
 import org.littletonrobotics.junction.Logger;
+import org.littletonrobotics.junction.inputs.LoggableInputs;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModule;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
@@ -25,12 +28,12 @@ import edu.wpi.first.math.filter.LinearFilter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.SwerveModulePosition;
+import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.Notifier;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -56,9 +59,12 @@ import frc.robot.lib.AllianceSymmetry;
  */
 public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Subsystem {
     private boolean m_allowVisionOdometryUpdates = true;
-    private static final double kSimLoopPeriod = 0.004; // 4 ms
-    private Notifier m_simNotifier = null;
-    private double m_lastSimTime;
+
+    /* Replay boundary: see DriveIO. Set by RobotContainer once the drivetrain exists. */
+    private DriveIO m_io = new DriveIO() {};
+    private final DriveIOInputsAutoLogged m_inputs = new DriveIOInputsAutoLogged();
+    private final LegacyDriveOutputs m_legacyOutputs = new LegacyDriveOutputs();
+    private final SwerveDriveState m_loggedState = new SwerveDriveState();
 
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
@@ -161,9 +167,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, modules);
         m_swerveFeatures = new SwerveFeatures(this);
-        if (Utils.isSimulation()) {
-            startSimThread();
-        }
     }
 
     /**
@@ -187,9 +190,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, odometryUpdateFrequency, modules);
         m_swerveFeatures = new SwerveFeatures(this);
-        if (Utils.isSimulation()) {
-            startSimThread();
-        }
     }
 
     /**
@@ -228,9 +228,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         super(drivetrainConstants, odometryUpdateFrequency, odometryStandardDeviation, visionStandardDeviation,
                 modules);
         m_swerveFeatures = new SwerveFeatures(this);
-        if (Utils.isSimulation()) {
-            startSimThread();
-        }
         
     }
 
@@ -239,9 +236,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         try {
             var config = RobotConfig.fromGUISettings();
             AutoBuilder.configure(
-                    () -> getState().Pose, // Supplier of current robot pose
+                    () -> getLoggedState().Pose, // Supplier of current robot pose
                     this::resetPose, // Consumer for seeding pose against auto
-                    () -> getState().Speeds, // Supplier of current robot speeds
+                    () -> getLoggedState().Speeds, // Supplier of current robot speeds
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
                             m_pathApplyRobotSpeeds.withSpeeds(speeds)
@@ -298,6 +295,75 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return m_sysIdRoutineToApply.dynamic(direction);
     }
 
+    public void setIO(DriveIO io) {
+        m_io = io;
+    }
+
+    /**
+     * Snapshots the drive state into AKit inputs. Robot.robotPeriodic() calls this first thing each
+     * loop (rather than periodic() doing it) so vision fusion, subsystems and commands all see the
+     * same state within a cycle, on the robot and in replay.
+     */
+    public void updateInputs() {
+        m_io.updateInputs(m_inputs);
+        Logger.processInputs("Drivetrain", m_inputs);
+
+        if (!m_inputs.valid && Logger.hasReplaySource()) {
+            // Log recorded before DriveIO existed: fall back to the drive outputs it did record.
+            Logger.processInputs("RealOutputs/Drivetrain", m_legacyOutputs);
+            m_loggedState.Pose = m_legacyOutputs.pose;
+            m_loggedState.Speeds = new ChassisSpeeds(m_legacyOutputs.vx, 0.0, m_legacyOutputs.omega);
+            m_loggedState.ModuleStates = new SwerveModuleState[] {};
+            m_loggedState.ModuleTargets = new SwerveModuleState[] {};
+            m_loggedState.ModulePositions = new SwerveModulePosition[] {};
+            m_loggedState.RawHeading = m_legacyOutputs.pose.getRotation();
+            m_loggedState.Timestamp = Timer.getFPGATimestamp();
+            Logger.recordOutput("Drivetrain/LegacyReplay", true);
+            return;
+        }
+
+        m_loggedState.Pose = m_inputs.pose;
+        m_loggedState.Speeds = m_inputs.speeds;
+        m_loggedState.ModuleStates = m_inputs.moduleStates;
+        m_loggedState.ModuleTargets = m_inputs.moduleTargets;
+        m_loggedState.ModulePositions = m_inputs.modulePositions;
+        m_loggedState.RawHeading = m_inputs.rawHeading;
+        m_loggedState.Timestamp = m_inputs.odometryTimestampSec;
+        m_loggedState.OdometryPeriod = m_inputs.odometryPeriodSec;
+        m_loggedState.SuccessfulDaqs = m_inputs.successfulDaqs;
+        m_loggedState.FailedDaqs = m_inputs.failedDaqs;
+    }
+
+    /**
+     * The drive state as of the start of this loop, from AKit inputs, so it replays from a log.
+     * Read this instead of CTRE's {@code getState()} (which is final, so it can't be redirected):
+     * {@code getState()} reads live hardware/sim and in replay would report sim physics, not the match.
+     * {@code Timestamp} is in FPGA time here.
+     */
+    public SwerveDriveState getLoggedState() {
+        return m_loggedState;
+    }
+
+    /**
+     * Drive outputs that logs recorded before DriveIO carried (under RealOutputs/Drivetrain), read
+     * only when replaying such a log. vy was never logged.
+     */
+    private static class LegacyDriveOutputs implements LoggableInputs {
+        Pose2d pose = Pose2d.kZero;
+        double vx = 0.0;
+        double omega = 0.0;
+
+        @Override
+        public void toLog(LogTable table) {}
+
+        @Override
+        public void fromLog(LogTable table) {
+            pose = table.get("Pose", pose);
+            vx = table.get("Speeds/vxMetersPerSecond", vx);
+            omega = table.get("Speeds/omegaRadiansPerSecond", omega);
+        }
+    }
+
     @Override
     public void periodic() {
         long timingStart = frc.robot.util.LoopTimings.begin();
@@ -336,9 +402,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
         // Log kinematics-derived chassis speeds to AKit wpilog so the vision
         // analyzer can use them for motion-bucketed acceptance analysis.
-        // getState().Speeds is wheel-encoder-based (250 Hz odometry thread),
+        // Speeds is wheel-encoder-based (250 Hz odometry thread),
         // the right source for instantaneous velocity — not the fused pose.
-        ChassisSpeeds speeds = getState().Speeds;
+        ChassisSpeeds speeds = getLoggedState().Speeds;
         Logger.recordOutput("Drivetrain/Speeds/vxMetersPerSecond",    speeds.vxMetersPerSecond);
         Logger.recordOutput("Drivetrain/Speeds/omegaRadiansPerSecond", speeds.omegaRadiansPerSecond);
 
@@ -346,7 +412,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         // need to know where the robot actually was -- e.g. the camera calibration tool's
         // replay/field view. Wasn't previously logged: only Speeds was, since that's all the
         // vision analyzer's motion-bucketing needed.
-        Logger.recordOutput("Drivetrain/Pose", getState().Pose);
+        Logger.recordOutput("Drivetrain/Pose", getLoggedState().Pose);
     }
 
     /**
@@ -356,21 +422,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      */
     public SwerveFeatures getFeatures() {
         return m_swerveFeatures;
-    }
-
-    private void startSimThread() {
-        m_lastSimTime = Utils.getCurrentTimeSeconds();
-
-        /* Run simulation at a faster rate so PID gains behave more reasonably */
-        m_simNotifier = new Notifier(() -> {
-            final double currentTime = Utils.getCurrentTimeSeconds();
-            double deltaTime = currentTime - m_lastSimTime;
-            m_lastSimTime = currentTime;
-
-            /* use the measured time delta, get battery voltage from WPILib */
-            updateSimState(deltaTime, RobotController.getBatteryVoltage());
-        });
-        m_simNotifier.startPeriodic(kSimLoopPeriod);
     }
 
     /**
@@ -447,7 +498,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @return Linear acceleration in m/s²
      */
     public double getFilteredAcceleration() {
-        ChassisSpeeds currentSpeeds = getState().Speeds;
+        ChassisSpeeds currentSpeeds = getLoggedState().Speeds;
         double currentTime = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
         double dt = currentTime - m_lastSpeedsTime;
 

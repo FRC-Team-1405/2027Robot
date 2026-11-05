@@ -256,11 +256,11 @@ public class PidToPoseCommand extends FinneyCommand {
 
                 log("Target pose: " + targetPose);
                 log("Pose to move to (after symmetry): " + poseToMoveTo);
-                log("Current pose: " + drive.getState().Pose);
+                log("Current pose: " + drive.getLoggedState().Pose);
 
                 // Without resetting when we chain commands together the robot will drive full
                 // speed in a weird direction. unclear why but this fixes it.
-                Pose2d currentPose = drive.getState().Pose;
+                Pose2d currentPose = drive.getLoggedState().Pose;
 
                 Translation2d delta = poseToMoveTo.getTranslation().minus(currentPose.getTranslation());
                 Translation2d direction = delta.div(delta.getNorm()); // get a unit vector
@@ -323,7 +323,7 @@ public class PidToPoseCommand extends FinneyCommand {
 
         @Override
         public void execute() {
-                Pose2d currentPose = drive.getState().Pose;
+                Pose2d currentPose = drive.getLoggedState().Pose;
 
                 Translation2d delta = poseToMoveTo.getTranslation().minus(currentPose.getTranslation());
                 Translation2d direction = delta.div(delta.getNorm()); // get a unit vector
@@ -401,9 +401,9 @@ public class PidToPoseCommand extends FinneyCommand {
 
         @Override
         public boolean isFinished() {
-                double distance = drive.getState().Pose.getTranslation().getDistance(poseToMoveTo.getTranslation());
+                double distance = drive.getLoggedState().Pose.getTranslation().getDistance(poseToMoveTo.getTranslation());
                 boolean distanceThreshold = Units.metersToInches(distance) < toleranceInches;
-                Rotation2d thetaDiff = drive.getState().Pose.getRotation().minus(poseToMoveTo.getRotation());
+                Rotation2d thetaDiff = drive.getLoggedState().Pose.getRotation().minus(poseToMoveTo.getRotation());
                 boolean thetaThreshold = Math.abs(thetaDiff.getDegrees()) <= toleranceDegrees;
                 return distanceThreshold && thetaThreshold;
         }
@@ -423,22 +423,22 @@ public class PidToPoseCommand extends FinneyCommand {
                 }
 
                 double finalDistance = Units
-                                .metersToInches(drive.getState().Pose.getTranslation()
+                                .metersToInches(drive.getLoggedState().Pose.getTranslation()
                                                 .getDistance(poseToMoveTo.getTranslation()));
                 log("PidToPose " + (interrupted ? "interrupted" : "completed") +
-                                ". Final pose: " + drive.getState().Pose +
+                                ". Final pose: " + drive.getLoggedState().Pose +
                                 ", Target: " + poseToMoveTo +
                                 ", Distance to target (in): " + finalDistance +
-                                ", End state velocity: ( x: " + drive.getState().Speeds.vxMetersPerSecond + ", y: "
-                                + drive.getState().Speeds.vyMetersPerSecond + " )");
+                                ", End state velocity: ( x: " + drive.getLoggedState().Speeds.vxMetersPerSecond + ", y: "
+                                + drive.getLoggedState().Speeds.vyMetersPerSecond + " )");
 
                 commandLog.append("Finished (interrupt: " + (interrupted ? "Y" : "N") + "): " + getName());
 
                 fLogger.log(
                                 "%s ended, final Pose (x: %.1f, y: %.1f, rot: %.1f deg), target Pose (x: %.1f, y: %.1f, rot: %.1f deg), interrupted: %s",
                                 getName(),
-                                drive.getState().Pose.getX(), drive.getState().Pose.getY(),
-                                drive.getState().Pose.getRotation().getDegrees(),
+                                drive.getLoggedState().Pose.getX(), drive.getLoggedState().Pose.getY(),
+                                drive.getLoggedState().Pose.getRotation().getDegrees(),
                                 poseToMoveTo.getX(), poseToMoveTo.getY(), poseToMoveTo.getRotation().getDegrees(),
                                 interrupted);
         }
