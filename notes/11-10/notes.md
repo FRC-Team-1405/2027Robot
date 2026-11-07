@@ -1,6 +1,6 @@
 # 11-10 (Tue) session: re-bootstrap, frame-budget runs, leftover 11-07 checks
 
-About 1 h 45 min, in this order. Tick the boxes and fill the blank columns as you go.
+About 1 h 40 min, in this order. Tick the boxes and fill the blank columns as you go.
 
 **The main event is Part 3**, the [frame-budget experiment](../../docs/experiments/vision/2026-11-10-pv-frame-budget/README.md):
 can fewer detector threads or turning off output drawing make PhotonVision faster per frame?
@@ -59,7 +59,7 @@ Otherwise on. Best drawing: ____
 processed image. If there's no such switch, turn off the processed (output) stream instead and
 write which you did here: ____
 
-## Part 4: LogBench checks left over from 11-07 (about 15 min)
+## Part 4: LogBench checks left over from 11-07 (about 10 min)
 
 Settings stay as B7. These come after the experiment on purpose: LogBench live is what stalled
 vision on 10-27, so it mustn't overlap the B runs.
@@ -67,8 +67,10 @@ vision on 10-27, so it mustn't overlap the B runs.
 | Done | Check | How | Pass if | Result |
 |---|---|---|---|---|
 | [ ] | LogBench live (11-07 check 2c) | Start LogBench, connect live, leave the Health Check open 2 min, then one more `CircleFacingTag` run | That run's `CurrentFps` matches B7, and later: no camera gap over 80 ms in its log | |
-| [ ] | Download a log still being written (2d) | Laptop on the **access point**, robot code running. Fetch Bundle → the newest log | Finishes in under a minute with a "still writing" note | |
-| [ ] | …and the rest of it (2d) | Restart robot code, fetch the same log again | The full log downloads (bigger than before), no note | |
+| [ ] | Optional, 2 min: the rest of a log (2d) | Restart robot code, fetch the newest log again | The full log downloads (bigger than the first copy), no "still writing" note | |
+
+Fetching a log that's still being written already passed on 11-07: all nine bundles were taken
+while the robot was writing them, and all finished.
 
 ## Before leaving
 

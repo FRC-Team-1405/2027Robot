@@ -24,9 +24,6 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 - [ ] **Confirm the LogBench live fix.** With robot code already running, connect LogBench live,
       leave the Health Check open, and check that no camera has a gap between results over 80 ms.
       This is the case that stalled vision on 10-27 (T1, T2). [10-27 write-up, learning 8]
-- [ ] **Confirm the LogBench still-recording download fix** (on `beta` since 11-04):
-      over the access point, fetch the newest log while robot code is running. It should finish
-      in seconds with a "still writing" note, not follow the file. [11-03 notes]
 - [ ] **Check why the Left Pi links at 100 Mbit/s** when the Right Pi gets 1000. Try another cable
       and radio/switch port. Not the cause of the frame-rate cliff, but it shouldn't be that way.
       [10-27 write-up]
@@ -138,6 +135,7 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 | Start-up wizard for the laptop-side coprocessor scripts (Bootstrap, both sim scripts): numbered choices, Enter = default, prints the equivalent command [user, 11-07] | `coprocessor/lib/Wizard.ps1` |
 | Our `.wpilog` parser dropped every `string[]` entry (PhotonVision thread names, AdvantageKit Alerts) [11-07] | `tools/wpilog-utils/wpilog_utils/decode.py`, `tests/test_decode_arrays.py` |
 | Bootstrap without typing names: per-robot boards/cameras in `coprocessor/robots.json`, `-All`, `-Robot`, wrong-board guard; shared Orange Pi SSH key [user, 11-07] | `coprocessor/robots.json`, `coprocessor/ssh/`, `Bootstrap-OrangePi.ps1` 2026-11-07.1 |
+| LogBench download of a log the robot is still writing finishes (snapshot) [11-03] | Confirmed on 11-07: all nine bundles were such snapshots and finished |
 | PhotonVision settings in the log (camera mode, decimate, threads, Low Latency, streams) [10-27] | Pi publisher, working on both Pis 11-07; caught an unnoted camera mode change the same day |
 | roboRIO CPU / memory / network logging (`RIO/*`) [10-27] | Working 11-07 |
 | roboRIO CPU in the Health Check [10-27] | `RioSystemStats`, `rio.cpu` rows (on `beta`, 11-04) |
