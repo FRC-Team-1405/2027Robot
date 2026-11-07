@@ -90,11 +90,11 @@ and write them down.
 
 | Run | What changes | What it checks | Status |
 |---|---|---|---|
-| L1 | Baseline: AdvantageScope + Elastic connected as usual | roboRIO CPU (question 1), with the new logging | to do |
-| L2 | Close AdvantageScope, Elastic and LogBench; only the Driver Station | Dashboards' cost (question 2) | to do |
-| L3 | Enabled in teleop, sticks untouched, no auto | The background cost with no command running (question 3) | to do |
+| L1 | Baseline: AdvantageScope + Elastic connected as usual | roboRIO CPU (question 1), with the new logging | elastic and advantageScope open (not logbench) akit_26-11-07_18-04-56-bundle |
+| L2 | Close AdvantageScope, Elastic and LogBench; only the Driver Station | Dashboards' cost (question 2) | akit_26-11-07_18-13-22-bundle |
+| L3 | Enabled in teleop, sticks untouched, no auto | The background cost with no command running (question 3) | nothing open but driver station: akit_26-11-07_18-16-38-bundle |
 | L4 | Repeat L1 | Drift, and the reference for L5 | to do |
-| L5 | Deploy with `VISION_EXTENDED_NT_LOGGING = false`, then as L1 | Extended vision logging's cost (question 3) | to do |
+| L5 | Deploy with `VISION_EXTENDED_NT_LOGGING = false`, then as L1 | Extended vision logging's cost (question 3) | elastic and advantageScope open (not logbench): akit_26-11-07_18-22-17-bundle |
 | L6 | Repeat L5 | Second sample, since L5 needs its own deploy | to do |
 
 The slow-loop share varied from 5% to 12% between identical 11-03 runs, so one run per setting

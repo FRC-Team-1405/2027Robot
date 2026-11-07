@@ -293,7 +293,7 @@ public class FeatureSwitches {
      *  true  = full vision debug data. false = 2026 minimal logging.
      *  SET: KEEP true, competition included: match logs are what the vision filters get tuned on.
      *  CHANGE WHEN: Vision.periodic shows up as a large share of the loop and you're not tuning vision. */
-    public static final boolean VISION_EXTENDED_NT_LOGGING = true;
+    public static final boolean VISION_EXTENDED_NT_LOGGING = false;
 
     /** Debug printing in PointAtTarget, RumbleJoystick and FinneyLogger.
      *  true  = prints to the console. false = quiet.
