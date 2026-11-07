@@ -9,12 +9,18 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Next time on the robot
 
-- [ ] **11-7: work through [notes/11-7/notes.md](notes/11-7/notes.md)** — checks for everything
-      merged into `beta` on 11-04 (none of it has run on the robot yet), then the experiments.
-- [ ] **Deploy robot code and re-bootstrap both Orange Pis**, then check that `RIO/*` and
-      `/OrangePi/*/Net*` show up in the log and in the Health Check. [10-27 notes, branch
-      `vision-throughput-10-27`] Pi `Net*` confirmed 11-03; `RIO/*` still missing on 11-03; it's on
-      `beta` since 11-04. [11-03]
+- [ ] **11-10 (Tue): work through [notes/11-10/notes.md](notes/11-10/notes.md)** (re-bootstrap, leftover
+      11-07 checks, frame-budget runs).
+- [ ] **Set both cameras back to 800x600 @100** unless @120 was on purpose. They were @120 from
+      19:03 on 11-07; the notes don't mention the change. [11-07, frame-pacing R12]
+- [ ] **Re-bootstrap both Pis with `.\Bootstrap-OrangePi.ps1 -All`** (no typing now; boards and
+      cameras come from `coprocessor/robots.json`). This also moves RightPi's recorder from
+      `http://rightpi.local:1181` to `localhost:1181`, which the 11-07 bootstrap silently kept.
+      First run on a laptop other than the one that made the key confirms the shared key works. [11-07]
+- [ ] **Re-check "PhotonVision still saves" with `sudo journalctl -u photonvision …`.** As user
+      `pi` the journal is hidden, so the 11-07 check printed nothing either way. [11-07 check 2b]
+- [ ] **Open the Health Check on an 11-07 log** (from `18-22-17` on) and see whether the roboRIO
+      CPU / memory, radio and Pi network rows have values. [11-07 check 2e, not done]
 - [ ] **Confirm the LogBench live fix.** With robot code already running, connect LogBench live,
       leave the Health Check open, and check that no camera has a gap between results over 80 ms.
       This is the case that stalled vision on 10-27 (T1, T2). [10-27 write-up, learning 8]
@@ -30,14 +36,19 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Vision experiments
 
-- [ ] **Finish the frame-pacing experiment**, R4–R14 (Low Latency off as the new baseline; dec 1,
-      thread sweep at dec 1, streams, 800x600@120 and 1280x800). R1–R3 done 11-03. [`docs/experiments/vision/2026-10-28-pv-frame-pacing/`]
+- [ ] **Frame-budget experiment B1–B7 on 11-10, before the range experiment** (~45 min): detector
+      threads 8 / 4 / 3 / 1 at dec 1, then output drawing off, then @120 and @100 dec 2 with the
+      best of both. Steps in [notes/11-10/notes.md](notes/11-10/notes.md).
+      [`docs/experiments/vision/2026-11-10-pv-frame-budget/`, 11-07]
 - [ ] **Confirm R3 was Low Latency off** in the PhotonVision UI; the notes don't say, the data
       do. [11-03]
-- [ ] **Run the range experiment** after frame-pacing R6/R13: stationary at 2 / 4 / 6 / 8 m, one
-      pipeline per setting. [`docs/experiments/vision/2026-11-03-pv-range/`, 10-27 open question 2]
-- [ ] **Run the roboRIO loop-overrun experiment** once `RioSystemStats` is deployed: 5–29% of
-      loops are over 20 ms in every vision run. [`docs/experiments/roborio/2026-11-03-loop-overruns/`]
+- [ ] **Run the range experiment** after the frame-pacing runs above (R6 and R13 done 11-07): stationary at 2 / 4 / 6 / 8 m,
+      one pipeline per setting. Dec 1 and 1280x800 each cost a third of the results, so they need a
+      clear range gain. [`docs/experiments/vision/2026-11-03-pv-range/`, 10-27 open question 2]
+- [ ] **Log the robot program's own CPU next to `RIO/CpuPct`** (`/proc/self/stat`, plus the busiest
+      other process). The roboRIO is 72–84% busy; this says whether that's us. Then two 2-minute
+      runs of one setup to measure the run-to-run noise (4–20% slow loops on 11-07).
+      [`docs/experiments/roborio/2026-11-03-loop-overruns/`, 11-07]
 - [ ] **Repeat the recorder on/off comparison interleaved** with no browser streams over the radio,
       and see whether the recorder can read a lower-rate stream. [10-27 open questions 3–4]
 - [ ] **Make the intrinsics in `VisionConstants` match whichever resolution we settle on.** The
@@ -55,10 +66,6 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 - [ ] **Log the robot's NetworkTables clients.** Record `NetworkTableInstance.getConnections()`
       (client name, IP, connect time) once a second. On 10-27 we had to work out from timing gaps
       that LogBench was reconnecting; this would have shown it directly.
-- [ ] **Get the PhotonVision settings into the log**: camera mode, decimate, detector threads, Low
-      Latency Mode, stream settings. On 10-27 those were only in hand-written notes, so a
-      mislabelled run couldn't be caught. The Pi publisher could read them from PhotonVision and
-      publish them.
 - [ ] **Add a vision gap row to the Health Check**: the longest time between results per camera,
       warning over 80 ms. That would have flagged the 10-27 stalls without reading the charts.
 - [ ] **Make every time on a downloaded log agree.** This covers the file name, the `.wpilog` start
@@ -118,12 +125,21 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
       it stays in git history either way. [9-22 roll-up]
 - [ ] **`coprocessor/tests/test_setup_orangepi.py` fails on Windows** (needs `termios`). Skip it
       there so the coprocessor tests run cleanly on team laptops.
+- [ ] **`coprocessor/tests/Test-BootstrapOrangePi.ps1` fails on Windows PowerShell 5.1** at its
+      first check ("argument count: expected 7, got 1"): on 5.1 `ConvertFrom-Json` returns a JSON
+      array as one object. Test bug only; it passes on PowerShell 7. [11-07]
 - [ ] **Install the GitHub CLI (`gh`) on the team laptop** so PRs can be opened from the terminal.
 
 ## Done
 
 | Item | Where it landed |
 |---|---|
+| 11-07 robot session: deploy `beta`, re-bootstrap both Pis, checks 2a/2b, frame-pacing R5/R6/R12/R13, loop-overrun L1–L5 | `notes/11-7/notes.md`, both write-ups. Checks 2c–2e not done; they stay open above |
+| Start-up wizard for the laptop-side coprocessor scripts (Bootstrap, both sim scripts): numbered choices, Enter = default, prints the equivalent command [user, 11-07] | `coprocessor/lib/Wizard.ps1` |
+| Our `.wpilog` parser dropped every `string[]` entry (PhotonVision thread names, AdvantageKit Alerts) [11-07] | `tools/wpilog-utils/wpilog_utils/decode.py`, `tests/test_decode_arrays.py` |
+| Bootstrap without typing names: per-robot boards/cameras in `coprocessor/robots.json`, `-All`, `-Robot`, wrong-board guard; shared Orange Pi SSH key [user, 11-07] | `coprocessor/robots.json`, `coprocessor/ssh/`, `Bootstrap-OrangePi.ps1` 2026-11-07.1 |
+| PhotonVision settings in the log (camera mode, decimate, threads, Low Latency, streams) [10-27] | Pi publisher, working on both Pis 11-07; caught an unnoted camera mode change the same day |
+| roboRIO CPU / memory / network logging (`RIO/*`) [10-27] | Working 11-07 |
 | roboRIO CPU in the Health Check [10-27] | `RioSystemStats`, `rio.cpu` rows (on `beta`, 11-04) |
 | Bandwidth logging, rows and thresholds [10-27] | Pi `Net*` topics, `RIO/Net*`, radio bandwidth rows (same branch) |
 | Each camera mode's real fps (`v4l2-ctl`) [10-27 open question 1] | `docs/experiments/vision/2026-10-28-pv-frame-pacing/notes.md`: 1280x800 and 800x600 both offer 100 and 120 |

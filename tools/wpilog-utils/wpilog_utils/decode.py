@@ -179,6 +179,25 @@ def decode_payload(payload: bytes, typ: str) -> Any:
         if t == 'boolean[]':
             return [bool(b) for b in payload]
 
+        if t == 'string[]':
+            # uint32 count, then per string: uint32 length + UTF-8 bytes. Until 11-07 this type
+            # fell through to "unrecognized" and was dropped, which hid e.g. the Pi publisher's
+            # PvTopThreads (the names that go with PvTopThreadPct).
+            if len(payload) < 4:
+                return []
+            count = struct.unpack_from('<I', payload, 0)[0]
+            pos, out = 4, []
+            for _ in range(count):
+                if pos + 4 > len(payload):
+                    raise ValueError('string[] runs past the end of the record')
+                length = struct.unpack_from('<I', payload, pos)[0]
+                pos += 4
+                if pos + length > len(payload):
+                    raise ValueError('string[] element runs past the end of the record')
+                out.append(payload[pos:pos + length].decode('utf-8', errors='replace'))
+                pos += length
+            return out
+
         if 'pose2d' in t:
             n = len(payload) // POSE2D_SIZE
             poses = []

@@ -11,7 +11,8 @@ SELECTED=()
 WORK_DIR=""
 # Opt-in non-interactive mode, used by Bootstrap-OrangePi.ps1 over SSH. Interactive runs are unchanged.
 # SETUP_UNATTENDED=1 SETUP_CHOICE=1|2|3 SETUP_BOARD_NAME=<name> SETUP_CAMERAS="a b"
-# SETUP_STREAMS="a=http://localhost:1181/stream.mjpg b=..." (name=url pairs, new cameras only)
+# SETUP_STREAMS="a=http://localhost:1181/stream.mjpg b=..." (name=url pairs; replaces a different URL
+# already configured for that camera)
 UNATTENDED=${SETUP_UNATTENDED:-0}
 
 usage() {
@@ -192,8 +193,25 @@ PY
 configure_camera() {
     local camera=$1 url file="/etc/orangepi-vision-recorder/$1.env"
     if sudo test -f "$file"; then
-        echo "Keeping existing $file (edit manually if the raw stream changed)."
         sudo cat "$file" > "$WORK_DIR/$camera.env"
+        # Unattended runs (Bootstrap-OrangePi.ps1) pass the URL from robots.json or its prompt;
+        # that is the intended stream, so it replaces a different one already on the Pi. Other
+        # lines in the file are kept. Interactive runs keep the existing URL as before.
+        url=""
+        if [[ "$UNATTENDED" == 1 ]]; then
+            for pair in ${SETUP_STREAMS:-}; do [[ "${pair%%=*}" == "$camera" ]] && url=${pair#*=}; done
+        fi
+        local have
+        have=$(sed -n 's/^[[:space:]]*CAMERA_STREAM_URL=//p' "$WORK_DIR/$camera.env" | tail -1)
+        if [[ -n "$url" && "$url" != "$have" ]]; then
+            [[ "$url" =~ ^https?://[^[:space:]\"\'\\]+$ ]] || die "Stream URL for $camera must be an HTTP(S) URL without spaces, quotes, or backslashes."
+            { printf 'CAMERA_STREAM_URL=%s\n' "$url"; grep -vE '^[[:space:]]*CAMERA_STREAM_URL=' "$WORK_DIR/$camera.env" || true; } > "$WORK_DIR/$camera.env.new"
+            mv "$WORK_DIR/$camera.env.new" "$WORK_DIR/$camera.env"
+            sudo install -m 644 "$WORK_DIR/$camera.env" "$file"
+            echo "Updated $file: CAMERA_STREAM_URL ${have:-<none>} -> $url"
+        else
+            echo "Keeping existing $file (edit manually if the raw stream changed)."
+        fi
         if ! grep -qE '^[[:space:]]*RECORDINGS_DIR=' "$WORK_DIR/$camera.env"; then
             printf '\nRECORDINGS_DIR=%s/vision-recordings\n' "$HOME" >> "$WORK_DIR/$camera.env"
             sudo install -m 644 "$WORK_DIR/$camera.env" "$file"

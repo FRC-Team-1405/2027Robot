@@ -1,0 +1,204 @@
+[
+ {
+  "id": "ref-R5",
+  "what": "11-07: 800x600 @100, dec 2, threads 8, drawing on",
+  "log": "akit_26-11-07_18-13-22",
+  "camera_fps": 100,
+  "xcam_trans_m_median": 0.0498,
+  "LeftPi": {
+   "settings": {
+    "mode": null,
+    "decimate": null,
+    "threads": null,
+    "low_latency": null,
+    "output_draw": null,
+    "output_stream": null
+   },
+   "results_per_s": 101.1,
+   "dropped_pct": 0.0,
+   "latency_ms_median": 23.8,
+   "interval_hist": {
+    "<0.75T": 0.0,
+    "1T": 100.0,
+    "1.5T": 0.0,
+    "2T": 0.0,
+    "2.5T": 0.0,
+    "3T": 0.0,
+    ">3.25T": 0.0
+   },
+   "frame_budget": {
+    "samples": 30,
+    "main_thread": "VisionRunner - /1119",
+    "main_thread_pct": 64.7,
+    "main_ms_per_frame": 6.4,
+    "worker_threads": 11,
+    "worker_cpu_pct": 69.9,
+    "worker_cpu_ms_per_frame": 6.91,
+    "worker_wall_ms_est": 1.73,
+    "other_pv_pct": 19.0,
+    "frame_ms_measured": 9.89,
+    "core_pct_median": [
+     9.8,
+     2.0,
+     0.0,
+     4.0,
+     52.1,
+     51.0,
+     51.0,
+     52.8
+    ],
+    "frame_ms_model": 8.13,
+    "fast_cores_pct": 51.7,
+    "slow_cores_pct": 4.0
+   }
+  },
+  "RightPi": {
+   "settings": {
+    "mode": null,
+    "decimate": null,
+    "threads": null,
+    "low_latency": null,
+    "output_draw": null,
+    "output_stream": null
+   },
+   "results_per_s": 101.0,
+   "dropped_pct": 0.05,
+   "latency_ms_median": 23.6,
+   "interval_hist": {
+    "<0.75T": 0.0,
+    "1T": 100.0,
+    "1.5T": 0.0,
+    "2T": 0.0,
+    "2.5T": 0.0,
+    "3T": 0.0,
+    ">3.25T": 0.0
+   },
+   "frame_budget": {
+    "samples": 41,
+    "main_thread": "VisionRunner - /1087",
+    "main_thread_pct": 64.6,
+    "main_ms_per_frame": 6.39,
+    "worker_threads": 11,
+    "worker_cpu_pct": 71.7,
+    "worker_cpu_ms_per_frame": 7.1,
+    "worker_wall_ms_est": 1.77,
+    "other_pv_pct": 18.0,
+    "frame_ms_measured": 9.9,
+    "core_pct_median": [
+     10.2,
+     5.8,
+     4.0,
+     0.0,
+     51.9,
+     52.1,
+     53.8,
+     51.5
+    ],
+    "frame_ms_model": 8.16,
+    "fast_cores_pct": 52.3,
+    "slow_cores_pct": 5.0
+   }
+  }
+ },
+ {
+  "id": "ref-R6",
+  "what": "11-07: 800x600 @120, dec 1, threads 8, drawing on",
+  "log": "akit_26-11-07_19-19-16",
+  "camera_fps": 120,
+  "xcam_trans_m_median": 0.0474,
+  "LeftPi": {
+   "settings": {
+    "mode": "800x600 MJPG @120",
+    "decimate": 1,
+    "threads": 8,
+    "low_latency": false,
+    "output_draw": true,
+    "output_stream": true
+   },
+   "results_per_s": 67.0,
+   "dropped_pct": 0.14,
+   "latency_ms_median": 36.5,
+   "interval_hist": {
+    "<0.75T": 0.0,
+    "1T": 17.6,
+    "1.5T": 3.0,
+    "2T": 68.5,
+    "2.5T": 9.9,
+    "3T": 0.8,
+    ">3.25T": 0.1
+   },
+   "frame_budget": {
+    "samples": 29,
+    "main_thread": "VisionRunner - /1124",
+    "main_thread_pct": 54.6,
+    "main_ms_per_frame": 8.14,
+    "worker_threads": 10,
+    "worker_cpu_pct": 129.9,
+    "worker_cpu_ms_per_frame": 19.39,
+    "worker_wall_ms_est": 4.85,
+    "other_pv_pct": 2.9,
+    "frame_ms_measured": 14.93,
+    "core_pct_median": [
+     7.8,
+     12.5,
+     2.0,
+     2.0,
+     63.3,
+     64.0,
+     64.7,
+     64.7
+    ],
+    "frame_ms_model": 12.99,
+    "fast_cores_pct": 64.2,
+    "slow_cores_pct": 6.1
+   }
+  },
+  "RightPi": {
+   "settings": {
+    "mode": "800x600 MJPG @120",
+    "decimate": 1,
+    "threads": 8,
+    "low_latency": false,
+    "output_draw": true,
+    "output_stream": true
+   },
+   "results_per_s": 68.5,
+   "dropped_pct": 0.21,
+   "latency_ms_median": 35.5,
+   "interval_hist": {
+    "<0.75T": 0.0,
+    "1T": 20.9,
+    "1.5T": 3.3,
+    "2T": 66.0,
+    "2.5T": 9.2,
+    "3T": 0.4,
+    ">3.25T": 0.2
+   },
+   "frame_budget": {
+    "samples": 39,
+    "main_thread": "VisionRunner - /1086",
+    "main_thread_pct": 53.7,
+    "main_ms_per_frame": 7.85,
+    "worker_threads": 10,
+    "worker_cpu_pct": 131.8,
+    "worker_cpu_ms_per_frame": 19.25,
+    "worker_wall_ms_est": 4.81,
+    "other_pv_pct": 2.8,
+    "frame_ms_measured": 14.6,
+    "core_pct_median": [
+     7.8,
+     7.8,
+     2.0,
+     0.0,
+     64.7,
+     64.7,
+     63.3,
+     64.6
+    ],
+    "frame_ms_model": 12.66,
+    "fast_cores_pct": 64.3,
+    "slow_cores_pct": 4.4
+   }
+  }
+ }
+]

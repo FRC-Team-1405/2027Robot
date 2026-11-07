@@ -28,6 +28,18 @@ RUNS = [
     ("B-11-03-R1", "11-03 R1, CircleFacingTag", "11-3/akit_26-11-03_23-38-42"),
     ("B-11-03-R2", "11-03 R2, CircleFacingTag", "11-3/akit_26-11-03_23-58-01"),
     ("B-11-03-R3", "11-03 R3, CircleFacingTag", "11-3/akit_26-11-04_00-18-32"),
+    # 11-7. L1-L3 ran the OLD robot code (338bcfa, built 10-27: no RIO/* stats, extended vision
+    # logging ON); L5 ran branch vision-throughput-10-27 + local edits; the rest ran beta d0b8b2c +
+    # local edits with VISION_EXTENDED_NT_LOGGING=false (all read from RealMetadata in the logs).
+    ("L1", "AdvantageScope + Elastic, auto (old code, ext. vision logging on)", "11-7/akit_26-11-07_18-04-56"),
+    ("L2", "Driver Station only, auto (old code, ext. vision logging on)", "11-7/akit_26-11-07_18-13-22"),
+    ("L3", "Driver Station only, teleop sticks idle (old code, ext. vision logging on)", "11-7/akit_26-11-07_18-16-38"),
+    ("L5", "AdvantageScope + Elastic, auto, ext. vision logging off", "11-7/akit_26-11-07_18-22-17"),
+    ("L4'", "AdvantageScope + Elastic, auto (beta; vision 800x600@120)", "11-7/akit_26-11-07_19-03-35"),
+    ("L4''", "AdvantageScope + Elastic + LogBench Fetch Bundle page, auto (beta)", "11-7/akit_26-11-07_19-10-49"),
+    ("L2'", "Driver Station only, auto (beta)", "11-7/akit_26-11-07_19-13-10"),
+    ("R6", "AS + Elastic + LogBench, auto, vision dec 1 (frame-pacing R6)", "11-7/akit_26-11-07_19-19-16"),
+    ("R13", "AS + Elastic + LogBench, auto, vision 1280x800 (frame-pacing R13)", "11-7/akit_26-11-07_19-23-31"),
 ]
 SECTIONS = ["LoggedRobot/UserCodeMS", "LoggedRobot/LogPeriodicMS", "LoggedRobot/GCTimeMS",
             "Timing/RobotPeriodicMs", "Timing/CommandSchedulerMs", "Timing/VisionMs",
@@ -66,10 +78,27 @@ def analyze(path):
                                   "ratio": round(st.mean(s) / st.mean(n), 2) if st.mean(n) else None}
     gc = [v for t, v in sig.get("RealOutputs/LoggedRobot/GCCounts", []) if inside(t)]
     r["gc_per_cycle_mean"] = round(st.mean(gc), 2) if gc else None
+    # Clients listed in the log, and which were connected when the window started (a trimmed log
+    # keeps every client that ever connected, so the list alone over-counts).
     clients = {k.split("/")[2] for k in sig if k.startswith("SystemStats/NTClients/")}
     r["nt_clients"] = sorted(clients)
+    conn = lambda c: [v for t, v in sig.get(f"SystemStats/NTClients/{c}/Connected", []) if t <= sp[0][0]] if sp else []
+    r["nt_clients_connected"] = sorted(c for c in clients if (conn(c) or [False])[-1])
     rio = [v for t, v in sig.get("RealOutputs/RIO/CpuPct", []) if inside(t)]
     r["rio_cpu_pct_median"] = round(st.median(rio), 1) if rio else None
+    r["rio_cpu_pct_max"] = round(max(rio), 1) if rio else None
+    # How often a GC ran in the loop: slow vs normal loops.
+    gcc = dict(sig.get("RealOutputs/LoggedRobot/GCCounts", []))
+    gct = dict(sig.get("RealOutputs/LoggedRobot/GCTimeMS", []))
+    nslow, nnorm = len(slow), len(full) - len(slow)
+    r["gc_in_slow_pct"] = round(100 * sum(1 for t in slow if gcc.get(t, 0) > 0) / nslow) if nslow else None
+    r["gc_in_normal_pct"] = round(100 * sum(1 for t in full if t not in slow and gcc.get(t, 0) > 0) / nnorm) if nnorm else None
+    # Slow loops that would still be over 20 ms with their GC time removed.
+    r["slow_without_gc_pct"] = round(100 * sum(1 for t in slow if full[t] - gct.get(t, 0) > 20) / nslow) if nslow else None
+    md = sig.get("RealMetadata/GitSHA", [])
+    r["git_sha"] = md[-1][1][:7] if md else None
+    fs = sig.get("RealMetadata/FeatureSwitches", [])
+    r["vision_extended_nt_logging"] = ("VISION_EXTENDED_NT_LOGGING=true" in fs[-1][1]) if fs else None
     return r
 
 
@@ -84,5 +113,6 @@ if __name__ == "__main__":
         print(f"{run_id:12s} slow {r['slow_cycles_pct']:5}%  user code {s['LoggedRobot/UserCodeMS']['normal_ms']:5} -> "
               f"{s['LoggedRobot/UserCodeMS']['slow_ms']:5} ms  GC {s['LoggedRobot/GCTimeMS']['normal_ms']} -> "
               f"{s['LoggedRobot/GCTimeMS']['slow_ms']} ms  vision {s['Timing/VisionMs']['normal_ms']} -> {s['Timing/VisionMs']['slow_ms']} ms"
-              f"  NT clients {len(r['nt_clients'])}")
+              f"  dashboards {[c for c in r['nt_clients_connected'] if not c.startswith(('OrangePi', 'leftpi', 'RightPi'))]}"
+              f"  rio cpu {r['rio_cpu_pct_median']}/{r['rio_cpu_pct_max']}  GC in slow/normal {r['gc_in_slow_pct']}/{r['gc_in_normal_pct']}%")
     json.dump(out, open(HERE / "results.json", "w"), indent=1)

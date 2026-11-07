@@ -71,7 +71,24 @@
    "RightPi@2",
    "leftpi@3"
   ],
+  "nt_clients_connected": [
+   "AdvantageScope@8",
+   "Elastic@1",
+   "Logbench@9",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@4",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@6",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@2",
+   "leftpi@3"
+  ],
   "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 12,
+  "gc_in_normal_pct": 2,
+  "slow_without_gc_pct": 93,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
   "id": "B-10-27-T1",
   "what": "10-27 T1, CircleFacingTag",
   "log": "akit_26-10-27_22-13-27"
@@ -146,7 +163,24 @@
    "RightPi@4",
    "leftpi@2"
   ],
+  "nt_clients_connected": [
+   "AdvantageScope@8",
+   "Elastic@9",
+   "Logbench@7",
+   "OrangePiMetrics-LeftPi@1",
+   "OrangePiMetrics-RightPi@5",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@3",
+   "OrangePiVisionRecorder-RightPi-RightCam@6",
+   "RightPi@4",
+   "leftpi@2"
+  ],
   "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 13,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 92,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
   "id": "B-10-27-T2",
   "what": "10-27 T2, CircleFacingTag",
   "log": "akit_26-10-27_22-37-33"
@@ -221,7 +255,24 @@
    "RightPi@4",
    "leftpi@5"
   ],
+  "nt_clients_connected": [
+   "AdvantageScope@3",
+   "Elastic@2",
+   "Logbench@1",
+   "OrangePiMetrics-LeftPi@8",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@9",
+   "OrangePiVisionRecorder-RightPi-RightCam@7",
+   "RightPi@4",
+   "leftpi@5"
+  ],
   "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 22,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 88,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
   "id": "B-10-27-T3",
   "what": "10-27 T3, CircleFacingTag",
   "log": "akit_26-10-27_22-42-57"
@@ -296,7 +347,24 @@
    "RightPi@6",
    "leftpi@3"
   ],
+  "nt_clients_connected": [
+   "AdvantageScope@8",
+   "Elastic@9",
+   "Logbench@7",
+   "OrangePiMetrics-LeftPi@2",
+   "OrangePiMetrics-RightPi@5",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@1",
+   "OrangePiVisionRecorder-RightPi-RightCam@4",
+   "RightPi@6",
+   "leftpi@3"
+  ],
   "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 35,
+  "gc_in_normal_pct": 2,
+  "slow_without_gc_pct": 79,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
   "id": "B-10-27-T7",
   "what": "10-27 T7, driven heat soak",
   "log": "akit_26-10-27_23-42-41"
@@ -370,7 +438,23 @@
    "RightPi@3",
    "leftpi@4"
   ],
+  "nt_clients_connected": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@5",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@6",
+   "RightPi@3",
+   "leftpi@4"
+  ],
   "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 26,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 90,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
   "id": "B-11-03-R1",
   "what": "11-03 R1, CircleFacingTag",
   "log": "akit_26-11-03_23-38-42"
@@ -444,7 +528,23 @@
    "RightPi@3",
    "leftpi@4"
   ],
+  "nt_clients_connected": [
+   "AdvantageScope@2",
+   "Elastic@1",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@5",
+   "OrangePiVisionRecorder-RightPi-RightCam@8",
+   "RightPi@3",
+   "leftpi@4"
+  ],
   "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 29,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 87,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
   "id": "B-11-03-R2",
   "what": "11-03 R2, CircleFacingTag",
   "log": "akit_26-11-03_23-58-01"
@@ -518,9 +618,829 @@
    "RightPi@3",
    "leftpi@6"
   ],
+  "nt_clients_connected": [
+   "AdvantageScope@7",
+   "Elastic@8",
+   "OrangePiMetrics-LeftPi@4",
+   "OrangePiMetrics-RightPi@1",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@5",
+   "OrangePiVisionRecorder-RightPi-RightCam@2",
+   "RightPi@3",
+   "leftpi@6"
+  ],
   "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 33,
+  "gc_in_normal_pct": 5,
+  "slow_without_gc_pct": 80,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
   "id": "B-11-03-R3",
   "what": "11-03 R3, CircleFacingTag",
   "log": "akit_26-11-04_00-18-32"
+ },
+ {
+  "enabled_s": 19.9,
+  "cycles": 917,
+  "slow_cycles_pct": 18.1,
+  "full_cycle_ms_median": 17.16,
+  "full_cycle_ms_max": 74.8,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 13.64,
+    "slow_ms": 21.91,
+    "ratio": 1.61
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.98,
+    "slow_ms": 4.71,
+    "ratio": 1.58
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.1,
+    "slow_ms": 4.77,
+    "ratio": 2.27
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 12.07,
+    "slow_ms": 17.95,
+    "ratio": 1.49
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 10.34,
+    "slow_ms": 15.05,
+    "ratio": 1.46
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.87,
+    "slow_ms": 8.49,
+    "ratio": 1.45
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.87,
+    "slow_ms": 1.23,
+    "ratio": 1.43
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.16,
+    "slow_ms": 1.7,
+    "ratio": 1.46
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.4,
+    "slow_ms": 0.51,
+    "ratio": 1.28
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.4,
+    "slow_ms": 0.84,
+    "ratio": 2.11
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@4",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@3",
+   "leftpi@6"
+  ],
+  "nt_clients_connected": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@4",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@3",
+   "leftpi@6"
+  ],
+  "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 19,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 92,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
+  "id": "L1",
+  "what": "AdvantageScope + Elastic, auto (old code, ext. vision logging on)",
+  "log": "akit_26-11-07_18-04-56"
+ },
+ {
+  "enabled_s": 20.8,
+  "cycles": 1004,
+  "slow_cycles_pct": 7.6,
+  "full_cycle_ms_median": 14.34,
+  "full_cycle_ms_max": 64.0,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 12.14,
+    "slow_ms": 22.67,
+    "ratio": 1.87
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.36,
+    "slow_ms": 3.96,
+    "ratio": 1.68
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.15,
+    "slow_ms": 5.57,
+    "ratio": 2.6
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 10.79,
+    "slow_ms": 18.89,
+    "ratio": 1.75
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 9.24,
+    "slow_ms": 16.27,
+    "ratio": 1.76
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.31,
+    "slow_ms": 9.87,
+    "ratio": 1.86
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.77,
+    "slow_ms": 1.06,
+    "ratio": 1.37
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.05,
+    "slow_ms": 1.71,
+    "ratio": 1.62
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.39,
+    "slow_ms": 0.63,
+    "ratio": 1.6
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.35,
+    "slow_ms": 0.7,
+    "ratio": 2.01
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@3",
+   "leftpi@4"
+  ],
+  "nt_clients_connected": [
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@3",
+   "leftpi@4"
+  ],
+  "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 42,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 70,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
+  "id": "L2",
+  "what": "Driver Station only, auto (old code, ext. vision logging on)",
+  "log": "akit_26-11-07_18-13-22"
+ },
+ {
+  "enabled_s": 20.9,
+  "cycles": 1023,
+  "slow_cycles_pct": 4.3,
+  "full_cycle_ms_median": 13.37,
+  "full_cycle_ms_max": 55.2,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 11.45,
+    "slow_ms": 23.45,
+    "ratio": 2.05
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.13,
+    "slow_ms": 3.33,
+    "ratio": 1.56
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.43,
+    "slow_ms": 6.45,
+    "ratio": 2.65
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 10.03,
+    "slow_ms": 18.98,
+    "ratio": 1.89
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 8.66,
+    "slow_ms": 16.7,
+    "ratio": 1.93
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.16,
+    "slow_ms": 10.25,
+    "ratio": 1.99
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.69,
+    "slow_ms": 0.99,
+    "ratio": 1.42
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 0.98,
+    "slow_ms": 1.29,
+    "ratio": 1.32
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.31,
+    "slow_ms": 0.37,
+    "ratio": 1.22
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.32,
+    "slow_ms": 0.62,
+    "ratio": 1.96
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "OrangePiMetrics-LeftPi@6",
+   "OrangePiMetrics-RightPi@5",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@4",
+   "OrangePiVisionRecorder-RightPi-RightCam@3",
+   "RightPi@1",
+   "leftpi@2"
+  ],
+  "nt_clients_connected": [
+   "OrangePiMetrics-LeftPi@6",
+   "OrangePiMetrics-RightPi@5",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@4",
+   "OrangePiVisionRecorder-RightPi-RightCam@3",
+   "RightPi@1",
+   "leftpi@2"
+  ],
+  "rio_cpu_pct_median": null,
+  "rio_cpu_pct_max": null,
+  "gc_in_slow_pct": 52,
+  "gc_in_normal_pct": 4,
+  "slow_without_gc_pct": 68,
+  "git_sha": "338bcfa",
+  "vision_extended_nt_logging": true,
+  "id": "L3",
+  "what": "Driver Station only, teleop sticks idle (old code, ext. vision logging on)",
+  "log": "akit_26-11-07_18-16-38"
+ },
+ {
+  "enabled_s": 20.5,
+  "cycles": 945,
+  "slow_cycles_pct": 15.6,
+  "full_cycle_ms_median": 16.64,
+  "full_cycle_ms_max": 79.7,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 13.42,
+    "slow_ms": 22.99,
+    "ratio": 1.71
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.85,
+    "slow_ms": 4.73,
+    "ratio": 1.66
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.03,
+    "slow_ms": 4.89,
+    "ratio": 2.41
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 11.86,
+    "slow_ms": 18.75,
+    "ratio": 1.58
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 10.48,
+    "slow_ms": 16.0,
+    "ratio": 1.53
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.86,
+    "slow_ms": 9.38,
+    "ratio": 1.6
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.54,
+    "slow_ms": 0.72,
+    "ratio": 1.32
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.18,
+    "slow_ms": 1.48,
+    "ratio": 1.26
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.42,
+    "slow_ms": 0.51,
+    "ratio": 1.23
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.38,
+    "slow_ms": 0.96,
+    "ratio": 2.53
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@3",
+   "OrangePiMetrics-RightPi@8",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@4",
+   "OrangePiVisionRecorder-RightPi-RightCam@7",
+   "RightPi@5",
+   "leftpi@6"
+  ],
+  "nt_clients_connected": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@3",
+   "OrangePiMetrics-RightPi@8",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@4",
+   "OrangePiVisionRecorder-RightPi-RightCam@7",
+   "RightPi@5",
+   "leftpi@6"
+  ],
+  "rio_cpu_pct_median": 84.0,
+  "rio_cpu_pct_max": 91.7,
+  "gc_in_slow_pct": 25,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 93,
+  "git_sha": "a9925d1",
+  "vision_extended_nt_logging": false,
+  "id": "L5",
+  "what": "AdvantageScope + Elastic, auto, ext. vision logging off",
+  "log": "akit_26-11-07_18-22-17"
+ },
+ {
+  "enabled_s": 20.8,
+  "cycles": 999,
+  "slow_cycles_pct": 7.8,
+  "full_cycle_ms_median": 15.29,
+  "full_cycle_ms_max": 50.7,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 12.84,
+    "slow_ms": 23.02,
+    "ratio": 1.79
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.5,
+    "slow_ms": 4.53,
+    "ratio": 1.81
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 1.92,
+    "slow_ms": 6.28,
+    "ratio": 3.27
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 11.48,
+    "slow_ms": 20.12,
+    "ratio": 1.75
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 10.17,
+    "slow_ms": 17.73,
+    "ratio": 1.74
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.9,
+    "slow_ms": 11.44,
+    "ratio": 1.94
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.56,
+    "slow_ms": 0.87,
+    "ratio": 1.56
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.11,
+    "slow_ms": 1.75,
+    "ratio": 1.57
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.34,
+    "slow_ms": 0.34,
+    "ratio": 0.98
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.33,
+    "slow_ms": 0.52,
+    "ratio": 1.59
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@7",
+   "Elastic@9",
+   "Logbench@8",
+   "OrangePiMetrics-LeftPi@2",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@3",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@4",
+   "leftpi@1"
+  ],
+  "nt_clients_connected": [
+   "AdvantageScope@7",
+   "Elastic@9",
+   "OrangePiMetrics-LeftPi@2",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@3",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@4",
+   "leftpi@1"
+  ],
+  "rio_cpu_pct_median": 79.5,
+  "rio_cpu_pct_max": 83.0,
+  "gc_in_slow_pct": 51,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 69,
+  "git_sha": "d0b8b2c",
+  "vision_extended_nt_logging": false,
+  "id": "L4'",
+  "what": "AdvantageScope + Elastic, auto (beta; vision 800x600@120)",
+  "log": "akit_26-11-07_19-03-35"
+ },
+ {
+  "enabled_s": 22.0,
+  "cycles": 1003,
+  "slow_cycles_pct": 16.6,
+  "full_cycle_ms_median": 16.49,
+  "full_cycle_ms_max": 65.8,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 13.45,
+    "slow_ms": 22.87,
+    "ratio": 1.7
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.63,
+    "slow_ms": 4.49,
+    "ratio": 1.71
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 1.76,
+    "slow_ms": 5.34,
+    "ratio": 3.04
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 11.87,
+    "slow_ms": 19.1,
+    "ratio": 1.61
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 10.44,
+    "slow_ms": 16.45,
+    "ratio": 1.58
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.91,
+    "slow_ms": 9.54,
+    "ratio": 1.61
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.57,
+    "slow_ms": 0.85,
+    "ratio": 1.48
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.17,
+    "slow_ms": 1.76,
+    "ratio": 1.5
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.43,
+    "slow_ms": 0.58,
+    "ratio": 1.37
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.38,
+    "slow_ms": 0.96,
+    "ratio": 2.52
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@2",
+   "Elastic@1",
+   "LogbenchPiDiscovery@9",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@3",
+   "leftpi@4"
+  ],
+  "nt_clients_connected": [
+   "AdvantageScope@2",
+   "Elastic@1",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@3",
+   "leftpi@4"
+  ],
+  "rio_cpu_pct_median": 79.8,
+  "rio_cpu_pct_max": 87.6,
+  "gc_in_slow_pct": 28,
+  "gc_in_normal_pct": 2,
+  "slow_without_gc_pct": 86,
+  "git_sha": "d0b8b2c",
+  "vision_extended_nt_logging": false,
+  "id": "L4''",
+  "what": "AdvantageScope + Elastic + LogBench Fetch Bundle page, auto (beta)",
+  "log": "akit_26-11-07_19-10-49"
+ },
+ {
+  "enabled_s": 20.2,
+  "cycles": 928,
+  "slow_cycles_pct": 19.6,
+  "full_cycle_ms_median": 16.77,
+  "full_cycle_ms_max": 56.1,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 13.51,
+    "slow_ms": 22.09,
+    "ratio": 1.64
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.8,
+    "slow_ms": 4.24,
+    "ratio": 1.51
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 1.82,
+    "slow_ms": 5.23,
+    "ratio": 2.87
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 11.95,
+    "slow_ms": 18.73,
+    "ratio": 1.57
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 10.53,
+    "slow_ms": 16.23,
+    "ratio": 1.54
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.97,
+    "slow_ms": 9.36,
+    "ratio": 1.57
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.56,
+    "slow_ms": 0.91,
+    "ratio": 1.61
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.17,
+    "slow_ms": 1.69,
+    "ratio": 1.45
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.42,
+    "slow_ms": 0.62,
+    "ratio": 1.47
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.38,
+    "slow_ms": 0.81,
+    "ratio": 2.15
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@7",
+   "Elastic@8",
+   "OrangePiMetrics-LeftPi@5",
+   "OrangePiMetrics-RightPi@3",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@6",
+   "OrangePiVisionRecorder-RightPi-RightCam@4",
+   "RightPi@1",
+   "leftpi@2"
+  ],
+  "nt_clients_connected": [
+   "OrangePiMetrics-LeftPi@5",
+   "OrangePiMetrics-RightPi@3",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@6",
+   "OrangePiVisionRecorder-RightPi-RightCam@4",
+   "RightPi@1",
+   "leftpi@2"
+  ],
+  "rio_cpu_pct_median": 77.5,
+  "rio_cpu_pct_max": 86.1,
+  "gc_in_slow_pct": 23,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 87,
+  "git_sha": "d0b8b2c",
+  "vision_extended_nt_logging": false,
+  "id": "L2'",
+  "what": "Driver Station only, auto (beta)",
+  "log": "akit_26-11-07_19-13-10"
+ },
+ {
+  "enabled_s": 20.6,
+  "cycles": 1002,
+  "slow_cycles_pct": 5.9,
+  "full_cycle_ms_median": 13.43,
+  "full_cycle_ms_max": 60.3,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 11.17,
+    "slow_ms": 23.1,
+    "ratio": 2.07
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.45,
+    "slow_ms": 3.97,
+    "ratio": 1.62
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.27,
+    "slow_ms": 6.32,
+    "ratio": 2.79
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 9.9,
+    "slow_ms": 18.28,
+    "ratio": 1.85
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 8.75,
+    "slow_ms": 15.91,
+    "ratio": 1.82
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 4.84,
+    "slow_ms": 10.45,
+    "ratio": 2.16
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.42,
+    "slow_ms": 0.5,
+    "ratio": 1.19
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.04,
+    "slow_ms": 1.26,
+    "ratio": 1.22
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.34,
+    "slow_ms": 0.65,
+    "ratio": 1.91
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.33,
+    "slow_ms": 1.14,
+    "ratio": 3.46
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@8",
+   "Elastic@7",
+   "OrangePiMetrics-LeftPi@5",
+   "OrangePiMetrics-RightPi@3",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@6",
+   "OrangePiVisionRecorder-RightPi-RightCam@4",
+   "RightPi@1",
+   "leftpi@2"
+  ],
+  "nt_clients_connected": [
+   "AdvantageScope@8",
+   "Elastic@7",
+   "OrangePiMetrics-LeftPi@5",
+   "OrangePiMetrics-RightPi@3",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@6",
+   "OrangePiVisionRecorder-RightPi-RightCam@4",
+   "RightPi@1",
+   "leftpi@2"
+  ],
+  "rio_cpu_pct_median": 72.3,
+  "rio_cpu_pct_max": 78.7,
+  "gc_in_slow_pct": 49,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 71,
+  "git_sha": "d0b8b2c",
+  "vision_extended_nt_logging": false,
+  "id": "R6",
+  "what": "AS + Elastic + LogBench, auto, vision dec 1 (frame-pacing R6)",
+  "log": "akit_26-11-07_19-19-16"
+ },
+ {
+  "enabled_s": 20.8,
+  "cycles": 974,
+  "slow_cycles_pct": 12.2,
+  "full_cycle_ms_median": 15.45,
+  "full_cycle_ms_max": 110.6,
+  "sections": {
+   "LoggedRobot/UserCodeMS": {
+    "normal_ms": 12.38,
+    "slow_ms": 21.69,
+    "ratio": 1.75
+   },
+   "LoggedRobot/LogPeriodicMS": {
+    "normal_ms": 2.96,
+    "slow_ms": 5.58,
+    "ratio": 1.89
+   },
+   "LoggedRobot/GCTimeMS": {
+    "normal_ms": 2.19,
+    "slow_ms": 5.39,
+    "ratio": 2.46
+   },
+   "Timing/RobotPeriodicMs": {
+    "normal_ms": 10.81,
+    "slow_ms": 17.98,
+    "ratio": 1.66
+   },
+   "Timing/CommandSchedulerMs": {
+    "normal_ms": 9.51,
+    "slow_ms": 14.93,
+    "ratio": 1.57
+   },
+   "Timing/VisionMs": {
+    "normal_ms": 5.12,
+    "slow_ms": 7.78,
+    "ratio": 1.52
+   },
+   "Timing/CorrectOdometryMs": {
+    "normal_ms": 0.45,
+    "slow_ms": 0.81,
+    "ratio": 1.82
+   },
+   "Timing/ShooterMs": {
+    "normal_ms": 1.18,
+    "slow_ms": 1.63,
+    "ratio": 1.39
+   },
+   "Timing/DrivetrainMs": {
+    "normal_ms": 0.38,
+    "slow_ms": 0.7,
+    "ratio": 1.84
+   },
+   "Timing/PublishingMs": {
+    "normal_ms": 0.38,
+    "slow_ms": 1.58,
+    "ratio": 4.11
+   }
+  },
+  "gc_per_cycle_mean": 0.5,
+  "nt_clients": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@3",
+   "leftpi@4"
+  ],
+  "nt_clients_connected": [
+   "AdvantageScope@1",
+   "Elastic@2",
+   "OrangePiMetrics-LeftPi@7",
+   "OrangePiMetrics-RightPi@6",
+   "OrangePiVisionRecorder-LeftPi-LeftCam@8",
+   "OrangePiVisionRecorder-RightPi-RightCam@5",
+   "RightPi@3",
+   "leftpi@4"
+  ],
+  "rio_cpu_pct_median": 77.6,
+  "rio_cpu_pct_max": 85.0,
+  "gc_in_slow_pct": 26,
+  "gc_in_normal_pct": 3,
+  "slow_without_gc_pct": 82,
+  "git_sha": "d0b8b2c",
+  "vision_extended_nt_logging": false,
+  "id": "R13",
+  "what": "AS + Elastic + LogBench, auto, vision 1280x800 (frame-pacing R13)",
+  "log": "akit_26-11-07_19-23-31"
  }
 ]

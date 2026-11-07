@@ -2,13 +2,13 @@
 id: RIO-2026-11-03-loop-overruns
 title: roboRIO loop overruns — what takes the 20 ms away
 area: roborio
-date: 2026-11-03            # written; rename the folder to the day it runs
-status: planned             # planned | running | analyzed | decided
-decision: pending
-robot_code: beta (has RioSystemStats since 11-04)
-logs: logs/offseason/<run date>/
-analysis: analyze.py → results.json (already computes the baseline from 10-27 and 11-03)
-raw_notes: notes/<run date>/notes.md
+date: 2026-11-03            # written 11-03; first runs 11-07 (folder keeps the written date)
+status: running             # planned | running | analyzed | decided
+decision: pending           # not dashboards, not extended vision logging; the CPU is ~80% busy
+robot_code: 11-07 L1–L3 338bcfa (old!), L5 vision-throughput-10-27 a9925d1+edits, L4'/L4''/L2' beta d0b8b2c+edits
+logs: logs/offseason/11-7/
+analysis: analyze.py → results.json
+raw_notes: notes/11-7/myNotes.md
 ---
 
 # roboRIO loop overruns: what takes the 20 ms away
@@ -21,7 +21,13 @@ odometry and vision updates all arrive late. The logs we already have show that 
 *everything* gets slower by about the same factor, not just one subsystem. So something is
 taking CPU time away from the robot code. This experiment finds out what.
 
-**Not run yet.** The baseline below comes from logs we already have.
+**11-07 (L1–L5 plus four more runs): it isn't the dashboards and it isn't the extended vision
+logging.** The roboRIO's CPU is **72–84% busy** (median per run, peaks to 92%) while driving the
+auto, so a normal 12–13 ms loop has little room before something pushes it past 20 ms. The share
+of slow loops swung from 4% to 20% between runs with the *same* setup, which is bigger than any
+difference between setups. Garbage collection makes a loop about 10× more likely to be slow, but
+most slow loops have no GC in them. Next step: find out which process is using the CPU
+(see "What would answer it next").
 
 ## What we're testing
 
@@ -90,12 +96,20 @@ and write them down.
 
 | Run | What changes | What it checks | Status |
 |---|---|---|---|
-| L1 | Baseline: AdvantageScope + Elastic connected as usual | roboRIO CPU (question 1), with the new logging | elastic and advantageScope open (not logbench) akit_26-11-07_18-04-56-bundle |
-| L2 | Close AdvantageScope, Elastic and LogBench; only the Driver Station | Dashboards' cost (question 2) | akit_26-11-07_18-13-22-bundle |
-| L3 | Enabled in teleop, sticks untouched, no auto | The background cost with no command running (question 3) | nothing open but driver station: akit_26-11-07_18-16-38-bundle |
-| L4 | Repeat L1 | Drift, and the reference for L5 | to do |
-| L5 | Deploy with `VISION_EXTENDED_NT_LOGGING = false`, then as L1 | Extended vision logging's cost (question 3) | elastic and advantageScope open (not logbench): akit_26-11-07_18-22-17-bundle |
-| L6 | Repeat L5 | Second sample, since L5 needs its own deploy | to do |
+| L1 | Baseline: AdvantageScope + Elastic connected as usual | roboRIO CPU (question 1), with the new logging | ✅ `18-04-56`, but on the **old code** (no `RIO/*`) |
+| L2 | Close AdvantageScope, Elastic and LogBench; only the Driver Station | Dashboards' cost (question 2) | ✅ `18-13-22` (old code) |
+| L3 | Enabled in teleop, sticks untouched, no auto | The background cost with no command running (question 3) | ✅ `18-16-38` (old code) |
+| L4 | Repeat L1 | Drift, and the reference for L5 | ✅ as L4' `19-03-35` and L4'' `19-10-49` (beta, extended logging off, camera @120) |
+| L5 | Deploy with `VISION_EXTENDED_NT_LOGGING = false`, then as L1 | Extended vision logging's cost (question 3) | ✅ `18-22-17` (branch `vision-throughput-10-27`) |
+| L6 | Repeat L5 | Second sample, since L5 needs its own deploy | covered by L4'/L4'' (same switch) |
+| L2' | Repeat L2 on beta | Second sample of "Driver Station only" | ✅ `19-13-10` |
+
+**What the robot was actually running** (read from `RealMetadata` in each log, not the notes):
+L1–L3 ran the code deployed on 10-27 (`338bcfa`), with `VISION_EXTENDED_NT_LOGGING = true` and no
+`RIO/*` stats. L5 ran branch `vision-throughput-10-27` (`a9925d1` + uncommitted edits) with the
+switch off. Everything from 19:03 on ran `beta` (`d0b8b2c` + uncommitted edits) with the switch
+off. So L1 vs L5 changes both the switch and the code version, and L1–L3 have no roboRIO CPU
+numbers.
 
 The slow-loop share varied from 5% to 12% between identical 11-03 runs, so one run per setting
 isn't enough for small effects. L1/L4 and L5/L6 give two runs each for the switch; repeat L2 if
@@ -109,10 +123,56 @@ it's close.
   `SystemStats/NTClients/`, and `analyze.py` counts them.
 - [ ] Have a second deploy ready with `VISION_EXTENDED_NT_LOGGING = false`, for L5–L6.
 
-## Results
+## Results (11-07)
 
-Not run yet. Add the runs to `RUNS` in `analyze.py`. It already reports the slow-loop share, the
-slow vs normal time of each section, GC, NT clients and (once logged) roboRIO CPU.
+From `analyze.py` → `results.json`. Each run is about 20 s enabled (~1000 loops). "Dashboards"
+means connected when the run started: the log keeps every client that ever connected, so the
+plain list over-counts. LogBench was never connected live during a run.
+
+| Run | Dashboards | Ext. vision logging | Slow loops | roboRIO CPU, median / max | Robot code, normal → slow | GC in slow / normal loops |
+|---|---|---|---|---|---|---|
+| L1 | AS + Elastic | on (old code) | **18.1%** | – | 13.6 → 21.9 ms | 19% / 3% |
+| L2 | none | on (old code) | **7.6%** | – | 12.1 → 22.7 | 42% / 3% |
+| L3 (teleop, idle) | none | on (old code) | **4.3%** | – | 11.5 → 23.5 | 52% / 4% |
+| L5 | AS + Elastic | off | **15.6%** | 84 / 92% | 13.4 → 23.0 | 25% / 3% |
+| L4' | AS + Elastic | off | **7.8%** | 80 / 83% | 12.8 → 23.0 | 51% / 3% |
+| L4'' | AS + Elastic (+ LogBench Fetch Bundle page) | off | **16.6%** | 80 / 88% | 13.5 → 22.9 | 28% / 2% |
+| L2' | none | off | **19.6%** | 78 / 86% | 13.5 → 22.1 | 23% / 3% |
+| R6 (vision dec 1) | AS + Elastic | off | 5.9% | 72 / 79% | 11.2 → 23.1 | 49% / 3% |
+| R13 (vision 1280x800) | AS + Elastic | off | 12.2% | 78 / 85% | 12.4 → 21.7 | 26% / 3% |
+
+### Answers so far
+
+| Question | Answer | Evidence |
+|---|---|---|
+| 1. Is the roboRIO's CPU full? | **Nearly: 72–84% median, peaks 92%.** Not pinned at 100%, but a 2-core CPU at 80% leaves little room for a burst | `RIO/CpuPct` in every run from L5 on |
+| 2. Do dashboards cost loop time? | **Not measurably.** Driver Station only: 7.6% and 19.6%. With AS + Elastic: 7.8–18.1% | L2 and L2' alone differ by 12 points with the same setup |
+| 3a. Is it the robot's own work? | **Partly.** Idle teleop had the fewest slow loops (4.3%) but not zero | L3 |
+| 3b. Does extended vision logging cost time? | **No visible effect.** The vision section took 5.9 ms per normal loop with it on (L1) and off (L5) | L1 vs L5, L4' |
+| 4. How much is GC? | **A trigger, not the main cause.** A loop with a GC is ~10× more likely to be slow (19–52% of slow loops have one, 2–4% of normal loops). But 70–90% of slow loops are still over 20 ms with their GC time taken out | `GCCounts`, `GCTimeMS` |
+
+Also checked, from the same logs:
+
+- **Slow loops don't follow a 1-second rhythm**, so the new once-a-second `RioSystemStats` read,
+  the radio status poll and the Pi publishers aren't the cause.
+- **Slow loops come in bursts of up to 6–7 in a row** (120–140 ms). Something holds the CPU for
+  a while, which fits another process or a GC pause better than one slow command.
+- **Per-second roboRIO CPU barely tracks the slow-loop share** (correlation 0–0.35). One sample a
+  second is too coarse to catch a 100 ms burst.
+- **The slow loops are only just slow**: 22.5–24.6 ms median. The worst loop in any run was
+  50–111 ms.
+
+### What would answer it next
+
+1. **Log our own process's CPU next to the total** (`/proc/self/stat` in `RioSystemStats`, plus
+   the busiest other process). If the robot program is most of the 80%, it's our own work and the
+   fix is a per-section budget; if another process (NetComm, the NT server, the web server) spikes
+   during the bursts, it's that.
+2. **Longer runs, fewer settings.** With a 4–20% spread between identical 20 s runs, a few-point
+   effect needs several minutes per setting. Two 2-minute runs of the same setup would show how
+   much of the spread is plain noise.
+3. **GC as one A/B**: different JVM GC flags in `build.gradle`, since GC is in a quarter to half
+   of the slow loops.
 
 ## Next experiment
 

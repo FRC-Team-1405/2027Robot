@@ -1,0 +1,31 @@
+{
+  "_readme": [
+    "Which Orange Pis each robot has, and which cameras each Pi runs. Bootstrap-OrangePi.ps1 reads this,",
+    "so  .\\Bootstrap-OrangePi.ps1 LeftPi  (or  -All  for every Pi) needs no typing. Command-line options",
+    "(-Address, -BoardName, -Cameras, -StreamUrls) still win over this file.",
+    "robot     : -Robot <name>, default 'defaultRobot'. Add a block per robot; boards may share names across robots.",
+    "name      : the board's NetworkTables name (metrics at /OrangePi/<name>/). Unique on one robot.",
+    "hosts     : network addresses of the Pi, tried in order (normally just <hostname>.local; an IP also works).",
+    "cameras   : name = the recorder instance (recordings folder); stream = PhotonVision's RAW MJPEG",
+    "            stream as the Pi sees it (input stream of PhotonVision camera i is port 1181 + 2*i).",
+    "Filled in from the 11-07 bootstrap of both Pis (notes/11-7/bootStrappingLogs.md)."
+  ],
+  "defaultRobot": "2027",
+  "robots": {
+    "2027": {
+      "description": "2027 offseason robot: two Orange Pi 5s, one Arducam OV9281 each",
+      "boards": [
+        {
+          "name": "LeftPi",
+          "hosts": ["LeftPi.local"],
+          "cameras": [{ "name": "LeftCam", "stream": "http://localhost:1181/stream.mjpg" }]
+        },
+        {
+          "name": "RightPi",
+          "hosts": ["RightPi.local"],
+          "cameras": [{ "name": "RightCam", "stream": "http://localhost:1181/stream.mjpg" }]
+        }
+      ]
+    }
+  }
+}

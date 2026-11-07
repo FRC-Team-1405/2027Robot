@@ -291,8 +291,8 @@ doesn't recognise are reported the same way instead of being silently ignored. I
 the logs still appear but there are no vision recordings to fetch.
 
 A board that shows up on NetworkTables with no address was not re-synced with the current
-publisher: copy `coprocessor/` to it again (`sync-to-orangepi.bat`) and restart
-`orangepi-nt-publisher`.
+publisher: re-run `coprocessor\Bootstrap-OrangePi.ps1` for that board (it copies the current
+publisher and restarts it).
 
 #### How cameras are named
 

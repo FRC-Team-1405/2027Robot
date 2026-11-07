@@ -4,11 +4,10 @@ Installs `coprocessor/orangepi-nt-publisher.py` as a systemd service on the Phot
 
 ## Recommended: guided installer
 
-Copy the entire `coprocessor` folder to the Pi, SSH in as its normal account, and run
-`cd ~/coprocessor && bash setup-orangepi.sh` after using `sync-to-orangepi.bat`.
-Alternatively, run `sync-to-orangepi.bat pi@photonvision.local --setup` on Windows
-to copy the folder with SCP and open the installer over SSH. Choose metrics, recorders,
-or both. Do not launch the installer with sudo; it requests sudo only where needed.
+From the laptop, run `coprocessor\Bootstrap-OrangePi.ps1` (no options starts a wizard). It
+copies the `coprocessor` folder to the Pi and runs the installer for you. To run the installer by
+hand instead, SSH in as `pi` and run `cd ~/coprocessor && bash setup-orangepi.sh`; choose metrics,
+recorders, or both. Do not launch the installer with sudo; it requests sudo only where needed.
 It uses your actual home
 path, preserves existing environment files, and renders the service interpreter to
 use the shared venv. See `coprocessor/README.md` for details.
@@ -38,7 +37,7 @@ Each board also publishes `IP` (its address on the robot network) and `Host`
 (`<hostname>.local`) next to its metrics. `tools/logbench` reads them to find the Pis for
 the Fetch Bundle page without a hand-written list (see its README). A board that was
 installed before this was added publishes no `IP`/`Host` until you re-run
-`sync-to-orangepi.bat` and restart `orangepi-nt-publisher.service`.
+`Bootstrap-OrangePi.ps1` for it (which copies the new publisher and restarts the service).
 
 Client identities are `OrangePiMetrics-<board-name>`. The topic namespace is what
 separates values; different client names alone do not prevent topic collisions.

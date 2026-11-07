@@ -252,6 +252,34 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("CAMERA_STREAM_URL=http://localhost:1193/stream.mjpg", content)
         self.assertIn(f"RECORDINGS_DIR={self.root}/vision-recordings", content)
 
+    def test_unattended_stream_url_replaces_a_different_existing_url(self):
+        # 11-07: RightPi kept http://rightpi.local:1181 although bootstrap asked for localhost.
+        folder = self.root / "etc/orangepi-vision-recorder"
+        folder.mkdir()
+        (folder / "right.env").write_text("CAMERA_STREAM_URL=http://rightpi.local:1181/stream.mjpg\n"
+                                          f"RECORDINGS_DIR={self.root}/vision-recordings\nOTHER=keep_me\n")
+        self.env.update(SETUP_UNATTENDED="1", SETUP_CHOICE="2", SETUP_BOARD_NAME="RightPi",
+                        SETUP_CAMERAS="right", SETUP_STREAMS="right=http://localhost:1181/stream.mjpg")
+        rc, out = self.run_script()
+        self.assertEqual(rc, 0, out)
+        content = (folder / "right.env").read_text()
+        self.assertIn("CAMERA_STREAM_URL=http://localhost:1181/stream.mjpg", content)
+        self.assertNotIn("rightpi.local", content)
+        self.assertIn("OTHER=keep_me", content)
+        self.assertIn("systemctl restart orangepi-vision-recorder@right.service", self.commands())
+
+    def test_unattended_same_stream_url_leaves_the_file_alone(self):
+        folder = self.root / "etc/orangepi-vision-recorder"
+        folder.mkdir()
+        original = f"CAMERA_STREAM_URL=http://localhost:1181/stream.mjpg\nRECORDINGS_DIR={self.root}/vision-recordings\n"
+        (folder / "left.env").write_text(original)
+        self.env.update(SETUP_UNATTENDED="1", SETUP_CHOICE="2", SETUP_BOARD_NAME="LeftPi",
+                        SETUP_CAMERAS="left", SETUP_STREAMS="left=http://localhost:1181/stream.mjpg")
+        rc, out = self.run_script()
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(original, (folder / "left.env").read_text())
+        self.assertIn("Keeping existing", out)
+
     def test_rerun_installs_changed_scripts_and_units_then_reloads_and_restarts(self):
         rc, out = self.install("3", [("URL for left", "http://localhost:1183/stream.mjpg"),
                                      ("URL for right", "http://localhost:1181/stream.mjpg")])

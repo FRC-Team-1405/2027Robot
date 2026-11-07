@@ -32,15 +32,15 @@ Do these in order. If one fails, write down what you saw, use the fallback, and 
 
 | # | Check | How | Pass if | Fallback if it fails | Result |
 |---|---|---|---|---|---|
-| 2a | **roboRIO stats** | AdvantageScope, live: `RealOutputs/RIO/` | `CpuPct`, `CpuCorePct`, `MemUsedPct`, `NetRxMbps`, `NetTxMbps` update about once a second | Set `RIO_SYSTEM_STATS_LOGGING = false`, redeploy | |
-| 2b | **PhotonVision settings, values** | AdvantageScope, live: `/OrangePi/<Pi>/PvSettingsOk` and `/OrangePi/<Pi>/PhotonVision/<cam>/` | `PvSettingsOk` is true on both Pis. `Decimate`, `LowLatencyMode`, `Threads` match the PhotonVision UI | See 2b fallback below | |
-| 2b | **PhotonVision settings, a change** | Change decimate in the UI, wait 10 s | `Decimate` updates; nothing else changes | | |
-| 2b | **PhotonVision settings, camera mode** | `/OrangePi/<Pi>/Video/<videoN>/Mode`; on the Pi, `v4l2-ctl -d /dev/video0 --get-fmt-video --get-parm` | Same resolution and fps as the UI | | |
-| 2b | **PhotonVision still saves** | On each Pi: `journalctl -u photonvision --since "10 min ago" \| grep -i locked` | Prints nothing. Also: change a setting, restart PhotonVision, and the change is still there | | |
-| 2c | **LogBench live** | Robot code running, connect LogBench live, leave the Health Check open for 2 min, then do one `CircleFacingTag` run | No camera has a gap between results over 80 ms in that run's log | Close LogBench live during the experiments; note it | |
-| 2d | **LogBench download of a log still being written** | Laptop on the **access point** (not direct ethernet), robot code running. Fetch Bundle → the newest log | Finishes in under a minute and shows a "still writing" note | Fetch over direct ethernet, as on 11-03 | |
-| 2d | **…and the rest of it later** | Restart robot code, fetch the same log again | The full log downloads (bigger than the first time), no note | | |
-| 2e | **Health Check rows** | Open the 2c log in LogBench → Health Check | roboRIO CPU, memory, radio bandwidth and Pi network rows have values (not "no data") | Note which rows are empty | |
+| 2a | **roboRIO stats** | AdvantageScope, live: `RealOutputs/RIO/` | `CpuPct`, `CpuCorePct`, `MemUsedPct`, `NetRxMbps`, `NetTxMbps` update about once a second | Set `RIO_SYSTEM_STATS_LOGGING = false`, redeploy | ✅ `RealOutputs/RIO/*` about once a second from the 18:22 run on. The first three runs ran the old 10-27 code, so they have none |
+| 2b | **PhotonVision settings, values** | AdvantageScope, live: `/OrangePi/<Pi>/PvSettingsOk` and `/OrangePi/<Pi>/PhotonVision/<cam>/` | `PvSettingsOk` is true on both Pis. `Decimate`, `LowLatencyMode`, `Threads` match the PhotonVision UI | See 2b fallback below | ✅ `PvSettingsOk` true on both Pis in every run from 19:03 on; decimate, Low Latency and threads match the notes. It also showed the camera at **@120**, which the notes don't mention |
+| 2b | **PhotonVision settings, a change** | Change decimate in the UI, wait 10 s | `Decimate` updates; nothing else changes | ✅ across runs: dec 2 → 1 → 2 and 800x600@120 → 1280x800@100 all showed up. The 10 s timing wasn't checked |
+| 2b | **PhotonVision settings, camera mode** | `/OrangePi/<Pi>/Video/<videoN>/Mode`; on the Pi, `v4l2-ctl -d /dev/video0 --get-fmt-video --get-parm` | Same resolution and fps as the UI | ✅ `Video/video0/Mode` logged (800x600 MJPG @120, then 1280x800 MJPG @100). No `v4l2-ctl` comparison recorded |
+| 2b | **PhotonVision still saves** | On each Pi: `journalctl -u photonvision --since "10 min ago" \| grep -i locked` | Prints nothing. Also: change a setting, restart PhotonVision, and the change is still there | ⚠️ Inconclusive as run: as user `pi`, `journalctl` can't see PhotonVision's messages (the "Hint" line), so the empty grep proves nothing. Re-run with `sudo journalctl …`. Indirect evidence it's fine: every UI change reached PhotonVision's settings file, which is where the publisher read it |
+| 2c | **LogBench live** | Robot code running, connect LogBench live, leave the Health Check open for 2 min, then do one `CircleFacingTag` run | No camera has a gap between results over 80 ms in that run's log | Close LogBench live during the experiments; note it | Not tested: LogBench was never connected live during an enabled run (only its Fetch Bundle page). No camera gap over 32 ms in any run |
+| 2d | **LogBench download of a log still being written** | Laptop on the **access point** (not direct ethernet), robot code running. Fetch Bundle → the newest log | Finishes in under a minute and shows a "still writing" note | Fetch over direct ethernet, as on 11-03 | Not recorded |
+| 2d | **…and the rest of it later** | Restart robot code, fetch the same log again | The full log downloads (bigger than the first time), no note | Not recorded |
+| 2e | **Health Check rows** | Open the 2c log in LogBench → Health Check | roboRIO CPU, memory, radio bandwidth and Pi network rows have values (not "no data") | Note which rows are empty | Not recorded. The logs from 18:22 on have the `RIO/*` and Pi `Net*` values it needs |
 
 **2b fallback:** on that Pi, add `PHOTONVISION_CONFIG_DB=/nonexistent` to
 `/etc/default/orangepi-nt-publisher`, then `sudo systemctl restart orangepi-nt-publisher`. The
@@ -65,4 +65,37 @@ passed, the log records them too, but write them anyway.
 
 ## Recorded
 
-<!-- Same format as 11-03: one line per log, with what changed. -->
+Raw notes: [myNotes.md](myNotes.md). Bootstrap output for both Pis: [bootStrappingLogs.md](bootStrappingLogs.md).
+What ran is read from each log's metadata and (from 19:03) the PhotonVision settings the Pis
+publish, not just the notes. Results are in the two write-ups:
+[frame pacing](../../docs/experiments/vision/2026-10-28-pv-frame-pacing/README.md) and
+[loop overruns](../../docs/experiments/roborio/2026-11-03-loop-overruns/README.md).
+
+| Log (`akit_26-11-07_…`) | What | Robot code | Camera | Dashboards connected |
+|---|---|---|---|---|
+| `18-04-56` | Loop L1 / frame-pacing R5a | **old `338bcfa`**, ext. vision logging **on** | 800x600 @100, dec 2, LL off (inferred) | AS, Elastic |
+| `18-13-22` | L2 / R5b | old `338bcfa` | same | none |
+| `18-16-38` | L3 (teleop, idle) / R5c | old `338bcfa` | same | none |
+| `18-22-17` | L5 / R5d | `vision-throughput-10-27` `a9925d1` + edits, ext. logging off | same | AS, Elastic |
+| — | Pis re-bootstrapped, robot code from `beta` deployed | | | |
+| `19-03-35` | L4' / R12a | `beta` `d0b8b2c` + edits, ext. logging off | **800x600 @120**, dec 2, LL off (logged) | AS, Elastic |
+| `19-10-49` | L4'' / R12b | same | same | AS, Elastic (+ LogBench Fetch Bundle page) |
+| `19-13-10` | L2' / R12c | same | same | none |
+| `19-19-16` | R6 | same | 800x600 @120, **dec 1** | AS, Elastic |
+| `19-23-31` | R13 | same | **1280x800 @100**, dec 2 | AS, Elastic |
+
+Your note says `VISION_EXTENDED_NT_LOGGING = false` for every test. The first three logs say
+`true`: they ran the code deployed on 10-27, before anything from today was deployed.
+
+### What 11-07 settled
+
+- **Vision: keep 800x600 @100, decimate 2, Low Latency Mode off.** It held at 101 results/s in
+  four more runs. @120, dec 1 and 1280x800 all fall short of full rate (112, 67 and 63/s).
+- **roboRIO loop overruns: not the dashboards, not extended vision logging.** The roboRIO CPU is
+  72–84% busy; slow loops vary 4–20% between identical runs. Next: log our own process's CPU.
+- **The PhotonVision settings logging works** and caught an unnoted camera mode change on its
+  first day.
+- **Bootstrap:** RightPi's recorder still reads `http://rightpi.local:1181/…`, not `localhost`.
+  You accepted `localhost` at the prompt, but the installer keeps an existing camera file. Fixed
+  for the next bootstrap (see `coprocessor/robots.json`).
+- Left Pi still links at 100 Mbit/s (`NetSpeedMbps`), Right Pi at 1000.

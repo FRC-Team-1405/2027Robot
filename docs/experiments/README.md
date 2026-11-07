@@ -46,9 +46,10 @@ brownout), `drivetrain`, `mechanisms`, `tools`. Add an area when the first exper
 | Date | Area | Experiment | Status | Result |
 |---|---|---|---|---|
 | 2026-10-27 | vision | [PhotonVision throughput vs resolution, decimate, fps, recorder](vision/2026-10-27-pv-throughput/README.md) | analyzed | 800x600@120 dec 3 is best; heavier settings halve results/s; recorder (or a browser stream) costs frames |
-| 2026-10-28 | vision | [PhotonVision frame pacing: Low Latency Mode, detector threads, streams](vision/2026-10-28-pv-frame-pacing/README.md) | running | R1–R3 (11-03): Low Latency Mode was the whole cliff; off, decimate 2 runs at the full 100/s with no drops |
+| 2026-10-28 | vision | [PhotonVision frame pacing: Low Latency Mode, detector threads, streams](vision/2026-10-28-pv-frame-pacing/README.md) | analyzed | Low Latency Mode was the whole cliff (11-03). 11-07: 800x600 @100 dec 2 is the only setting at full rate; @120 (112/s), dec 1 (67/s) and 1280x800 (63/s) fall short, because each camera handles one frame at a time |
 | 2026-11-03 | vision | [PhotonVision range vs decimate and resolution](vision/2026-11-03-pv-range/README.md) | planned | Does a finer image see tags further and more accurately? Stationary at 2–8 m |
-| 2026-11-03 | roborio | [roboRIO loop overruns: what takes the 20 ms away](roborio/2026-11-03-loop-overruns/README.md) | planned | 5–29% of loops run over 20 ms; every section stretches together, so something takes the CPU |
+| 2026-11-03 | roborio | [roboRIO loop overruns: what takes the 20 ms away](roborio/2026-11-03-loop-overruns/README.md) | running | 11-07: roboRIO CPU 72–84% busy; not the dashboards, not extended vision logging; slow loops vary 4–20% between identical runs |
+| 2026-11-10 | vision | [PhotonVision frame budget: detector threads and output drawing](vision/2026-11-10-pv-frame-budget/README.md) | planned | Can fewer detector threads or no output drawing shorten each frame enough for decimate 1 or @120? |
 
 ### Earlier experiment docs (not yet moved into this layout)
 

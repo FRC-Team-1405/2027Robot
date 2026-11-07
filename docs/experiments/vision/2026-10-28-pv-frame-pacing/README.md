@@ -2,13 +2,13 @@
 id: VIS-2026-10-28-pv-frame-pacing
 title: PhotonVision frame pacing — Low Latency Mode, detector threads, streams
 area: vision
-date: 2026-11-03            # R1–R3 run 11-03; folder keeps the planned date so existing links work
-status: running             # planned | running | analyzed | decided
-decision: pending           # Low Latency Mode off is a clear win so far; decide after R4+
-robot_code: beta @338bcfa (has Pi Net* logging; did NOT have RIO/* logging yet)
-logs: logs/offseason/11-3/
+date: 2026-11-03            # R1–R3 run 11-03, R5/R6/R12/R13 run 11-07; folder keeps the planned date
+status: analyzed            # planned | running | analyzed | decided
+decision: 800x600 @100, decimate 2, Low Latency Mode off (both Pis). Pushing further continues in 2026-11-10-pv-frame-budget
+robot_code: 11-03 beta @338bcfa; 11-07 see the runs table (L-runs on 338bcfa, R-runs on beta @d0b8b2c + local edits)
+logs: logs/offseason/11-3/, logs/offseason/11-7/
 analysis: analyze.py → results.json
-raw_notes: notes.md (this folder)
+raw_notes: notes.md (this folder), notes/11-7/myNotes.md
 ---
 
 # PhotonVision frame pacing: Low Latency Mode, detector threads, streams
@@ -19,10 +19,24 @@ On 10-27, any camera setting heavier than our baseline cut vision results to **e
 camera's frame rate (about 50 per second instead of 100). We suspected one PhotonVision setting,
 **Low Latency Mode**, which is on by default.
 
-**So far (R1–R3, 11-03): confirmed.** With Low Latency Mode off, decimate 2 runs at the full
+**R1–R3 (11-03): confirmed.** With Low Latency Mode off, decimate 2 runs at the full
 101 results/s with no dropped frames, where it got 54/s with the mode on. Latency stayed about the
-same and pose accuracy didn't change. The remaining runs find out how far we can push it: finer
-decimate, more or fewer detector threads, and higher resolution.
+same and pose accuracy didn't change.
+
+**11-07: decimate 2 at 800x600 @100 is the most the Pis can do at full rate.** It held in four more
+runs (R5). Everything heavier now slows down smoothly instead of halving, but still falls short:
+
+| Setting (all Low Latency off) | Results/s (of camera fps) | Latency at the roboRIO | Verdict |
+|---|---|---|---|
+| **800x600 @100, dec 2** (R3, R5 ×4) | **101 (100%)** | **23–25 ms** | **Best so far, use this** |
+| 800x600 @120, dec 2 (R12 ×3) | 112–113 (94%) | 27–28 ms | 11% more results, but 1 gap in 7 is doubled and each result is ~4 ms older. No gain |
+| 800x600 @120, dec 1 (R6) | 67–68 (56%) | 36 ms | Too slow. Better than 10-27 (50/s with the mode on) |
+| 1280x800 @100, dec 2 (R13) | 63 (63%) | 39 ms | Too slow. Better than 10-27 (49/s) |
+
+**Why heavier settings can't keep up, even with the Pi's CPU only ~30% busy:** PhotonVision
+handles one frame per camera at a time, and most of each frame runs on a single thread. See
+"Where a frame's time goes" below. Whether the time per frame can be shortened is its own
+experiment, planned for 11-10: [PhotonVision frame budget](../2026-11-10-pv-frame-budget/README.md).
 
 ## What we're testing
 
@@ -30,8 +44,8 @@ decimate, more or fewer detector threads, and higher resolution.
    whether results/s goes from ~50 back to ~100. *(R1–R3, done)*
 2. **How much detail can we afford now?** With the cliff gone, try decimate 1, the 120 fps mode,
    and 1280x800, and see which still keep up with the camera. *(R4, R6, R12–R14)*
-3. **Do other PhotonVision settings help?** The number of detector threads, a smaller stream
-   resolution, and whether the vision recorder costs frames. *(R7–R11)*
+3. **Do other PhotonVision settings help?** Moved to the
+   [frame-budget experiment](../2026-11-10-pv-frame-budget/README.md), which is built around the per-frame numbers found here.
 
 A setting **passes** if all four hold:
 
@@ -67,32 +81,111 @@ table before enabling**; PhotonVision settings are not in the robot log.
 | R1 | dec 3, LL on (baseline, = 10-27 T1) | That 11-03 matches 10-27 | ✅ 99/s |
 | R2 | dec 2, LL on (= 10-27 T2) | The cliff is still there | ✅ 54/s, cliff present |
 | R3 | dec 2, **LL off** | **Does the cliff disappear?** | ✅ **101/s, cliff gone** |
-| R4 | dec 3, LL off | Does LL off also remove R1's 1.6% dropped frames? | to do |
-| R5 | repeat R3 later in the session | That R3 holds once the Pis are warm | to do |
-| R6 | dec 1, LL off | Can we look at the full image and still keep up? (10-27 T3: 50/s with LL on) | to do |
-| R7 | dec 1, LL off, threads 4 | Detector threads matter most at dec 1. The Pis were set to 8, not the default 4 | to do |
-| R8 | same, threads 2 | | to do |
-| R9 | same, threads 1 | An outside test found 1 thread *faster* on a Pi 5 | to do |
-| R10 | best so far, stream resolution ¼ | Does a smaller UI/recorder stream free up the Pi? | to do |
-| R11 | best so far, recorder stopped | What the recorder costs, separate from R10 | to do |
-| R12 | 800x600 **@120**, dec 2, LL off | dec 2 fit in 10 ms per frame; does it fit in 8.3 ms? | to do |
-| R13 | **1280x800** @100, dec 2, LL off | Is the higher resolution usable now? | to do |
-| R14 | 1280x800 **@120**, best dec, LL off | The camera offers it (`v4l2-ctl`, notes.md) | to do |
+| R4 | dec 3, LL off | Does LL off also remove R1's 1.6% dropped frames? | skipped (dec 3 is no longer a candidate) |
+| R5 | repeat R3 later in the session | That R3 holds once the Pis are warm | ✅ 11-07, four repeats (the loop-overrun runs L1–L5 used R3's settings): 101/s every time |
+| R6 | dec 1, LL off | Can we look at the full image and still keep up? (10-27 T3: 50/s with LL on) | ✅ 11-07, but at **@120** (the camera mode had changed; the log shows it): **67/s**, fails |
+| R7–R9 | detector threads | | moved to the [frame-budget experiment](../2026-11-10-pv-frame-budget/README.md) (B2–B4) |
+| R10 | stream resolution ¼ | Does a smaller UI/recorder stream free up the Pi? | not planned: streams run on their own thread, not the bottleneck one |
+| R11 | recorder stopped | What the recorder costs | not planned, same reason |
+| R12 | 800x600 **@120**, dec 2, LL off | dec 2 fit in 10 ms per frame; does it fit in 8.3 ms? | ✅ 11-07, three runs (by accident: meant as loop-overrun runs, camera was at @120): **112/s**, fails on dropped frames |
+| R13 | **1280x800** @100, dec 2, LL off | Is the higher resolution usable now? | ✅ 11-07: **63/s**, fails |
+| R14 | 1280x800 **@120**, best dec, LL off | The camera offers it (`v4l2-ctl`, notes.md) | dropped: 1280x800 can't keep up at @100 |
 
 R4–R14 replace the original R4–R12. The original plan repeated R2/R3 twice more (A/B/A/B). R3's
 effect (54 → 101/s) is about 50 times the run-to-run drift, so one repeat (R5) is enough.
 
-### Before the next session
+Nothing left to run here. The next robot session's steps are in
+[notes/11-10/notes.md](../../../../notes/11-10/notes.md).
 
-- [ ] **Deploy robot code from `beta`** (merged 11-04, now has `RioSystemStats` for roboRIO CPU,
-  memory and network). R1–R3 have no roboRIO CPU numbers; they don't need to be redone. The
-  11-7 checklist is [notes/11-7/notes.md](../../../../notes/11-7/notes.md).
-- [ ] Confirm in the PhotonVision UI that R3 was Low Latency off. The notes don't say; the data
-  leave no doubt (see "How we know R3 was Low Latency off").
-- [ ] Set Low Latency Mode **off** on both Pis. It's per pipeline, so check every pipeline in use.
-- [ ] Close every PhotonVision browser tab before enabling.
+## Results, 11-07 (R5, R12, R6, R13)
 
-## Results so far (R1–R3)
+From 11-07 on, the logs record each Pi's PhotonVision settings and real camera mode, and the
+table below uses them. The L-runs (R5) ran before the Pis were re-bootstrapped, so their settings
+are inferred: 100.9 fps camera, PhotonVision's processing time 16.7 ms (the dec 2 value), and 100%
+one-frame gaps (Low Latency off).
+
+| | R5 (×4) 800x600 @100, dec 2 | R12 (×3) 800x600 **@120**, dec 2 | R6 800x600 @120, **dec 1** | R13 **1280x800** @100, dec 2 |
+|---|---|---|---|---|
+| **Results/s** | **100.9–101.1** | 111.8–113.4 (94%) | 67.0 / 68.5 (56%) | 62.7 / 62.9 (63%) |
+| **Dropped frames** (gap ≥ 1.6 frames) | 0–0.15% | **6.2–7.4%** | (most gaps are 2 frames) | (most gaps are 2 frames) |
+| Gaps of 1 frame / 2 frames | 100% / 0% | 85–87% / 5–7% | 18–21% / 66–69% | 39% / 56% |
+| Longest gap | 12–20 ms | 20 ms | 28–32 ms | 32 ms |
+| **Latency at the roboRIO**, median / p95 | 23.0–25.0 / 28.6–31.5 ms | 27.0–27.7 / 33.8–36.0 ms | 36.5 / 45.3 ms | 38.7 / 48.9 ms |
+| PhotonVision processing time, median | 16.1–16.8 ms | 19.8–20.2 ms | 26.5 ms | 28.6 ms |
+| **Cross-camera agreement**, median | 4.8–5.1 cm | 4.7–5.0 cm | 4.7 cm | 4.3 cm |
+| Pi CPU used by PhotonVision (of 800%) | 194–206% | 228–232% | 252–254% | 232–234% |
+| Busiest PhotonVision thread (of one core) | 62–66% | 72–74% | 54% | 74% |
+| Pi max temperature | 58 °C | 62 °C | 65 °C | 62 °C |
+| Radio bandwidth, median | 0.09–0.38 Mbit/s | 0.09–0.46 | 0.32 | 0.37 |
+
+One R5 run (L3) stood still in teleop, so its cross-camera agreement (0.7 cm) is left out of that
+row. R6 has a 2.6 s enable before the real run (auto enabled without a routine); only the 20.6 s
+run counts.
+
+### Verdicts, 11-07
+
+| Run | Results/s ≥ 90% | Dropped ≤ 3% | Agreement ≤ 5 cm | Latency ≤ 32.7 ms | Verdict |
+|---|---|---|---|---|---|
+| R5 | ✅ | ✅ | ✅ (one run 5.05) | ✅ | **Same as R3.** It holds with warm Pis (56–58 °C) and over a whole afternoon |
+| R12 | ✅ 94% | ❌ 6–7% | ✅ | ✅ +4.5 ms | **Fails.** 11% more results than R5, but each is about 4 ms older and the gaps are uneven. Not worth it |
+| R6 | ❌ 56% | – | ✅ | ❌ +14 ms | **Fails.** One dec 1 frame takes about 15 ms, so ~67/s at any camera rate |
+| R13 | ❌ 63% | – | ✅ (best, 4.3 cm) | ❌ +16 ms | **Fails.** About 16 ms per frame |
+
+### What we learned, 11-07
+
+- **Without Low Latency Mode, a heavy setting costs results in proportion instead of halving
+  them.** Dec 1 went from 50/s (10-27, mode on) to 67/s; 1280x800 dec 2 from 49/s to 63/s. That
+  is the frame time showing through directly: about 15 ms per frame at dec 1 and 16 ms at
+  1280x800.
+- **800x600 @100 dec 2 has about 1–2 ms to spare; @120 doesn't.** At @120 a frame arrives every
+  8.3 ms. PhotonVision's own processing time went up from 16.7 to 20.2 ms (frames wait for the
+  previous one), and 1 gap in 7 was two frames.
+- **The Pis have CPU to spare in every setting** (at most 254% of 800%, 65 °C, never throttled).
+  The limit is the single per-camera loop, not total CPU. That's why detector threads (R7–R9)
+  are the one lever left for dec 1.
+- **Higher resolution was slightly more consistent between the cameras** (4.3 vs 4.8 cm). That's a
+  hint that it helps accuracy, small enough to be noise. The range experiment measures it properly.
+- **The new settings logging paid off on its first day.** It showed the camera mode had changed to
+  @120 between 18:22 and 19:03, which the notes don't mention. Without it, R6 and the L4'/L2'
+  runs would have been read as @100.
+
+### Where a frame's time goes
+
+The Pi publisher logs PhotonVision's 8 busiest threads (name, % of a core, which core) about once
+a second. Until 11-07 our log parser dropped the names (`string[]`); `analyze.py` now uses them.
+
+- **PhotonVision ran only on the 4 fast cores** (cores 4–7, 50–65% busy). The 4 slow cores sat at
+  3–6%. So the "~30% CPU" is an average over cores PhotonVision doesn't use.
+- **It works on one frame per camera at a time.** The main `VisionRunner` thread decodes the
+  MJPEG, converts to grey, runs the detector's serial parts, solves the pose, draws and
+  publishes. Only the detector's middle phases run on the worker threads (`threads` = 8). A new
+  frame isn't started until the last one is published, so **results/s = 1 ÷ time per frame**,
+  however many cores are free.
+- **Frame time ≈ main thread + detector work spread over 4 fast cores**, within 1–2 ms in every run:
+
+| Setting | Frame time (1 ÷ results/s) | Main thread, alone | Detector workers (CPU ÷ 4) | Sum |
+|---|---|---|---|---|
+| R1 dec 3, @100 | 10.1 ms (camera-paced) | 6.0 ms | 1.4 ms | 7.4 ms |
+| R3/R5 dec 2, @100 | 9.9 ms (camera-paced) | 6.4 ms | 1.8 ms | 8.2 ms |
+| R2 dec 2, @100, **LL on** | 18.6 ms | 6.5 ms | 1.7 ms | 8.2 ms: the other 10 ms is waiting for the next frame |
+| R12 dec 2, @120 | 8.9 ms | 6.5 ms | 1.8 ms | 8.3 ms, just over the 8.3 ms frame gap |
+| R6 dec 1, @120 | 14.9 ms | 8.1 ms | 4.8 ms | 13.0 ms |
+| R13 1280x800 dec 2 | 15.9 ms | **11.8 ms** | 3.1 ms | 14.9 ms |
+
+What that means:
+
+- **The main thread costs ~6 ms per 800x600 frame whatever the decimate** (6.0 at dec 3, 6.4 at
+  dec 2). That's work on every pixel: decode, grey conversion, drawing. It's why 1280x800 costs
+  ~12 ms before detection does much, and why idle cores can't help.
+- **Dec 1 at 100/s needs a 10 ms frame.** The main thread alone takes 8 ms, so the detector would
+  have to finish in under 2 ms; it takes about 5. More cores don't help; fewer detector threads
+  fighting over 4 fast cores (R7–R8) and less work on the main thread (R15) might.
+- **The spare fast-core capacity (~1.5–2 cores) is better spent on a second camera** than on one
+  camera's frame rate: each camera gets its own main thread. That's a separate test.
+- These come from once-a-second samples of the top 8 threads, so they're good to about a
+  millisecond, not exactly.
+
+## Results, 11-03 (R1–R3)
 
 Numbers from `analyze.py` → `results.json`, Left / Right camera where both are shown.
 
@@ -154,7 +247,10 @@ The notes name R1 and R2 but not R3's change. Two things in the data settle it:
 
 ## Next experiment
 
-**Range** ([PhotonVision range vs decimate and resolution](../2026-11-03-pv-range/README.md)):
+**Frame budget** ([PhotonVision frame budget](../2026-11-10-pv-frame-budget/README.md), 11-10): can fewer detector threads or
+turning off output drawing shorten the time per frame enough for decimate 1 or @120?
+
+Then **range** ([PhotonVision range vs decimate and resolution](../2026-11-03-pv-range/README.md)):
 now that decimate 2 (and maybe 1) runs at full rate, does the finer image actually see tags
 further away, and how accurate is it there? Higher resolution only earns its CPU at range.
 
@@ -166,14 +262,19 @@ ArUco detector (L6 below) stays parked unless the AprilTag detector can't keep u
 python docs/experiments/vision/2026-10-28-pv-frame-pacing/analyze.py
 ```
 
-Reads the WPILog Janitor-trimmed logs in `logs/offseason/11-3/` and writes `results.json`. Uses the
-same metric code as the 10-27 experiment, plus the gap histogram and the network numbers.
+Reads the WPILog Janitor-trimmed logs in `logs/offseason/11-3/` and `11-7/` and writes
+`results.json`. Uses the same metric code as the 10-27 experiment, plus the gap histogram, the
+network numbers and (from 11-07) the PhotonVision settings read from the log.
 
 | Run | Log |
 |---|---|
-| R1 | `akit_26-11-03_23-38-42` |
-| R2 | `akit_26-11-03_23-58-01` |
-| R3 | `akit_26-11-04_00-18-32` |
+| R1 | `11-3/akit_26-11-03_23-38-42` |
+| R2 | `11-3/akit_26-11-03_23-58-01` |
+| R3 | `11-3/akit_26-11-04_00-18-32` |
+| R5a–d | `11-7/akit_26-11-07_18-04-56`, `18-13-22`, `18-16-38`, `18-22-17` (loop-overrun L1, L2, L3, L5) |
+| R12a–c | `11-7/akit_26-11-07_19-03-35`, `19-10-49`, `19-13-10` (loop-overrun L4', L4'', L2') |
+| R6 | `11-7/akit_26-11-07_19-19-16` |
+| R13 | `11-7/akit_26-11-07_19-23-31` |
 
 ---
 
