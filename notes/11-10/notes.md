@@ -31,7 +31,7 @@ On each Pi: `ssh -i ~/.ssh/id_ed25519_orangepi pi@LeftPi.local`, then the same w
 
 | Check | How | Pass if | LeftPi | RightPi |
 |---|---|---|---|---|
-| PhotonVision still saves settings (11-07 check 2b) | `sudo journalctl -u photonvision --since "2 hours ago" \| grep -i locked` (with **sudo** this time; without it the journal is hidden) | prints nothing | [ ] | [ ] |
+| PhotonVision still saves settings (11-07 check 2b) | `sudo journalctl -u photonvision --since "2 hours ago" \| grep -i locked` (with **sudo** this time; without it the journal is hidden) | prints nothing | [ PASS ] | [ PASS ] |
 
 ## Part 3: frame-budget runs (about 45 min)
 
@@ -41,11 +41,12 @@ below. One change per run.
 
 | Done | Run | Camera | Dec | Threads | Drawing | Expect | CurrentFps L / R | Log (`akit_26-11-10_…`) |
 |---|---|---|---|---|---|---|---|---|
-| [ ] | B1 | 800x600 @100 | 1 | 8 | on | ~67 | | |
-| [ ] | B2 | 800x600 @100 | 1 | **4** | on | ~75 | | |
-| [ ] | B3 | 800x600 @100 | 1 | **3** | on | ~75 | | |
-| [ ] | B4 | 800x600 @100 | 1 | **1** | on | ~35 (worse) | | |
-| [ ] | B5 | 800x600 @100 | 1 | best | **off** | ? | | |
+| [ ] | B1 | 800x600 @100 | 1 | 8 | on | ~67 | | akit_26-11-10_23-14-41-bundle |
+| [ ] | B2 | 800x600 @100 | 1 | **4** | on | ~75 | | akit_26-11-10_23-27-02-bundle |
+| [ ] | B3 | 800x600 @100 | 1 | **3** | on | ~75 | | akit_26-11-10_23-30-18-bundle |
+| [ ] | B4 | 800x600 @100 | 1 | **1** | on | ~35 (worse) | | akit_26-11-10_23-32-43-bundle |
+| [ ] | B5 | 800x600 @100 | 1 | best | **off** | ? | | akit_26-11-10_23-38-26-bundle |
+| [] | RESET bot to BASELINE | 800x600 @100 | 2 | 8 | on | ? | | akit_26-11-10_23-43-08-bundle |
 | [ ] | B6 | 800x600 **@120** | **2** | best | best | ≥108 to pass | | |
 | [ ] | B7 | 800x600 @100 | 2 | best | best | 101 | | |
 
@@ -66,8 +67,8 @@ vision on 10-27, so it mustn't overlap the B runs.
 
 | Done | Check | How | Pass if | Result |
 |---|---|---|---|---|
-| [ ] | LogBench live (11-07 check 2c) | Start LogBench, connect live, leave the Health Check open 2 min, then one more `CircleFacingTag` run | That run's `CurrentFps` matches B7, and later: no camera gap over 80 ms in its log | |
-| [ ] | Optional, 2 min: the rest of a log (2d) | Restart robot code, fetch the newest log again | The full log downloads (bigger than the first copy), no "still writing" note | |
+| [ ] | LogBench live (11-07 check 2c) | Start LogBench, connect live, leave the Health Check open 2 min, then one more `CircleFacingTag` run | That run's `CurrentFps` matches B7, and later: no camera gap over 80 ms in its log | PASS |
+| [ ] | Optional, 2 min: the rest of a log (2d) | Restart robot code, fetch the newest log again | The full log downloads (bigger than the first copy), no "still writing" note | PASS |
 
 Fetching a log that's still being written already passed on 11-07: all nine bundles were taken
 while the robot was writing them, and all finished.
