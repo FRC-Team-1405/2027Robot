@@ -41,6 +41,9 @@ Open your terminal or Git Bash inside your local project folder and update the r
 git remote set-url origin git@github.com:FRC-Team-1405/2027Robot.git
 ```
 
+**Answer 'yes' to the following prompt**
+> Are you sure you want to continue connecting (yes/no/[fingerprint])?
+
 #### 2. Install the Access Keys
 To authenticate with the repository, you will need the correct access keys set up on your machine. 
 * **Get** the keys directly from your software mentor. 
