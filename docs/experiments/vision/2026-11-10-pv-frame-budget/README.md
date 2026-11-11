@@ -168,6 +168,9 @@ Given the above, we're not planning a drawing-off run.
 
 ## Next experiment
 
+The big picture across all the PhotonVision experiments (what limits results/s and what could
+raise it) is in [ADR 0002](../../../adr/0002-photonvision-throughput-limit.md).
+
 **Range** ([PhotonVision range vs decimate and resolution](../2026-11-03-pv-range/README.md)),
 with whatever this experiment shows each setting can sustain.
 

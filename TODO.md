@@ -37,6 +37,13 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
       run). Passes at ≥ 108 results/s. It missed by ~0.6 ms per frame on 11-07; threads didn't
       shorten the frame on 11-10, so expect it to still miss. B1–B5 done 11-10.
       [`docs/experiments/vision/2026-11-10-pv-frame-budget/`, 11-10]
+- [ ] **Bench test 1: where PhotonVision's main thread spends a frame** (no robot needed). Record
+      raw OV9281 MJPEG frames on a Pi at 800x600 and 1280x800, then time decode → colour, decode →
+      grey, colour → grey, WPILib's AprilTag detector at dec 1/2/3, and the 3D pose step
+      (the only 2D-vs-3D difference). [ADR 0002, next step 2]
+- [ ] **Bench test 2: several frames in flight.** 1–4 worker processes doing decode + detect on
+      their own frames, pinned to the fast cores; does frames/s scale toward ~160/s at 800x600
+      dec 1? [ADR 0002, next step 3]
 - [ ] **Confirm R3 was Low Latency off** in the PhotonVision UI; the notes don't say, the data
       do. [11-03]
 - [ ] **Run the range experiment** after the frame-pacing runs above (R6 and R13 done 11-07): stationary at 2 / 4 / 6 / 8 m,

@@ -39,7 +39,9 @@ brownout), `drivetrain`, `mechanisms`, `tools`. Add an area when the first exper
 - **Every run gets a verdict** against a named reference: gain, loss or neutral, with the numbers.
 - **Status** in the front matter: `planned` → `running` → `analyzed` → `decided`. `decided` means
   the code or config was changed (or deliberately left alone), and the change is linked.
-- Bigger cross-cutting decisions that come out of an experiment go to `docs/adr/`.
+- Bigger cross-cutting decisions that come out of an experiment go to `docs/adr/`. The PhotonVision
+  experiments are summarized in
+  [ADR 0002: what limits PhotonVision's results/s](../adr/0002-photonvision-throughput-limit.md).
 
 ## Index
 

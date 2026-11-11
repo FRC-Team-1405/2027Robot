@@ -247,6 +247,9 @@ The notes name R1 and R2 but not R3's change. Two things in the data settle it:
 
 ## Next experiment
 
+The big picture across all the PhotonVision experiments is in
+[ADR 0002](../../../adr/0002-photonvision-throughput-limit.md).
+
 **Frame budget** ([PhotonVision frame budget](../2026-11-10-pv-frame-budget/README.md), 11-10): can fewer detector threads or
 turning off output drawing shorten the time per frame enough for decimate 1 or @120?
 
