@@ -39,7 +39,7 @@ public class DriveToHubDistance extends FinneyCommand {
     @Override
     public void initialize() {
 
-        Pose2d robotPose = drivetrain.getState().Pose;
+        Pose2d robotPose = drivetrain.getLoggedState().Pose;
         Pose2d hubPose = hubPoseSupplier.get();
 
         Translation2d robotToHub = hubPose.getTranslation().minus(robotPose.getTranslation());
@@ -73,7 +73,7 @@ public class DriveToHubDistance extends FinneyCommand {
 
     @Override
     public boolean isFinished() {
-        // Pose2d current = drivetrain.getState().Pose;
+        // Pose2d current = drivetrain.getLoggedState().Pose;
         // double dist =
         // current.getTranslation().getDistance(targetPose.getTranslation());
         // fLogger.log(

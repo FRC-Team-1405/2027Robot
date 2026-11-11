@@ -264,7 +264,7 @@ public class AutoPilotCommand extends FinneyCommand {
         }
 
         startingDistanceFromTarget = getDistanceToTarget();
-        startingPosition = m_drivetrain.getState().Pose;
+        startingPosition = m_drivetrain.getLoggedState().Pose;
 
         m_thetaController.reset(startingPosition.getRotation().getRadians());
         m_thetaController_endMotion.reset(startingPosition.getRotation().getRadians());
@@ -277,8 +277,8 @@ public class AutoPilotCommand extends FinneyCommand {
 
     @Override
     public void execute() {
-        ChassisSpeeds robotRelativeSpeeds = m_drivetrain.getState().Speeds;
-        Pose2d pose = m_drivetrain.getState().Pose;
+        ChassisSpeeds robotRelativeSpeeds = m_drivetrain.getLoggedState().Speeds;
+        Pose2d pose = m_drivetrain.getLoggedState().Pose;
         // System.out.println(String.format("Robot Pose (x: %.1f, y: %.1f)",
         // pose.getX(), pose.getY()));
 
@@ -340,7 +340,7 @@ public class AutoPilotCommand extends FinneyCommand {
                     out.vx(),
                     out.vy(),
                     AngularVelocity.ofBaseUnits(thetaOutput, RadiansPerSecond),
-                    m_drivetrain.getState().Pose.getRotation());
+                    m_drivetrain.getLoggedState().Pose.getRotation());
 
             m_drivetrain.setControl(applyRobotSpeeds.withSpeeds(outRobotRelativeSpeeds));
 
@@ -365,7 +365,7 @@ public class AutoPilotCommand extends FinneyCommand {
                         out.vx(),
                         out.vy(),
                         AngularVelocity.ofBaseUnits(thetaOutput, RadiansPerSecond),
-                        m_drivetrain.getState().Pose.getRotation());
+                        m_drivetrain.getLoggedState().Pose.getRotation());
 
                 m_drivetrain.setControl(applyRobotSpeeds.withSpeeds(outRobotRelativeSpeeds));
 
@@ -417,14 +417,14 @@ public class AutoPilotCommand extends FinneyCommand {
     public boolean isFinished() {
         // fLogger.log(String.format("Angle Difference: %.1f, Target
         // angle: %.1f, Current Angle: %.1f",
-        // m_target.getReference().getRotation().minus(m_drivetrain.getState().Pose.getRotation()).getDegrees(),
+        // m_target.getReference().getRotation().minus(m_drivetrain.getLoggedState().Pose.getRotation()).getDegrees(),
         // m_target.getReference().getRotation().getDegrees(),
-        // m_drivetrain.getState().Pose.getRotation().getDegrees()));
+        // m_drivetrain.getLoggedState().Pose.getRotation().getDegrees()));
         // fLogger.log(String.format("Location Difference: %.1f, Angle Difference:
         // %.1f",
-        // m_target.getReference().getTranslation().getDistance(m_drivetrain.getState().Pose.getTranslation()),
-        // m_target.getReference().getRotation().minus(m_drivetrain.getState().Pose.getRotation()).getDegrees()));
-        return kAutopilot.atTarget(m_drivetrain.getState().Pose, m_target);
+        // m_target.getReference().getTranslation().getDistance(m_drivetrain.getLoggedState().Pose.getTranslation()),
+        // m_target.getReference().getRotation().minus(m_drivetrain.getLoggedState().Pose.getRotation()).getDegrees()));
+        return kAutopilot.atTarget(m_drivetrain.getLoggedState().Pose, m_target);
     }
 
     @Override
@@ -433,13 +433,13 @@ public class AutoPilotCommand extends FinneyCommand {
         m_drivetrain.setControl(m_request
                 .withVelocityX(0)
                 .withVelocityY(0)
-                .withTargetDirection(m_drivetrain.getState().Pose.getRotation()));
+                .withTargetDirection(m_drivetrain.getLoggedState().Pose.getRotation()));
 
         fLogger.log(
                 "%s ended, final Pose (x: %.1f, y: %.1f, rot: %.1f deg), target Pose (x: %.1f, y: %.1f, rot: %.1f deg), interrupted: %s",
                 getName(),
-                m_drivetrain.getState().Pose.getX(), m_drivetrain.getState().Pose.getY(),
-                m_drivetrain.getState().Pose.getRotation().getDegrees(),
+                m_drivetrain.getLoggedState().Pose.getX(), m_drivetrain.getLoggedState().Pose.getY(),
+                m_drivetrain.getLoggedState().Pose.getRotation().getDegrees(),
                 m_target.getReference().getX(), m_target.getReference().getY(),
                 m_target.getReference().getRotation().getDegrees(),
                 interrupted);
@@ -452,7 +452,7 @@ public class AutoPilotCommand extends FinneyCommand {
     }
 
     public double getDistanceToTarget() {
-        Pose2d currentPose = m_drivetrain.getState().Pose;
+        Pose2d currentPose = m_drivetrain.getLoggedState().Pose;
         double distance = currentPose.getTranslation().getDistance(m_target.getReference().getTranslation());
         return Math.abs(distance);
     }
