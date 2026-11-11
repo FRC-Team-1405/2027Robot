@@ -5,8 +5,11 @@ both Pis, checks the settings took, then hands over to a person to run the auto.
 fetches that run's log through LogBench and records what ran. The person still enables and
 disables the robot. Everything else is done by the tool.
 
-Status: **plan only, nothing built.** Nothing here needs a change to PhotonVision or the robot
-code. The pieces it calls already exist (see "What already exists").
+Status: **bench experiments built** (`tools/exprunner`, branch `feature/experiment-runner`): plan
+files, manifest, copy-only sync of `coprocessor/bench/` to the Pis, steps run over SSH, results
+fetched back. First used by the [frame-cost bench test](experiments/vision/2026-11-11-pv-frame-cost/README.md).
+**Robot experiments (build order steps 1–5 below) not built yet.** Nothing here needs a change
+to PhotonVision or the robot code. The pieces it calls already exist (see "What already exists").
 
 ## Why
 

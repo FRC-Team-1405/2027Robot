@@ -295,6 +295,10 @@ tests 1–2 below, which put numbers on steps 2–3 and on frames in flight.
 1. **Range experiment** ([plan](../experiments/vision/2026-11-03-pv-range/README.md)). Does
    1280x800 or decimate 1 see tags meaningfully farther or more accurately than 800x600 dec 2? If
    not, stop here: the current setting is the right one.
+Bench tests 1 and 2 are written up and scripted as the
+[frame-cost bench test](../experiments/vision/2026-11-11-pv-frame-cost/README.md), run by the
+[experiment runner](../../tools/exprunner/README.md).
+
 2. **Bench test 1: where the main thread's time goes.** No robot needed. On a Pi, record a few
    hundred raw MJPEG frames straight from the OV9281 (PhotonVision stopped) at 800x600 and
    1280x800 (`ffmpeg -f v4l2 -input_format mjpeg`). That also shows whether the camera's JPEG is

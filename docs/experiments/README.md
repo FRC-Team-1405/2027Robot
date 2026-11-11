@@ -51,6 +51,7 @@ brownout), `drivetrain`, `mechanisms`, `tools`. Add an area when the first exper
 | 2026-10-28 | vision | [PhotonVision frame pacing: Low Latency Mode, detector threads, streams](vision/2026-10-28-pv-frame-pacing/README.md) | analyzed | Low Latency Mode was the whole cliff (11-03). 11-07: 800x600 @100 dec 2 is the only setting at full rate; @120 (112/s), dec 1 (67/s) and 1280x800 (63/s) fall short, because each camera handles one frame at a time |
 | 2026-11-03 | vision | [PhotonVision range vs decimate and resolution](vision/2026-11-03-pv-range/README.md) | planned | Does a finer image see tags further and more accurately? Stationary at 2–8 m |
 | 2026-11-03 | roborio | [roboRIO loop overruns: what takes the 20 ms away](roborio/2026-11-03-loop-overruns/README.md) | running | 11-07: roboRIO CPU 72–84% busy; not the dashboards, not extended vision logging; slow loops vary 4–20% between identical runs |
+| 2026-11-11 | vision | [PhotonVision frame cost on the Pi (bench)](vision/2026-11-11-pv-frame-cost/README.md) | planned | Where a frame's time goes, step by step, and whether frames in flight scale. First run of the experiment runner |
 | 2026-11-10 | vision | [PhotonVision frame budget: detector threads and output drawing](vision/2026-11-10-pv-frame-budget/README.md) | analyzed | Threads 3–8 all ~69/s at dec 1 (keep 8); drawing runs off the main thread and has no UI switch; decimate is the lever. B6 still open. |
 
 ### Earlier experiment docs (not yet moved into this layout)
