@@ -33,10 +33,10 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Vision experiments
 
-- [ ] **Frame-budget experiment B1–B7 on 11-10, before the range experiment** (~45 min): detector
-      threads 8 / 4 / 3 / 1 at dec 1, then output drawing off, then @120 and @100 dec 2 with the
-      best of both. Steps in [notes/11-10/notes.md](notes/11-10/notes.md).
-      [`docs/experiments/vision/2026-11-10-pv-frame-budget/`, 11-07]
+- [ ] **Frame-budget B6: 800x600 @120, decimate 2, threads 8** (~5 min, one `CircleFacingTag`
+      run). Passes at ≥ 108 results/s. It missed by ~0.6 ms per frame on 11-07; threads didn't
+      shorten the frame on 11-10, so expect it to still miss. B1–B5 done 11-10.
+      [`docs/experiments/vision/2026-11-10-pv-frame-budget/`, 11-10]
 - [ ] **Confirm R3 was Low Latency off** in the PhotonVision UI; the notes don't say, the data
       do. [11-03]
 - [ ] **Run the range experiment** after the frame-pacing runs above (R6 and R13 done 11-07): stationary at 2 / 4 / 6 / 8 m,
@@ -131,6 +131,7 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 | Item | Where it landed |
 |---|---|
+| Frame-budget experiment B1–B5 on 11-10 (threads 8/4/3/1, "drawing off"). Keep threads 8; drawing has no UI switch for AprilTag pipelines and runs off the main thread, so no drawing run planned. B7 = the reset run | `docs/experiments/vision/2026-11-10-pv-frame-budget/`, `notes/11-10/notes.md`. B6 stays open above |
 | 11-07 robot session: deploy `beta`, re-bootstrap both Pis, checks 2a/2b, frame-pacing R5/R6/R12/R13, loop-overrun L1–L5 | `notes/11-7/notes.md`, both write-ups. Checks 2c–2e not done; they stay open above |
 | Start-up wizard for the laptop-side coprocessor scripts (Bootstrap, both sim scripts): numbered choices, Enter = default, prints the equivalent command [user, 11-07] | `coprocessor/lib/Wizard.ps1` |
 | Our `.wpilog` parser dropped every `string[]` entry (PhotonVision thread names, AdvantageKit Alerts) [11-07] | `tools/wpilog-utils/wpilog_utils/decode.py`, `tests/test_decode_arrays.py` |

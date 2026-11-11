@@ -71,6 +71,11 @@ log shows what that changed: the pipeline's `outputShouldShow` went true → fal
 `inputShouldShow` false → true; `outputShouldDraw` stayed **true**. So B5 tested streaming the raw
 image instead of the processed one, not turning drawing off. Threads were still 1 from B4.
 
+*Afterwards:* the instruction above was the problem, not how it was followed. PhotonVision's UI
+has no drawing switch for AprilTag pipelines, Processed/Raw doesn't affect it, and drawing runs on
+a separate stream thread anyway, so it was never likely to shorten the frame. Details in the
+write-up's "What output drawing really is".
+
 ## Part 4: LogBench checks left over from 11-07 (about 10 min)
 
 Settings stay as B7. These come after the experiment on purpose: LogBench live is what stalled
@@ -119,4 +124,4 @@ marks at 2 / 4 / 6 / 8 m and one pipeline per setting. Better as its own session
 **Takeaway:** at decimate 1 the frame takes ~14.4 ms at 3, 4 or 8 threads, so ~69/s is
 the ceiling there; threads don't buy anything and the raw-vs-processed stream doesn't either.
 Decimate 2 drops the frame to ~9.9 ms and the camera's 100/s becomes the limit. Not tested yet:
-`outputShouldDraw` actually off, and B6 (whether dec 2 keeps up with @120).
+B6 (whether dec 2 keeps up with @120). `outputShouldDraw` off isn't worth a run (see above).
