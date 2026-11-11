@@ -27,7 +27,7 @@ ffmpeg -version
 ```powershell
 cd tools/logbench
 pip install -r requirements.txt
-cd web && npm install && npm run build
+cd web; npm install; npm run build
 ```
 
 ### Fix Script Execution Error
