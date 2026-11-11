@@ -47,7 +47,7 @@ saved enough, decimate 1 (sees farther) or @120 (more results) might keep up.
    drawing isn't on the main thread. See "What output drawing really is".
 3. **With the best of both, does 800x600 @120, decimate 2 keep up now?** It missed by ~0.6 ms
    per frame on 11-07. *(B6)*
-4. **Is the race setting (800x600 @100, decimate 2) still fine with the new settings?** *(B7)*
+4. **Is the main setting (800x600 @100, decimate 2) still fine with the new settings?** *(B7)*
 
 How we tell: **time per frame** (1000 ÷ results/s), and how it splits into main thread and
 detector work (`analyze.py` prints this for every run). Run-to-run noise in time per frame was
@@ -98,7 +98,7 @@ but **write them in this table first**.
 | B4 | 800x600 @100 | 1 | **1** | on | Checks our model: all detector work on one thread | ~35/s (worse) | done 11-10 |
 | B5 | 800x600 @100 | 1 | best of B1–B4 | **off** | What drawing costs the main thread | unknown | ran as Raw stream at threads 1 (see Results) |
 | B6 | 800x600 **@120** | **2** | best | best of B5 | Does @120 keep up now? | passes if B5 saved ≥ 0.6 ms | not run |
-| B7 | 800x600 @100 | 2 | best | best | The race setting with the new settings: still 101/s, with more spare time | 101/s | not needed (reset run = same settings) |
+| B7 | 800x600 @100 | 2 | best | best | The main setting with the new settings: still 101/s, with more spare time | 101/s | not needed (reset run = same settings) |
 
 **Picking "best"**: after B4, take the thread count with the highest `CurrentFps`. If none beats 8
 by at least 3/s, keep 8. For B5 → B6/B7, use drawing off only if B5 was at least 3/s faster than

@@ -85,6 +85,11 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## LogBench
 
+- [ ] **Experiment runner, step 1–2** ([plan](docs/experiment-runner-plan.md)): after each run,
+      fetch the newest bundle through LogBench's API and record it in a manifest; before each run,
+      check `/OrangePi/*` settings against the run plan. Then steps 3–6 (apply settings over
+      PhotonVision's websocket, auto-detect enable/disable, `analyze.py` reads the manifest,
+      copy-only Pi sync for bench scripts). [11-11]
 - [ ] **Turn experiment `analyze.py` scripts into LogBench comparisons** where it's practical, so
       the next write-up doesn't need a one-off script. [`docs/experiments/README.md`]
 - [ ] **Fetch a full log and trim it in one step** (with the WPILog Janitor), and a **zip-and-download

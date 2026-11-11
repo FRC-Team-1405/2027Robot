@@ -29,7 +29,7 @@ RUNS = [
     ("B3", "dec 1, threads 3", "11-10/akit_26-11-10_23-30-18", 100),
     ("B4", "dec 1, threads 1", "11-10/akit_26-11-10_23-32-43", 100),
     ("B5", "dec 1, dashboard Processed -> Raw (drawing off)", "11-10/akit_26-11-10_23-38-26", 100),
-    ("reset", "dec 2, threads 8, drawing on (race baseline)", "11-10/akit_26-11-10_23-43-08", 100),
+    ("reset", "dec 2, threads 8, drawing on (main setting)", "11-10/akit_26-11-10_23-43-08", 100),
 ]
 
 

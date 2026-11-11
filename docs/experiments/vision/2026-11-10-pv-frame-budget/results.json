@@ -708,7 +708,7 @@
  },
  {
   "id": "reset",
-  "what": "dec 2, threads 8, drawing on (race baseline)",
+  "what": "dec 2, threads 8, drawing on (main setting)",
   "log": "akit_26-11-10_23-43-08",
   "camera_fps": 100,
   "xcam_trans_m_median": 0.0493,
