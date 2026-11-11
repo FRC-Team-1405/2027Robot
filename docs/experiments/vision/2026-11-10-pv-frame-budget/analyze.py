@@ -24,8 +24,12 @@ LOGS = REPO / "logs" / "offseason"
 RUNS = [
     ("ref-R5", "11-07: 800x600 @100, dec 2, threads 8, drawing on", "11-7/akit_26-11-07_18-13-22", 100),
     ("ref-R6", "11-07: 800x600 @120, dec 1, threads 8, drawing on", "11-7/akit_26-11-07_19-19-16", 120),
-    # Fill in after 11-10, e.g.:
-    # ("B1", "dec 1, threads 8, drawing on (baseline)", "11-10/akit_26-11-10_HH-MM-SS", 100),
+    ("B1", "dec 1, threads 8, drawing on (baseline)", "11-10/akit_26-11-10_23-14-41", 100),
+    ("B2", "dec 1, threads 4", "11-10/akit_26-11-10_23-27-02", 100),
+    ("B3", "dec 1, threads 3", "11-10/akit_26-11-10_23-30-18", 100),
+    ("B4", "dec 1, threads 1", "11-10/akit_26-11-10_23-32-43", 100),
+    ("B5", "dec 1, dashboard Processed -> Raw (drawing off)", "11-10/akit_26-11-10_23-38-26", 100),
+    ("reset", "dec 2, threads 8, drawing on (race baseline)", "11-10/akit_26-11-10_23-43-08", 100),
 ]
 
 

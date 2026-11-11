@@ -41,24 +41,35 @@ below. One change per run.
 
 | Done | Run | Camera | Dec | Threads | Drawing | Expect | CurrentFps L / R | Log (`akit_26-11-10_…`) |
 |---|---|---|---|---|---|---|---|---|
-| [ ] | B1 | 800x600 @100 | 1 | 8 | on | ~67 | | akit_26-11-10_23-14-41-bundle |
-| [ ] | B2 | 800x600 @100 | 1 | **4** | on | ~75 | | akit_26-11-10_23-27-02-bundle |
-| [ ] | B3 | 800x600 @100 | 1 | **3** | on | ~75 | | akit_26-11-10_23-30-18-bundle |
-| [ ] | B4 | 800x600 @100 | 1 | **1** | on | ~35 (worse) | | akit_26-11-10_23-32-43-bundle |
-| [ ] | B5 | 800x600 @100 | 1 | best | **off** | ? | | akit_26-11-10_23-38-26-bundle |
-| [] | RESET bot to BASELINE | 800x600 @100 | 2 | 8 | on | ? | | akit_26-11-10_23-43-08-bundle |
-| [ ] | B6 | 800x600 **@120** | **2** | best | best | ≥108 to pass | | |
-| [ ] | B7 | 800x600 @100 | 2 | best | best | 101 | | |
+| [x] | B1 | 800x600 @100 | 1 | 8 | on | ~67 | 68 / 67 | akit_26-11-10_23-14-41-bundle |
+| [x] | B2 | 800x600 @100 | 1 | **4** | on | ~75 | 69 / 68 | akit_26-11-10_23-27-02-bundle |
+| [x] | B3 | 800x600 @100 | 1 | **3** | on | ~75 | 69 / 67 | akit_26-11-10_23-30-18-bundle |
+| [x] | B4 | 800x600 @100 | 1 | **1** | on | ~35 (worse) | 41 / 37 | akit_26-11-10_23-32-43-bundle |
+| [x] | B5 | 800x600 @100 | 1 | 1 (not best, see below) | **Raw stream** | ? | 41 / 39 | akit_26-11-10_23-38-26-bundle |
+| [x] | RESET bot to BASELINE | 800x600 @100 | 2 | 8 | on | ? | 101 / 101 | akit_26-11-10_23-43-08-bundle |
+| [-] | B6 | 800x600 **@120** | **2** | best | best | ≥108 to pass | skipped | |
+| [-] | B7 | 800x600 @100 | 2 | best | best | 101 | skipped (RESET is the same settings) | |
+
+`CurrentFps` filled in afterwards from the logs: median over the ~21 s the auto was enabled
+(`Vision/<cam>/CurrentFps`). Camera mode, decimate, threads and Low Latency (off) were confirmed
+from the Pi publisher's `OrangePi/<Pi>/PhotonVision/<cam>/*` entries in each log, and match the
+table. Results/s from `analyze.py` agrees within ~1/s (B1 68.7 / 67.6, B2 69.2 / 69.3, B3 69.9 /
+69.7, B4 40.9 / 37.6, B5 40.8 / 40.6, RESET 101.0 / 101.0).
 
 **"Best" threads** (after B4): the run with the highest `CurrentFps`. If none beats B1 (8 threads)
-by at least 3/s, use 8. Best threads: ____
+by at least 3/s, use 8. Best threads: **8**. B3 (3 threads) was highest, but only +1 / +1 over B1;
+3, 4 and 8 threads are all ~68. Only 1 thread hurts (−27 / −30).
 
 **"Best" drawing** (after B5): off, if B5 is at least 3/s faster than the run with best threads.
-Otherwise on. Best drawing: ____
+Otherwise on. Best drawing: **on** (Processed stream). B5 ran at 1 thread, so the fair comparison
+is B4, not the best-threads run: +0.5 / +2.6, under the 3/s bar.
 
 **Turning off drawing**: look in PhotonVision's pipeline settings (Output tab) for drawing on the
 processed image. If there's no such switch, turn off the processed (output) stream instead and
-write which you did here: ____
+write which you did here: **Dashboard page: deselected Processed, selected Raw** (both Pis). The
+log shows what that changed: the pipeline's `outputShouldShow` went true → false and
+`inputShouldShow` false → true; `outputShouldDraw` stayed **true**. So B5 tested streaming the raw
+image instead of the processed one, not turning drawing off. Threads were still 1 from B4.
 
 ## Part 4: LogBench checks left over from 11-07 (about 10 min)
 
@@ -94,3 +105,18 @@ marks at 2 / 4 / 6 / 8 m and one pipeline per setting. Better as its own session
 ## Recorded
 
 <!-- One line per log: time, run, anything that went differently from the plan. -->
+
+- 23-14-41, B1: as planned. 68 / 67/s, 14.6 ms per frame (7.8 main thread + 4.8 detector).
+- 23-27-02, B2: as planned. 69 / 68/s.
+- 23-30-18, B3: as planned. 69 / 67/s.
+- 23-32-43, B4: as planned. 41 / 37/s; with 1 thread the main thread waits ~24–27 ms per frame.
+- 23-38-26, B5: threads left at 1 (plan said "best"); "drawing off" was done as Processed → Raw
+  on the dashboard, which leaves drawing on (see above). 41 / 39/s, no real change from B4.
+- 23-43-08, RESET: dec 2, threads 8, drawing on, @100. 101 / 101/s, same as 11-07 R5. This is the
+  B7 setting, so B7 wasn't needed.
+- B6 (@120, dec 2) and B7 not run.
+
+**Takeaway:** at decimate 1 the frame takes ~14.4 ms at 3, 4 or 8 threads, so ~69/s is
+the ceiling there; threads don't buy anything and the raw-vs-processed stream doesn't either.
+Decimate 2 drops the frame to ~9.9 ms and the camera's 100/s becomes the limit. Not tested yet:
+`outputShouldDraw` actually off, and B6 (whether dec 2 keeps up with @120).
