@@ -1,6 +1,8 @@
 # Camera auto-calibration ("spin & drive")
 
-Status: **built and tested on simulated data; not yet run on the robot.** Written 2026-11-14.
+Status: **built; on the robot it did not agree with a tape measure, so its results are not used.**
+Written 2026-11-14. The running log of what we tried and the open problem is
+[camera-mount-calibration-notes.md](camera-mount-calibration-notes.md); read that first.
 
 ## In short
 

@@ -86,8 +86,9 @@ each run; the Pi publisher also logs them, so verify from the log, not from the 
 
 ### Before the session
 
-- [ ] Cameras calibrated with the [spin & drive tool](../../../camera-autocal-plan.md); the
-      camera-vs-camera difference at a standstill is small.
+- [ ] Camera mounts known well enough. On 2026-11-14 the constants matched a tape measure, and the
+      spin & drive tool did not; see [the calibration notes](../../../camera-mount-calibration-notes.md).
+      The left/right swap cancels most mount error, so this does not block the experiment.
 - [ ] Intrinsics calibrated at the resolution of every setting used.
 - [ ] Settings for A and B written into the run table; exposure and gain identical.
 - [ ] Taped start and end marks.

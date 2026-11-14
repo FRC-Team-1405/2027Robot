@@ -33,6 +33,10 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Vision experiments
 
+- [ ] **Camera mounts: find a trustworthy reference for the robot centreline and heading**, then
+      redo the crosshair aim check and a static truth stop; try the "robot against the wall, back
+      straight off" run. Constants stay as they are for now (they match tape).
+      [`docs/camera-mount-calibration-notes.md`, 11-14]
 - [ ] **Run the camera auto-calibration on the robot** (hub tag pair, 2-2.5 m, other tags covered,
       "CalibrateCameras" auto), then validate once against a tape-measured calibration. Check the
       tag height, tilt, spacing and size first.
