@@ -299,6 +299,12 @@ def doctor(s: Session) -> bool:
              (f"enabled={st[0]}" if st else "not published; the runner can't see enable/disable (use --no-robot)"))
         if st and st[0]:
             line(False, "the robot is ENABLED; disable it before a session")
+    try:
+        from .pv import _modules
+        _modules()
+    except PvError as e:
+        line(False, str(e))
+        s.apply_settings = False          # can't talk to PhotonVision from here; the Pis are checked below
     modes = sorted({v["camera_mode"] for v in list(s.plan.settings.values()) + [s.plan.defaults] if "camera_mode" in v})
     now = readback_all(s) if s.link else {}
     for pi, cam in s.plan.cameras:
