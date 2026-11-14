@@ -1,0 +1,1095 @@
+{
+ "experiment": "VIS-2026-11-14-pv-crossover-odometry",
+ "runs": {
+  "X1b": {
+   "robot": {
+    "status": "ok",
+    "kind": "robot",
+    "routine": "CircleFacingTag_Tag10",
+    "use": {
+     "LeftCam": "A",
+     "RightCam": "B"
+    },
+    "asked": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     }
+    },
+    "started": "2026-11-14T20:30:18Z",
+    "git": {
+     "sha": "2a3499ecfa02",
+     "branch": "beta",
+     "dirty": true
+    },
+    "read_back": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     }
+    },
+    "enable_window": {
+     "t_enable": 319.370958,
+     "t_disable": 339.149044,
+     "autonomous": true
+    },
+    "log": {
+     "name": "FRC_20261114_202608.wpilog",
+     "path": "FRC_20261114_202608.wpilog",
+     "pi_sessions": [
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153109",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153109"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153109",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153109"
+      }
+     ],
+     "warnings": null
+    },
+    "finished": "2026-11-14T20:32:00Z"
+   }
+  },
+  "X1a": {
+   "robot": {
+    "status": "ok",
+    "kind": "robot",
+    "routine": "CircleFacingTag_Tag10",
+    "use": {
+     "LeftCam": "A",
+     "RightCam": "B"
+    },
+    "asked": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     }
+    },
+    "started": "2026-11-14T20:32:00Z",
+    "git": {
+     "sha": "2a3499ecfa02",
+     "branch": "beta",
+     "dirty": true
+    },
+    "read_back": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     }
+    },
+    "enable_window": {
+     "t_enable": 429.039802,
+     "t_disable": 449.431816,
+     "autonomous": true
+    },
+    "log": {
+     "name": "FRC_20261114_202608.wpilog",
+     "path": "FRC_20261114_202608.wpilog",
+     "pi_sessions": [
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153109",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153109"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153109",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153109"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153259",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153259"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153259",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153259"
+      }
+     ],
+     "warnings": null
+    },
+    "finished": "2026-11-14T20:33:49Z"
+   }
+  },
+  "AA1": {
+   "robot": {
+    "status": "ok",
+    "kind": "robot",
+    "routine": "CircleFacingTag_Tag10",
+    "use": {
+     "LeftCam": "A",
+     "RightCam": "A"
+    },
+    "asked": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "started": "2026-11-14T20:33:49Z",
+    "git": {
+     "sha": "2a3499ecfa02",
+     "branch": "beta",
+     "dirty": true
+    },
+    "read_back": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "enable_window": {
+     "t_enable": 506.126049,
+     "t_disable": 528.62264,
+     "autonomous": true
+    },
+    "log": {
+     "name": "FRC_20261114_202608.wpilog",
+     "path": "FRC_20261114_202608.wpilog",
+     "pi_sessions": [
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153109",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153109"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153109",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153109"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153259",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153259"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153259",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153259"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153416",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153416"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153416",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153416"
+      }
+     ],
+     "warnings": null
+    },
+    "finished": "2026-11-14T20:35:16Z"
+   }
+  },
+  "X2a": {
+   "robot": {
+    "status": "ok",
+    "kind": "robot",
+    "routine": "CircleFacingTag_Tag10",
+    "use": {
+     "LeftCam": "B",
+     "RightCam": "A"
+    },
+    "asked": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "started": "2026-11-14T20:35:16Z",
+    "git": {
+     "sha": "2a3499ecfa02",
+     "branch": "beta",
+     "dirty": true
+    },
+    "read_back": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "enable_window": {
+     "t_enable": 604.992807,
+     "t_disable": 626.983152,
+     "autonomous": true
+    },
+    "log": {
+     "name": "FRC_20261114_202608.wpilog",
+     "path": "FRC_20261114_202608.wpilog",
+     "pi_sessions": [
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153109",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153109"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153109",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153109"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153259",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153259"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153259",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153259"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153416",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153416"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153416",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153416"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153555",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153555"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153555",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153555"
+      }
+     ],
+     "warnings": null
+    },
+    "finished": "2026-11-14T20:37:04Z"
+   }
+  },
+  "X1c": {
+   "robot": {
+    "status": "ok",
+    "kind": "robot",
+    "routine": "CircleFacingTag_Tag10",
+    "use": {
+     "LeftCam": "A",
+     "RightCam": "B"
+    },
+    "asked": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     }
+    },
+    "started": "2026-11-14T20:37:04Z",
+    "git": {
+     "sha": "2a3499ecfa02",
+     "branch": "beta",
+     "dirty": true
+    },
+    "read_back": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     }
+    },
+    "enable_window": {
+     "t_enable": 691.160499,
+     "t_disable": 712.854506,
+     "autonomous": true
+    },
+    "log": {
+     "name": "FRC_20261114_202608.wpilog",
+     "path": "FRC_20261114_202608.wpilog",
+     "pi_sessions": [
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153109",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153109"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153109",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153109"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153259",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153259"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153259",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153259"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153416",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153416"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153416",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153416"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153555",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153555"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153555",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153555"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153721",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153721"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153721",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153721"
+      }
+     ],
+     "warnings": null
+    },
+    "finished": "2026-11-14T20:38:40Z"
+   }
+  },
+  "AA2": {
+   "robot": {
+    "status": "ok",
+    "kind": "robot",
+    "routine": "CircleFacingTag_Tag10",
+    "use": {
+     "LeftCam": "A",
+     "RightCam": "A"
+    },
+    "asked": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "started": "2026-11-14T20:38:40Z",
+    "git": {
+     "sha": "2a3499ecfa02",
+     "branch": "beta",
+     "dirty": true
+    },
+    "read_back": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "enable_window": {
+     "t_enable": 781.236442,
+     "t_disable": 802.630713,
+     "autonomous": true
+    },
+    "log": {
+     "name": "FRC_20261114_202608.wpilog",
+     "path": "FRC_20261114_202608.wpilog",
+     "pi_sessions": [
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153109",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153109"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153109",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153109"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153259",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153259"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153259",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153259"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153416",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153416"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153416",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153416"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153555",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153555"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153555",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153555"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153721",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153721"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153721",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153721"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153851",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153851"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153851",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153851"
+      }
+     ],
+     "warnings": null
+    },
+    "finished": "2026-11-14T20:40:17Z"
+   }
+  },
+  "X2c": {
+   "robot": {
+    "status": "ok",
+    "kind": "robot",
+    "routine": "CircleFacingTag_Tag10",
+    "use": {
+     "LeftCam": "B",
+     "RightCam": "A"
+    },
+    "asked": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "started": "2026-11-14T20:40:17Z",
+    "git": {
+     "sha": "2a3499ecfa02",
+     "branch": "beta",
+     "dirty": true
+    },
+    "read_back": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "enable_window": {
+     "t_enable": 899.860364,
+     "t_disable": 922.758643,
+     "autonomous": true
+    },
+    "log": {
+     "name": "FRC_20261114_202608.wpilog",
+     "path": "FRC_20261114_202608.wpilog",
+     "pi_sessions": [
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153109",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153109"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153109",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153109"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153259",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153259"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153259",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153259"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153416",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153416"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153416",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153416"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153555",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153555"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153555",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153555"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153721",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153721"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153721",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153721"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153851",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153851"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153851",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153851"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-154050",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-154050"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-154050",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-154050"
+      }
+     ],
+     "warnings": null
+    },
+    "finished": "2026-11-14T20:42:28Z"
+   }
+  },
+  "X2b": {
+   "robot": {
+    "status": "ok",
+    "kind": "robot",
+    "routine": "CircleFacingTag_Tag10",
+    "use": {
+     "LeftCam": "B",
+     "RightCam": "A"
+    },
+    "asked": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "exposure": 80.0,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "started": "2026-11-14T20:42:28Z",
+    "git": {
+     "sha": "2a3499ecfa02",
+     "branch": "beta",
+     "dirty": true
+    },
+    "read_back": {
+     "LeftCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "1280x800 MJPG @100"
+     },
+     "RightCam": {
+      "decimate": 2,
+      "threads": 8,
+      "low_latency": false,
+      "multitag": true,
+      "refine_edges": true,
+      "blur": 0.0,
+      "decision_margin": 30,
+      "pose_iterations": 100,
+      "hamming": 0,
+      "auto_exposure": false,
+      "exposure": 80.0,
+      "brightness": 25,
+      "gain": 25,
+      "camera_mode": "800x600 MJPG @100"
+     }
+    },
+    "enable_window": {
+     "t_enable": 1004.559591,
+     "t_disable": 1026.151785,
+     "autonomous": true
+    },
+    "log": {
+     "name": "FRC_20261114_202608.wpilog",
+     "path": "FRC_20261114_202608.wpilog",
+     "pi_sessions": [
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153109",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153109"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153109",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153109"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153259",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153259"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153259",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153259"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153416",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153416"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153416",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153416"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153555",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153555"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153555",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153555"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153721",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153721"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153721",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153721"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-153851",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-153851"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-153851",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-153851"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-154050",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-154050"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-154050",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-154050"
+      },
+      {
+       "camera": "LeftCam",
+       "name": "boot0032-20261114-154234",
+       "pi": "LeftPi",
+       "path": "FRC_20261114_202608.vision/LeftCam/boot0032-20261114-154234"
+      },
+      {
+       "camera": "RightCam",
+       "name": "boot0067-20261114-154235",
+       "pi": "RightPi",
+       "path": "FRC_20261114_202608.vision/RightCam/boot0067-20261114-154235"
+      }
+     ],
+     "warnings": null
+    },
+    "finished": "2026-11-14T20:44:21Z"
+   }
+  }
+ },
+ "history": [],
+ "baseline": null
+}

@@ -26,7 +26,7 @@ User/Pass - pi:raspberry
 
 # Left Orange Pi - PhotonVision URLs
 http://leftpi.local:5800/
-http://leftpi.local:1183/stream.mjpg
+http://leftpi.local:1181/stream.mjpg
 
 `ssh pi@leftpi.local`
 
