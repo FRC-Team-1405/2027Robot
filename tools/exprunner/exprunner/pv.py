@@ -41,7 +41,9 @@ def _modules():
         import msgpack
         from websockets.sync.client import connect
     except ImportError as e:  # pragma: no cover - environment
-        raise PvError(f"{e.name} isn't installed: python -m pip install msgpack websockets") from None
+        raise PvError(f"this laptop's Python is missing {e.name} (it is not a Pi problem; the Pis need nothing). "
+                      "Install the runner's requirements with the same Python you run exprunner with: "
+                      "python -m pip install -r tools/exprunner/requirements.txt") from None
     return msgpack, connect
 
 
