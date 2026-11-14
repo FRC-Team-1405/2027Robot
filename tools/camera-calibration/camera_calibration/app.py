@@ -59,7 +59,7 @@ def _streamlit_app() -> None:
 
         st.divider()
         st.header('Robot Dimensions')
-        st.caption('Used in Tab 1 to convert tape readings to robot center position.')
+        st.caption('Used in Manual 1 to convert tape readings to robot center position.')
         col1, col2 = st.columns(2)
         with col1:
             half_len      = st.number_input('½ length (in)', value=14.5, step=0.25, format='%.2f',

@@ -5,7 +5,7 @@ import streamlit as st
 # camera_calibration/__init__.py -> logger.py.
 from vision_analyzer.metrics import find_drivetrain_speeds
 
-LABEL = '2 · Timeline'
+LABEL = 'Manual 2 · Timeline'
 
 
 def render(ctx: dict) -> None:

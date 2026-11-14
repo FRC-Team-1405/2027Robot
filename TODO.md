@@ -33,14 +33,22 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Vision experiments
 
+- [ ] **Run the camera auto-calibration on the robot** (hub tag pair, 2-2.5 m, other tags covered,
+      "CalibrateCameras" auto), then validate once against a tape-measured calibration. Check the
+      tag height, tilt, spacing and size first.
+      [`docs/camera-autocal-plan.md`, 11-14]
+- [ ] **Run the camera-setting crossover experiment** after the cameras are calibrated; pick
+      setting B first. [`docs/experiments/vision/2026-11-14-pv-crossover-odometry/`, 11-14]
+
 - [ ] **Frame-budget B6: 800x600 @120, decimate 2, threads 8** (~5 min, one `CircleFacingTag`
       run). Passes at ≥ 108 results/s. It missed by ~0.6 ms per frame on 11-07; threads didn't
       shorten the frame on 11-10, so expect it to still miss. B1–B5 done 11-10.
       [`docs/experiments/vision/2026-11-10-pv-frame-budget/`, 11-10]
-- [ ] **Run the frame-cost bench test** (bench tests 1–2 of ADR 0002; no robot, ~15 min):
-      `python -m exprunner run` on [its plan](docs/experiments/vision/2026-11-11-pv-frame-cost/runs.toml)
-      from `tools/exprunner`. Needs 2+ tags in front of both cameras for the capture.
-      Also the runner's first real run. [ADR 0002, next steps 2–3]
+- [ ] **Try 2 workers x 2 threads (and 3 x 1) on the frame-cost bench**: might keep most of the
+      frames-in-flight throughput with less added delay per frame. Only worth it if the range
+      experiment says a finer image helps. [frame-cost bench, 11-14]
+- [ ] **Propose grey decode (ADR 0002 O2) upstream**: saves 1.3-2.8 ms per frame; safe whatever
+      the range result. [frame-cost bench, 11-14]
 - [ ] **Confirm R3 was Low Latency off** in the PhotonVision UI; the notes don't say, the data
       do. [11-03]
 - [ ] **Run the range experiment** after the frame-pacing runs above (R6 and R13 done 11-07): stationary at 2 / 4 / 6 / 8 m,

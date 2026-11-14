@@ -5,7 +5,7 @@ import streamlit as st
 
 log = logging.getLogger(__name__)
 
-LABEL = '4 · Solve'
+LABEL = 'Manual 4 · Solve'
 
 
 def _find_sig(signals, base_key):

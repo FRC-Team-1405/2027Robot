@@ -11,6 +11,25 @@
   [frame budget (11-10)](../experiments/vision/2026-11-10-pv-frame-budget/README.md), plus the
   PhotonVision and WPILib (cscore) source.
 
+## Update 2026-11-14: bench results
+
+The [frame-cost bench test](../experiments/vision/2026-11-11-pv-frame-cost/README.md) ran on both
+Pis. It confirms the main claims and answers two open questions; the text below is as written on
+11-11, so read it with these in mind:
+
+- **Frames in flight scale** (answer 3, option O4): 4 workers gave 3.8-4.3x one worker, up to
+  159 frames/s at 800x600 dec 1 and 199 at 1280x800 dec 2. The ~160/s estimate held. 1280x800
+  dec 1 only reaches 79/s even so.
+- **Cost:** each frame takes ~25 ms in flight instead of ~14 ms.
+- **Where the main thread's time goes** (answer 5): decode to colour is 2.4 ms (800x600) and
+  5.1 ms (1280x800); the detector is the largest piece; pose is ~1 ms.
+- **The OV9281 sends 3-channel colour JPEGs**, so option O2 (decode to grey) saves 1.3 ms at
+  800x600 and 2.8 ms at 1280x800.
+- **Eight detector threads are never better than four** on the four fast cores.
+- **Not shown:** that any of this improves odometry. At 800x600 dec 2 we are already at the
+  camera's 100/s, so the decision above stands until the range experiment says a finer image
+  is worth having.
+
 ## Summary
 
 **The question:** higher resolution and lower decimate cut results/s badly (1280x800 dec 2: 63/s;
@@ -51,7 +70,7 @@ by its fastest core, and is it true that nothing can be spread over the other co
    frame whatever the decimate, and 11.8 ms at 1280x800. The source shows that thread decodes the
    camera's MJPEG into a **colour** image and then converts it to grey, even though the OV9281 is
    a mono camera. How the time divides between decode, grey conversion and detection has **not
-   been measured**. It's the first thing to measure (next steps, bench test 1).
+   been measured** as of 11-11 (measured 11-14: see the update above).
 
 6. **2D mode wouldn't speed us up much.** Detection is identical in 2D and 3D. 3D only adds the
    pose solve: small fixed math per tag, not per pixel. A camera runs one pipeline at a time.
