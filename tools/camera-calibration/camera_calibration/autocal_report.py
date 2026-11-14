@@ -53,7 +53,7 @@ def _table(headers, rows) -> str:
 
 def save_result(camera: str, res, run: dict, tag_ids, current_params: dict, phases: list,
                 log_name: str | None, results_dir: pathlib.Path | None = None,
-                drive_check: list | None = None) -> pathlib.Path:
+                drive_check: list | None = None, standstill: dict | None = None) -> pathlib.Path:
     """Write <stamp>_<camera>_autocal.json and .md; return the .md path."""
     results_dir = results_dir or RESULTS_DIR
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -89,6 +89,7 @@ def save_result(camera: str, res, run: dict, tag_ids, current_params: dict, phas
         'repeatability_split_half': res.split_half,
         'phases': phases,
         'drive_check': drive_check or [],
+        'standstill': standstill or {},
         'warnings': list(res.warnings) + list(run.get('notes', [])),
         'java_snippet': res.java_snippet,
     }
@@ -123,6 +124,15 @@ def save_result(camera: str, res, run: dict, tag_ids, current_params: dict, phas
                _table(['Drive', 'Wheels say (mm)', 'Camera saw (mm)', 'Ratio camera/wheels', 'Direction vs typical drive (deg)'],
                       [[d['phase'], f(d['odo_mm'], '.0f'), f(d['vision_mm'], '.0f'), f(d['ratio'], '.3f'),
                         f(d.get('angle_dev_deg'), '.1f')] for d in drive_check])]
+    if standstill:
+        nz, cl = standstill.get('noise'), standstill.get('closure')
+        md += ['', '## Standing still', '']
+        if nz:
+            md.append(f'- Vision noise at the start hold ({nz["n"]} samples): x {nz["x_mm"]:.1f}, y {nz["y_mm"]:.1f}, '
+                      f'z {nz["z_mm"]:.1f} mm; rotation {nz["rot_deg"]:.2f} deg (1 sigma)')
+        if cl:
+            md.append(f'- Start hold vs end hold (the robot returns to its start): camera says {cl["vision_mm"]:.0f} mm '
+                      f'(z {cl["vision_z_mm"]:+.0f} mm) and {cl["vision_deg"]:.2f} deg apart; wheels say {cl["wheels_mm"]:.0f} mm')
     md += ['', '## Java', '', '```java', res.java_snippet, '```', '']
     path = results_dir / f'{stem}.md'
     path.write_text('\n'.join(md), encoding='utf-8')

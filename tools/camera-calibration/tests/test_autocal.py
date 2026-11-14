@@ -246,3 +246,15 @@ def test_wheel_distance_error_is_fitted_and_drive_check_shows_it():
         assert r['ratio'] == pytest.approx(1 / 1.12, abs=0.08), r
     # the direction offset is the same for every drive (it is the odometry-to-field rotation)
     assert all(abs(r['angle_dev_deg']) < 4 for r in rows), [r['angle_dev_deg'] for r in rows]
+
+
+def test_standstill_stats_noise_and_closure():
+    from camera_calibration.autocal_io import standstill_stats
+    segs = routine()
+    ts, odo, cams = simulate(segs, {'Left': TRUE_LEFT}, seed=12, pos_noise=0.015, rot_noise_deg=0.7)
+    t_obs, obs = cams['Left']
+    st_ = standstill_stats(_spans(segs), t_obs, obs, ts, odo)
+    nz, cl = st_['noise'], st_['closure']
+    assert 8 < nz['x_mm'] < 25 and 8 < nz['y_mm'] < 25, nz          # the 15 mm we injected (per axis)
+    assert 0.3 < nz['rot_deg'] < 2.0, nz
+    assert cl['wheels_mm'] < 15 and cl['vision_mm'] < 15, cl       # the routine returns to its start

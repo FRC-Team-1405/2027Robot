@@ -11,7 +11,7 @@ import streamlit as st
 
 from ..autocal import cross_camera_agreement, solve, with_tag_height_correction
 from ..autocal_io import (calibration_window, drive_check, extract_run, list_cameras, list_tag_ids,
-                          phase_diagnostics)
+                          phase_diagnostics, span_mask, standstill_stats)
 from ..autocal_report import RESULTS_DIR, save_agreement, save_result
 from ..robot_defaults import camera_defaults, mount_for
 from ..solver import matrix_to_params, params_to_matrix
@@ -118,15 +118,16 @@ def render(ctx: dict) -> None:
         store = st.session_state.setdefault(_KEY, {})
         phases = phase_diagnostics(run.get('spans', []), res.sample_t, res.err_t_mm, res.err_r_deg)
         dchk = drive_check(run.get('spans', []), run['t_obs'], run['obs_T'], run['t_odo'], run['odo'])
+        still = standstill_stats(run.get('spans', []), run['t_obs'], run['obs_T'], run['t_odo'], run['odo'])
         try:
             saved = save_result(camera, res, run, tag_ids, matrix_to_params(T_rc_current), phases,
-                                ctx.get('log_name'), drive_check=dchk)
+                                ctx.get('log_name'), drive_check=dchk, standstill=still)
         except OSError as exc:
             saved = None
             st.warning(f'Could not save the result: {exc}')
         store[camera] = {'res': res, 'run': run, 'T_rc_current': T_rc_current, 'phases': phases,
                          'saved': saved, 'log_name': ctx.get('log_name'),
-                         'drive_check': dchk}
+                         'drive_check': dchk, 'standstill': still}
 
     store = st.session_state.get(_KEY, {})
     if camera in store:
@@ -204,8 +205,52 @@ def _show(camera: str, item: dict) -> None:
             'Ratio camera/wheels': None if d['ratio'] is None else round(d['ratio'], 3),
             'Direction vs typical drive (°)': None if d.get('angle_dev_deg') is None else round(d['angle_dev_deg'], 1),
         } for d in item['drive_check']]), hide_index=True, use_container_width=True)
+    still = item.get('standstill') or {}
+    if still:
+        st.markdown('**Standing still: how noisy is the vision, and does the run close?**')
+        nz, cl = still.get('noise'), still.get('closure')
+        if nz:
+            st.caption(f'Start hold, robot not moving ({nz["n"]} samples): the camera\'s own scatter is '
+                       f'x {nz["x_mm"]:.1f}, y {nz["y_mm"]:.1f}, z {nz["z_mm"]:.1f} mm and {nz["rot_deg"]:.2f}°. '
+                       'That is pure vision noise: nothing in this report can be more precise than it.')
+        if cl:
+            st.caption(f'The routine ends where it started. Start hold vs end hold: the camera says '
+                       f'{cl["vision_mm"]:.0f} mm apart ({cl["vision_deg"]:.2f}°); the wheels say {cl["wheels_mm"]:.0f} mm. '
+                       'If the camera says it moved and the wheels say not, the vision has a position-dependent bias '
+                       '(tag layout, camera intrinsics, a pair too small to pin the pose down).')
+    _tape_check(camera, res, item['T_rc_current'])
     st.markdown('**Paste into VisionConstants.java**')
     st.code(res.java_snippet, language='java')
+
+
+def _tape_check(camera: str, res, T_cur) -> None:
+    """Compare the solved mount with a tape-measure of the real camera: the best sanity check there is."""
+    with st.expander('Sanity check against a tape measure (recommended)'):
+        st.caption('Measure the real camera and enter it. The tool shows where it disagrees. A large '
+                   'disagreement means the vision (not your tape) is off: do not trust the solved mount.')
+        c1, c2, c3 = st.columns(3)
+        k = camera
+        length = c1.number_input('Robot length incl. bumpers (in)', value=33.0, step=0.25, key=f'tp_len_{k}')
+        z_in = c2.number_input('Lens height above floor (in)', value=0.0, min_value=0.0, step=0.25, key=f'tp_z_{k}',
+                               help='0 = not measured')
+        d_front = c3.number_input('Front bumper to lens (in)', value=0.0, min_value=0.0, step=0.25, key=f'tp_x_{k}',
+                                  help='Horizontal, along the robot. 0 = not measured')
+        y_in = st.number_input('Lens sideways from robot centreline (in, left = +, right = -)', value=0.0, step=0.25,
+                               key=f'tp_y_{k}', help='0 = not measured / on the centreline')
+        cur = matrix_to_params(T_cur)
+        rows = []
+        for label, tape, key, lim in (('x (forward of centre)', (length / 2 - d_front) if d_front else None, 'x_in', 0.75),
+                                      ('y (left)', y_in if y_in else None, 'y_in', 0.75),
+                                      ('z (height)', z_in if z_in else None, 'z_in', 1.0)):
+            if tape is None:
+                continue
+            rows.append({'Parameter': label, 'Tape (in)': round(tape, 2), 'Solved (in)': round(res.params[key], 2),
+                         'Robot code (in)': round(cur[key], 2), 'Solved - tape (in)': round(res.params[key] - tape, 2),
+                         'Verdict': 'agrees' if abs(res.params[key] - tape) <= lim else 'DISAGREES'})
+        if rows:
+            st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+        else:
+            st.caption('Enter at least one measurement.')
 
 
 def _show_agreement(store: dict) -> None:
@@ -229,14 +274,32 @@ def _show_agreement(store: dict) -> None:
                 'Position apart, p95 (mm)': round(d.get('pos_p95_mm', float('nan')), 1),
                 'Heading apart, median (°)': round(d.get('yaw_median_deg', float('nan')), 2)}
 
+    # the same comparison using only the standing-still phases: no motion, no odometry involved
+    spans = L['run'].get('spans', [])
+    still_old = still_new = None
+    if spans:
+        mL = span_mask(args[0][0], spans)
+        mR = span_mask(args[1][0], spans)
+        if mL.sum() >= 5 and mR.sum() >= 5:
+            sa = (args[0][0][mL], args[0][1][mL])
+            sb = (args[1][0][mR], args[1][1][mR])
+            still_new = cross_camera_agreement(*sa, L['res'].T_rc, *sb, R['res'].T_rc)
+            still_old = cross_camera_agreement(*sa, L['T_rc_current'], *sb, R['T_rc_current'])
+
     d_pos = new['pos_median_mm'] - old['pos_median_mm']
     d_yaw = new['yaw_median_deg'] - old['yaw_median_deg']
     change = {'Mounts': 'Change (calibrated - current)', 'Moments compared': '',
               'Position apart, median (mm)': round(d_pos, 1),
               'Position apart, p95 (mm)': round(new['pos_p95_mm'] - old['pos_p95_mm'], 1),
               'Heading apart, median (°)': round(d_yaw, 2)}
-    st.dataframe(pd.DataFrame([row('Current mounts (VisionConstants)', old), row('Calibrated mounts', new), change]),
-                 hide_index=True, use_container_width=True)
+    rows = [row('Current mounts (VisionConstants)', old), row('Calibrated mounts', new), change]
+    if still_old and still_new and still_old.get('n') and still_new.get('n'):
+        rows += [row('Standing still only: current mounts', still_old), row('Standing still only: calibrated mounts', still_new)]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    if still_old and still_old.get('n'):
+        st.caption('"Standing still only" uses just the start and end holds: the robot is not moving, so wheel '
+                   'odometry plays no part. If the cameras disagree by centimetres here, the disagreement comes '
+                   'from the vision (or the mounts), not from the motion.')
 
     pct = -100.0 * d_pos / old['pos_median_mm'] if old['pos_median_mm'] else 0.0
     pct_yaw = -100.0 * d_yaw / old['yaw_median_deg'] if old['yaw_median_deg'] else 0.0

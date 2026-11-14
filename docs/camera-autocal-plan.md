@@ -148,10 +148,19 @@ does not look trustworthy:
 | wheel-distance scale | 0.900 (at the old limit) | 0.900 (at the old limit) |
 | halves disagree by | 37 mm, 1.0 deg | 28 mm, 0.2 deg |
 
-- **Probably real:** both cameras say they are about 5 in lower and pitched 3 deg further up than
-  the constants (which are the 2026 values: `TODO(2027)` in `VisionConstants.java`). They agree
-  with each other to 0.5 in. **Check with a tape**: lens height from the floor should read about
-  24 in.
+- **Tape check, same day: the solved z is wrong.** Both cameras solved to a lens height of about
+  24 in, but the tape reads **29 in** (the constants say 28.7). Front bumper to lens is about
+  14.5-15 in on a robot about 33 in long, so x is about +1.5 to +2 in of centre, which agrees with
+  both the constants (2.19) and the solved x (2.0 / 2.4). So the *vision* has a ~5 in vertical bias
+  (and a matching ~3 deg pitch bias; 5 in over 2 m is 3.6 deg), and the solved z, pitch and probably
+  yaw/roll should not be used. Both cameras are biased the same way, so it is common to both:
+  the tag pair, the layout, or the intrinsics.
+- **The two cameras disagree with each other about how far the robot moved** (same drive: Left saw
+  446 mm, Right 373 mm; direction differs by up to 8 deg between drives). That is a few cm of
+  position-dependent vision error, larger than the 1 cm mount error we are trying to measure. The
+  limit is the calibration target (a 14-in pair 2 m away is only 15 deg wide, so rotation and
+  translation are hard to tell apart, and a 6 mm spacing error is a 1.7% scale error across it),
+  not the robot's motion.
 - **Not trustworthy yet:** the fit pinned the wheel-distance scale at its limit on both cameras,
   and the error grows during the strafes (115 mm in StrafeCenter), so the model and data disagree
   about how far the robot moved. Candidates: wheel radius (`TunerConstants` is the 2026 file,
@@ -161,6 +170,26 @@ does not look trustworthy:
   re-solve to see it.
 - **Physical check that settles the wheels:** push or drive the robot 2 m by the tape and compare
   with `Drivetrain/Pose` in AdvantageScope.
+
+### Sanity checks and better data (a ladder, cheapest first)
+
+The auto-calibration compares vision with odometry, so when they disagree it cannot say which one
+is wrong. These checks each isolate one piece. Do them in order; stop when something is off.
+
+| # | Check | What it tells us | Cost |
+|---|---|---|---|
+| 1 | **Tape the camera**: lens height, front bumper to lens, sideways from centreline (enter in the tool's "Sanity check against a tape measure") | Truth for x, y, z. Tool vs tape disagreeing means the vision is off, not the tape | 5 min |
+| 2 | **Level on the camera body** (phone level app): roll and pitch | Truth for roll and pitch. Config says pitch -25 deg | 5 min |
+| 3 | **Aim check**: put a tape mark on a wall 3 m ahead at the PhotonVision stream's centre crosshair; measure the mark's sideways and vertical offset from where the robot centreline points | Truth for yaw (atan(offset/3 m)) and pitch | 10 min |
+| 4 | **Standing still** (now in the report): vision noise at the start hold, start-vs-end closure, and left-vs-right at a standstill | Vision noise floor, and whether vision itself has a position bias, with no odometry involved | free, from any run |
+| 5 | **Static truth stops**: robot at 3-5 taped spots (1.5, 2, 3 m; centred and 0.5 m off), corners measured to the tag wall (the Manual tabs do exactly this) | Vision accuracy against tape. Error growing with range is a scale / intrinsics problem; a constant error is a mount or tag problem | 20 min |
+| 6 | **Tag-set check**: same spot, tag 9 only, tag 10 only, both (single-tag mode) | Whether the pair's layout (the 6 mm spacing) is consistent | 10 min |
+| 7 | **Odometry by tape**: drive 3 m in teleop and compare with `Drivetrain/Pose`; 10 spins and see the gyro return | Wheel radius and gyro, independent of vision | 10 min |
+| 8 | **Repeat** CalibrateCameras 3 times unchanged, and once at 1.5 m and 3 m | Real run-to-run repeatability (split-half is only a proxy); whether results move with range | 15 min |
+
+A stronger target is the biggest likely gain: **more tags, spread wider** (a wide target pins down
+rotation and range that a 14 in pair cannot), with their positions tape-measured into a lab
+layout file. That is a bigger change; check 5 and 6 say whether it is needed.
 
 ### If it says "not repeatable" (first real run, 2026-11-14, hub pair at ~2.5 m)
 

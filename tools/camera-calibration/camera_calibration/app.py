@@ -56,14 +56,14 @@ def _streamlit_app() -> None:
         st.caption('Used in Manual 1 to convert tape readings to robot center position.')
         col1, col2 = st.columns(2)
         with col1:
-            half_len      = st.number_input('½ length (in)', value=14.5, step=0.25, format='%.2f',
+            half_len      = st.number_input('½ length (in)', value=13.25, step=0.25, format='%.2f',
                                              help='Half robot frame length along drive axis, bumper excluded')
-            half_wid      = st.number_input('½ width (in)',  value=13.5, step=0.25, format='%.2f',
+            half_wid      = st.number_input('½ width (in)',  value=13.25, step=0.25, format='%.2f',
                                              help='Half robot frame width')
         with col2:
             bumper_depth  = st.number_input('Bumper depth (in)',    value=3.25, step=0.125, format='%.3f',
                                              help='Thickness of bumper frame assembly')
-            bumper_rail_w = st.number_input('Bumper rail width (in)', value=27.0, step=0.5, format='%.2f',
+            bumper_rail_w = st.number_input('Bumper rail width (in)', value=33.0, step=0.5, format='%.2f',
                                              help='Outer-to-outer distance between front bumper corners')
 
         st.divider()

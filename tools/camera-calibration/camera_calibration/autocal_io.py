@@ -137,6 +137,61 @@ def drive_check(spans, t_obs, obs_T, t_odo, odo, edge=(0.1, 0.4)) -> list[dict]:
     return out
 
 
+def span_mask(t, spans, names=('hold', 'holdend'), trim=0.3) -> np.ndarray:
+    """True for times inside the named phases, ignoring `trim` seconds at each end (the robot is settling)."""
+    t = np.asarray(t, float)
+    m = np.zeros(len(t), bool)
+    for name, t0, t1 in spans:
+        if name.lower() in names:
+            m |= (t >= t0 + trim) & (t <= t1 - trim)
+    return m
+
+
+def standstill_stats(spans, t_obs, obs_T, t_odo, odo) -> dict:
+    """What the camera does while the robot is standing still, and whether the run closes.
+
+    * noise: scatter of the camera's own pose during the start hold. The robot is not moving, so this is
+      pure vision noise (plus jitter in the robot), the floor under every other number in the report.
+    * closure: the robot ends where it started (the routine returns to the start). The camera's pose at the
+      end hold minus at the start hold, against the same thing from the wheels. Wheels and camera should
+      both be near zero; if the camera says it moved and the wheels say not, vision has a position-dependent
+      bias.
+    """
+    from scipy.spatial.transform import Rotation
+    t_obs = np.asarray(t_obs, float)
+    obs_T = np.asarray(obs_T)
+
+    def pick(name):
+        m = span_mask(t_obs, spans, (name,))
+        return np.flatnonzero(m)
+
+    out = {}
+    h = pick('hold')
+    if len(h) >= 5:
+        P = obs_T[h][:, :3, 3] * 1000.0
+        rv = Rotation.from_matrix(obs_T[h][:, :3, :3])
+        mean = rv.mean()
+        ang = np.degrees((mean.inv() * rv).magnitude())
+        out['noise'] = {'n': int(len(h)), 'x_mm': float(P[:, 0].std()), 'y_mm': float(P[:, 1].std()),
+                        'z_mm': float(P[:, 2].std()), 'rot_deg': float(np.sqrt(np.mean(ang ** 2)))}
+    e = pick('holdend')
+    if len(h) >= 5 and len(e) >= 5:
+        def mean_pose(idx):
+            c = obs_T[idx][:, :3, 3].mean(axis=0)
+            q = Rotation.from_matrix(obs_T[idx][:, :3, :3]).mean()
+            o = np.array([np.interp(t_obs[idx], t_odo, odo[:, i]).mean() for i in range(2)])
+            return c, q, o
+        c0, q0, o0 = mean_pose(h)
+        c1, q1, o1 = mean_pose(e)
+        out['closure'] = {
+            'vision_mm': float(np.linalg.norm((c1 - c0)[:2]) * 1000.0),
+            'vision_z_mm': float((c1 - c0)[2] * 1000.0),
+            'vision_deg': float(np.degrees((q0.inv() * q1).magnitude())),
+            'wheels_mm': float(np.linalg.norm(o1 - o0) * 1000.0),
+        }
+    return out
+
+
 def list_cameras(signals: dict) -> list[str]:
     import re
     rx = re.compile(r'^(?:RealOutputs/)?Vision/([^/]+)/rawEstimatedPoses$', re.IGNORECASE)
