@@ -10,7 +10,8 @@ import streamlit as st
 
 from ..autocal import cross_camera_agreement, solve, with_tag_height_correction
 from ..autocal_io import calibration_window, extract_run, list_cameras, list_tag_ids
-from ..solver import matrix_to_params
+from ..robot_defaults import camera_defaults, mount_for
+from ..solver import matrix_to_params, params_to_matrix
 
 log = logging.getLogger(__name__)
 
@@ -21,14 +22,12 @@ _KEY = '_autocal_results'
 
 def render(ctx: dict) -> None:
     signals = ctx.get('signals')
-    camera = ctx.get('camera', 'Left')
-    T_rc_current = ctx['T_rc_current']
 
     st.markdown(
         '**No tape needed.** Put the robot level on the floor about 2–2.5 m from the tag, roughly '
         'facing it, with ~1 m of clear floor around it. Cover the tags you do not want seen. Run the '
         '**CalibrateCameras** auto (about 25 s), fetch the log, and load it in the sidebar. '
-        'Do this once per camera in the sidebar, then check the two cameras against each other below.'
+        'Solve each camera in turn from the same log, then check the two against each other below.'
     )
     with st.expander('How it works, and what it cannot fix'):
         st.markdown(
@@ -50,9 +49,23 @@ def render(ctx: dict) -> None:
     if not cams:
         st.error('No Vision/<camera>/rawEstimatedPoses in this log.')
         return
-    if camera not in cams:
-        st.warning(f'The sidebar camera "{camera}" is not in this log (found: {", ".join(cams)}).')
-        return
+    # Camera and its current mount come from the log and the robot code; nothing to set in the sidebar.
+    camera = st.selectbox('Camera to calibrate', cams,
+                          help='The cameras found in this log. Solve one, then the other.')
+    defaults, defaults_src = camera_defaults()
+    d = mount_for(camera, defaults)
+    with st.expander(f'Current mount in the robot code: {defaults_src}', expanded=False):
+        st.caption('Prefilled from VisionConstants.java, so there is normally nothing to change. '
+                   'Edit only if the log was recorded with a different mount.')
+        c1, c2 = st.columns(2)
+        k = camera
+        x_in = c1.number_input('X (in)', value=d['x_in'], step=0.01, format='%.3f', key=f'aq_x_{k}')
+        y_in = c1.number_input('Y (in)', value=d['y_in'], step=0.01, format='%.3f', key=f'aq_y_{k}')
+        z_in = c1.number_input('Z (in)', value=d['z_in'], step=0.01, format='%.3f', key=f'aq_z_{k}')
+        roll = c2.number_input('Roll (°)', value=d['roll_deg'], step=0.1, format='%.2f', key=f'aq_r_{k}')
+        pitch = c2.number_input('Pitch (°)', value=d['pitch_deg'], step=0.1, format='%.2f', key=f'aq_p_{k}')
+        yaw = c2.number_input('Yaw (°)', value=d['yaw_deg'], step=0.1, format='%.2f', key=f'aq_y2_{k}')
+    T_rc_current = params_to_matrix(x_in * 0.0254, y_in * 0.0254, z_in * 0.0254, roll, pitch, yaw)
 
     window = calibration_window(signals)
     if window:
@@ -105,7 +118,7 @@ def render(ctx: dict) -> None:
     store = st.session_state.get(_KEY, {})
     if camera in store:
         _show(camera, store[camera])
-    if 'Left' in store and 'Right' in store:
+    if len(store) >= 2:
         _show_agreement(store)
 
 
@@ -155,7 +168,8 @@ def _show_agreement(store: dict) -> None:
     st.caption('Each camera is turned into a robot pose with its *new* mount and compared with the other '
                'camera at the same moment (within 20 ms). Use the same run for both. Single-frame noise '
                'sets a floor of roughly 20–30 mm, so look at the **drop** from the current mounts.')
-    L, R = store['Left'], store['Right']
+    (nameL, L), (nameR, R) = list(store.items())[:2]
+    st.caption(f'Comparing {nameL} and {nameR}.')
     args = (L['run']['t_obs'], L['run']['obs_T']), (R['run']['t_obs'], R['run']['obs_T'])
     new = cross_camera_agreement(*args[0], L['res'].T_rc, *args[1], R['res'].T_rc)
     old = cross_camera_agreement(*args[0], L['T_rc_current'], *args[1], R['T_rc_current'])

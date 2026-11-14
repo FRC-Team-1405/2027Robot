@@ -12,17 +12,11 @@ from vision_analyzer.parser import _parse_wpilog_bytes, parse_wpilog
 
 from .field   import load_tag_poses
 from .logger  import get_log_file
+from .robot_defaults import DEFAULT_TAG_ID, camera_defaults, mount_for
 from .solver  import params_to_matrix
 from .tabs    import TABS
 
 log = logging.getLogger(__name__)
-
-# Default T_rc values per camera from VisionConstants.java (2026 baseline)
-_DEFAULTS = {
-    'Left':  {'x_in': 2.19,  'y_in':  10.91, 'z_in': 28.7, 'pitch': -25.0, 'yaw': -10.0},
-    'Right': {'x_in': 2.19,  'y_in': -10.91, 'z_in': 28.7, 'pitch': -25.0, 'yaw':  10.0},
-}
-
 
 def _running_under_streamlit() -> bool:
     try:
@@ -84,29 +78,42 @@ def _streamlit_app() -> None:
 
         tag_id = st.selectbox(
             'Tag ID on your wall', tag_id_options,
-            index=tag_id_options.index(7) if 7 in tag_id_options else 0,
-            help='Must match the ID of the AprilTag you physically mounted.',
+            index=tag_id_options.index(DEFAULT_TAG_ID) if DEFAULT_TAG_ID in tag_id_options else 0,
+            help='Must match the ID of the AprilTag you physically mounted. '
+                 f'Default {DEFAULT_TAG_ID}: the hub tag the CircleFacingTag test uses.',
         )
+        # Default to the field layout's height for this tag (hub tags: 44.25 in); the key includes
+        # the tag ID so the value follows the selection.
+        layout_h_in = float(tag_poses[tag_id][2, 3] / 0.0254) if tag_id in tag_poses else 44.25
         tag_height_in = st.number_input(
-            'Tag center height (in)', value=36.0, step=1.0, format='%.1f',
-            help='Measured from floor to center of the tag.',
+            'Tag center height (in)', value=round(layout_h_in, 3), step=0.125, format='%.3f',
+            key=f'tag_height_{tag_id}',
+            help='Floor to the center of the tag. Defaults to the field layout; change it if you '
+                 'measured something different.',
         )
 
         st.divider()
         st.header('Camera to Calibrate')
-        camera_name = st.selectbox('Camera', ['Left', 'Right'])
-        d = _DEFAULTS.get(camera_name, _DEFAULTS['Left'])
+        defaults, defaults_src = camera_defaults()
+        names = list(defaults) + ['Other...']
+        choice = st.selectbox('Camera', names,
+                              help='Names come from VisionConstants.java. Pick Other to type any name '
+                                   'used in the log (Vision/<name>/...).')
+        camera_name = (st.text_input('Camera name', value='', placeholder='as it appears in the log')
+                       if choice == 'Other...' else choice) or 'Camera'
+        d = mount_for(camera_name, defaults)
 
-        st.caption('Current transform (copy from VisionConstants.java)')
+        st.caption(f'Current transform: from {defaults_src}. Edit if the code has changed.')
+        k = camera_name  # keys include the camera so switching camera reloads its defaults
         ca, cb = st.columns(2)
         with ca:
-            cur_x_in  = st.number_input('X (in)',    value=d['x_in'],  step=0.01, format='%.3f', key='tc_x')
-            cur_y_in  = st.number_input('Y (in)',    value=d['y_in'],  step=0.01, format='%.3f', key='tc_y')
-            cur_z_in  = st.number_input('Z (in)',    value=d['z_in'],  step=0.01, format='%.3f', key='tc_z')
+            cur_x_in  = st.number_input('X (in)',    value=d['x_in'],  step=0.01, format='%.3f', key=f'tc_x_{k}')
+            cur_y_in  = st.number_input('Y (in)',    value=d['y_in'],  step=0.01, format='%.3f', key=f'tc_y_{k}')
+            cur_z_in  = st.number_input('Z (in)',    value=d['z_in'],  step=0.01, format='%.3f', key=f'tc_z_{k}')
         with cb:
-            cur_roll  = st.number_input('Roll (°)',  value=0.0,        step=0.1,  format='%.2f', key='tc_roll')
-            cur_pitch = st.number_input('Pitch (°)', value=d['pitch'], step=0.1,  format='%.2f', key='tc_pitch')
-            cur_yaw   = st.number_input('Yaw (°)',   value=d['yaw'],   step=0.1,  format='%.2f', key='tc_yaw')
+            cur_roll  = st.number_input('Roll (°)',  value=d['roll_deg'],  step=0.1, format='%.2f', key=f'tc_roll_{k}')
+            cur_pitch = st.number_input('Pitch (°)', value=d['pitch_deg'], step=0.1, format='%.2f', key=f'tc_pitch_{k}')
+            cur_yaw   = st.number_input('Yaw (°)',   value=d['yaw_deg'],   step=0.1, format='%.2f', key=f'tc_yaw_{k}')
 
     # ── Build context objects ─────────────────────────────────────────────────
     robot_cfg = {

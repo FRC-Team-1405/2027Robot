@@ -71,8 +71,9 @@ and speeds are constants at the top of the file.
 3. Deploy, enable **autonomous** with CalibrateCameras selected. Disable when it stops.
 4. Fetch the log (LogBench, or the roboRIO's `/home/lvuser/logs/`).
 5. `streamlit run calibrate.py` in `tools/camera-calibration`. Load the log. **Quick · Spin &
-   drive** tab. In the sidebar, set the camera and its *current* mount (copy from
-   `VisionConstants.java`). Pick the tag IDs. Solve.
+   drive** tab. The cameras are the ones found in the log (any name), and their current mounts
+   are read from `VisionConstants.java` automatically, so there is nothing to enter. Pick the tag
+   IDs (it suggests the ones the camera saw most). Solve.
 6. Do the same for the other camera, from the **same log**. The agreement table then appears.
 7. Paste the Java snippets into `VisionConstants.java`. Re-run the auto and check that the
    agreement and the camera-vs-camera difference at a standstill are small.
