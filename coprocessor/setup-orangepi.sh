@@ -279,6 +279,10 @@ case "$choice" in 1|2|3) ;; 4) exit 0 ;; *) die 'Choose 1, 2, 3, or 4.' ;; esac
 confirm 'Install/update selected scripts and units, and restart selected services?' || exit 0
 PHASE='sudo access'
 if [[ "$UNATTENDED" == 1 ]]; then sudo -n true || die 'Unattended mode needs passwordless sudo for pi.'; else sudo -v; fi
+
+PHASE='camera access (video group)'
+# Lets pi open /dev/video* without root (bench capture step, v4l2-ctl). Applies from the next SSH login.
+sudo usermod -aG video pi
 WORK_DIR=$(mktemp -d)
 
 PHASE='board NetworkTables identity'

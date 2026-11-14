@@ -25,3 +25,6 @@ Things worth knowing:
   <plan>`), then `ssh pi@LeftPi.local` and run `bash ~/bench/code/run.sh selftest --results
   ~/bench/results/manual`.
 - Needs `v4l-utils` (for `v4l2-ctl`) for `capture`; the 10-28 notes show it's on both Pis.
+- **`pi` must be in the `video` group** for `capture`, or `v4l2-ctl` fails with permission denied
+  (the run exits 1 right after stopping PhotonVision). `setup-orangepi.sh` (so the bootstrap) now
+  does this; on a Pi set up earlier, run `sudo usermod -aG video pi` once and log in again.
