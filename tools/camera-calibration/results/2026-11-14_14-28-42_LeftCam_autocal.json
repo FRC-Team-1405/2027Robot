@@ -1,0 +1,194 @@
+{
+ "kind": "camera-autocal",
+ "saved": "2026-11-14T14:28:42",
+ "git_sha": "40fa1f04ab92",
+ "log_file": "akit_26-11-14_19-11-27.wpilog",
+ "camera": "LeftCam",
+ "tag_ids": [
+  9,
+  10
+ ],
+ "calibration_window_s": [
+  112.982194,
+  129.990503
+ ],
+ "samples": {
+  "used": 1107,
+  "total": 1129,
+  "results_in_window": 1129,
+  "dropped_by_tag_filter": 0
+ },
+ "current_mount": {
+  "x_m": 0.055625999999999995,
+  "y_m": 0.27711399999999997,
+  "z_m": 0.72898,
+  "roll_deg": 1.5902773407317584e-15,
+  "pitch_deg": -24.999999999999996,
+  "yaw_deg": -10.0,
+  "x_in": 2.19,
+  "y_in": 10.91,
+  "z_in": 28.7
+ },
+ "calibrated_mount": {
+  "x_m": 0.04988404232382917,
+  "y_m": 0.2776491743215367,
+  "z_m": 0.6108338051419607,
+  "roll_deg": 0.16545278062967309,
+  "pitch_deg": -28.576452549209222,
+  "yaw_deg": -5.849445440418071,
+  "x_in": 1.9639386741665028,
+  "y_in": 10.93106985517861,
+  "z_in": 24.048575005589004
+ },
+ "sigma_1": {
+  "x_mm": 9.401463172486883,
+  "y_mm": 9.840039615681901,
+  "z_mm": 0.8233785957679342,
+  "roll_deg": 0.05756032549517189,
+  "pitch_deg": 0.05209601923905014,
+  "yaw_deg": 0.23593877536234445
+ },
+ "residual_rms": {
+  "position_mm": 52.36527097626223,
+  "rotation_deg": 1.1507436900937806
+ },
+ "clock_offset_ms": -30.03055182507913,
+ "odometry_scale": 0.8748348528952953,
+ "repeatability_split_half": {
+  "dx_mm": -35.66528085284504,
+  "dy_mm": 16.100773420942794,
+  "dz_mm": -2.2498550490857028,
+  "rot_deg": 0.8018531106013476
+ },
+ "phases": [
+  {
+   "phase": "Hold",
+   "seconds": 2.0137129999999956,
+   "samples": 131,
+   "rate": 65.05395754012626,
+   "rms_t_mm": 41.32909000041247,
+   "rms_r_deg": 0.6609232377531797
+  },
+  {
+   "phase": "SweepCCW",
+   "seconds": 1.2438889999999958,
+   "samples": 80,
+   "rate": 64.31442033814936,
+   "rms_t_mm": 37.873531668112946,
+   "rms_r_deg": 0.739715716442665
+  },
+  {
+   "phase": "SweepCW",
+   "seconds": 2.4965700000000055,
+   "samples": 168,
+   "rate": 67.29232506999588,
+   "rms_t_mm": 28.47079579866634,
+   "rms_r_deg": 0.6205784501376734
+  },
+  {
+   "phase": "SweepBack",
+   "seconds": 1.2623279999999966,
+   "samples": 88,
+   "rate": 69.71246775798384,
+   "rms_t_mm": 17.47691032218453,
+   "rms_r_deg": 0.6710190561587813
+  },
+  {
+   "phase": "DriveForward",
+   "seconds": 1.487690999999998,
+   "samples": 99,
+   "rate": 66.54607710875453,
+   "rms_t_mm": 42.481299733804434,
+   "rms_r_deg": 0.6136246280617041
+  },
+  {
+   "phase": "DriveBack",
+   "seconds": 1.5150720000000035,
+   "samples": 101,
+   "rate": 66.66349850040115,
+   "rms_t_mm": 50.87588626987176,
+   "rms_r_deg": 0.6513366705198357
+  },
+  {
+   "phase": "StrafeLeft",
+   "seconds": 1.4857799999999912,
+   "samples": 95,
+   "rate": 63.93947959994115,
+   "rms_t_mm": 70.5547395078988,
+   "rms_r_deg": 1.5535769463662454
+  },
+  {
+   "phase": "StrafeRight",
+   "seconds": 2.994991000000013,
+   "samples": 196,
+   "rate": 65.44260066223876,
+   "rms_t_mm": 79.75697455922567,
+   "rms_r_deg": 1.813288270046821
+  },
+  {
+   "phase": "StrafeCenter",
+   "seconds": 1.5058700000000016,
+   "samples": 102,
+   "rate": 67.73493063810282,
+   "rms_t_mm": 109.26779093878108,
+   "rms_r_deg": 2.774803514330954
+  },
+  {
+   "phase": "HoldEnd",
+   "seconds": 1.0024049999999818,
+   "samples": 67,
+   "rate": 66.83925159990345,
+   "rms_t_mm": 57.72103478623584,
+   "rms_r_deg": 0.9873017596645627
+  }
+ ],
+ "drive_check": [
+  {
+   "phase": "DriveForward",
+   "odo_mm": 490.65217299467105,
+   "vision_mm": 430.96844885177876,
+   "ratio": 0.8783583821129015,
+   "angle_deg": 0.35754183008725704,
+   "angle_dev_deg": -0.00010944503557652752
+  },
+  {
+   "phase": "DriveBack",
+   "odo_mm": 522.079222417988,
+   "vision_mm": 484.8945503297999,
+   "ratio": 0.9287758054879702,
+   "angle_deg": 0.9909729994828069,
+   "angle_dev_deg": 0.6333217243599734
+  },
+  {
+   "phase": "StrafeLeft",
+   "odo_mm": 484.1631776981104,
+   "vision_mm": 445.96669235129286,
+   "ratio": 0.921108239729387,
+   "angle_deg": 4.697899869749051,
+   "angle_dev_deg": 4.3402485946262175
+  },
+  {
+   "phase": "StrafeRight",
+   "odo_mm": 1295.6375287712162,
+   "vision_mm": 1110.139512614114,
+   "ratio": 0.8568287719073492,
+   "angle_deg": -1.4618861008062538,
+   "angle_dev_deg": -1.8195373759290874
+  },
+  {
+   "phase": "StrafeCenter",
+   "odo_mm": 507.32869237877685,
+   "vision_mm": 430.2961570596784,
+   "ratio": 0.8481604993443085,
+   "angle_deg": -8.10155583932422,
+   "angle_dev_deg": -8.459207114447054
+  }
+ ],
+ "warnings": [
+  "x_mm uncertainty is 9.40 mm (limit 8): more data or a better tag view would help.",
+  "y_mm uncertainty is 9.84 mm (limit 8): more data or a better tag view would help.",
+  "The two halves of the run disagree by 36/16 mm and 0.80 deg: the result is not repeatable. Re-run, or check for odometry slip.",
+  "Wheel odometry distance is off by 12.5% (fitted scale 0.875): check the wheel radius in the swerve constants, and for wheel slip."
+ ],
+ "java_snippet": "// LeftCam \u2014 calibrated 2026-11-14\nnew Transform3d(\n    new Translation3d(\n        Units.inchesToMeters(1.964),\n        Units.inchesToMeters(10.931),\n        Units.inchesToMeters(24.049)),\n    new Rotation3d(\n        Math.toRadians(0.165),\n        Math.toRadians(-28.576),\n        Math.toRadians(-5.849)))"
+}
