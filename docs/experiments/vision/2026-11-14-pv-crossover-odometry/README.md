@@ -87,15 +87,40 @@ as in a match; the analysis does not depend on them.
 | X1a, X1b, X1c | A | B | to do |
 | X2a, X2b, X2c | B | A | to do |
 
-**Order** (fixed shuffle, seed 1405): X1b, X1a, AA1, X2a, X1c, AA2, X2c, X2b. The same list is in
-[runs.toml](runs.toml), where each run's log is entered afterwards.
+**Order** (fixed shuffle, seed 1405): X1b, X1a, AA1, X2a, X1c, AA2, X2c, X2b. It is in
+[runs.toml](runs.toml), which the experiment runner reads.
 
-### Changing a setting (about a minute per camera)
+### Running it (the experiment runner does the settings, the log names and the bookkeeping)
 
-In the PhotonVision UI of each Pi: camera **Video mode**, then **Decimate 2**, **Threads 8**,
-**Low Latency Mode off**, exposure and gain unchanged. Wait for the stream to come back. The Pi
-publisher logs the camera mode and pipeline settings, and `analyze.py` checks the log against the
-table, so a mistake shows up as a flagged run, not a mystery.
+LogBench running (VS Code task `LogBench`), laptop on the robot network, robot code running, the
+Pi publisher running on both Pis. From `tools/exprunner` (first time: `python -m pip install -r
+requirements.txt`):
+
+```bash
+python -m exprunner doctor ../../docs/experiments/vision/2026-11-14-pv-crossover-odometry/runs.toml
+```
+
+```bash
+python -m exprunner run ../../docs/experiments/vision/2026-11-14-pv-crossover-odometry/runs.toml
+```
+
+```bash
+python -m exprunner finish ../../docs/experiments/vision/2026-11-14-pv-crossover-odometry/runs.toml
+```
+
+Then, from the repo root:
+
+```bash
+python docs/experiments/vision/2026-11-14-pv-crossover-odometry/analyze.py
+```
+
+For each run `run` sets both cameras in PhotonVision, confirms the Pi publisher reports the new mode,
+decimate and threads, asks you to **enable `CircleFacingTag_Tag10` and disable it when it stops**, fetches
+the log through LogBench, and records it in `manifest.json` (including the robot-time window the robot was
+enabled, so `analyze.py` scores exactly that part of the log). `finish` puts the cameras back to what they
+were before. Stopping at any point is safe: run it again and it carries on. If PhotonVision's web socket
+can't be reached, the runner tells you what to change in the UI and waits for the Pi to show it
+(`--manual` does that from the start). Details: [the runner's README](../../../../tools/exprunner/README.md).
 
 ### Before the session
 
@@ -103,10 +128,9 @@ table, so a mistake shows up as a flagged run, not a mystery.
       as calibrated (`CalibratedResolutions`); check the reprojection error in the PhotonVision
       calibration page, and that fx at 1280x800 is sensible compared with 800x600 (about 690).
 - [ ] Robot code on this branch deployed (it makes the pixel-offset filter use the image size
-      PhotonVision is actually running; at 800x600 it changes nothing). Note the SHA.
-- [ ] Both cameras start on A. Same exposure/gain on both.
+      PhotonVision is actually running; at 800x600 it changes nothing).
+- [ ] `doctor` says "all good".
 - [ ] A fixed start spot taped, as `CircleFacingTag` starts from a fixed point anyway.
-- [ ] After each run, copy its log name into `runs.toml`. Trim with the WPILog Janitor first.
 
 ## Pilot: checking the analysis on existing logs (not a result)
 

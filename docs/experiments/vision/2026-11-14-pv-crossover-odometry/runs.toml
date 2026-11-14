@@ -1,86 +1,74 @@
-# Run table for the camera-setting crossover experiment (README.md next to this file).
+# Run plan for the camera-setting crossover experiment (README.md next to this file).
 #
-# Fill in `log` (relative to logs/offseason/, no .wpilog) after each run. analyze.py reads the actual
-# PhotonVision settings out of each log and reports any run whose log disagrees with `left` / `right`
-# here, so a wrong setting shows up as a problem instead of a bad result.
+# From tools/exprunner:
+#   python -m exprunner check ../../docs/experiments/vision/2026-11-14-pv-crossover-odometry/runs.toml
+#   python -m exprunner run   ../../docs/experiments/vision/2026-11-14-pv-crossover-odometry/runs.toml
+#   python -m exprunner finish ../../docs/experiments/vision/2026-11-14-pv-crossover-odometry/runs.toml
+# Then, from the repo root: python docs/experiments/vision/2026-11-14-pv-crossover-odometry/analyze.py
 #
-#   python docs/experiments/vision/2026-11-14-pv-crossover-odometry/analyze.py
+# Per run the runner sets both cameras in PhotonVision, checks the Pi publisher reports the new values,
+# asks you to enable the auto, notices enable -> disable, fetches the log through LogBench and records it
+# in manifest.json. `finish` puts the cameras back to what they were before the first run.
 #
-# Order below is a fixed random shuffle (seed 1405) so drift (battery, Pi temperature) hits both
-# settings; keep it unless a run fails.
+# Order below is a fixed random shuffle (seed 1405) so drift (battery, Pi temperature) hits both settings.
 
-[cameras.left]
-camera = "LeftCam"
-pi = "LeftPi"
+experiment = "VIS-2026-11-14-pv-crossover-odometry"
+kind = "robot"
+routine = "CircleFacingTag_Tag10"
+cameras = ["LeftPi/LeftCam", "RightPi/RightCam"]
 
-[cameras.right]
-camera = "RightCam"
-pi = "RightPi"
-
-# What each setting name means. Decimate 2 and threads 8 on both (the competition pipeline);
-# only the resolution (and so the results/s the Pi can reach) differs.
-[settings.A]
-mode = "800x600"          # logged as "800x600 MJPG @100"
+# Every setting starts from these: the competition pipeline (decimate 2, threads 8), exposure and gain
+# the same on both cameras (the 11-10 logs: 80 and 25), Low Latency off.
+[defaults]
 decimate = 2
 threads = 8
+low_latency = false
+exposure = 80.0
+gain = 25
+
+# A = the competition setting (about 101 results/s). B = the higher resolution (about 63 results/s).
+[settings.A]
+camera_mode = "800x600 MJPG @100"
 
 [settings.B]
-mode = "1280x800"         # logged as "1280x800 MJPG @100"
-decimate = 2
-threads = 8
+camera_mode = "1280x800 MJPG @100"
 
 [[runs]]
 id = "X1b"
-kind = "X1"
-left = "A"
-right = "B"
-log = ""
+what = "Left on A, Right on B"
+use = { LeftCam = "A", RightCam = "B" }
 
 [[runs]]
 id = "X1a"
-kind = "X1"
-left = "A"
-right = "B"
-log = ""
+what = "Left on A, Right on B"
+use = { LeftCam = "A", RightCam = "B" }
 
 [[runs]]
 id = "AA1"
-kind = "AA"
-left = "A"
-right = "A"
-log = ""
+what = "Both on A (the control: how different are the two cameras with nothing changed?)"
+use = { all = "A" }
 
 [[runs]]
 id = "X2a"
-kind = "X2"
-left = "B"
-right = "A"
-log = ""
+what = "Left on B, Right on A"
+use = { LeftCam = "B", RightCam = "A" }
 
 [[runs]]
 id = "X1c"
-kind = "X1"
-left = "A"
-right = "B"
-log = ""
+what = "Left on A, Right on B"
+use = { LeftCam = "A", RightCam = "B" }
 
 [[runs]]
 id = "AA2"
-kind = "AA"
-left = "A"
-right = "A"
-log = ""
+what = "Both on A (the control)"
+use = { all = "A" }
 
 [[runs]]
 id = "X2c"
-kind = "X2"
-left = "B"
-right = "A"
-log = ""
+what = "Left on B, Right on A"
+use = { LeftCam = "B", RightCam = "A" }
 
 [[runs]]
 id = "X2b"
-kind = "X2"
-left = "B"
-right = "A"
-log = ""
+what = "Left on B, Right on A"
+use = { LeftCam = "B", RightCam = "A" }

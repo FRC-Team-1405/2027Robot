@@ -54,7 +54,6 @@ def test_list_values_join_with_commas():
 
 
 @pytest.mark.parametrize("bad, message", [
-    ('kind = "robot"', "isn't built yet"),
     ('kind = "nope"', "kind must be"),
     ('boards = []', "non-empty"),
     ('bogus = 1', "unknown keys"),

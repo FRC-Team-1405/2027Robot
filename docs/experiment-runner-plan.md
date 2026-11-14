@@ -5,11 +5,26 @@ both Pis, checks the settings took, then hands over to a person to run the auto.
 fetches that run's log through LogBench and records what ran. The person still enables and
 disables the robot. Everything else is done by the tool.
 
-Status: **bench experiments built** (`tools/exprunner`, branch `feature/experiment-runner`): plan
-files, manifest, copy-only sync of `coprocessor/bench/` to the Pis, steps run over SSH, results
-fetched back. First used by the [frame-cost bench test](experiments/vision/2026-11-11-pv-frame-cost/README.md).
-**Robot experiments (build order steps 1–5 below) not built yet.** Nothing here needs a change
-to PhotonVision or the robot code. The pieces it calls already exist (see "What already exists").
+Status: **built** (`tools/exprunner`). **Bench experiments** (2026-11-11): plan files, manifest,
+copy-only sync of `coprocessor/bench/` to the Pis, steps run over SSH, results fetched back; first used
+by the [frame-cost bench test](experiments/vision/2026-11-11-pv-frame-cost/README.md). **Robot
+experiments** (2026-11-14): build order steps 1-5 below, all built, and tested end to end against fakes
+and against real in-process NetworkTables and web socket servers. **Not yet run against a live
+PhotonVision**: that is the first real test of the web socket messages (`pv-dump` exists for debugging).
+Nothing here needs a change to PhotonVision or the robot code. The pieces it calls already exist (see
+"What already exists").
+
+How it differs from the design below (decided while building):
+
+- **Plan files are TOML**, like the bench plans, not YAML: `[defaults]`, `[settings.A]`, and `use = {
+  LeftCam = "A", RightCam = "B" }` per run, so two cameras can differ within a run (the crossover).
+- **No Main/Experiment pipelines.** The runner works on the camera's current pipeline and records each
+  camera's settings as a **baseline** before the first run; `finish` restores it. That needs no manual
+  pipeline setup. Named pipelines can still be added later.
+- **`doctor`** checks a session is ready (NetworkTables, Driver Station word, each camera's publisher,
+  PhotonVision's web socket and mode list, LogBench), and **`--manual`** exists: if the web socket fails
+  the runner says what to set in the PhotonVision UI and waits for the Pi to show it.
+- The settings are checked again **after** the run; a change during it fails the run.
 
 ## Why
 

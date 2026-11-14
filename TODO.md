@@ -33,6 +33,10 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Vision experiments
 
+- [ ] **Run the resolution crossover experiment with the experiment runner**: `doctor`, `run`, `finish`,
+      then `analyze.py`. First live use of the robot-experiment runner, so also the first test of its
+      PhotonVision web socket messages (`pv-dump` if they differ).
+      [`docs/experiments/vision/2026-11-14-pv-crossover-odometry/`, `tools/exprunner/README.md`, 11-14]
 - [ ] **Camera mounts: find a trustworthy reference for the robot centreline and heading**, then
       redo the crosshair aim check and a static truth stop; try the "robot against the wall, back
       straight off" run. Constants stay as they are for now (they match tape).

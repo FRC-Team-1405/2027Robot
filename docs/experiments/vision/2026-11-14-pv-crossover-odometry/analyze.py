@@ -1,11 +1,13 @@
 """Metrics for the camera-setting crossover experiment (see README.md).
 
-Run from the repo root:
-    python docs/experiments/vision/2026-11-14-pv-crossover-odometry/analyze.py [--config runs.toml]
+Run from the repo root, after the runs (python -m exprunner run runs.toml, from tools/exprunner):
+    python docs/experiments/vision/2026-11-14-pv-crossover-odometry/analyze.py
 
-For every run it reads, from the log itself (never from notes): each camera's PhotonVision settings
-(camera mode, decimate, threads, exposure, gain), the git SHA and feature switches, and checks them
-against what the run table says was running. Then, from each camera's RAW per-camera robot-pose estimates
+It reads the experiment runner's manifest.json (which log belongs to which run, the robot-time window the
+robot was enabled, which setting each camera was on) and runs.toml (what each setting means). For every run
+it reads, from the log itself (never from notes): each camera's PhotonVision settings (camera mode,
+decimate, threads, exposure, gain), the git SHA and feature switches, and checks them against what the
+run asked for. Then, from each camera's RAW per-camera robot-pose estimates
 (logged before any filtering, so the robot's filter and trust settings do not matter), it computes:
 
   * results/s, the longest gap, the share of the run in gaps longer than 50 ms
@@ -21,6 +23,7 @@ Writes results.json next to this file.
 """
 import argparse
 import bisect
+import json as _json
 import json
 import math
 import statistics
@@ -72,9 +75,10 @@ def auto_window(sig):
 
 
 def pv_settings(sig, pi, cam):
+    """The camera's PhotonVision settings as the Pi publisher logged them, with the runner's names."""
     b = f"OrangePi/{pi}/"
     return {
-        "mode": last(sig, b + "Video/video0/Mode"),
+        "camera_mode": last(sig, b + "Video/video0/Mode"),
         "decimate": last(sig, b + f"PhotonVision/{cam}/Decimate"),
         "threads": last(sig, b + f"PhotonVision/{cam}/Threads"),
         "exposure": last(sig, b + f"PhotonVision/{cam}/Exposure"),
@@ -83,6 +87,19 @@ def pv_settings(sig, pi, cam):
         "low_latency": last(sig, b + f"PhotonVision/{cam}/LowLatencyMode"),
         "pipeline": last(sig, b + f"PhotonVision/{cam}/PipelineName"),
     }
+
+
+def matches(want, got):
+    if got is None:
+        return False
+    if isinstance(want, bool) or isinstance(got, bool):
+        return bool(want) == bool(got)
+    if isinstance(want, (int, float)):
+        try:
+            return abs(float(want) - float(got)) < 1e-6 * max(1.0, abs(float(want)))
+        except (TypeError, ValueError):
+            return False
+    return str(want).split(" ")[0] == str(got).split(" ")[0] and str(want).split("@")[-1].strip() == str(got).split("@")[-1].strip()
 
 
 def camera_series(sig, cam, window):
@@ -190,34 +207,50 @@ def left_minus_right(a, b, max_dt=0.006):
 
 # --------------------------------------------------------------------------- a run
 
-def analyze_run(run, cfg):
-    path = LOGS / (run["log"] + ".wpilog")
-    if not path.exists():
-        alt = list(LOGS.glob(f"**/{Path(run['log']).name}.wpilog"))
-        if not alt:
-            raise FileNotFoundError(path)
-        path = alt[0]
+def find_log(name):
+    stem = Path(name).name
+    if not stem.endswith(".wpilog"):
+        stem += ".wpilog"
+    hits = sorted(LOGS.glob(f"**/{stem}")) or sorted((REPO / "logs").glob(f"**/{stem}"))
+    if not hits:
+        raise FileNotFoundError(f"{stem} (looked under logs/)")
+    return hits[0]
+
+
+def analyze_run(run_id, entry, plan):
+    """One run from the runner's manifest entry. `plan` is the parsed runs.toml."""
+    path = find_log(entry["log"]["name"])
     sig = parse_wpilog(str(path))
-    window = auto_window(sig)
-    cams = cfg["cameras"]
-    res = {"id": run["id"], "kind": run["kind"], "log": run["log"], "window_s": None if not window else window[1] - window[0],
-           "git_sha": last(sig, "RealMetadata/GitSHA"), "git_dirty": last(sig, "RealMetadata/GitDirty"),
+    win = entry.get("enable_window") or {}
+    window = (win["t_enable"], win["t_disable"]) if win.get("t_enable") and win.get("t_disable") else None
+    source = "enable window from the runner"
+    if window is None:
+        window = auto_window(sig)
+        source = "longest autonomous span in the log"
+    cams = {}
+    for pi, cam in (c.split("/") for c in plan["cameras"]):
+        side = "left" if "left" in cam.lower() else "right" if "right" in cam.lower() else cam
+        cams[side] = (pi, cam)
+    res = {"id": run_id, "log": path.name, "window_s": None if not window else window[1] - window[0],
+           "window_source": source, "git_sha": last(sig, "RealMetadata/GitSHA"),
+           "git_dirty": last(sig, "RealMetadata/GitDirty"),
            "feature_switches": last(sig, "RealMetadata/FeatureSwitches"), "cameras": {}, "problems": []}
     series = {}
-    for side in ("left", "right"):
-        cam, pi = cams[side]["camera"], cams[side]["pi"]
-        want_name = run[side]
-        want = cfg["settings"][want_name]
+    for side, (pi, cam) in cams.items():
+        name = entry["use"][cam]
+        want = {**plan.get("defaults", {}), **plan["settings"][name]}
         got = pv_settings(sig, pi, cam)
         for k, v in want.items():
-            if str(got.get(k)).split(" ")[0] != str(v).split(" ")[0]:
-                res["problems"].append(f"{side} ({cam}) {k}: run table says {v}, log says {got.get(k)}")
-        s = camera_series(sig, cam, window)
-        series[side] = s
-        res["cameras"][side] = {"camera": cam, "setting": want_name, "log_settings": got, **camera_metrics(s, window)}
-    res["left_minus_right"] = left_minus_right(series["left"], series["right"])
+            if not matches(v, got.get(k)):
+                res["problems"].append(f"{side} ({cam}) {k}: asked for {v}, the log says {got.get(k)}")
+        s_ = camera_series(sig, cam, window)
+        series[side] = s_
+        res["cameras"][side] = {"camera": cam, "setting": name, "log_settings": got, **camera_metrics(s_, window)}
+    res["left_minus_right"] = left_minus_right(series["left"], series["right"]) if len(series) == 2 else {}
+    if entry.get("drifted_during_run"):
+        res["problems"].append(f"settings changed during the run: {entry['drifted_during_run']}")
     if window is None:
-        res["problems"].append("no autonomous span found in the log")
+        res["problems"].append("no enable window and no autonomous span found in the log")
     return res
 
 
@@ -248,18 +281,26 @@ def summarize(results, cfg):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", default=str(HERE / "runs.toml"))
+    ap.add_argument("--plan", default=str(HERE / "runs.toml"))
+    ap.add_argument("--manifest", default=None, help="default: manifest.json next to the plan")
     args = ap.parse_args()
-    cfg = tomllib.loads(Path(args.config).read_text(encoding="utf-8"))
+    plan_path = Path(args.plan)
+    plan = tomllib.loads(plan_path.read_text(encoding="utf-8"))
+    manifest = Path(args.manifest) if args.manifest else plan_path.parent / "manifest.json"
+    if not manifest.exists():
+        sys.exit(f"{manifest} not found: run the experiment first (python -m exprunner run runs.toml, "
+                 "from tools/exprunner)")
+    runs = _json.loads(manifest.read_text(encoding="utf-8"))["runs"]
     results = []
-    for run in cfg["runs"]:
-        if not run.get("log"):
-            print(f"{run['id']}: no log yet; skipped")
+    for r in plan["runs"]:
+        entry = (runs.get(r["id"]) or {}).get("robot")
+        if not entry or entry.get("status") != "ok" or not (entry.get("log") or {}).get("name"):
+            print(f"{r['id']}: " + ("not run yet" if not entry else f"{entry['status']}, no usable log; skipped"))
             continue
         try:
-            results.append(analyze_run(run, cfg))
+            results.append(analyze_run(r["id"], entry, plan))
         except FileNotFoundError as e:
-            print(f"{run['id']}: log not found ({e}); skipped")
+            print(f"{r['id']}: log not found ({e}); skipped")
     print("\nPer run (jitter = scatter around a smooth curve; smaller is better)")
     print(f"{'run':<7}{'cam':<6}{'set':<4}{'res/s':>7}{'lat ms':>8}{'jit xy mm':>10}{'jit yaw°':>9}{'max gap ms':>11}{'gap %':>7}"
           f"{'tags':>6}{'dist m':>7}")
@@ -276,14 +317,14 @@ def main():
                   f"/ {lr['scatter_yaw_deg']:.2f}° over {lr['pairs']} pairs")
         for p in r["problems"]:
             print(f"{'':<7}!! {p}")
-    summ = summarize(results, cfg)
+    summ = summarize(results, plan)
     print("\nSetting B vs A, same camera (needs crossover runs; runs with problems are excluded)")
     for side, row in summ.items():
         for k, v in row.items():
             ch = "-" if v["change_pct"] is None else f"{v['change_pct']:+.0f}%"
             print(f"  {side:<6}{k:<22}A {v['A']:8.2f} (n={v['n_A']})  B {v['B']:8.2f} (n={v['n_B']})  change {ch}")
-    out = {"config": args.config, "runs": results, "summary": summ}
-    (HERE / "results.json").write_text(json.dumps(out, indent=1, default=float), encoding="utf-8")
+    out = {"plan": str(plan_path), "manifest": str(manifest), "runs": results, "summary": summ}
+    (HERE / "results.json").write_text(_json.dumps(out, indent=1, default=float), encoding="utf-8")
     print(f"\nwrote {HERE / 'results.json'}")
 
 

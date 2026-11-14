@@ -1,0 +1,4 @@
+# Robot plans only (bench plans need nothing beyond the standard library).
+pyntcore>=2026.0.0
+websockets>=12
+msgpack>=1.0
