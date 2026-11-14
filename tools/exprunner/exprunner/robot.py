@@ -46,6 +46,8 @@ class Session:
     clock: Callable[[], float] = time.monotonic
     settle_timeout: float = 20.0                   # how long a setting may take to show up in the readback
     poll: float = 1.0
+    fetch: str = "end"                             # "end": one download after the last run; "each": after every run
+    with_pi: bool = False                          # also download the Pis' vision recordings (large)
     apply_settings: bool = True                    # False: don't send; just verify (and wait for the person)
     wait_for_person: bool = True                   # keep waiting for hand changes instead of failing
     enable_timeout: float = 300.0                  # say so if no enable is seen for this long
@@ -206,10 +208,47 @@ def fetch_log(s: Session) -> tuple[dict | None, str | None]:
     if s.logbench is None:
         return None, None
     try:
-        res = s.logbench.fetch_newest(on_phase=lambda t: s.out(f"  {t}"))
+        res = s.logbench.fetch_newest(on_phase=lambda t: s.out(f"  {t}"), with_pi=s.with_pi)
         return res, None
     except LogBenchError as e:
         return None, str(e)
+
+
+def _log_entry(res: dict) -> dict:
+    return {"name": res.get("name"), "path": res.get("log"), "pi_sessions": res.get("pi_sessions"),
+            "warnings": res.get("warnings"), "size_bytes": res.get("rio_size_bytes"),
+            "fetch_seconds": res.get("seconds")}
+
+
+def fetch_pending(s: Session, manifest: Manifest) -> bool:
+    """One download for every ok run that doesn't have its log yet. All runs of a session are in the same
+    log (the robot code wasn't restarted), told apart by their enable windows in the manifest. Returns True
+    if there was nothing pending or the fetch worked."""
+    pending = [(rid, b[BOARD]) for rid, b in manifest.data["runs"].items()
+               if BOARD in b and b[BOARD].get("status") == "ok" and b[BOARD].get("log_pending")]
+    if not pending or s.logbench is None:
+        return True
+    s.out(f"\nfetching the robot log once for {len(pending)} run(s) ...")
+    res, err = fetch_log(s)
+    for rid, entry in pending:
+        if res:
+            entry["log"] = _log_entry(res)
+            entry.pop("log_pending", None)
+            entry.pop("fetch_error", None)
+        else:
+            entry["fetch_error"] = err
+    manifest.save()
+    if res:
+        size = res.get("rio_size_bytes")
+        s.out(f"  fetched {res.get('name')}" + (f" ({size / 1e6:.1f} MB)" if size else "") + f" in {res.get('seconds')} s")
+        # a robot restart between runs puts them in different logs; the newest one can only hold the later ones
+        t_max = max((e.get("enable_window") or {}).get("t_enable") or 0 for _r, e in pending)
+        t_min = min((e.get("enable_window") or {}).get("t_enable") or 0 for _r, e in pending)
+        if t_min and t_max and t_min > t_max:
+            s.out("  (note: robot time ran backwards between runs: the robot restarted. Earlier runs are in an older log)")
+        return True
+    s.out(f"  !! couldn't fetch the log: {err}. `python -m exprunner fetch PLAN` retries it.")
+    return False
 
 
 # ---------------------------------------------------------------------------- one run
@@ -238,15 +277,18 @@ def run_one(s: Session, run: Run, manifest: Manifest, git: dict | None = None) -
         if drift:
             entry["drifted_during_run"] = drift
             s.out("  !! settings changed during the run: " + "; ".join(f"{c}: {t}" for c, t in drift.items()))
-        res, err = fetch_log(s)
-        if res:
-            entry["log"] = {"name": res.get("name"), "path": res.get("log"), "pi_sessions": res.get("pi_sessions"),
-                            "warnings": res.get("warnings")}
-            s.out(f"  fetched {res.get('log')}")
-        elif err:
-            entry["fetch_error"] = err
-            s.out(f"  !! couldn't fetch the log: {err}")
-        entry["status"] = "ok" if (res or s.logbench is None) and not drift else "failed"
+        res = err = None
+        if s.fetch == "each":
+            res, err = fetch_log(s)
+            if res:
+                entry["log"] = _log_entry(res)
+                s.out(f"  fetched {res.get('name')} in {res.get('seconds')} s")
+            elif err:
+                entry["fetch_error"] = err
+                s.out(f"  !! couldn't fetch the log: {err}")
+        elif s.fetch == "end" and s.logbench is not None:
+            entry["log_pending"] = True           # fetched once after the last run (or by `fetch`)
+        entry["status"] = "ok" if (res or s.logbench is None or entry.get("log_pending")) and not drift else "failed"
     except (RobotRunError, PvError) as e:
         entry["error"] = str(e)
         s.out(f"  !! {e}")

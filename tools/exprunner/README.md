@@ -35,8 +35,13 @@ python analyze.py                    # (each experiment's own) reads manifest.js
 5. Tells you to close PhotonVision tabs and enable the auto, notices **enable then disable** on
    `/FMSInfo/FMSControlData`, and notes the window in robot time (a log holding several runs can be split
    later). It checks the settings again afterwards and fails the run if anything changed during it.
-6. Fetches the newest log (and the Pis' matching recordings) through LogBench, as the Fetch Bundle page does.
-7. Writes the run into `manifest.json`: what was asked, what was read back, the enable window, the log.
+6. Writes the run into `manifest.json`: what was asked, what was read back, the enable window (robot time).
+7. **After the last run, fetches the robot log once** through LogBench, as the Fetch Bundle page does. All
+   runs of a session are in one log (the robot code isn't restarted), told apart by their enable windows, so
+   there is one download, not one per run. It prefers the AdvantageKit log (`akit_*`) over WPILib's
+   `FRC_*.wpilog` (NetworkTables mirrored, out of time order), and does **not** download the Pis' vision
+   recordings unless you pass `--with-pi` (they are large, and every session since the last log rotation
+   comes along, so each download was bigger than the last).
 
 Before the first run it records each camera's settings as a **baseline**; `finish` puts them back, so a
 session never leaves the cameras on an experiment setting.
@@ -45,6 +50,7 @@ session never leaves the cameras on an experiment setting.
 |---|---|
 | `doctor PLAN` | Checks NetworkTables, the Driver Station word, each camera's publisher, PhotonVision's web socket and its camera-mode list, and LogBench |
 | `run PLAN [IDS...]` | Runs the runs not done yet (or the named IDs again). `--redo`, `--keep-going` |
+| `fetch PLAN` | Downloads the robot log for runs that don't have it yet (`run` does this itself at the end; use this to retry) |
 | `apply PLAN ID` | Sets PhotonVision to a run's settings without running it |
 | `finish PLAN` | Restores the baseline |
 | `status PLAN` | Done / failed / to do, with each run's cameras, log and the baseline if cameras are still changed |
@@ -53,7 +59,9 @@ session never leaves the cameras on an experiment setting.
 
 Options for `run`, `apply`, `finish`, `doctor`: `--nt HOST[:PORT]` (default: team 1405; `localhost` for
 the simulator), `--manual`, `--no-robot` (don't connect: nothing is checked from the Pis and you press
-Enter at the start and end of each run), `--no-fetch`, `--logbench URL`.
+Enter at the start and end of each run), `--fetch end|each|none` (when to download the log: once at the end, the
+default; after every run, for sessions where the robot code will restart; never), `--with-pi`, `--logbench URL`.
+If the robot code **restarts** during a session, its earlier runs are in an older log: use `--fetch each`.
 
 ### If PhotonVision's web socket changes
 

@@ -23,6 +23,9 @@ brownout), `drivetrain`, `mechanisms`, `tools`. Add an area when the first exper
 
 ## Conventions
 
+- **Commit a small extract, not the logs.** When an analysis reads a log, have it write just what it used
+  (the series, the settings, the window) to `data/<run>/` as compressed CSV/JSON, and be able to run again from
+  that alone (`--from-extract`). The crossover experiment's `analyze.py` is the example: about 100-200 KB per run.
 - **Logs stay in `logs/`** (gitignored, too big for git). The write-up names each run's log file,
   and `analyze.py` reads them from there. Trim with the WPILog Janitor first, so scripts only see
   enabled time.

@@ -71,10 +71,20 @@ class LogBenchClient:
 
     # ------------------------------------------------------------------ the one thing we need
 
-    def fetch_newest(self, on_phase: Callable[[str], None] | None = None, with_pi: bool = True) -> dict:
-        """Download the newest roboRIO log (+ suggested Pi sessions). Returns LogBench's result:
-        {'log': path relative to its log root, 'pi_sessions': [...], 'warnings': [...]}, plus 'name' and
-        'rio_size_bytes' of what was picked."""
+    def fetch_newest(self, on_phase: Callable[[str], None] | None = None, with_pi: bool = False,
+                     prefer: str = "akit_") -> dict:
+        """Download the newest roboRIO log. Returns LogBench's result: {'log': path relative to its log
+        root, 'pi_sessions': [...], 'warnings': [...]}, plus 'name', 'rio_size_bytes' and 'seconds'.
+
+        `prefer`: the roboRIO also writes WPILib's own FRC_*.wpilog (NetworkTables mirrored, written out
+        of time order); the AdvantageKit log (akit_*) is the one the analysis needs, and whichever was
+        flushed last is not a reliable way to tell them apart. Logs starting with `prefer` win if any
+        exist; otherwise the newest of anything.
+
+        `with_pi`: also download the Pis' vision recordings paired with the log. Off by default: they are
+        many MB of camera frames, and every extra session since the last log rotation comes along, so
+        each fetch is bigger than the last. Experiments that score the robot log don't need them."""
+        t0 = time.monotonic()
         start = self._call("POST", "/api/remote/sessions/jobs")
         if not start.get("configured", True):
             raise LogBenchError("LogBench has no remote_config.json, so it can't fetch from the robot "
@@ -83,7 +93,8 @@ class LogBenchClient:
         logs = listing.get("rio_logs") or []
         if not logs:
             raise LogBenchError("the roboRIO has no logs to fetch")
-        newest = max(logs, key=lambda r: r.get("mtime") or 0)
+        candidates = [r for r in logs if str(r.get("name", "")).startswith(prefer)] if prefer else []
+        newest = max(candidates or logs, key=lambda r: r.get("mtime") or 0)
         pi_sessions: list[dict] = []
         if with_pi:
             for p in listing.get("pairings") or []:
@@ -94,4 +105,5 @@ class LogBenchClient:
         result = self._wait(job["job_id"], f"downloading {newest['name']}", on_phase)
         result["name"] = newest["name"]
         result["rio_size_bytes"] = newest.get("size")
+        result["seconds"] = round(time.monotonic() - t0, 1)
         return result

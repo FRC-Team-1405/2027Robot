@@ -62,6 +62,7 @@ def session(plan, world=None, link=None, pv=None, lb=None, **kw):
                       logbench=LogBenchClient(lb.url, sleep=lambda x: None) if lb else None,
                       pv=pv or FakePv(world), say=lambda t: None, sleep=lambda x: None, **kw)
     s.world = world
+    s.fetch = "each"                    # most tests look at one run's log; the end-of-session fetch has its own
     return s
 
 
@@ -107,7 +108,7 @@ def test_run_applies_checks_waits_fetches_and_records(plan, lb):
     assert w["t_disable"] > w["t_enable"] and w["autonomous"] is True
     # the newest log was fetched (the later mtime), with its suggested Pi session
     assert e["log"]["name"] == "akit_26-11-14_19-11-27.wpilog"
-    assert e["log"]["pi_sessions"] == [{"camera": "LeftCam", "name": "s1", "pi": "LeftPi"}]
+    assert e["log"]["pi_sessions"] == []                  # the Pis' recordings aren't downloaded unless asked
     assert lb.bundle_body["rio_log"] == "akit_26-11-14_19-11-27.wpilog"
     # and the baseline (what the cameras were before) was recorded once, for `finish`
     assert m.data["baseline"]["RightCam"]["camera_mode"] == "800x600 MJPG @100"
@@ -192,7 +193,7 @@ def test_logbench_not_running_is_recorded_not_fatal(plan):
     dead.close()
     world = World()
     s = robot.Session(plan=plan, link=FakeLink(world), pi_hosts={}, logbench=LogBenchClient(url, sleep=lambda x: None),
-                      pv=FakePv(world), say=lambda t: None, sleep=lambda x: None)
+                      pv=FakePv(world), say=lambda t: None, sleep=lambda x: None, fetch="each")
     m = Manifest.open(plan.folder, plan.experiment)
     assert not robot.run_one(s, plan.run("AA"), m)
     e = m.entry("AA", robot.BOARD)
@@ -305,3 +306,64 @@ def test_no_robot_mode_tells_you_what_to_set_and_waits_for_enter(plan):
     assert len(answers) == 3          # settings done, run started, run finished
     assert world.sent == []           # nothing is sent without a way to confirm it
     assert m.entry("X1", robot.BOARD)["status"] == "ok" and not m.data.get("baseline")
+
+
+# ---------------------------------------------------------------- fetching once, and what gets fetched
+
+def test_logbench_prefers_the_akit_log_and_skips_pi_recordings_by_default():
+    server = FakeLogBench(logs=[
+        {"name": "akit_26-11-14_20-26-00.wpilog", "size": 5000, "mtime": 5.0},
+        {"name": "FRC_20261114_202608.wpilog", "size": 9000, "mtime": 9.0},      # flushed last, but not the one we need
+    ])
+    try:
+        res = LogBenchClient(server.url, sleep=lambda x: None).fetch_newest()
+        assert res["name"] == "akit_26-11-14_20-26-00.wpilog"
+        assert server.bundle_body["pi_sessions"] == []
+        assert res["seconds"] >= 0
+        server.logs[:] = [{"name": "FRC_only.wpilog", "size": 1, "mtime": 1.0}]
+        assert LogBenchClient(server.url, sleep=lambda x: None).fetch_newest()["name"] == "FRC_only.wpilog"
+        LogBenchClient(server.url, sleep=lambda x: None).fetch_newest(with_pi=True)
+        assert server.bundle_body["pi_sessions"] == [{"camera": "LeftCam", "name": "s1", "pi": "LeftPi"}]
+    finally:
+        server.close()
+
+
+def test_default_fetches_the_log_once_after_the_last_run(plan, lb):
+    world = World()
+    s = session(plan, world, lb=lb)
+    s.fetch = "end"
+    m = Manifest.open(plan.folder, plan.experiment)
+    for rid in ("X1", "X2", "AA"):
+        s.link.i = 0                                       # the scripted robot enables and disables again
+        assert robot.run_one(s, plan.run(rid), m)
+        assert m.entry(rid, robot.BOARD)["log_pending"] is True and "log" not in m.entry(rid, robot.BOARD)
+    assert [p for p in lb.requests if p == ("POST", "/api/remote/bundle/jobs")] == []      # nothing downloaded yet
+    assert robot.fetch_pending(s, m)
+    assert len([p for p in lb.requests if p == ("POST", "/api/remote/bundle/jobs")]) == 1  # one download for all three
+    for rid in ("X1", "X2", "AA"):
+        e = m.entry(rid, robot.BOARD)
+        assert e["log"]["name"] == "akit_26-11-14_19-11-27.wpilog" or e["log"]["name"].endswith(".wpilog")
+        assert "log_pending" not in e and e["log"]["fetch_seconds"] is not None
+    assert robot.fetch_pending(s, m)                       # nothing pending now: no second download
+    assert len([p for p in lb.requests if p == ("POST", "/api/remote/bundle/jobs")]) == 1
+
+
+def test_a_failed_end_fetch_is_retried_by_fetch(plan):
+    dead = FakeLogBench()
+    url = dead.url
+    dead.close()
+    world = World()
+    s = robot.Session(plan=plan, link=FakeLink(world), pi_hosts={}, logbench=LogBenchClient(url, sleep=lambda x: None),
+                      pv=FakePv(world), say=lambda t: None, sleep=lambda x: None, fetch="end")
+    m = Manifest.open(plan.folder, plan.experiment)
+    assert robot.run_one(s, plan.run("AA"), m)
+    assert not robot.fetch_pending(s, m)
+    e = m.entry("AA", robot.BOARD)
+    assert e["log_pending"] and "LogBench" in e["fetch_error"] and e["status"] == "ok"
+    live = FakeLogBench()
+    try:
+        s.logbench = LogBenchClient(live.url, sleep=lambda x: None)
+        assert robot.fetch_pending(s, m)
+        assert "log_pending" not in m.entry("AA", robot.BOARD) and "fetch_error" not in m.entry("AA", robot.BOARD)
+    finally:
+        live.close()

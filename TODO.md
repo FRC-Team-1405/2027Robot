@@ -33,6 +33,9 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Vision experiments
 
+- [ ] **Re-analyze the 11-14 crossover runs**: fetch the session's `akit_*` log (the first fetch took the
+      `FRC_*` log, so the analysis had no data; all 8 runs are in one log at the windows in the manifest), run
+      `analyze.py`, commit `data/` (the extract). [`docs/experiments/vision/2026-11-14-pv-crossover-odometry/`, 11-14]
 - [ ] **Run the resolution crossover experiment with the experiment runner**: `doctor`, `run`, `finish`,
       then `analyze.py`. First live use of the robot-experiment runner, so also the first test of its
       PhotonVision web socket messages (`pv-dump` if they differ).

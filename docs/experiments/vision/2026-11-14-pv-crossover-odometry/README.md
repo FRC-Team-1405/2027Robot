@@ -144,7 +144,34 @@ error at 1 m/s) is part of it, which does matter for odometry.
 
 ## Results
 
-Not run yet.
+**First live session, 2026-11-14: the runner worked, the analysis found no numbers.**
+
+What the manifest shows (all of it from the runner's own record):
+
+- **All 8 runs completed**, in the planned order, each in about 90-130 s of wall clock (about 20-23 s of
+  that is the enabled auto; the rest is changing settings, waiting for you, and the download).
+- **Every setting was confirmed from the Pi publisher** before each run (mode, decimate, threads, exposure,
+  gain, Low Latency), and **none drifted** during any run.
+- The robot-time enable windows are recorded (319-339 s, 429-449 s, ... 1005-1026 s of the same log), so the
+  runs can be cut out of one log exactly.
+
+What went wrong: `analyze.py` found no estimates (`n = 0`) and no settings for any camera. **The log it was
+given was `FRC_20261114_202608.wpilog`**, WPILib's own log, not the AdvantageKit `akit_*` log the analysis
+reads. The runner picked "the newest file on the roboRIO", and the two logs flush at about the same time. Fixed:
+the runner now prefers `akit_*`, and `analyze.py` also understands the `NT:/AdvantageKit/...` names an FRC log uses.
+Re-running needs the right log (fetch the `akit_*` log from this session; the robot code was never restarted, so
+all 8 runs are in it, at the windows above).
+
+Second problem found in the manifest: the Pi **vision recordings were downloaded with every run**, and the list
+grew by two sessions each time (2, 4, 6, ... 16). The log itself was the same file every time (the robot code
+wasn't restarted), but each fetch re-downloaded all of it plus every recording so far, so each was bigger than the
+last. Fixed: one download at the end, no recordings unless asked. The manifest now records each fetch's size and time,
+so we can see this instead of guessing.
+
+**Keeping the data without the logs.** `analyze.py` now writes a small extract to `data/<run>/` as it reads a log
+(each camera's raw estimates, the fused pose, the settings, the enable window; about 100-200 KB per run, gzipped).
+Commit `data/` and the numbers can be recomputed, or new metrics added, without the full logs:
+`python analyze.py --from-extract`.
 
 ### Verdicts
 

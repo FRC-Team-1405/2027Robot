@@ -8,6 +8,7 @@
 Robot experiments (kind = "robot") also have:
     python -m exprunner doctor PLAN            check the robot, Pis, PhotonVision and LogBench are ready
     python -m exprunner apply  PLAN ID         set PhotonVision to a run's settings, without running it
+    python -m exprunner fetch  PLAN            download the robot log for runs that don't have it (run does this once, at the end)
     python -m exprunner finish PLAN            put the cameras back to what they were before the session
     python -m exprunner pv-dump HOST           print what PhotonVision's web socket sends (to debug)
 
@@ -130,6 +131,8 @@ def _status_robot(plan: Plan, args) -> int:
     for r in plan.runs:
         e = m.entry(r.id, robot.BOARD)
         state = f"{e['status']} {e.get('finished', '')}" if e else "to do"
+        if e and e.get("log_pending"):
+            state += " (log not fetched)"
         log = (e or {}).get("log") or {}
         extra = f"  {log.get('name', '')}" if log else ""
         use = ", ".join(f"{c}={n}" for c, n in r.use.items())
@@ -158,7 +161,7 @@ def _robot_session(plan: Plan, args, need_logbench: bool = False) -> robot.Sessi
             raise PlanError(str(e)) from None
         print(f"connected to the robot's NetworkTables ({link.target})")
     lb = None
-    if need_logbench and not args.no_fetch:
+    if need_logbench and not args.no_fetch and getattr(args, "fetch", "end") != "none":
         lb = LogBenchClient(args.logbench)
         try:
             lb.ping()
@@ -166,6 +169,8 @@ def _robot_session(plan: Plan, args, need_logbench: bool = False) -> robot.Sessi
             raise PlanError(str(e)) from None
     s = robot.Session(plan=plan, link=link, pi_hosts={n: list(b.hosts) for n, b in known.items()}, logbench=lb)
     s.apply_settings = not getattr(args, "manual", False)
+    s.fetch = getattr(args, "fetch", "end")
+    s.with_pi = getattr(args, "with_pi", False)
     return s
 
 
@@ -187,8 +192,21 @@ def _run_robot(plan: Plan, args) -> int:
             if not args.keep_going:
                 print("\nstopped after a failure (use --keep-going to carry on); `status` shows what's left")
                 return 1
+    if s.fetch == "end":
+        robot.fetch_pending(s, m)
     print(f"\ndone: {len(todo)} run(s), {failed} failed. `finish` puts the cameras back to their baseline.")
     return 1 if failed else 0
+
+
+def cmd_fetch(plan: Plan, args) -> int:
+    if plan.kind != "robot":
+        raise PlanError("`fetch` is for robot plans")
+    m = Manifest.open(plan.folder, plan.experiment)
+    args.no_robot = True                  # fetching needs LogBench, not the robot link
+    s = _robot_session(plan, args, need_logbench=True)
+    if s.logbench is None:
+        raise PlanError("fetching is switched off (--no-fetch / --fetch none)")
+    return 0 if robot.fetch_pending(s, m) else 1
 
 
 def cmd_doctor(plan: Plan, args) -> int:
@@ -260,6 +278,7 @@ def main(argv: list[str] | None = None) -> int:
                            ("status", "show what's done"),
                            ("run", "run the runs"),
                            ("doctor", "robot plans: check everything a session needs is ready"),
+                           ("fetch", "robot plans: download the robot log for runs that don't have it yet"),
                            ("apply", "robot plans: set PhotonVision to a run's settings"),
                            ("finish", "robot plans: put the cameras back to their baseline")):
         p = sub.add_parser(name, help=helptext)
@@ -274,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--yes", action="store_true", help="bench plans: don't wait at prompts")
             p.add_argument("--no-sync", action="store_true", help="bench plans: don't copy the bench bundle first")
             p.add_argument("--keep-going", action="store_true", help="carry on after a failed run")
-        if name in ("run", "apply", "finish", "doctor"):
+        if name in ("run", "apply", "finish", "doctor", "fetch"):
             g = p.add_argument_group("robot plans")
             g.add_argument("--nt", metavar="HOST", help="the robot's NetworkTables host (default: team 1405; "
                                                        "localhost for the simulator)")
@@ -283,7 +302,12 @@ def main(argv: list[str] | None = None) -> int:
                            help="don't connect to the robot: nothing is checked from the Pis, you press Enter per run")
             g.add_argument("--manual", action="store_true",
                            help="don't send settings to PhotonVision; say what to change and wait for the Pi to show it")
-            g.add_argument("--no-fetch", action="store_true", help="don't fetch the log through LogBench")
+            g.add_argument("--no-fetch", action="store_true", help="don't fetch the log through LogBench (same as --fetch none)")
+            g.add_argument("--fetch", choices=("end", "each", "none"), default="end",
+                           help="when to download the robot log: once after the last run (default; all runs share "
+                                "one log), after every run, or never")
+            g.add_argument("--with-pi", action="store_true",
+                           help="also download the Pis' vision recordings (large; the odometry experiments don't need them)")
             g.add_argument("--logbench", default=DEFAULT_URL, metavar="URL", help=f"LogBench address ({DEFAULT_URL})")
     d = sub.add_parser("pv-dump", help="print what PhotonVision's web socket sends (to debug the runner)")
     d.add_argument("host", help="the Pi, e.g. LeftPi.local")
@@ -295,7 +319,7 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_pv_dump(args)
         plan = load(args.plan)
         return {"check": cmd_check, "sync": cmd_sync, "status": cmd_status, "run": cmd_run,
-                "apply": cmd_apply, "finish": cmd_finish, "doctor": cmd_doctor}[args.cmd](plan, args)
+                "apply": cmd_apply, "finish": cmd_finish, "doctor": cmd_doctor, "fetch": cmd_fetch}[args.cmd](plan, args)
     except (PlanError, RemoteError, build.BuildError, robot.RobotRunError, ValueError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

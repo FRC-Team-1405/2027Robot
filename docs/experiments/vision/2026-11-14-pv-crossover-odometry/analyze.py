@@ -20,9 +20,15 @@ run asked for. Then, from each camera's RAW per-camera robot-pose estimates
 
 Then it compares setting B with setting A on the same camera across the crossover runs.
 Writes results.json next to this file.
+
+Full logs are big and are not committed. While it reads a log, the script also writes a small EXTRACT of
+exactly what it needs to data/<run>/ (each camera's raw estimates, the fused pose, the settings, the
+enable window): a few hundred KB for the whole experiment. Commit data/ and anyone can re-run this
+script, or compute new metrics, without the logs: if a run's log isn't available it reads the extract.
 """
 import argparse
 import bisect
+import gzip
 import json as _json
 import json
 import math
@@ -47,16 +53,32 @@ GAP_S = 0.05             # a gap longer than this counts as a dropout
 
 # --------------------------------------------------------------------------- reading a log
 
+_INDEX = {}
+
+
+def _norm(k):
+    """'RealOutputs/Vision/X', 'NT:/AdvantageKit/RealOutputs/Vision/X', 'NT:/Vision/X' -> 'vision/x'."""
+    k = k[3:] if k.startswith("NT:") else k
+    k = k.lstrip("/")
+    for pre in ("AdvantageKit/", "RealOutputs/"):
+        if k.startswith(pre):
+            k = k[len(pre):]
+    for pre in ("RealOutputs/",):
+        if k.startswith(pre):
+            k = k[len(pre):]
+    return k.lower()
+
+
 def find(sig, key):
-    for prefix in ("RealOutputs/", ""):
-        if prefix + key in sig:
-            return sig[prefix + key]
-    low = key.lower()
-    for k, v in sig.items():
-        kl = k.lower()
-        if kl == low or kl == "realoutputs/" + low:
-            return v
-    return None
+    """A signal by its AdvantageKit name, whichever way the log spells it."""
+    idx = _INDEX.get(id(sig))
+    if idx is None:
+        idx = {}
+        for k in sig:                       # first spelling wins; AdvantageKit's own keys come before NT mirrors
+            idx.setdefault(_norm(k), k)
+        _INDEX[id(sig)] = idx
+    k = idx.get(_norm(key))
+    return sig[k] if k is not None else None
 
 
 def last(sig, key):
@@ -217,8 +239,20 @@ def find_log(name):
     return hits[0]
 
 
-def analyze_run(run_id, entry, plan):
-    """One run from the runner's manifest entry. `plan` is the parsed runs.toml."""
+DATA = HERE / "data"
+SERIES_COLS = ("t", "x", "y", "z", "yaw", "ntag", "dist")
+
+
+def sides_of(plan):
+    cams = {}
+    for pi, cam in (c.split("/") for c in plan["cameras"]):
+        side = "left" if "left" in cam.lower() else "right" if "right" in cam.lower() else cam
+        cams[side] = (pi, cam)
+    return cams
+
+
+def read_log(run_id, entry, plan):
+    """Everything the scoring needs, from the full log."""
     path = find_log(entry["log"]["name"])
     sig = parse_wpilog(str(path))
     win = entry.get("enable_window") or {}
@@ -227,25 +261,85 @@ def analyze_run(run_id, entry, plan):
     if window is None:
         window = auto_window(sig)
         source = "longest autonomous span in the log"
-    cams = {}
-    for pi, cam in (c.split("/") for c in plan["cameras"]):
-        side = "left" if "left" in cam.lower() else "right" if "right" in cam.lower() else cam
-        cams[side] = (pi, cam)
-    res = {"id": run_id, "log": path.name, "window_s": None if not window else window[1] - window[0],
-           "window_source": source, "git_sha": last(sig, "RealMetadata/GitSHA"),
-           "git_dirty": last(sig, "RealMetadata/GitDirty"),
-           "feature_switches": last(sig, "RealMetadata/FeatureSwitches"), "cameras": {}, "problems": []}
+    data = {"log": path.name, "window": window, "window_source": source, "git_sha": last(sig, "RealMetadata/GitSHA"),
+            "git_dirty": last(sig, "RealMetadata/GitDirty"), "feature_switches": last(sig, "RealMetadata/FeatureSwitches"),
+            "cams": {}}
+    for side, (pi, cam) in sides_of(plan).items():
+        series = camera_series(sig, cam, window)
+        data["cams"][side] = {"camera": cam, "series": series, "log_settings": pv_settings(sig, pi, cam)}
+    pose = find(sig, "Drivetrain/Pose") or []
+    lo, hi = (window[0] - 1.0, window[1] + 1.0) if window else (-1e18, 1e18)
+    data["pose"] = [(t, v[-1]["x"], v[-1]["y"], v[-1]["rot"]) for t, v in pose if v and lo <= t <= hi]
+    return data
+
+
+def write_extract(run_id, data):
+    d = DATA / run_id
+    d.mkdir(parents=True, exist_ok=True)
+    meta = {k: data[k] for k in ("log", "window", "window_source", "git_sha", "git_dirty", "feature_switches")}
+    meta["cams"] = {}
+    for side, c in data["cams"].items():
+        ser = c["series"]
+        arr = np.column_stack([ser[k] for k in SERIES_COLS])
+        with gzip.open(d / f"{side}.csv.gz", "wt", encoding="utf-8", newline="\n") as f:
+            f.write(",".join(SERIES_COLS) + "\n")
+            for row in arr:
+                f.write(",".join(("" if not math.isfinite(v) else f"{v:.6f}") for v in row) + "\n")
+        meta["cams"][side] = {"camera": c["camera"], "log_settings": c["log_settings"],
+                              "latency_ms": [round(v, 2) for v in ser["latency_ms"]]}
+    with gzip.open(d / "pose.csv.gz", "wt", encoding="utf-8", newline="\n") as f:
+        f.write("t,x,y,rot\n")
+        for row in data["pose"]:
+            f.write(",".join(f"{v:.6f}" for v in row) + "\n")
+    (d / "meta.json").write_text(_json.dumps(meta, indent=1, default=float), encoding="utf-8")
+
+
+def read_extract(run_id):
+    d = DATA / run_id
+    meta = _json.loads((d / "meta.json").read_text(encoding="utf-8"))
+    data = {**meta, "window": tuple(meta["window"]) if meta["window"] else None, "cams": {}}
+    for side, c in meta["cams"].items():
+        arr = np.genfromtxt(d / f"{side}.csv.gz", delimiter=",", names=True, dtype=float, encoding="utf-8")
+        ser = {k: np.atleast_1d(arr[k]).astype(float) for k in SERIES_COLS}
+        ser["latency_ms"] = c["latency_ms"]
+        data["cams"][side] = {"camera": c["camera"], "series": ser, "log_settings": c["log_settings"]}
+    pose = np.genfromtxt(d / "pose.csv.gz", delimiter=",", names=True, dtype=float, encoding="utf-8")
+    data["pose"] = [tuple(r) for r in np.atleast_2d(np.column_stack([pose[k] for k in ("t", "x", "y", "rot")]))]
+    return data
+
+
+def analyze_run(run_id, entry, plan, use_extract=False):
+    """One run from the runner's manifest entry. `plan` is the parsed runs.toml."""
+    from_extract = use_extract
+    if not use_extract:
+        try:
+            data = read_log(run_id, entry, plan)
+            write_extract(run_id, data)
+        except (FileNotFoundError, KeyError, TypeError):      # no log name, or the log isn't on this machine
+            if not (DATA / run_id / "meta.json").exists():
+                raise FileNotFoundError(entry.get("log")) from None
+            from_extract = True
+    if from_extract:
+        data = read_extract(run_id)
+    window = data["window"]
+    res = {"id": run_id, "log": data["log"], "window_s": None if not window else window[1] - window[0],
+           "window_source": data["window_source"] + (" (from the committed extract)" if from_extract else ""),
+           "git_sha": data["git_sha"], "git_dirty": data["git_dirty"], "feature_switches": data["feature_switches"],
+           "cameras": {}, "problems": []}
     series = {}
-    for side, (pi, cam) in cams.items():
+    for side, (pi, cam) in sides_of(plan).items():
         name = entry["use"][cam]
         want = {**plan.get("defaults", {}), **plan["settings"][name]}
-        got = pv_settings(sig, pi, cam)
+        got = data["cams"][side]["log_settings"]
         for k, v in want.items():
             if not matches(v, got.get(k)):
                 res["problems"].append(f"{side} ({cam}) {k}: asked for {v}, the log says {got.get(k)}")
-        s_ = camera_series(sig, cam, window)
+        s_ = data["cams"][side]["series"]
         series[side] = s_
         res["cameras"][side] = {"camera": cam, "setting": name, "log_settings": got, **camera_metrics(s_, window)}
+        if not len(s_["t"]):
+            res["problems"].append(f"{side} ({cam}): no raw estimates in the log inside the window "
+                                   "(wrong kind of log? the runner prefers the AdvantageKit akit_* log)")
     res["left_minus_right"] = left_minus_right(series["left"], series["right"]) if len(series) == 2 else {}
     if entry.get("drifted_during_run"):
         res["problems"].append(f"settings changed during the run: {entry['drifted_during_run']}")
@@ -283,6 +377,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--plan", default=str(HERE / "runs.toml"))
     ap.add_argument("--manifest", default=None, help="default: manifest.json next to the plan")
+    ap.add_argument("--from-extract", action="store_true",
+                    help="use data/<run>/ (the committed extract) and don't read any log")
     args = ap.parse_args()
     plan_path = Path(args.plan)
     plan = tomllib.loads(plan_path.read_text(encoding="utf-8"))
@@ -294,13 +390,16 @@ def main():
     results = []
     for r in plan["runs"]:
         entry = (runs.get(r["id"]) or {}).get("robot")
-        if not entry or entry.get("status") != "ok" or not (entry.get("log") or {}).get("name"):
-            print(f"{r['id']}: " + ("not run yet" if not entry else f"{entry['status']}, no usable log; skipped"))
+        have_extract = (DATA / r["id"] / "meta.json").exists()
+        if not entry or entry.get("status") != "ok" or not ((entry.get("log") or {}).get("name") or have_extract):
+            print(f"{r['id']}: " + ("not run yet" if not entry else
+                                    "no log yet (python -m exprunner fetch PLAN)" if entry.get("log_pending") else
+                                    f"{entry['status']}, no usable log; skipped"))
             continue
         try:
-            results.append(analyze_run(r["id"], entry, plan))
+            results.append(analyze_run(r["id"], entry, plan, use_extract=args.from_extract))
         except FileNotFoundError as e:
-            print(f"{r['id']}: log not found ({e}); skipped")
+            print(f"{r['id']}: log not found ({e}) and no extract in data/{r['id']}; skipped")
     print("\nPer run (jitter = scatter around a smooth curve; smaller is better)")
     print(f"{'run':<7}{'cam':<6}{'set':<4}{'res/s':>7}{'lat ms':>8}{'jit xy mm':>10}{'jit yaw°':>9}{'max gap ms':>11}{'gap %':>7}"
           f"{'tags':>6}{'dist m':>7}")
