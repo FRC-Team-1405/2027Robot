@@ -1,0 +1,1 @@
+{"mode": "inspect", "env": {"loader": "photonvision", "java": "17.0.18", "os_arch": "aarch64", "cpus": 8, "opencv": "4.10.0"}, "frames": 300, "jpeg": {"width": 800, "height": 600, "channels": 3, "sampling": ["2x1", "1x1", "1x1"], "progressive": false, "has_huffman_tables": true}, "mean_frame_bytes": 27536}

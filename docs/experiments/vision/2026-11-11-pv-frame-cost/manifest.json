@@ -45,7 +45,7 @@
   },
   "C1": {
    "LeftPi": {
-    "status": "failed",
+    "status": "ok",
     "step": "capture",
     "args": {
      "name": "800x600",
@@ -55,20 +55,644 @@
      "count": 300
     },
     "command": "bash bench/code/run.sh capture --results bench/results/VIS-2026-11-11-pv-frame-cost/C1 --count 300 --fps 100 --height 600 --name 800x600 --width 800",
-    "started": "2026-11-14T17:25:21Z",
+    "started": "2026-11-14T17:38:16Z",
     "git": {
-     "sha": "c10f2fcc1f70",
+     "sha": "f69aa81fab17",
      "branch": "beta",
      "dirty": false
     },
     "board": "LeftPi",
-    "exit_code": 1,
+    "exit_code": 0,
     "host": "LeftPi.local",
-    "finished": "2026-11-14T17:25:28Z",
-    "seconds": 7.4,
+    "finished": "2026-11-14T17:38:26Z",
+    "seconds": 9.6,
     "results": "data/C1/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "capture",
+    "args": {
+     "name": "800x600",
+     "width": 800,
+     "height": 600,
+     "fps": 100,
+     "count": 300
+    },
+    "command": "bash bench/code/run.sh capture --results bench/results/VIS-2026-11-11-pv-frame-cost/C1 --count 300 --fps 100 --height 600 --name 800x600 --width 800",
+    "started": "2026-11-14T17:38:26Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:38:36Z",
+    "seconds": 10.0,
+    "results": "data/C1/RightPi"
+   }
+  },
+  "C2": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "capture",
+    "args": {
+     "name": "1280x800",
+     "width": 1280,
+     "height": 800,
+     "fps": 100,
+     "count": 300
+    },
+    "command": "bash bench/code/run.sh capture --results bench/results/VIS-2026-11-11-pv-frame-cost/C2 --count 300 --fps 100 --height 800 --name 1280x800 --width 1280",
+    "started": "2026-11-14T17:38:36Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:38:46Z",
+    "seconds": 10.9,
+    "results": "data/C2/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "capture",
+    "args": {
+     "name": "1280x800",
+     "width": 1280,
+     "height": 800,
+     "fps": 100,
+     "count": 300
+    },
+    "command": "bash bench/code/run.sh capture --results bench/results/VIS-2026-11-11-pv-frame-cost/C2 --count 300 --fps 100 --height 800 --name 1280x800 --width 1280",
+    "started": "2026-11-14T17:38:46Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:38:57Z",
+    "seconds": 10.1,
+    "results": "data/C2/RightPi"
+   }
+  },
+  "T1": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "steps",
+    "args": {
+     "cores": "4-7",
+     "max": 200,
+     "decimates": [
+      1,
+      2,
+      3
+     ],
+     "threads": [
+      1,
+      4,
+      8
+     ],
+     "iterations": [
+      100,
+      40
+     ],
+     "frames": "800x600"
+    },
+    "command": "bash bench/code/run.sh steps --results bench/results/VIS-2026-11-11-pv-frame-cost/T1 --cores 4-7 --decimates 1,2,3 --frames 800x600 --iterations 100,40 --max 200 --threads 1,4,8",
+    "started": "2026-11-14T17:38:57Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:39:20Z",
+    "seconds": 23.1,
+    "results": "data/T1/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "steps",
+    "args": {
+     "cores": "4-7",
+     "max": 200,
+     "decimates": [
+      1,
+      2,
+      3
+     ],
+     "threads": [
+      1,
+      4,
+      8
+     ],
+     "iterations": [
+      100,
+      40
+     ],
+     "frames": "800x600"
+    },
+    "command": "bash bench/code/run.sh steps --results bench/results/VIS-2026-11-11-pv-frame-cost/T1 --cores 4-7 --decimates 1,2,3 --frames 800x600 --iterations 100,40 --max 200 --threads 1,4,8",
+    "started": "2026-11-14T17:39:20Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:39:45Z",
+    "seconds": 25.5,
+    "results": "data/T1/RightPi"
+   }
+  },
+  "T2": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "steps",
+    "args": {
+     "cores": "4-7",
+     "max": 200,
+     "decimates": [
+      1,
+      2,
+      3
+     ],
+     "threads": [
+      1,
+      4,
+      8
+     ],
+     "iterations": [
+      100,
+      40
+     ],
+     "frames": "1280x800"
+    },
+    "command": "bash bench/code/run.sh steps --results bench/results/VIS-2026-11-11-pv-frame-cost/T2 --cores 4-7 --decimates 1,2,3 --frames 1280x800 --iterations 100,40 --max 200 --threads 1,4,8",
+    "started": "2026-11-14T17:39:45Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:40:25Z",
+    "seconds": 40.2,
+    "results": "data/T2/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "steps",
+    "args": {
+     "cores": "4-7",
+     "max": 200,
+     "decimates": [
+      1,
+      2,
+      3
+     ],
+     "threads": [
+      1,
+      4,
+      8
+     ],
+     "iterations": [
+      100,
+      40
+     ],
+     "frames": "1280x800"
+    },
+    "command": "bash bench/code/run.sh steps --results bench/results/VIS-2026-11-11-pv-frame-cost/T2 --cores 4-7 --decimates 1,2,3 --frames 1280x800 --iterations 100,40 --max 200 --threads 1,4,8",
+    "started": "2026-11-14T17:40:25Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:41:06Z",
+    "seconds": 41.0,
+    "results": "data/T2/RightPi"
+   }
+  },
+  "F0a": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "800x600",
+     "detector-threads": 8,
+     "decimate": 1,
+     "decode": "color"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F0a --cores 4-7 --decimate 1 --decode color --detector-threads 8 --frames 800x600 --iterations 100 --seconds 10 --workers 1",
+    "started": "2026-11-14T17:41:06Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:41:27Z",
+    "seconds": 21.0,
+    "results": "data/F0a/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "800x600",
+     "detector-threads": 8,
+     "decimate": 1,
+     "decode": "color"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F0a --cores 4-7 --decimate 1 --decode color --detector-threads 8 --frames 800x600 --iterations 100 --seconds 10 --workers 1",
+    "started": "2026-11-14T17:41:27Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:41:48Z",
+    "seconds": 20.6,
+    "results": "data/F0a/RightPi"
+   }
+  },
+  "F0b": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "1280x800",
+     "detector-threads": 8,
+     "decimate": 2,
+     "decode": "color"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F0b --cores 4-7 --decimate 2 --decode color --detector-threads 8 --frames 1280x800 --iterations 100 --seconds 10 --workers 1",
+    "started": "2026-11-14T17:41:48Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:42:08Z",
+    "seconds": 20.3,
+    "results": "data/F0b/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "1280x800",
+     "detector-threads": 8,
+     "decimate": 2,
+     "decode": "color"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F0b --cores 4-7 --decimate 2 --decode color --detector-threads 8 --frames 1280x800 --iterations 100 --seconds 10 --workers 1",
+    "started": "2026-11-14T17:42:08Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:42:28Z",
+    "seconds": 20.1,
+    "results": "data/F0b/RightPi"
+   }
+  },
+  "F1": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "800x600",
+     "decimate": 1,
+     "decode": "color"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F1 --cores 4-7 --decimate 1 --decode color --frames 800x600 --iterations 100 --seconds 10 --workers 1,2,3,4",
+    "started": "2026-11-14T17:42:28Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:43:25Z",
+    "seconds": 56.7,
+    "results": "data/F1/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "800x600",
+     "decimate": 1,
+     "decode": "color"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F1 --cores 4-7 --decimate 1 --decode color --frames 800x600 --iterations 100 --seconds 10 --workers 1,2,3,4",
+    "started": "2026-11-14T17:43:25Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:44:22Z",
+    "seconds": 57.1,
+    "results": "data/F1/RightPi"
+   }
+  },
+  "F2": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "800x600",
+     "decimate": 1,
+     "decode": "gray"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F2 --cores 4-7 --decimate 1 --decode gray --frames 800x600 --iterations 100 --seconds 10 --workers 1,2,3,4",
+    "started": "2026-11-14T17:44:22Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:45:19Z",
+    "seconds": 56.6,
+    "results": "data/F2/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "800x600",
+     "decimate": 1,
+     "decode": "gray"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F2 --cores 4-7 --decimate 1 --decode gray --frames 800x600 --iterations 100 --seconds 10 --workers 1,2,3,4",
+    "started": "2026-11-14T17:45:19Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:46:15Z",
+    "seconds": 56.5,
+    "results": "data/F2/RightPi"
+   }
+  },
+  "F3": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "1280x800",
+     "decimate": 2,
+     "decode": "color"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F3 --cores 4-7 --decimate 2 --decode color --frames 1280x800 --iterations 100 --seconds 10 --workers 1,2,3,4",
+    "started": "2026-11-14T17:46:15Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:47:12Z",
+    "seconds": 56.7,
+    "results": "data/F3/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "1280x800",
+     "decimate": 2,
+     "decode": "color"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F3 --cores 4-7 --decimate 2 --decode color --frames 1280x800 --iterations 100 --seconds 10 --workers 1,2,3,4",
+    "started": "2026-11-14T17:47:12Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:48:09Z",
+    "seconds": 56.9,
+    "results": "data/F3/RightPi"
+   }
+  },
+  "F4": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "1280x800",
+     "decimate": 1,
+     "decode": "gray"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F4 --cores 4-7 --decimate 1 --decode gray --frames 1280x800 --iterations 100 --seconds 10 --workers 1,2,3,4",
+    "started": "2026-11-14T17:48:09Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:49:06Z",
+    "seconds": 56.7,
+    "results": "data/F4/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "inflight",
+    "args": {
+     "cores": "4-7",
+     "workers": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "seconds": 10,
+     "iterations": 100,
+     "frames": "1280x800",
+     "decimate": 1,
+     "decode": "gray"
+    },
+    "command": "bash bench/code/run.sh inflight --results bench/results/VIS-2026-11-11-pv-frame-cost/F4 --cores 4-7 --decimate 1 --decode gray --frames 1280x800 --iterations 100 --seconds 10 --workers 1,2,3,4",
+    "started": "2026-11-14T17:49:06Z",
+    "git": {
+     "sha": "f69aa81fab17",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:50:02Z",
+    "seconds": 56.6,
+    "results": "data/F4/RightPi"
    }
   }
  },
- "history": []
+ "history": [
+  {
+   "run": "C1",
+   "board": "LeftPi",
+   "status": "failed",
+   "step": "capture",
+   "args": {
+    "name": "800x600",
+    "width": 800,
+    "height": 600,
+    "fps": 100,
+    "count": 300
+   },
+   "command": "bash bench/code/run.sh capture --results bench/results/VIS-2026-11-11-pv-frame-cost/C1 --count 300 --fps 100 --height 600 --name 800x600 --width 800",
+   "started": "2026-11-14T17:25:21Z",
+   "git": {
+    "sha": "c10f2fcc1f70",
+    "branch": "beta",
+    "dirty": false
+   },
+   "exit_code": 1,
+   "host": "LeftPi.local",
+   "finished": "2026-11-14T17:25:28Z",
+   "seconds": 7.4,
+   "results": "data/C1/LeftPi"
+  }
+ ]
 }
