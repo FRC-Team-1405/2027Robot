@@ -1,0 +1,74 @@
+{
+ "experiment": "VIS-2026-11-11-pv-frame-cost",
+ "runs": {
+  "S0": {
+   "LeftPi": {
+    "status": "ok",
+    "step": "selftest",
+    "args": {
+     "cores": "4-7"
+    },
+    "command": "bash bench/code/run.sh selftest --results bench/results/VIS-2026-11-11-pv-frame-cost/S0 --cores 4-7",
+    "started": "2026-11-14T17:23:40Z",
+    "git": {
+     "sha": "c10f2fcc1f70",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 0,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:23:54Z",
+    "seconds": 13.9,
+    "results": "data/S0/LeftPi"
+   },
+   "RightPi": {
+    "status": "ok",
+    "step": "selftest",
+    "args": {
+     "cores": "4-7"
+    },
+    "command": "bash bench/code/run.sh selftest --results bench/results/VIS-2026-11-11-pv-frame-cost/S0 --cores 4-7",
+    "started": "2026-11-14T17:23:54Z",
+    "git": {
+     "sha": "c10f2fcc1f70",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "RightPi",
+    "exit_code": 0,
+    "host": "RightPi.local",
+    "finished": "2026-11-14T17:24:11Z",
+    "seconds": 16.8,
+    "results": "data/S0/RightPi"
+   }
+  },
+  "C1": {
+   "LeftPi": {
+    "status": "failed",
+    "step": "capture",
+    "args": {
+     "name": "800x600",
+     "width": 800,
+     "height": 600,
+     "fps": 100,
+     "count": 300
+    },
+    "command": "bash bench/code/run.sh capture --results bench/results/VIS-2026-11-11-pv-frame-cost/C1 --count 300 --fps 100 --height 600 --name 800x600 --width 800",
+    "started": "2026-11-14T17:25:21Z",
+    "git": {
+     "sha": "c10f2fcc1f70",
+     "branch": "beta",
+     "dirty": false
+    },
+    "board": "LeftPi",
+    "exit_code": 1,
+    "host": "LeftPi.local",
+    "finished": "2026-11-14T17:25:28Z",
+    "seconds": 7.4,
+    "results": "data/C1/LeftPi"
+   }
+  }
+ },
+ "history": []
+}
