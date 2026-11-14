@@ -3,13 +3,15 @@
 No tape measuring. See docs/camera-autocal-plan.md for the method and its limits.
 """
 import logging
+import os
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 
 from ..autocal import cross_camera_agreement, solve, with_tag_height_correction
-from ..autocal_io import calibration_window, extract_run, list_cameras, list_tag_ids
+from ..autocal_io import calibration_window, extract_run, list_cameras, list_tag_ids, phase_diagnostics
+from ..autocal_report import RESULTS_DIR, save_agreement, save_result
 from ..robot_defaults import camera_defaults, mount_for
 from ..solver import matrix_to_params, params_to_matrix
 
@@ -113,7 +115,15 @@ def render(ctx: dict) -> None:
             st.error(f'Could not solve: {exc}')
             return
         store = st.session_state.setdefault(_KEY, {})
-        store[camera] = {'res': res, 'run': run, 'T_rc_current': T_rc_current}
+        phases = phase_diagnostics(run.get('spans', []), res.sample_t, res.err_t_mm, res.err_r_deg)
+        try:
+            saved = save_result(camera, res, run, tag_ids, matrix_to_params(T_rc_current), phases,
+                                ctx.get('log_name'))
+        except OSError as exc:
+            saved = None
+            st.warning(f'Could not save the result: {exc}')
+        store[camera] = {'res': res, 'run': run, 'T_rc_current': T_rc_current, 'phases': phases,
+                         'saved': saved, 'log_name': ctx.get('log_name')}
 
     store = st.session_state.get(_KEY, {})
     if camera in store:
@@ -128,6 +138,10 @@ def _show(camera: str, item: dict) -> None:
     new = res.params
 
     st.markdown(f'### {camera} result')
+    if item.get('saved'):
+        rel = os.path.relpath(item['saved'], RESULTS_DIR.parents[2]).replace('\\', '/')
+        st.caption(f'Saved automatically: `{rel}` (and a `.json` beside it). The folder is git-ignored; '
+                   f'to keep a result for the docs: `git add -f {rel}` and the matching `.json`.')
     for n in run['notes']:
         st.warning(n)
     for w in res.warnings:
@@ -155,33 +169,76 @@ def _show(camera: str, item: dict) -> None:
     if res.split_half:
         sh = res.split_half
         st.caption(
-            f'Repeatability: solving two halves of the run separately gives mounts that differ by '
-            f'{sh["dx_mm"]:+.1f} / {sh["dy_mm"]:+.1f} / {sh["dz_mm"]:+.1f} mm and {sh["rot_deg"]:.2f}°. '
-            'This is the number to trust more than ±1σ.'
+            f'**Repeatability:** the tool also solved two halves of the run separately (alternating '
+            f'1-second pieces). Their mounts differ by {sh["dx_mm"]:+.1f} / {sh["dy_mm"]:+.1f} / '
+            f'{sh["dz_mm"]:+.1f} mm (x / y / z) and {sh["rot_deg"]:.2f}° in angle. If the answer changes '
+            'that much depending on which seconds you use, the data does not pin it down. '
+            'Treat this as the real uncertainty, more than ±1σ.'
         )
+    if item.get('phases'):
+        st.markdown('**Where the data came from, by phase of the routine**')
+        st.caption('Samples/s far below the other phases means the tag left that camera\'s view. A large '
+                   'error in one phase is where the model and the data disagree (odometry slip, a lost tag, '
+                   'a bad tag pose). Wheel-odometry distance scale fitted: '
+                   f'{res.odo_scale:.3f} (1.000 = wheels exact).')
+        st.dataframe(pd.DataFrame([{
+            'Phase': p['phase'], 'Seconds': round(p['seconds'], 1), 'Samples': p['samples'],
+            'Samples/s': round(p['rate']), 'Position err (mm)': None if p['rms_t_mm'] is None else round(p['rms_t_mm'], 1),
+            'Rotation err (°)': None if p['rms_r_deg'] is None else round(p['rms_r_deg'], 2),
+        } for p in item['phases']]), hide_index=True, use_container_width=True)
     st.markdown('**Paste into VisionConstants.java**')
     st.code(res.java_snippet, language='java')
 
 
 def _show_agreement(store: dict) -> None:
     st.markdown('### Do the two cameras agree?')
-    st.caption('Each camera is turned into a robot pose with its *new* mount and compared with the other '
-               'camera at the same moment (within 20 ms). Use the same run for both. Single-frame noise '
-               'sets a floor of roughly 20–30 mm, so look at the **drop** from the current mounts.')
     (nameL, L), (nameR, R) = list(store.items())[:2]
-    st.caption(f'Comparing {nameL} and {nameR}.')
+    st.caption(
+        f'Whenever {nameL} and {nameR} both saw the tag within 20 ms of each other, each one says where the '
+        'robot is (its own position, shifted by its mount). If the mounts are right the two answers are the '
+        'same spot. The table is how far apart the two answers are, in the middle of all those moments (the '
+        '**median**; **p95** = the worst 5% are farther apart than this). Smaller is better.')
     args = (L['run']['t_obs'], L['run']['obs_T']), (R['run']['t_obs'], R['run']['obs_T'])
     new = cross_camera_agreement(*args[0], L['res'].T_rc, *args[1], R['res'].T_rc)
     old = cross_camera_agreement(*args[0], L['T_rc_current'], *args[1], R['T_rc_current'])
     if not new.get('n'):
         st.info('No overlapping samples: the two cameras did not see the tag at the same time.')
         return
-    st.dataframe(pd.DataFrame([
-        {'Mounts': 'Current (VisionConstants)', 'Pairs': old.get('n', 0),
-         'Position median (mm)': round(old.get('pos_median_mm', float('nan')), 1),
-         'Position p95 (mm)': round(old.get('pos_p95_mm', float('nan')), 1),
-         'Heading median (°)': round(old.get('yaw_median_deg', float('nan')), 2)},
-        {'Mounts': 'Calibrated', 'Pairs': new['n'],
-         'Position median (mm)': round(new['pos_median_mm'], 1), 'Position p95 (mm)': round(new['pos_p95_mm'], 1),
-         'Heading median (°)': round(new['yaw_median_deg'], 2)},
-    ]), hide_index=True, use_container_width=True)
+
+    def row(label, d):
+        return {'Mounts': label, 'Moments compared': d.get('n', 0),
+                'Position apart, median (mm)': round(d.get('pos_median_mm', float('nan')), 1),
+                'Position apart, p95 (mm)': round(d.get('pos_p95_mm', float('nan')), 1),
+                'Heading apart, median (°)': round(d.get('yaw_median_deg', float('nan')), 2)}
+
+    d_pos = new['pos_median_mm'] - old['pos_median_mm']
+    d_yaw = new['yaw_median_deg'] - old['yaw_median_deg']
+    change = {'Mounts': 'Change (calibrated - current)', 'Moments compared': '',
+              'Position apart, median (mm)': round(d_pos, 1),
+              'Position apart, p95 (mm)': round(new['pos_p95_mm'] - old['pos_p95_mm'], 1),
+              'Heading apart, median (°)': round(d_yaw, 2)}
+    st.dataframe(pd.DataFrame([row('Current mounts (VisionConstants)', old), row('Calibrated mounts', new), change]),
+                 hide_index=True, use_container_width=True)
+
+    pct = -100.0 * d_pos / old['pos_median_mm'] if old['pos_median_mm'] else 0.0
+    if d_pos < -5 and pct > 15:
+        st.success(f'The cameras agree {pct:.0f}% better with the calibrated mounts '
+                   f'({old["pos_median_mm"]:.0f} -> {new["pos_median_mm"]:.0f} mm typical gap).')
+    elif d_pos > 5:
+        st.error('The cameras agree WORSE with the calibrated mounts. Do not use these; see the warnings and '
+                 'the phase table above.')
+    else:
+        st.info('No clear change. Either the current mounts were already good, or the data is too noisy to tell. '
+                'Single-frame noise alone keeps two cameras ~20-30 mm apart, so a gap near that is about as good as it gets.')
+    # save once per pair of solves (Streamlit reruns this function on every click)
+    key = ('_autocal_agreement_saved', id(L['res']), id(R['res']))
+    saved = st.session_state.get(key)
+    if saved is None:
+        try:
+            saved = save_agreement(nameL, nameR, old, new, L.get('log_name')).name
+        except OSError:
+            saved = ''
+        st.session_state[key] = saved
+    if saved:
+        st.caption(f'Saved automatically: `tools/camera-calibration/results/{saved}` (git-ignored; '
+                   '`git add -f` it to keep it).')

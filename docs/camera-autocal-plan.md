@@ -109,6 +109,55 @@ or accept it for the first run and look at the repeatability and residuals.
 The tool takes the tag IDs from what the cameras saw; the field layout is
 `src/main/deploy/field_calibration.json`.
 
+## Reading the results
+
+Every solve is **saved automatically** to `tools/camera-calibration/results/` (a `.md` to read and
+a `.json` for re-analysis; the folder is git-ignored). To keep one for the write-up:
+`git add -f tools/camera-calibration/results/<file>` and its `.json`.
+
+- **±1σ** is what the fit says about itself, assuming independent noise. It is optimistic.
+- **Repeatability** is the honest check. The tool solves the run again with only the odd and
+  only the even 1-second pieces and compares the two mounts. If they differ by more than about
+  15 mm or 1 deg, the answer depends on which seconds you use: the data does not pin it down, and
+  "not repeatable" is the warning. It does not say *why*. Odometry slip is one cause among
+  several (see below); the tool now also fits the wheel-odometry distance scale (1.000 = exact),
+  which absorbs the most common slip-like error, a wheel radius a percent or two off.
+- **By phase** (samples/s and error per phase of the routine) says where the data is thin or
+  where the model and data disagree. A phase with far fewer samples/s than the rest means the tag
+  left that camera's view then.
+- **Do the two cameras agree?** Whenever both cameras saw the tag within 20 ms, each says where
+  the robot is (its position shifted by its mount). If the mounts are right, the two answers are the
+  same spot. The table gives the typical (median) gap in mm between the two answers, with the
+  current mounts and with the calibrated ones, and the change between them. Single-frame noise alone
+  keeps two cameras about 20-30 mm apart, so the number to watch is the *drop* from current to
+  calibrated.
+
+### If it says "not repeatable" (first real run, 2026-11-14, hub pair at ~2.5 m)
+
+We have not yet diagnosed it; these are the likely causes, in the order to check:
+
+1. **The tag pair left a camera's view.** The cameras are angled 10 deg and see about +-30 deg
+   (60 deg horizontal, 800 px, fx 690). With both tags needing to be in view, a +-25 deg sweep or
+   a 0.6 m strafe at 2.5 m can push the pair out of one camera's view. The by-phase table shows it.
+   A +-12 deg sweep in simulation gives x/y uncertainties of about 11 mm, close to the 9 mm seen.
+2. **Pose noise is higher than the simulation assumed.** Decimate 2 halves the tag's apparent size
+   to about 23 px at 2.5 m, which makes corner positions less precise. **The calibration run does
+   not need the competition setting**: mount calibration does not depend on decimate, so set the
+   pipeline to **decimate 1** for it (68 results/s is plenty) and back afterwards.
+3. **The tag spacing is 6 mm wider than the layout** (measured 14.25 in vs 14.0 in). This biases
+   PhotonVision's pair pose. Slide a tag, or accept the bias.
+4. **Odometry slip or a wheel-radius error.** Now fitted as a distance scale; a warning appears if it
+   is more than 4% off.
+5. **Closer is not automatically better.** Closer (1.5-2 m) makes the tags bigger and less noisy, but
+   a 0.6 m strafe then swings the bearing further (17 deg at 2 m vs 13 deg at 2.5 m) and the pair
+   leaves view sooner. If you move in, shorten the strafe and the sweep (constants at the top of
+   `CalibrateCamerasCommand.java`).
+
+Simulation (realistic field of view, 3x the assumed vision noise) suggests that adding a large
+orbit around the tag (what `CircleFacingTag` does, about +-30 deg at 2 m, tag always in view)
+makes the x/y fit much more robust than a sweep in place, because the robot's heading changes a lot
+while both cameras keep the tag. We have not built that yet; it depends on what the first log shows.
+
 ## Limits and risks
 
 - **Not yet validated on the robot.** On simulated runs (15 mm / 0.7 deg of vision noise per frame,

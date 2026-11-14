@@ -87,9 +87,31 @@ def _predict_cam(p: np.ndarray, odo_at_t: np.ndarray) -> np.ndarray:
     return R @ _mount_matrix(p)
 
 
-def _residuals(p, t_obs, obs_T, t_odo, odo, fit_tau, tau_fixed):
-    tau = p[9] if fit_tau else tau_fixed
-    pred = _predict_cam(p, _interp_odo(t_odo, odo, t_obs + tau))
+def _extras(p, fit_tau, fit_scale, tau_fixed=0.0):
+    """(tau, odometry scale) from the parameter vector: [9 core, tau?, scale?]."""
+    i = 9
+    tau, scale = tau_fixed, 1.0
+    if fit_tau:
+        tau = p[i]
+        i += 1
+    if fit_scale:
+        scale = p[i]
+    return tau, scale
+
+
+def _scaled_odo(odo, scale):
+    """Wheel odometry distance can be off by a percent or two (wheel radius, slip): scale the
+    translation about the start. The gyro heading is left alone."""
+    if scale == 1.0:
+        return odo
+    out = odo.copy()
+    out[:, :2] = (odo[:, :2] - odo[0, :2]) * scale + odo[0, :2]
+    return out
+
+
+def _residuals(p, t_obs, obs_T, t_odo, odo, fit_tau, tau_fixed, fit_scale=False):
+    tau, scale = _extras(p, fit_tau, fit_scale, tau_fixed)
+    pred = _predict_cam(p, _interp_odo(t_odo, _scaled_odo(odo, scale), t_obs + tau))
     d_t = (obs_T[:, :3, 3] - pred[:, :3, 3]) / SIGMA_T_M
     # rotation error as a rotation vector in the predicted camera's frame
     rel = np.swapaxes(pred[:, :3, :3], 1, 2) @ obs_T[:, :3, :3]
@@ -133,6 +155,10 @@ class AutoResult:
     warnings: list = field(default_factory=list)
     java_snippet: str = ''
     G: tuple = (0.0, 0.0, 0.0)   # odometry frame -> field frame (theta0, tx, ty)
+    odo_scale: float = 1.0       # fitted wheel-odometry distance scale (1.0 = exact)
+    sample_t: object = None      # per-sample time, position error (mm) and rotation error (deg)
+    err_t_mm: object = None      # at the solution, for the per-phase diagnostics
+    err_r_deg: object = None
 
 
 def solve(
@@ -143,6 +169,7 @@ def solve(
     T_rc0: np.ndarray,
     camera_name: str = '',
     fit_time_offset: bool = True,
+    fit_odo_scale: bool = True,
     _skip_split: bool = False,
 ) -> AutoResult:
     """Fit the camera mount (and the odometry frame and clock offset) from one logged run.
@@ -176,10 +203,14 @@ def solve(
         p0.append(0.0)
         lo.append(-0.15)
         hi.append(0.15)
+    if fit_odo_scale:
+        p0.append(1.0)
+        lo.append(0.9)
+        hi.append(1.1)
     p0 = np.array(p0)
 
     def run(idx):
-        fun = lambda p: _residuals(p, t_obs[idx], obs_T[idx], t_odo, odo, fit_time_offset, 0.0)  # noqa: E731
+        fun = lambda p: _residuals(p, t_obs[idx], obs_T[idx], t_odo, odo, fit_time_offset, 0.0, fit_odo_scale)  # noqa: E731
         return least_squares(fun, p0, bounds=(lo, hi), loss='soft_l1', f_scale=2.0, x_scale='jac')
 
     all_idx = np.arange(len(t_obs))
@@ -188,8 +219,8 @@ def solve(
     T_rc = _mount_matrix(p)
 
     # fit quality on the full set
-    tau = p[9] if fit_time_offset else 0.0
-    res = _residuals(p, t_obs, obs_T, t_odo, odo, fit_time_offset, 0.0)
+    tau, odo_scale = _extras(p, fit_time_offset, fit_odo_scale)
+    res = _residuals(p, t_obs, obs_T, t_odo, odo, fit_time_offset, 0.0, fit_odo_scale)
     n = len(t_obs)
     r_t = res[:3 * n].reshape(n, 3) * SIGMA_T_M
     r_r = res[3 * n:].reshape(n, 3) * SIGMA_R_RAD
@@ -218,6 +249,8 @@ def solve(
     out = AutoResult(
         T_rc=T_rc, params=params, sigma=sigma, tau_s=float(tau), rms_t_mm=rms_t, rms_r_deg=rms_r,
         n_samples=n, n_inliers=int(keep.sum()), split_half={}, G=(float(p[0]), float(p[1]), float(p[2])),
+        odo_scale=float(odo_scale), sample_t=t_obs.copy(), err_t_mm=err_t * 1000.0,
+        err_r_deg=np.degrees(np.linalg.norm(r_r, axis=1)),
         java_snippet=_java_snippet(params, camera_name),
     )
 
@@ -268,6 +301,9 @@ def _warnings(r: AutoResult, sol, odo, t_obs, obs_T, fit_tau) -> list:
         w.append('The two halves of the run disagree by '
                  f'{abs(sh["dx_mm"]):.0f}/{abs(sh["dy_mm"]):.0f} mm and {sh["rot_deg"]:.2f} deg: '
                  'the result is not repeatable. Re-run, or check for odometry slip.')
+    if abs(r.odo_scale - 1.0) > 0.04:
+        w.append(f'Wheel odometry distance is off by {abs(r.odo_scale - 1) * 100:.1f}% (fitted scale '
+                 f'{r.odo_scale:.3f}): check the wheel radius in the swerve constants, and for wheel slip.')
     if fit_tau and abs(r.tau_s) > 0.1:
         w.append(f'Fitted clock offset is {r.tau_s * 1000:.0f} ms (at the limit): timestamps may be wrong.')
     return w

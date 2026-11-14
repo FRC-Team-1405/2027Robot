@@ -63,7 +63,9 @@ def _fake_log():
     return sig
 
 
-def test_quick_tab_with_log_camera_names():
+def test_quick_tab_with_log_camera_names(tmp_path, monkeypatch):
+    import camera_calibration.autocal_report as report
+    monkeypatch.setattr(report, 'RESULTS_DIR', tmp_path)
     """Cameras named LeftCam / RightCam in the log; the tab needs no sidebar camera and starts from the code's mounts."""
     sig = _fake_log()
 
@@ -89,3 +91,11 @@ def test_quick_tab_with_log_camera_names():
         assert not at.error, [e.value for e in at.error]
     md = ' '.join(m.value for m in at.markdown)
     assert 'Do the two cameras agree?' in md
+    # every solve and the comparison were saved automatically, with the per-phase table
+    files = sorted(p.name for p in tmp_path.iterdir())
+    assert sum(f.endswith('_autocal.md') for f in files) == 2, files
+    assert sum(f.endswith('_agreement.md') for f in files) == 1, files
+    import json
+    j = json.loads(next(p for p in tmp_path.iterdir() if p.name.endswith('LeftCam_autocal.json')).read_text())
+    assert j['camera'] == 'LeftCam' and j['tag_ids'] == [9, 10] and j['phases'], j.keys()
+    assert {p['phase'] for p in j['phases']} >= {'Hold'}

@@ -50,6 +50,45 @@ def calibration_window(signals: dict) -> tuple[float, float] | None:
     return start, end if end is not None else sig[-1][0]
 
 
+def phase_spans(signals: dict, window=None) -> list[tuple[str, float, float]]:
+    """[(phase name, start, end)] in order, from Calibration/Phase (a step function)."""
+    sig = find_signal(signals, 'Calibration/Phase')
+    if not sig:
+        return []
+    spans = []
+    for i, (t, v) in enumerate(sig):
+        name = str(v).strip()
+        if name.lower() in IDLE_PHASES:
+            continue
+        t_end = sig[i + 1][0] if i + 1 < len(sig) else (window[1] if window else t)
+        if window and t >= window[1]:
+            continue
+        spans.append((name, t, t_end))
+    return spans
+
+
+def phase_diagnostics(spans, sample_t, err_t_mm, err_r_deg) -> list[dict]:
+    """Per phase: seconds, vision samples, samples per second, and RMS error at the solution.
+
+    A phase whose samples/s is far below the others means the tag left the camera's view.
+    A phase with a large error is where the model and the data disagree (odometry slip, a lost
+    tag, a bad tag pose).
+    """
+    sample_t = np.asarray(sample_t, float)
+    out = []
+    for name, t0, t1 in spans:
+        # vision samples are stamped at capture time, slightly before the record time
+        m = (sample_t >= t0 - 0.05) & (sample_t < t1 - 0.05)
+        n = int(m.sum())
+        secs = max(t1 - t0, 1e-9)
+        out.append({
+            'phase': name, 'seconds': float(secs), 'samples': n, 'rate': n / secs,
+            'rms_t_mm': float(np.sqrt(np.mean(np.square(np.asarray(err_t_mm)[m])))) if n else None,
+            'rms_r_deg': float(np.sqrt(np.mean(np.square(np.asarray(err_r_deg)[m])))) if n else None,
+        })
+    return out
+
+
 def list_cameras(signals: dict) -> list[str]:
     import re
     rx = re.compile(r'^(?:RealOutputs/)?Vision/([^/]+)/rawEstimatedPoses$', re.IGNORECASE)
@@ -154,9 +193,11 @@ def extract_run(signals: dict, camera: str, T_rc_current: np.ndarray,
     if len(t_odo) < 10:
         raise ValueError('Too few Drivetrain/Pose samples inside the calibration window.')
     order = np.argsort(t_obs)
+    spans = phase_spans(signals, window)
     info = {
         'results_in_window': n_results, 'results_dropped_by_tag_filter': n_tagfilter,
         'samples': int(len(obs)), 'clock': clock, 'window': window,
         'median_latency_ms': float(np.median(lat[good]) * 1000) if good.any() else float('nan'),
     }
-    return {'t_obs': t_obs[order], 'obs_T': obs[order], 't_odo': t_odo, 'odo': odo, 'info': info, 'notes': notes}
+    return {'t_obs': t_obs[order], 'obs_T': obs[order], 't_odo': t_odo, 'odo': odo, 'info': info,
+            'notes': notes, 'spans': spans}
