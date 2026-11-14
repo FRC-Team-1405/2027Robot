@@ -132,6 +132,36 @@ a `.json` for re-analysis; the folder is git-ignored). To keep one for the write
   keeps two cameras about 20-30 mm apart, so the number to watch is the *drop* from current to
   calibrated.
 
+### First real run, 2026-11-14 (hub pair, 2 m, decimate 1, ~65 results/s)
+
+Results are in `tools/camera-calibration/results/` (LeftCam and RightCam, one log:
+`akit_26-11-14_19-11-27.wpilog`). **Not used to change `VisionConstants.java` yet**, because the fit
+does not look trustworthy:
+
+| | LeftCam | RightCam |
+|---|---|---|
+| z (current 28.7 in) | 24.05 | 23.58 |
+| pitch (current -25 deg) | -28.6 | -28.2 |
+| yaw (current -10 / +10 deg) | -6.0 | +19.4 |
+| roll (current 0) | +0.2 | -2.8 |
+| position residual (RMS) | 54 mm | 52 mm |
+| wheel-distance scale | 0.900 (at the old limit) | 0.900 (at the old limit) |
+| halves disagree by | 37 mm, 1.0 deg | 28 mm, 0.2 deg |
+
+- **Probably real:** both cameras say they are about 5 in lower and pitched 3 deg further up than
+  the constants (which are the 2026 values: `TODO(2027)` in `VisionConstants.java`). They agree
+  with each other to 0.5 in. **Check with a tape**: lens height from the floor should read about
+  24 in.
+- **Not trustworthy yet:** the fit pinned the wheel-distance scale at its limit on both cameras,
+  and the error grows during the strafes (115 mm in StrafeCenter), so the model and data disagree
+  about how far the robot moved. Candidates: wheel radius (`TunerConstants` is the 2026 file,
+  `TODO(2027)`; 1.75 in), the camera's range reading (tag spacing, intrinsics), swerve modules not
+  zeroed. The tool now widens the scale limit (0.7-1.3) and adds a **straight-drive check** (wheels
+  vs camera distance, and direction, per drive) that separates these. Reload the same log and
+  re-solve to see it.
+- **Physical check that settles the wheels:** push or drive the robot 2 m by the tape and compare
+  with `Drivetrain/Pose` in AdvantageScope.
+
 ### If it says "not repeatable" (first real run, 2026-11-14, hub pair at ~2.5 m)
 
 We have not yet diagnosed it; these are the likely causes, in the order to check:

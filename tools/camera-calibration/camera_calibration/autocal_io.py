@@ -89,6 +89,54 @@ def phase_diagnostics(spans, sample_t, err_t_mm, err_r_deg) -> list[dict]:
     return out
 
 
+def drive_check(spans, t_obs, obs_T, t_odo, odo, edge=(0.1, 0.4)) -> list[dict]:
+    """For each straight drive: how far the wheels say the robot moved vs how far the camera saw it move.
+
+    Needs no mount. The robot does not rotate during these phases, so the camera moves exactly as the
+    robot does. `ratio` = vision distance / wheel distance: 1.00 means the wheels and the camera agree;
+    0.90 means the wheels claim 11% more distance than the camera saw (wheel radius too big, wheels
+    slipping, or the camera's range reading 10% short: tag size, spacing, intrinsics).
+    `angle_deg` is the direction of the vision displacement minus the wheel displacement in the field
+    frame (the odometry-to-field rotation); `angle_dev_deg` is how far each drive is from the typical
+    one, which should be near 0 for every drive.
+    """
+    t_obs = np.asarray(t_obs, float)
+    out = []
+    for name, t0, t1 in spans:
+        if not (name.lower().startswith('drive') or name.lower().startswith('strafe')):
+            continue
+
+        def window(lo, hi):
+            m = (t_obs >= lo) & (t_obs <= hi)
+            if m.sum() < 3:
+                return None
+            cam = np.asarray(obs_T)[m][:, :2, 3].mean(axis=0)
+            o = np.column_stack([np.interp(t_obs[m], t_odo, odo[:, 0]),
+                                 np.interp(t_obs[m], t_odo, odo[:, 1])]).mean(axis=0)
+            return cam, o
+
+        a = window(t0 + edge[0], t0 + edge[1])
+        b = window(t1 - edge[1], t1 - edge[0])
+        if a is None or b is None:
+            out.append({'phase': name, 'odo_mm': None, 'vision_mm': None, 'ratio': None, 'angle_deg': None, 'angle_dev_deg': None})
+            continue
+        dv, do = b[0] - a[0], b[1] - a[1]
+        lo_, lv = float(np.hypot(*do)), float(np.hypot(*dv))
+        ang = float(np.degrees(np.arctan2(dv[1], dv[0]) - np.arctan2(do[1], do[0])))
+        ang = (ang + 180.0) % 360.0 - 180.0
+        out.append({'phase': name, 'odo_mm': lo_ * 1000, 'vision_mm': lv * 1000,
+                    'ratio': lv / lo_ if lo_ > 0.05 else None, 'angle_deg': ang})
+    # the raw angle is the odometry-to-field rotation (any value); what matters is how much each drive
+    # differs from the typical one
+    angs = [d['angle_deg'] for d in out if d.get('angle_deg') is not None]
+    if angs:
+        ref = float(np.degrees(np.arctan2(np.median(np.sin(np.radians(angs))), np.median(np.cos(np.radians(angs))))))
+        for d in out:
+            if d.get('angle_deg') is not None:
+                d['angle_dev_deg'] = (d['angle_deg'] - ref + 180.0) % 360.0 - 180.0
+    return out
+
+
 def list_cameras(signals: dict) -> list[str]:
     import re
     rx = re.compile(r'^(?:RealOutputs/)?Vision/([^/]+)/rawEstimatedPoses$', re.IGNORECASE)

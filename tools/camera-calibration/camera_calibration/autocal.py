@@ -205,8 +205,8 @@ def solve(
         hi.append(0.15)
     if fit_odo_scale:
         p0.append(1.0)
-        lo.append(0.9)
-        hi.append(1.1)
+        lo.append(0.7)
+        hi.append(1.3)
     p0 = np.array(p0)
 
     def run(idx):
@@ -301,7 +301,10 @@ def _warnings(r: AutoResult, sol, odo, t_obs, obs_T, fit_tau) -> list:
         w.append('The two halves of the run disagree by '
                  f'{abs(sh["dx_mm"]):.0f}/{abs(sh["dy_mm"]):.0f} mm and {sh["rot_deg"]:.2f} deg: '
                  'the result is not repeatable. Re-run, or check for odometry slip.')
-    if abs(r.odo_scale - 1.0) > 0.04:
+    if abs(r.odo_scale - 1.0) > 0.29:
+        w.append(f'Wheel-odometry distance scale {r.odo_scale:.3f} is at the fit limit: the model cannot '
+                 'explain the data. Check the wheel radius, tag size and camera intrinsics.')
+    elif abs(r.odo_scale - 1.0) > 0.04:
         w.append(f'Wheel odometry distance is off by {abs(r.odo_scale - 1) * 100:.1f}% (fitted scale '
                  f'{r.odo_scale:.3f}): check the wheel radius in the swerve constants, and for wheel slip.')
     if fit_tau and abs(r.tau_s) > 0.1:

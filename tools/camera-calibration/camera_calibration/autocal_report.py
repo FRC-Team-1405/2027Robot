@@ -52,7 +52,8 @@ def _table(headers, rows) -> str:
 
 
 def save_result(camera: str, res, run: dict, tag_ids, current_params: dict, phases: list,
-                log_name: str | None, results_dir: pathlib.Path | None = None) -> pathlib.Path:
+                log_name: str | None, results_dir: pathlib.Path | None = None,
+                drive_check: list | None = None) -> pathlib.Path:
     """Write <stamp>_<camera>_autocal.json and .md; return the .md path."""
     results_dir = results_dir or RESULTS_DIR
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -87,6 +88,7 @@ def save_result(camera: str, res, run: dict, tag_ids, current_params: dict, phas
         'odometry_scale': res.odo_scale,
         'repeatability_split_half': res.split_half,
         'phases': phases,
+        'drive_check': drive_check or [],
         'warnings': list(res.warnings) + list(run.get('notes', [])),
         'java_snippet': res.java_snippet,
     }
@@ -114,6 +116,13 @@ def save_result(camera: str, res, run: dict, tag_ids, current_params: dict, phas
                       [[p['phase'], f'{p["seconds"]:.1f}', p['samples'], f'{p["rate"]:.0f}',
                         '-' if p['rms_t_mm'] is None else f'{p["rms_t_mm"]:.1f}',
                         '-' if p['rms_r_deg'] is None else f'{p["rms_r_deg"]:.2f}'] for p in phases])]
+    if drive_check:
+        def f(v, fmt):
+            return '-' if v is None else format(v, fmt)
+        md += ['', '## Straight drives: wheels vs camera', '',
+               _table(['Drive', 'Wheels say (mm)', 'Camera saw (mm)', 'Ratio camera/wheels', 'Direction vs typical drive (deg)'],
+                      [[d['phase'], f(d['odo_mm'], '.0f'), f(d['vision_mm'], '.0f'), f(d['ratio'], '.3f'),
+                        f(d.get('angle_dev_deg'), '.1f')] for d in drive_check])]
     md += ['', '## Java', '', '```java', res.java_snippet, '```', '']
     path = results_dir / f'{stem}.md'
     path.write_text('\n'.join(md), encoding='utf-8')

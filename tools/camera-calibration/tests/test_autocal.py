@@ -34,7 +34,8 @@ def routine(spin=True, drive=True):
 
 
 def simulate(segments, true_mounts, start=(2.5, 0.0, math.pi), dt=0.01, seed=0,
-             pos_noise=0.015, rot_noise_deg=0.7, label_delay=0.03, fov_deg=35.0, field_shift=None):
+             pos_noise=0.015, rot_noise_deg=0.7, label_delay=0.03, fov_deg=35.0, field_shift=None,
+             odo_scale_err=1.0):
     """Return per-camera observations plus the odometry series. Odometry is in its own frame."""
     rng = np.random.default_rng(seed)
     x, y, yaw = start
@@ -58,6 +59,7 @@ def simulate(segments, true_mounts, start=(2.5, 0.0, math.pi), dt=0.01, seed=0,
     for i, (px, py, pyaw) in enumerate(truth):
         rel = np.linalg.inv(d0) @ planar_matrix(px, py, pyaw)
         odo[i] = (rel[0, 3], rel[1, 3], math.atan2(rel[1, 0], rel[0, 0]))
+    odo[:, :2] *= odo_scale_err            # e.g. a wheel radius that is a few percent off
     odo[:, 2] += rng.normal(0, math.radians(0.03), len(odo))
     odo[:, :2] += rng.normal(0, 0.002, (len(odo), 2))
 
@@ -215,3 +217,32 @@ def test_tag_height_correction():
     fixed = with_tag_height_correction(res, layout_z_m=1.124, measured_z_m=1.104, camera_name='Left')
     assert abs(fixed.params['z_m'] - TRUE_LEFT['z_m']) < 0.008
     assert 'Units.inchesToMeters' in fixed.java_snippet
+
+
+def _spans(segments):
+    names = ['Hold', 'SweepCCW', 'SweepCW', 'SweepBack', 'DriveForward', 'DriveBack', 'StrafeLeft',
+             'StrafeRight', 'StrafeCenter', 'HoldEnd']
+    out, t = [], 0.0
+    for n, (dur, *_rest) in zip(names, segments):
+        out.append((n, t, t + dur))
+        t += dur
+    return out
+
+
+def test_wheel_distance_error_is_fitted_and_drive_check_shows_it():
+    """Odometry that over-reports distance by 12% (wheel radius wrong): the fit absorbs it (not pinned at a
+    limit) and the straight-drive check reports camera/wheels ~ 0.89."""
+    from camera_calibration.autocal_io import drive_check
+    segs = routine()
+    ts, odo, cams = simulate(segs, {'Left': TRUE_LEFT}, seed=9, odo_scale_err=1.12)
+    t_obs, obs = cams['Left']
+    res = solve(t_obs, obs, ts, odo, wrong_guess(TRUE_LEFT), 'Left')
+    assert res.odo_scale == pytest.approx(1 / 1.12, abs=0.03)
+    e = err(res, TRUE_LEFT)
+    assert e['x'] < 20 and e['y'] < 20 and e['yaw'] < 1.5, e
+    rows = drive_check(_spans(segs), t_obs, obs, ts, odo)
+    assert [r['phase'] for r in rows] == ['DriveForward', 'DriveBack', 'StrafeLeft', 'StrafeRight', 'StrafeCenter']
+    for r in rows:
+        assert r['ratio'] == pytest.approx(1 / 1.12, abs=0.08), r
+    # the direction offset is the same for every drive (it is the odometry-to-field rotation)
+    assert all(abs(r['angle_dev_deg']) < 4 for r in rows), [r['angle_dev_deg'] for r in rows]

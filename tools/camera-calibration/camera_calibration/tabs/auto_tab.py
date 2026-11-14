@@ -10,7 +10,8 @@ import pandas as pd
 import streamlit as st
 
 from ..autocal import cross_camera_agreement, solve, with_tag_height_correction
-from ..autocal_io import calibration_window, extract_run, list_cameras, list_tag_ids, phase_diagnostics
+from ..autocal_io import (calibration_window, drive_check, extract_run, list_cameras, list_tag_ids,
+                          phase_diagnostics)
 from ..autocal_report import RESULTS_DIR, save_agreement, save_result
 from ..robot_defaults import camera_defaults, mount_for
 from ..solver import matrix_to_params, params_to_matrix
@@ -116,14 +117,16 @@ def render(ctx: dict) -> None:
             return
         store = st.session_state.setdefault(_KEY, {})
         phases = phase_diagnostics(run.get('spans', []), res.sample_t, res.err_t_mm, res.err_r_deg)
+        dchk = drive_check(run.get('spans', []), run['t_obs'], run['obs_T'], run['t_odo'], run['odo'])
         try:
             saved = save_result(camera, res, run, tag_ids, matrix_to_params(T_rc_current), phases,
-                                ctx.get('log_name'))
+                                ctx.get('log_name'), drive_check=dchk)
         except OSError as exc:
             saved = None
             st.warning(f'Could not save the result: {exc}')
         store[camera] = {'res': res, 'run': run, 'T_rc_current': T_rc_current, 'phases': phases,
-                         'saved': saved, 'log_name': ctx.get('log_name')}
+                         'saved': saved, 'log_name': ctx.get('log_name'),
+                         'drive_check': dchk}
 
     store = st.session_state.get(_KEY, {})
     if camera in store:
@@ -140,8 +143,9 @@ def _show(camera: str, item: dict) -> None:
     st.markdown(f'### {camera} result')
     if item.get('saved'):
         rel = os.path.relpath(item['saved'], RESULTS_DIR.parents[2]).replace('\\', '/')
-        st.caption(f'Saved automatically: `{rel}` (and a `.json` beside it). The folder is git-ignored; '
-                   f'to keep a result for the docs: `git add -f {rel}` and the matching `.json`.')
+        st.caption('Saved automatically (the folder is git-ignored). To keep this result for the docs, copy '
+                   'this one command (hover the box, click the copy icon); it adds the .md and the .json:')
+        st.code(f'git add -f {rel} {rel[:-3]}.json', language='bash')
     for n in run['notes']:
         st.warning(n)
     for w in res.warnings:
@@ -186,6 +190,20 @@ def _show(camera: str, item: dict) -> None:
             'Samples/s': round(p['rate']), 'Position err (mm)': None if p['rms_t_mm'] is None else round(p['rms_t_mm'], 1),
             'Rotation err (°)': None if p['rms_r_deg'] is None else round(p['rms_r_deg'], 2),
         } for p in item['phases']]), hide_index=True, use_container_width=True)
+    if item.get('drive_check'):
+        st.markdown('**Straight drives: do the wheels and the camera agree on how far the robot moved?**')
+        st.caption('No mount involved: the robot does not turn during a drive, so the camera moves exactly as the '
+                   'robot does. Ratio 1.00 = they agree. Well below 1 means the wheels claim more distance than the '
+                   'camera saw (wheel radius too big, slip, or the camera reading range short: tag size/spacing or '
+                   'intrinsics). A direction that differs from the other drives by more than a few degrees means the '
+                   'robot is not moving the way the odometry thinks (e.g. swerve modules not zeroed).')
+        st.dataframe(pd.DataFrame([{
+            'Drive': d['phase'],
+            'Wheels say (mm)': None if d['odo_mm'] is None else round(d['odo_mm']),
+            'Camera saw (mm)': None if d['vision_mm'] is None else round(d['vision_mm']),
+            'Ratio camera/wheels': None if d['ratio'] is None else round(d['ratio'], 3),
+            'Direction vs typical drive (°)': None if d.get('angle_dev_deg') is None else round(d['angle_dev_deg'], 1),
+        } for d in item['drive_check']]), hide_index=True, use_container_width=True)
     st.markdown('**Paste into VisionConstants.java**')
     st.code(res.java_snippet, language='java')
 
@@ -221,15 +239,20 @@ def _show_agreement(store: dict) -> None:
                  hide_index=True, use_container_width=True)
 
     pct = -100.0 * d_pos / old['pos_median_mm'] if old['pos_median_mm'] else 0.0
-    if d_pos < -5 and pct > 15:
-        st.success(f'The cameras agree {pct:.0f}% better with the calibrated mounts '
-                   f'({old["pos_median_mm"]:.0f} -> {new["pos_median_mm"]:.0f} mm typical gap).')
-    elif d_pos > 5:
-        st.error('The cameras agree WORSE with the calibrated mounts. Do not use these; see the warnings and '
-                 'the phase table above.')
+    pct_yaw = -100.0 * d_yaw / old['yaw_median_deg'] if old['yaw_median_deg'] else 0.0
+    better_pos = d_pos < -5 and pct > 15
+    better_yaw = d_yaw < -0.5 and pct_yaw > 25
+    worse = d_pos > 5 or d_yaw > 0.5
+    detail = (f'position gap {old["pos_median_mm"]:.0f} -> {new["pos_median_mm"]:.0f} mm, '
+              f'heading gap {old["yaw_median_deg"]:.2f} -> {new["yaw_median_deg"]:.2f}°')
+    if worse:
+        st.error(f'The cameras agree WORSE with the calibrated mounts ({detail}). Do not use these; see the '
+                 'warnings, the phase table and the straight-drive check above.')
+    elif better_pos or better_yaw:
+        st.success(f'The cameras agree better with the calibrated mounts ({detail}).')
     else:
-        st.info('No clear change. Either the current mounts were already good, or the data is too noisy to tell. '
-                'Single-frame noise alone keeps two cameras ~20-30 mm apart, so a gap near that is about as good as it gets.')
+        st.info(f'No clear change ({detail}). Either the current mounts were already good, or the data is too '
+                'noisy to tell. Single-frame noise alone keeps two cameras ~20-30 mm apart.')
     # save once per pair of solves (Streamlit reruns this function on every click)
     key = ('_autocal_agreement_saved', id(L['res']), id(R['res']))
     saved = st.session_state.get(key)
