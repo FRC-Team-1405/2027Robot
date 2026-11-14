@@ -43,7 +43,8 @@ It finds the Pi (mDNS, the Internet-Connection-Sharing subnet, the bench address
 installs an SSH key (you type the Pi password into ssh itself; the script never sees it), offers
 passwordless sudo, checks the Pi (OS, Python, disk, internet), checks the camera is activated in
 PhotonVision and finds its raw stream port, checks PhotonVision's team number is 1405, copies the
-scripts, runs `setup-orangepi.sh` unattended and verifies the services. Things only a person can
+scripts, runs `setup-orangepi.sh` unattended (which also adds `pi` to the `video` group, so bench
+capture can open the camera) and verifies the services. Things only a person can
 do (enable Internet Connection Sharing, press ACTIVATE on the camera in PhotonVision) stop the
 script with exact instructions. `Get-Help .\Bootstrap-OrangePi.ps1 -Full` lists the parameters.
 
