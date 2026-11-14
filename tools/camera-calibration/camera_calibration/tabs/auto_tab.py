@@ -3,6 +3,7 @@
 No tape measuring. See docs/camera-autocal-plan.md for the method and its limits.
 """
 import logging
+import math
 import os
 
 import numpy as np
@@ -13,7 +14,7 @@ from ..autocal import cross_camera_agreement, solve, with_tag_height_correction
 from ..autocal_io import (calibration_window, drive_check, extract_run, list_cameras, list_tag_ids,
                           phase_diagnostics, span_mask, standstill_stats)
 from ..autocal_report import RESULTS_DIR, save_agreement, save_result
-from ..robot_defaults import camera_defaults, mount_for
+from ..robot_defaults import AIM, TAPE, camera_defaults, mount_for, side_of
 from ..solver import matrix_to_params, params_to_matrix
 
 log = logging.getLogger(__name__)
@@ -230,13 +231,15 @@ def _tape_check(camera: str, res, T_cur) -> None:
                    'disagreement means the vision (not your tape) is off: do not trust the solved mount.')
         c1, c2, c3 = st.columns(3)
         k = camera
-        length = c1.number_input('Robot length incl. bumpers (in)', value=33.0, step=0.25, key=f'tp_len_{k}')
-        z_in = c2.number_input('Lens height above floor (in)', value=0.0, min_value=0.0, step=0.25, key=f'tp_z_{k}',
+        side = side_of(camera)
+        y_default = (TAPE['length_in'] / 2 - TAPE['side_edge_to_lens_in']) * (1 if side == 'left' else -1 if side == 'right' else 0)
+        length = c1.number_input('Robot length incl. bumpers (in)', value=TAPE['length_in'], step=0.25, key=f'tp_len_{k}')
+        z_in = c2.number_input('Lens height above floor (in)', value=TAPE['lens_height_in'], min_value=0.0, step=0.25, key=f'tp_z_{k}',
                                help='0 = not measured')
-        d_front = c3.number_input('Front bumper to lens (in)', value=0.0, min_value=0.0, step=0.25, key=f'tp_x_{k}',
+        d_front = c3.number_input('Front bumper to lens (in)', value=TAPE['front_to_lens_in'], min_value=0.0, step=0.25, key=f'tp_x_{k}',
                                   help='Horizontal, along the robot. 0 = not measured')
-        y_in = st.number_input('Lens sideways from robot centreline (in, left = +, right = -)', value=0.0, step=0.25,
-                               key=f'tp_y_{k}', help='0 = not measured / on the centreline')
+        y_in = st.number_input('Lens sideways from robot centreline (in, left = +, right = -)', value=float(y_default), step=0.25,
+                               key=f'tp_y_{k}', help='Prefilled from the 5.5 in side-edge-to-lens measurement')
         cur = matrix_to_params(T_cur)
         rows = []
         for label, tape, key, lim in (('x (forward of centre)', (length / 2 - d_front) if d_front else None, 'x_in', 0.75),
@@ -251,6 +254,40 @@ def _tape_check(camera: str, res, T_cur) -> None:
             st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
         else:
             st.caption('Enter at least one measurement.')
+    _aim_check(camera, res, T_cur)
+
+
+def _aim_check(camera: str, res, T_cur) -> None:
+    """Pitch and yaw from where the camera's crosshair lands on a wall: truth for the two angles."""
+    with st.expander('Aim check: crosshair on a wall (truth for pitch and yaw)'):
+        st.caption('Back the robot a known distance from a wall, mark where the PhotonVision stream crosshair lands, '
+                   'and measure its height and its sideways position from the line straight ahead of the robot centre. '
+                   'Pitch = atan(rise / distance to the lens). Yaw likewise. Prefilled from the 2026-11-14 measurement; '
+                   'the sideways positions assume the crosshairs are symmetric about the centreline (only their 13 in '
+                   'separation, crossed, was measured), so treat yaw as approximate.')
+        side = side_of(camera)
+        c1, c2, c3, c4 = st.columns(4)
+        k = camera
+        wall = c1.number_input('Front bumper to wall (in)', value=AIM['wall_to_bumper_in'], step=1.0, key=f'aim_w_{k}')
+        h = c2.number_input('Crosshair height (in)', value=AIM['crosshair_height_in'].get(side, 0.0), step=0.25, key=f'aim_h_{k}')
+        sep = AIM['crosshair_separation_in']
+        y_default = (-sep / 2 if side == 'left' else sep / 2 if side == 'right' else 0.0)
+        y_c = c3.number_input('Crosshair sideways (in, left +)', value=float(y_default), step=0.25, key=f'aim_y_{k}',
+                              help='Left camera aims right of the centreline (negative) when cross-eyed')
+        lens_h = c4.number_input('Lens height (in)', value=TAPE['lens_height_in'], step=0.25, key=f'aim_lh_{k}')
+        lens_y = (TAPE['length_in'] / 2 - TAPE['side_edge_to_lens_in']) * (1 if side == 'left' else -1 if side == 'right' else 0)
+        d = wall + TAPE['front_to_lens_in']
+        pitch_up = math.degrees(math.atan2(h - lens_h, d))
+        yaw = math.degrees(math.atan2(y_c - lens_y, d))
+        cur = matrix_to_params(T_cur)
+        st.dataframe(pd.DataFrame([
+            {'Angle': 'pitch (WPILib: negative = nose up)', 'Aim check (deg)': round(-pitch_up, 1),
+             'Solved (deg)': round(res.params['pitch_deg'], 1), 'Robot code (deg)': round(cur['pitch_deg'], 1),
+             'Solved - aim (deg)': round(res.params['pitch_deg'] + pitch_up, 1)},
+            {'Angle': 'yaw (WPILib: negative = turned right)', 'Aim check (deg)': round(yaw, 1),
+             'Solved (deg)': round(res.params['yaw_deg'], 1), 'Robot code (deg)': round(cur['yaw_deg'], 1),
+             'Solved - aim (deg)': round(res.params['yaw_deg'] - yaw, 1)},
+        ]), hide_index=True, use_container_width=True)
 
 
 def _show_agreement(store: dict) -> None:

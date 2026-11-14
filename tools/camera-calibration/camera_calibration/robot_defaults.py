@@ -19,6 +19,30 @@ _FALLBACK = {
     'RightCam': {'x_in': 2.19, 'y_in': -10.91, 'z_in': 28.7, 'roll_deg': 0.0, 'pitch_deg': -25.0, 'yaw_deg':  10.0},
 }
 
+# Tape-measure and aim-check numbers taken on the 2027 robot, 2026-11-14 (see docs/camera-autocal-plan.md).
+# They prefill the "sanity check" boxes in the Quick tab so they do not have to be typed again.
+# Update them if the cameras are remounted.
+TAPE = {
+    'length_in': 33.0,            # robot length and width including bumpers
+    'lens_height_in': 28.5,       # floor to the lens, both cameras
+    'front_to_lens_in': 14.5,     # front bumper to the lens, both cameras
+    'side_edge_to_lens_in': 5.5,  # side bumper edge to the lens, both cameras
+}
+AIM = {
+    'wall_to_bumper_in': 72.0,    # front bumper to the wall when the crosshairs were marked
+    'crosshair_height_in': {'left': 69.0, 'right': 68.5},
+    'crosshair_separation_in': 13.0,   # the crosshairs had crossed: each camera aims past the other's side
+}
+
+
+def side_of(name: str):
+    low = name.lower()
+    for side in ('left', 'right'):
+        if side in low:
+            return side
+    return None
+
+
 # Default calibration tag: the hub tag the CircleFacingTag test uses (hub pair 9 & 10).
 DEFAULT_TAG_ID = 10
 

@@ -171,6 +171,31 @@ does not look trustworthy:
 - **Physical check that settles the wheels:** push or drive the robot 2 m by the tape and compare
   with `Drivetrain/Pose` in AdvantageScope.
 
+### Tape and aim truth for the 2027 robot (2026-11-14)
+
+Measured by hand; they prefill the tool's sanity-check boxes (`TAPE` and `AIM` in `robot_defaults.py`).
+Robot 33 in by 33 in including 3.25 in bumpers; lens 14.5 in behind the front bumper, 5.5 in in from
+the side bumper edge, 28.5 in off the floor, both cameras. Aim check: front bumper 72 in from a wall,
+crosshair of the left camera 69 in high, right 68.5 in; the two crosshairs 13 in apart and *crossed*.
+
+| | Tape / aim check | Robot code | Auto-calibration said |
+|---|---|---|---|
+| x (forward of centre) | +2.0 in | 2.19 | 2.0 / 2.4 (agrees) |
+| y (sideways) | +-11.0 in | +-10.91 | 10.9 / -9.8 |
+| z (height) | 28.5 in | 28.7 | **24.0 / 23.6 (wrong)** |
+| pitch | 25.1 / 24.8 deg up (-25 in WPILib) | -25 | **-28.6 / -28.2 (wrong)** |
+| yaw | -11.4 / +11.4 deg (inward), assuming the crosshairs are symmetric | -10 / +10 | **-5.8 / +19.4 (wrong)** |
+| roll | assumed 0 (level in the housing) | 0 | 0.2 / -2.8 |
+
+Arithmetic: the lens is 72 + 14.5 = 86.5 in from the wall. Pitch = atan((69 - 28.5) / 86.5) = 25.1 deg.
+Yaw: with the lenses 22 in apart and the crosshairs 13 in apart and crossed, tan(yaw) = (22 + 13) / 2 / 86.5,
+so 11.4 deg inward each. Only the crosshair separation was measured, not each one's sideways position,
+so the yaw split between the cameras is an assumption (symmetric).
+
+**Conclusion: the current constants in `VisionConstants.java` are accurate to the tape**: x, y and z
+within 0.2 in, pitch within 0.3 deg, yaw within about 1.4 deg. The auto-calibration's z, pitch and yaw
+are not, so do not apply them. The calibration is limited by the vision (see above), not the robot.
+
 ### Sanity checks and better data (a ladder, cheapest first)
 
 The auto-calibration compares vision with odometry, so when they disagree it cannot say which one
