@@ -96,6 +96,13 @@ Robot test write-ups live in `docs/experiments/<area>/YYYY-MM-DD-<slug>/` (READM
 gitignored logs, and its `results.json`). `notes/<date>/` stays the rough lab notebook and links to
 the write-up. Index and conventions: `docs/experiments/README.md`.
 
+### Repository layout
+
+Documentation lives in `docs/` (guides, logging, vision, coprocessor, tools, experiments, adr; index in `docs/README.md`). Notes are
+`notes/<MM-DD>/` and logs are `logs/<MM-DD>/`, both zero-padded dates. **`logs/` is local only: git-ignored, never committed or merged**
+(multi-gigabyte; experiments commit a small extract instead). `python tools/organize_logs.py` files logs into their day folder. Keep the
+repo root to the files the tools require; new dashboards, calibration exports and similar go in `resources/`.
+
 ### To-do list
 
 `TODO.md` at the repo root is the one open to-do list, and it is deliberately high level: experiments to run (in

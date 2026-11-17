@@ -175,7 +175,8 @@ simgui.json
 simgui-ds.json
 networktables.json.bck
 
-# Simulation data log directory
+# Robot and simulation logs: local only, one folder per day (logs/<MM-DD>/). Never commit them: they are gigabytes
+# and make every clone slower. Experiments commit a small extract (data/) instead of the log.
 logs/
 
 # Tool session logs (vision-analyzer, camera-calibration): keep the folder

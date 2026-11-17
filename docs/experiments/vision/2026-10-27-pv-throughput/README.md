@@ -6,7 +6,7 @@ date: 2026-10-27
 status: analyzed            # planned | running | analyzed | decided
 decision: pending           # filled in once the team picks a setting
 robot_code: beta @ 338bcfa7
-logs: logs/offseason/10-27/   # gitignored; one bundle per run
+logs: logs/10-27/   # gitignored; one bundle per run
 analysis: analyze.py → results.json
 raw_notes: notes/10-27/notes.md
 ---
@@ -209,6 +209,6 @@ a lower decimate unless the range test (open question 2) shows a gain worth half
 python docs/experiments/vision/2026-10-27-pv-throughput/analyze.py
 ```
 
-Reads the trimmed logs under `logs/offseason/10-27/` and rewrites `results.json`. The raw
+Reads the trimmed logs under `logs/10-27/` and rewrites `results.json`. The raw
 per-run numbers, including some not shown above (per-core CPU, recorder states, tag IDs), are in
 `results.json`.

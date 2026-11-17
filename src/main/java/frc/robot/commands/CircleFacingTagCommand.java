@@ -55,7 +55,7 @@ public class CircleFacingTagCommand extends Command {
     // TEMPORARY: reverted to the pre-2026-09-06 speed/accel values (were 1.0 / 0.2) and
     // swapped the stop condition from a 5-lap distance cap to a 17.6419s elapsed-time cap,
     // purely so this run reproduces the exact maneuver in
-    // logs/offseason/9-5/akit_26-09-05_14-27-33_CircleFacingTag_PreCalibration.wpilog
+    // logs/09-05/akit_26-09-05_14-27-33_CircleFacingTag_PreCalibration.wpilog
     // (same speed profile, cut at the same point) with the corrected camera intrinsics as
     // the only variable that's changed -- see notes/09-08 calibration exports and
     // VisionConstants.java. Once that baseline-vs-corrected-intrinsics comparison log is

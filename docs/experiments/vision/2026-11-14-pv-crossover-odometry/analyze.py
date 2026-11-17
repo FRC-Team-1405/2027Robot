@@ -45,7 +45,7 @@ sys.path.insert(0, str(REPO / "tools" / "wpilog-utils"))
 from wpilog_utils.decode import parse_wpilog  # noqa: E402
 from wpilog_utils.modes import compute_mode_spans  # noqa: E402
 
-LOGS = REPO / "logs" / "offseason"
+LOGS = REPO / "logs"
 WINDOW_S = 0.12          # half-width of the local quadratic used for jitter
 MIN_POINTS = 8           # points needed in a window to score a sample
 GAP_S = 0.05             # a gap longer than this counts as a dropout

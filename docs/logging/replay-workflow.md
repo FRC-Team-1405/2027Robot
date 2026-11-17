@@ -44,7 +44,7 @@ you can open in AdvantageScope side-by-side with the original.
 - A `.wpilog` AKit log from the real robot in the `logs/` tree
 
 > The log used in the steps below:  
-> `logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog`
+> `logs/06-13/akit_26-06-13_17-05-06.wpilog`
 
 ---
 
@@ -61,7 +61,7 @@ offseason log:
     "args": ["replayWatch"],
     "options": {
         "env": {
-            "AKIT_LOG_PATH": "logs\\offseason\\6-13-26\\akit_26-06-13_17-05-06.wpilog"
+            "AKIT_LOG_PATH": "logs\\06-13\\akit_26-06-13_17-05-06.wpilog"
         }
     }
 }
@@ -79,7 +79,7 @@ compare against:
 
 1. Launch AdvantageScope.
 2. **File → Open Log** → select
-   `logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog`.
+   `logs/06-13/akit_26-06-13_17-05-06.wpilog`.
 3. Set up the views you care about (pose, shooter speed, vision, etc.) and
    leave AdvantageScope open.
 
@@ -100,7 +100,7 @@ Ctrl + Shift + P  →  Tasks: Run Task  →  replayLog
 Or from the terminal at the project root:
 
 ```
-AKIT_LOG_PATH=logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog ./gradlew simulateJava -x test
+AKIT_LOG_PATH=logs/06-13/akit_26-06-13_17-05-06.wpilog ./gradlew simulateJava -x test
 ```
 
 No simulation GUI opens — replay runs headlessly at full CPU speed. A typical
@@ -118,7 +118,7 @@ SUCCESSFUL` when done.
 The replay produces a new file next to the source log:
 
 ```
-logs/offseason/6-13-26/akit_26-06-13_17-05-06_sim.wpilog
+logs/06-13/akit_26-06-13_17-05-06_sim.wpilog
 ```
 
 In AdvantageScope:
@@ -146,7 +146,7 @@ Ctrl + Shift + P  →  Tasks: Run Task  →  replayLogWatch
 Or from the terminal:
 
 ```
-AKIT_LOG_PATH=logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog ./gradlew replayWatch
+AKIT_LOG_PATH=logs/06-13/akit_26-06-13_17-05-06.wpilog ./gradlew replayWatch
 ```
 
 Make a code change, save the file, and within a few seconds the terminal shows:
@@ -188,7 +188,7 @@ indefinitely watching for changes and will not exit on its own.
 Edit `.vscode/tasks.json` — update `AKIT_LOG_PATH`:
 
 ```json
-"AKIT_LOG_PATH": "logs\\offseason\\6-13-26\\akit_26-06-13_17-05-06.wpilog"
+"AKIT_LOG_PATH": "logs\\06-13\\akit_26-06-13_17-05-06.wpilog"
 ```
 
 Paths are relative to the project root. Use forward or back slashes (both

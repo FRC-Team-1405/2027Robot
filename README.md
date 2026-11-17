@@ -2,6 +2,21 @@
 
 FRC robot code for the 2027 season. Built on WPILib 2026.2.1 with CTRE Phoenix6, PathPlanner, and PhotonVision.
 
+## Repository layout
+
+```
+src/                  Robot code (WPILib layout) and the PathPlanner/Choreo files it deploys
+docs/                 All documentation: guides, logging, vision, coprocessor, tools, experiments, ADRs (see docs/README.md)
+notes/<MM-DD>/        Lab notebook, one folder per day (rough notes, screenshots; the cleaned-up record is in docs/experiments)
+logs/<MM-DD>/         Robot logs, one folder per day. LOCAL ONLY: git-ignored, never committed (they are gigabytes)
+tools/                Laptop tools: logbench, exprunner, camera-calibration, wpilog-utils, wpilog-janitor, vision-analyzer
+coprocessor/          Orange Pi scripts, bootstrap and setup
+resources/            Reference assets: AprilTag layouts, motor configs, dashboard layouts, camera calibration exports, Choreo files
+TODO.md               The high-level to-do list, experiments to run first
+```
+
+`python tools/organize_logs.py` files new logs (from LogBench or a download) into `logs/<MM-DD>/`.
+
 ## Project Structure
 
 ```

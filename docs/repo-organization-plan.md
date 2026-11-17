@@ -1,75 +1,81 @@
-# Repo organization plan
+# Repo layout, and where things moved (2026-11-17)
 
-Branch: `feature/repo-organization` (from `main` after the 2026-11-17 merge of `beta` and the swerve replay branch).
-Goal: few files at the root, one place for docs, dated folders that read as simple dates, nothing that is only there by accident.
+Branch `feature/repo-organization`. The goal: few files at the root, one place for docs, dated folders that read as simple dates, and
+nothing in git that is only there by accident.
 
-Status: **survey done, nothing moved yet.** Edit this file to change the plan; the moves follow it.
+## Layout now
 
-## What's at the root today, and where it goes
+| | |
+|---|---|
+| Root | Only what a tool requires: `build.gradle`, `settings.gradle`, `gradlew*`, `gradle/`, `vendordeps/`, `src/`, `.wpilib/`, `.vscode/`, `.gitignore`, `README.md`, `CLAUDE.md`, `AGENTS.md`, `TODO.md`, `WPILib-License.md` |
+| `docs/` | `guides/`, `logging/`, `vision/`, `coprocessor/`, `tools/`, `performance/`, `experiments/`, `adr/`, `inventory/`, `robot_details/` (index: `docs/README.md`) |
+| `resources/` | Reference assets: AprilTag layouts, motor configs, `dashboards/` (AdvantageScope and Elastic layouts), `photonvision-calibrations/`, `choreo/` |
+| `notes/` | `notes/<MM-DD>/`, zero-padded; no loose files at the top |
+| `logs/` | `logs/<MM-DD>/`, **local only, never committed** (3.3 GB); `python tools/organize_logs.py` files new logs |
 
-Must stay at the root (the tools expect them there): `build.gradle`, `settings.gradle`, `gradlew`, `gradlew.bat`, `gradle/`,
-`vendordeps/`, `src/`, `.wpilib/`, `.vscode/`, `.gitignore`, `README.md`, `CLAUDE.md`, `AGENTS.md`, `TODO.md`, `WPILib-License.md`.
+## What was removed
 
-| Now at the root | What it is | Proposed |
-|---|---|---|
-| `AdvantageScope-CameraHealth.json`, `AdvantageScope_layout.json`, `elastic-layout.json` | Dashboard layouts | `resources/dashboards/` |
-| `left_photon_calibration_*.json`, `right_photon_calibration_*.json` (4 files, 1.2 MB) | PhotonVision camera calibration exports, 800x600 and 1280x800 | `resources/photonvision-calibrations/` (only comments in `VisionConstants.java` and two notes name them) |
-| `Left_To_Field.traj`, `Right_To_Field.traj` | Choreo trajectories, **byte-identical** to the copies in `src/main/deploy/` | delete |
-| `Right_To_Alliance.traj` | Choreo trajectory, **differs** from the deploy copy | decide: archive or delete (see Questions) |
-| `MacyTestAuto1.traj`, `NewPath.traj`, `Constraint-Honoring Omnidirectional Route Editor and Optimizer.chor` | Choreo files that exist only at the root, from July and September | archive in `resources/choreo-archive/` or delete (see Questions) |
-| `data/` (19 files, 3.9 MB) | **The Choreo desktop app's own program files** (Flutter assets: field images, icons, fonts), committed by accident on 2026-09-05 when Choreo was set up in this folder. Nothing in the repo reads them | delete |
-| `unins001.dat` | The same Choreo install's Windows uninstaller record, same commit | delete |
-| `docs/guides/` (13 files) | How-to guides (tuning, checklists, logs, GitHub setup) | `docs/guides/` (one reference to it needs updating) |
-| `resources/*.md` (`Autonomous.md`, `ControllerLayouts.md`, `RadioConfigurations.md`, `handyLinks.md`, `swerveTuneLog.md`) | Reference notes, not assets | `docs/guides/` with their images |
-| `resources/` the rest | AprilTag layouts, motor configs, images, `fuel_detector.vpr`, `vision-dashboard.html` | stays as `resources/` (the assets folder) |
+- `data/` and `unins001.dat`: Choreo's own program files and uninstaller, committed by accident on 2026-09-05. Choreo installs itself.
+- `docs/team/`: lives in `~/robotics/FinneyTeam` (all 35 files there, content identical). It had come back through the merge of `beta`.
+- The two trimmed logs that were tracked in `logs/` (`akit_26-10-14_*_trimmed.wpilog`): out of git, kept on disk in `logs/10-14/`. They remain in git history.
 
-That takes the root from **28 files plus 9 folders** to about **9 files plus 8 folders**, all of them required by a tool.
+Nothing Choreo-related that is configuration, a path or a trajectory was removed: the root files went to `resources/choreo/`
+(see its README).
 
-## notes/
+## Where things went
 
-The structure (`notes/<date>/`) is good. The problems:
+- `Guides/` -> `docs/guides/` (same layout inside).
+- Root dashboard layouts -> `resources/dashboards/`; the four `*_photon_calibration_*.json` -> `resources/photonvision-calibrations/`;
+  root `*.traj` and `*.chor` -> `resources/choreo/`.
+- Notes date folders zero-padded: `notes/10-3` -> `notes/10-03`, `notes/11-7` -> `notes/11-07`, `notes/6-16` -> `notes/06-16`, `notes/6-20` -> `notes/06-20`, `notes/6-23` -> `notes/06-23`, `notes/7-14` -> `notes/07-14`, `notes/7-21` -> `notes/07-21`, `notes/7-26` -> `notes/07-26`, `notes/7-28` -> `notes/07-28`, `notes/7-7` -> `notes/07-07`, `notes/9-1` -> `notes/09-01`, `notes/9-12` -> `notes/09-12`, `notes/9-15` -> `notes/09-15`, `notes/9-19` -> `notes/09-19`, `notes/9-22` -> `notes/09-22`, `notes/9-29` -> `notes/09-29`, `notes/9-5` -> `notes/09-05`, `notes/9-8` -> `notes/09-08`. Loose `notes/9-5.md` -> `notes/09-05/`; `testingVision_6-16.md` and its 12 images -> `notes/06-16/`.
+- Logs: `logs/offseason/<d>/` -> `logs/<MM-DD>/` (`11-3` -> `11-03`, `6-13-26` -> `06-13`); loose `FRC_*` files and simulation folders
+  -> the day in their name (UTC); file names unchanged. Experiment `analyze.py` scripts and READMEs point at `logs/`.
+- Docs and resources moved by file (links and mentions across the repo were rewritten; no link broke that wasn't already broken):
 
-- **14 loose files at the top**: `9-5.md`, `testingVision_6-16.md`, and 12 pasted `image*.png` (`testingVision_6-16.md` is the one
-  that uses them). Proposed: `notes/09-05/` and `notes/06-16/` take them (images in `notes/06-16/images/`).
-- **Date folders don't sort**: `10-3`, `11-7`, `9-1` sort after `10-27`. Proposed: zero-padded `MM-DD`
-  (`09-01`, `10-03`, `11-07`). Links in docs that name `notes/11-07/...`, `notes/09-05/9-5.md` etc. are updated in the same step.
+| From | To |
+|---|---|
+| `docs/BatteryStatus.md` | `docs/logging/BatteryStatus.md` |
+| `docs/akit-architecture.md` | `docs/logging/akit-architecture.md` |
+| `docs/akit-logging-replay.md` | `docs/logging/akit-logging-replay.md` |
+| `docs/akit-subsystem-guide.md` | `docs/guides/akit-subsystem-guide.md` |
+| `docs/akit-swerve-integration.md` | `docs/logging/akit-swerve-integration.md` |
+| `docs/battery-insights.md` | `docs/logging/battery-insights.md` |
+| `docs/camera-autocal-plan.md` | `docs/vision/camera-autocal-plan.md` |
+| `docs/camera-mount-calibration-notes.md` | `docs/vision/camera-mount-calibration-notes.md` |
+| `docs/can-bus-load-ab-test.md` | `docs/performance/can-bus-load-ab-test.md` |
+| `docs/console-load-ab-test.md` | `docs/performance/console-load-ab-test.md` |
+| `docs/coprocessor-research.md` | `docs/coprocessor/coprocessor-research.md` |
+| `docs/experiment-runner-plan.md` | `docs/tools/experiment-runner-plan.md` |
+| `docs/health-check.md` | `docs/logging/health-check.md` |
+| `docs/helpful-info-for-drivers.md` | `docs/guides/driver-info/helpful-info-for-drivers.md` |
+| `docs/image.png` | `docs/guides/driver-info/image.png` |
+| `docs/logbench-e2e-test-plan.md` | `docs/tools/logbench-e2e-test-plan.md` |
+| `docs/orangepi-internet-access.md` | `docs/coprocessor/orangepi-internet-access.md` |
+| `docs/orangepi-nt-publisher-setup.md` | `docs/coprocessor/orangepi-nt-publisher-setup.md` |
+| `docs/orangepi-vision-recorder-setup.md` | `docs/coprocessor/orangepi-vision-recorder-setup.md` |
+| `docs/photonvision-camera-intrinsics-calibration.md` | `docs/vision/photonvision-camera-intrinsics-calibration.md` |
+| `docs/replay-workflow.md` | `docs/logging/replay-workflow.md` |
+| `docs/two-orangepi-vision-ab-test.md` | `docs/vision/two-orangepi-vision-ab-test.md` |
+| `docs/vision-ab-test-plan.md` | `docs/vision/vision-ab-test-plan.md` |
+| `docs/vision-analysis-2026.md` | `docs/vision/vision-analysis-2026.md` |
+| `docs/vision-improvements-2027.md` | `docs/vision/vision-improvements-2027.md` |
+| `docs/vision-log-analysis.md` | `docs/vision/vision-log-analysis.md` |
+| `docs/vision-testing-protocol.md` | `docs/vision/vision-testing-protocol.md` |
+| `docs/wpilog-janitor-plan.md` | `docs/tools/wpilog-janitor-plan.md` |
+| `resources/Autonomous.md` | `docs/guides/autonomous/Autonomous.md` |
+| `resources/ControllerLayouts.md` | `docs/guides/controller-layouts/ControllerLayouts.md` |
+| `resources/RadioConfigurations.md` | `docs/guides/RadioConfigurations.md` |
+| `resources/driverControls.png` | `docs/guides/controller-layouts/driverControls.png` |
+| `resources/handyLinks.md` | `docs/guides/handyLinks.md` |
+| `resources/image-1.png` | `docs/guides/autonomous/image-1.png` |
+| `resources/image-2.png` | `docs/guides/autonomous/image-2.png` |
+| `resources/image-3.png` | `docs/guides/autonomous/image-3.png` |
+| `resources/image-4.png` | `docs/guides/autonomous/image-4.png` |
+| `resources/image-5.png` | `docs/guides/autonomous/image-5.png` |
+| `resources/image.png` | `docs/guides/autonomous/image.png` |
+| `resources/operatorControls.png` | `docs/guides/controller-layouts/operatorControls.png` |
+| `resources/swerveTuneLog.md` | `docs/guides/swerveTuneLog.md` |
 
-## logs/ (local only: 3.3 GB, not in git)
+## Not done
 
-Today: `logs/offseason/<date>/` (real robot logs, with `.bundles`, `.vision`, `.trimmed` beside them) next to 22 dated
-simulation folders (`2026-10-18_17-39-33`), 17 loose `FRC_*.wpilog`, and two tracked trimmed logs.
-
-Proposed: **`logs/<MM-DD>/` holds everything from that day**, nothing else at the top.
-
-- `logs/offseason/<d>/` becomes `logs/<MM-DD>/` (the folder name already says which session day it was, which can differ from the UTC
-  date in the file name for evening sessions, so the existing grouping is kept).
-- Loose `FRC_*.wpilog` and the `2026-MM-DD_HH-MM-SS` folders go to the day in their name.
-- File names are **not** changed: the time of day in `akit_26-11-14_20-26-00` tells sessions apart, and the experiment manifests and
-  `analyze.py` scripts refer to those names.
-- A one-off script (`tools/organize_logs.py`, dry run first) does the move and prints what it will do.
-- 19 files mention `logs/offseason` (experiment `analyze.py` scripts and READMEs, `vision_analyzer`, `CircleFacingTagCommand`,
-  the Janitor UI, `.claude/launch.json`); they change to `logs/`. Each `analyze.py` already joins a `<date>/<name>` path onto one
-  constant, so it is a one-line change per script.
-
-## docs/ (after Guides move in)
-
-`docs/` has 28 files at its top. Proposed grouping, **as a second step once the above lands**: `docs/guides/` (how-tos), `docs/vision/`,
-`docs/logging/` (akit, replay, battery, health check), `docs/coprocessor/` (Pi setup docs), with `adr/`, `experiments/` and `team/` as they are.
-
-## Questions
-
-- **Delete `data/` and `unins001.dat`?** They are Choreo's own program files; if anyone wants Choreo, it installs itself. Yes/no.
-- **The unique Choreo files** (`MacyTestAuto1.traj`, `NewPath.traj`, `Right_To_Alliance.traj`, the `.chor`): keep them in
-  `resources/choreo-archive/`, or delete? (`src/main/deploy/` already holds the Choreo files the robot uses.)
-- **Zero-padded dates** (`09-01`) so folders sort correctly, in both `notes/` and `logs/`: OK?
-- **Group `docs/` now or later?**
-
-## Order of work
-
-- [ ] Root: move the layouts and calibrations; delete the stray duplicates.
-- [ ] `docs/guides/` and the `resources/` notes into `docs/guides/`.
-- [ ] `data/` and `unins001.dat` removed (if yes).
-- [ ] `notes/`: loose files into dated folders; rename date folders; fix links.
-- [ ] `logs/`: script with a dry run, run it, point the 19 files at `logs/`.
-- [ ] `docs/` grouping (second step).
-- [ ] Update `README.md`, `CLAUDE.md` and `TODO.md` for the new layout; run the tool tests and `gradlew build`.
+- `docs/` pages themselves are unedited; only their location and links changed.

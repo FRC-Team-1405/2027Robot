@@ -15,7 +15,7 @@
             ],
             "options": {
                 "env": {
-                    "AKIT_LOG_PATH": "logs\\offseason\\6-13-26\\akit_26-06-13_17-05-06.wpilog"
+                    "AKIT_LOG_PATH": "logs\\06-13\\akit_26-06-13_17-05-06.wpilog"
                 }
             }
         },
@@ -29,7 +29,7 @@
             ],
             "options": {
                 "env": {
-                    "AKIT_LOG_PATH": "logs\\offseason\\6-13-26\\akit_26-06-13_17-05-06.wpilog"
+                    "AKIT_LOG_PATH": "logs\\06-13\\akit_26-06-13_17-05-06.wpilog"
                 }
             },
             "isBackground": true,

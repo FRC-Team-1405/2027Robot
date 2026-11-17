@@ -101,7 +101,7 @@ See **`docs/logging/replay-workflow.md`** for the full step-by-step guide.
 
    ```bash
    # Terminal
-   AKIT_LOG_PATH=logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog ./gradlew replayWatch
+   AKIT_LOG_PATH=logs/06-13/akit_26-06-13_17-05-06.wpilog ./gradlew replayWatch
 
    # VS Code
    Ctrl+Shift+P → Tasks: Run Task → replayLog

@@ -93,7 +93,7 @@ while the robot was writing them, and all finished.
 
 - [ ] **Both Pis on the race setting**: 800x600 @100, decimate 2, Low Latency off, threads = best,
       drawing = best (B7's settings).
-- [ ] **Fetch the bundles** into `logs/offseason/11-10/`.
+- [ ] **Fetch the bundles** into `logs/11-10/`.
 
 ## If there's time: range
 

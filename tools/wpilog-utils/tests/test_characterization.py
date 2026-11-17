@@ -15,7 +15,7 @@ from wpilog_utils.modes import compute_mode_spans, filter_signals_by_time
 from wpilog_utils.trim import trim_wpilog_bytes
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-NOTES = ROOT / 'notes' / '6-20'
+NOTES = ROOT / 'notes' / '06-20'
 GOLDEN = json.loads((pathlib.Path(__file__).parent / 'golden' / 'legacy_fingerprints.json').read_text())
 
 

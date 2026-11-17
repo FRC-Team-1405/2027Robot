@@ -6,7 +6,7 @@ date: 2026-11-10
 status: analyzed            # planned | running | analyzed | decided
 decision: keep threads 8 and drawing as is; decimate is the lever (B6 @120 dec 2 still open)
 robot_code: beta @ d0b8b2c (dirty), same in every run; no robot-code change needed
-logs: logs/offseason/11-10/
+logs: logs/11-10/
 analysis: analyze.py → results.json
 raw_notes: notes/11-10/notes.md
 ---
@@ -187,7 +187,7 @@ test.
 python docs/experiments/vision/2026-11-10-pv-frame-budget/analyze.py
 ```
 
-Reads the WPILog Janitor-trimmed logs in `logs/offseason/11-10/` (unzip each bundle into a
+Reads the WPILog Janitor-trimmed logs in `logs/11-10/` (unzip each bundle into a
 folder of the same name first).
 
 | Run | Log |

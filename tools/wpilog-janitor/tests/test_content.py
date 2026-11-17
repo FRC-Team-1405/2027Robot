@@ -11,7 +11,7 @@ from janitor.core import content, dedupe
 from wpilog_utils.index import build_index, load_index
 from wpilog_utils.trim import Segment, TrimPlan, resolve_plan
 
-NOTES = pathlib.Path(__file__).resolve().parents[3] / 'notes' / '6-20'
+NOTES = pathlib.Path(__file__).resolve().parents[3] / 'notes' / '06-20'
 BOTH = ('replay', 'logbench')
 N = 200                      # cycles in the synthetic logs
 

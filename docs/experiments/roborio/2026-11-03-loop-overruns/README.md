@@ -6,7 +6,7 @@ date: 2026-11-03            # written 11-03; first runs 11-07 (folder keeps the 
 status: running             # planned | running | analyzed | decided
 decision: pending           # not dashboards, not extended vision logging; the CPU is ~80% busy
 robot_code: 11-07 L1–L3 338bcfa (old!), L5 vision-throughput-10-27 a9925d1+edits, L4'/L4''/L2' beta d0b8b2c+edits
-logs: logs/offseason/11-7/
+logs: logs/11-07/
 analysis: analyze.py → results.json
 raw_notes: notes/11-07/myNotes.md
 ---

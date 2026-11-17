@@ -19,11 +19,11 @@ fp = importlib.util.module_from_spec(spec); spec.loader.exec_module(fp)
 pv1027 = fp.pv1027
 from wpilog_utils.decode import parse_wpilog  # put on sys.path by the 10-27 module
 
-LOGS = REPO / "logs" / "offseason"
-# (ID, what changed, log under logs/offseason/, camera fps). References from 11-07 first.
+LOGS = REPO / "logs"
+# (ID, what changed, log under logs/, camera fps). References from 11-07 first.
 RUNS = [
-    ("ref-R5", "11-07: 800x600 @100, dec 2, threads 8, drawing on", "11-7/akit_26-11-07_18-13-22", 100),
-    ("ref-R6", "11-07: 800x600 @120, dec 1, threads 8, drawing on", "11-7/akit_26-11-07_19-19-16", 120),
+    ("ref-R5", "11-07: 800x600 @100, dec 2, threads 8, drawing on", "11-07/akit_26-11-07_18-13-22", 100),
+    ("ref-R6", "11-07: 800x600 @120, dec 1, threads 8, drawing on", "11-07/akit_26-11-07_19-19-16", 120),
     ("B1", "dec 1, threads 8, drawing on (baseline)", "11-10/akit_26-11-10_23-14-41", 100),
     ("B2", "dec 1, threads 4", "11-10/akit_26-11-10_23-27-02", 100),
     ("B3", "dec 1, threads 3", "11-10/akit_26-11-10_23-30-18", 100),

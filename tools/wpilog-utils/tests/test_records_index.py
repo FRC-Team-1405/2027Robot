@@ -9,7 +9,7 @@ from wpilog_utils.index import build_index, load_index
 from wpilog_utils.records import (ControlRecord, encode_record, encode_start_payload, iter_records,
                                   parse_control, wpilog_header_end)
 
-NOTES = pathlib.Path(__file__).resolve().parents[3] / 'notes' / '6-20'
+NOTES = pathlib.Path(__file__).resolve().parents[3] / 'notes' / '06-20'
 
 
 # ── records ─────────────────────────────────────────────────────────────────────────────────────

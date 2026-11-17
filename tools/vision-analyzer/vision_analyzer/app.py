@@ -272,7 +272,7 @@ def _streamlit_app() -> None:
         st.caption('— or enter a path —')
         log_path_raw = st.text_input(
             'Path to .wpilog',
-            placeholder='logs/offseason/6-13-26/akit_26-06-13_17-05-06.wpilog',
+            placeholder='logs/06-13/akit_26-06-13_17-05-06.wpilog',
         )
         log_path = log_path_raw.strip().strip('"')
 
@@ -335,7 +335,7 @@ def _streamlit_app() -> None:
         st.caption('— or enter a path —')
         log_path_b_raw = st.text_input(
             'Path to .wpilog (B)',
-            placeholder='logs/offseason/6-13-26/akit_26-06-13_18-00-00.wpilog',
+            placeholder='logs/06-13/akit_26-06-13_18-00-00.wpilog',
             key='_log_path_b_input',
         )
         log_path_b = log_path_b_raw.strip().strip('"')

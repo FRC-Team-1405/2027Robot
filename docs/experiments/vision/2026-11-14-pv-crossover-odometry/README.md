@@ -6,7 +6,7 @@ date: 2026-11-14
 status: planned               # planned | running | analyzed | decided
 decision: pending
 robot_code: beta @ (fill in from RealMetadata/GitSHA before the first run)
-logs: logs/offseason/<date>/ (gitignored); name each run's log in runs.toml
+logs: logs/<date>/ (gitignored); name each run's log in runs.toml
 analysis: analyze.py → results.json
 raw_notes: notes/<date>/notes.md
 ---
@@ -170,7 +170,7 @@ downloads just the bytes the robot wrote since the last fetch, after checking th
 same file). That keeps the safe "fetch after every run", at a few MB per run instead of the whole log again. The
 manifest now records each fetch's size and time, so we can see this instead of guessing.
 
-**Checked on 2026-11-17 against the logs saved in `logs/offseason/11-14/`:** the session's AdvantageKit log is not
+**Checked on 2026-11-17 against the logs saved in `logs/11-14/`:** the session's AdvantageKit log is not
 among them. The folder has two `akit_*` logs (`akit_26-11-14_18-40-44`, 197 s, and `akit_26-11-14_19-11-27`, 188 s)
 from earlier boots, and the `FRC_20261114_202608.wpilog` the runner fetched (122 KB, 1034 s, from this session) holds only
 a few dozen entries and no enable/disable events. The runs sit at robot time 319-1026 s, so the log needed is one from

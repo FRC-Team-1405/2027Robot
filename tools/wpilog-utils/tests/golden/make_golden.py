@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / 'vision-analyzer'))
 from vision_analyzer.parser import parse_wpilog, trim_wpilog_bytes, _parse_wpilog_bytes  # noqa: E402
 from vision_analyzer import metrics as m                                                    # noqa: E402
 
-NOTES = ROOT.parent / 'notes' / '6-20'
+NOTES = ROOT.parent / 'notes' / '06-20'
 NAMES = ['akit_26-06-20_14-22-29_cameraConfigChange.wpilog', 'akit_26-06-20_13-33-46_baseline.wpilog']
 
 

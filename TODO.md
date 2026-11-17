@@ -63,7 +63,7 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 ## Docs and housekeeping
 
 - **A home Wi-Fi password is committed** in `notes/06-23/sshExport.txt`: redact it and change the password.
-- **Out-of-date docs**: `docs/coprocessor/orangepi-internet-access.md`, the camera settings in
+- **Out-of-date docs** (paths now under `docs/guides`, `docs/coprocessor`, `docs/vision`): `docs/coprocessor/orangepi-internet-access.md`, the camera settings in
   `docs/vision/photonvision-camera-intrinsics-calibration.md`.
 - **Tests that fail on Windows** (`coprocessor/tests/test_setup_orangepi.py`, `Test-BootstrapOrangePi.ps1`).
 - **Install the GitHub CLI (`gh`)** on the team laptop.
@@ -73,6 +73,7 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 <details>
 <summary>Done (newest first)</summary>
 
+- 2026-11-17: repo reorganized: root cut to the required files, Guides and reference notes into `docs/guides`, `docs/` grouped, notes and logs in zero-padded day folders, Choreo's program files and `docs/team` removed (`docs/repo-organization-plan.md`)
 - 2026-11-14: robot-experiment runner (sets PhotonVision, confirms from the Pis, detects enable/disable, fetches the log, records a manifest) (`tools/exprunner`, `docs/tools/experiment-runner-plan.md`)
 - 2026-11-14: frame cost on the Pi, bench: matches the robot; 4 frames in flight give ~4x results/s, each ~10 ms later; grey decode saves 1.3-2.8 ms (`docs/experiments/vision/2026-11-11-pv-frame-cost/`)
 - 2026-11-14: camera mounts checked against tape and an aim check: constants match to ~0.2 in / 0.3 deg, kept (`docs/vision/camera-mount-calibration-notes.md`)
