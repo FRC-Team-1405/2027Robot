@@ -1,0 +1,736 @@
+{
+ "steps": {
+  "T1": {
+   "jpeg": {
+    "LeftPi": {
+     "width": 800,
+     "height": 600,
+     "channels": 3,
+     "sampling": [
+      "2x1",
+      "1x1",
+      "1x1"
+     ],
+     "progressive": false,
+     "has_huffman_tables": true
+    },
+    "RightPi": {
+     "width": 800,
+     "height": 600,
+     "channels": 3,
+     "sampling": [
+      "2x1",
+      "1x1",
+      "1x1"
+     ],
+     "progressive": false,
+     "has_huffman_tables": true
+    }
+   },
+   "rows": [
+    {
+     "step": "decode_color",
+     "LeftPi": {
+      "median_ms": 2.375,
+      "p95_ms": 2.393,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 2.453,
+      "p95_ms": 2.47,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "decode_gray",
+     "LeftPi": {
+      "median_ms": 1.24,
+      "p95_ms": 1.259,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 1.322,
+      "p95_ms": 1.343,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "color_to_gray",
+     "LeftPi": {
+      "median_ms": 0.207,
+      "p95_ms": 0.216,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 0.231,
+      "p95_ms": 0.246,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "detect_dec1_threads1",
+     "LeftPi": {
+      "median_ms": 19.563,
+      "p95_ms": 20.206,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 21.847,
+      "p95_ms": 22.483,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec1_threads4",
+     "LeftPi": {
+      "median_ms": 9.39,
+      "p95_ms": 9.861,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 10.655,
+      "p95_ms": 11.331,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec1_threads8",
+     "LeftPi": {
+      "median_ms": 9.678,
+      "p95_ms": 10.714,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 11.608,
+      "p95_ms": 12.723,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec2_threads1",
+     "LeftPi": {
+      "median_ms": 5.367,
+      "p95_ms": 5.604,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 6.43,
+      "p95_ms": 6.677,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec2_threads4",
+     "LeftPi": {
+      "median_ms": 3.318,
+      "p95_ms": 3.523,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 3.981,
+      "p95_ms": 4.224,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec2_threads8",
+     "LeftPi": {
+      "median_ms": 3.655,
+      "p95_ms": 4.048,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 4.474,
+      "p95_ms": 4.92,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec3_threads1",
+     "LeftPi": {
+      "median_ms": 2.522,
+      "p95_ms": 2.613,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 2.796,
+      "p95_ms": 2.933,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec3_threads4",
+     "LeftPi": {
+      "median_ms": 1.926,
+      "p95_ms": 2.046,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 2.219,
+      "p95_ms": 2.451,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec3_threads8",
+     "LeftPi": {
+      "median_ms": 2.09,
+      "p95_ms": 2.312,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 2.385,
+      "p95_ms": 2.692,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "pose_single_all_tags_iter100",
+     "LeftPi": {
+      "median_ms": 0.89,
+      "p95_ms": 1.178,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 0.779,
+      "p95_ms": 0.94,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "pose_single_all_tags_iter40",
+     "LeftPi": {
+      "median_ms": 0.753,
+      "p95_ms": 1.019,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 0.623,
+      "p95_ms": 0.785,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "pose_multitag",
+     "LeftPi": {
+      "median_ms": 0.214,
+      "p95_ms": 0.246,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 0.234,
+      "p95_ms": 0.272,
+      "tags_per_frame": null
+     }
+    }
+   ]
+  },
+  "T2": {
+   "jpeg": {
+    "LeftPi": {
+     "width": 1280,
+     "height": 800,
+     "channels": 3,
+     "sampling": [
+      "2x1",
+      "1x1",
+      "1x1"
+     ],
+     "progressive": false,
+     "has_huffman_tables": true
+    },
+    "RightPi": {
+     "width": 1280,
+     "height": 800,
+     "channels": 3,
+     "sampling": [
+      "2x1",
+      "1x1",
+      "1x1"
+     ],
+     "progressive": false,
+     "has_huffman_tables": true
+    }
+   },
+   "rows": [
+    {
+     "step": "decode_color",
+     "LeftPi": {
+      "median_ms": 5.063,
+      "p95_ms": 5.102,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 5.049,
+      "p95_ms": 5.088,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "decode_gray",
+     "LeftPi": {
+      "median_ms": 2.712,
+      "p95_ms": 2.749,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 2.702,
+      "p95_ms": 2.733,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "color_to_gray",
+     "LeftPi": {
+      "median_ms": 0.47,
+      "p95_ms": 0.505,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 0.484,
+      "p95_ms": 0.512,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "detect_dec1_threads1",
+     "LeftPi": {
+      "median_ms": 44.254,
+      "p95_ms": 45.936,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 44.113,
+      "p95_ms": 45.255,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec1_threads4",
+     "LeftPi": {
+      "median_ms": 20.437,
+      "p95_ms": 21.9,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 20.174,
+      "p95_ms": 21.356,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec1_threads8",
+     "LeftPi": {
+      "median_ms": 22.005,
+      "p95_ms": 24.105,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 21.878,
+      "p95_ms": 23.664,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec2_threads1",
+     "LeftPi": {
+      "median_ms": 12.279,
+      "p95_ms": 12.774,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 13.255,
+      "p95_ms": 13.906,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec2_threads4",
+     "LeftPi": {
+      "median_ms": 7.056,
+      "p95_ms": 7.369,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 7.389,
+      "p95_ms": 7.76,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec2_threads8",
+     "LeftPi": {
+      "median_ms": 7.775,
+      "p95_ms": 8.56,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 8.27,
+      "p95_ms": 8.934,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec3_threads1",
+     "LeftPi": {
+      "median_ms": 5.447,
+      "p95_ms": 5.672,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 5.97,
+      "p95_ms": 6.31,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec3_threads4",
+     "LeftPi": {
+      "median_ms": 3.553,
+      "p95_ms": 3.792,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 3.732,
+      "p95_ms": 4.002,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "detect_dec3_threads8",
+     "LeftPi": {
+      "median_ms": 3.923,
+      "p95_ms": 4.304,
+      "tags_per_frame": 2.0
+     },
+     "RightPi": {
+      "median_ms": 4.21,
+      "p95_ms": 4.585,
+      "tags_per_frame": 2.0
+     }
+    },
+    {
+     "step": "pose_single_all_tags_iter100",
+     "LeftPi": {
+      "median_ms": 1.068,
+      "p95_ms": 1.154,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 1.112,
+      "p95_ms": 1.179,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "pose_single_all_tags_iter40",
+     "LeftPi": {
+      "median_ms": 0.922,
+      "p95_ms": 1.011,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 0.957,
+      "p95_ms": 1.019,
+      "tags_per_frame": null
+     }
+    },
+    {
+     "step": "pose_multitag",
+     "LeftPi": {
+      "median_ms": 0.262,
+      "p95_ms": 0.313,
+      "tags_per_frame": null
+     },
+     "RightPi": {
+      "median_ms": 0.252,
+      "p95_ms": 0.307,
+      "tags_per_frame": null
+     }
+    }
+   ]
+  }
+ },
+ "inflight": {
+  "F0a": {
+   "LeftPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 70.6,
+     "per_frame_median_ms": 14.119,
+     "per_frame_p95_ms": 15.167
+    }
+   ],
+   "RightPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 68.2,
+     "per_frame_median_ms": 14.722,
+     "per_frame_p95_ms": 15.632
+    }
+   ]
+  },
+  "F0b": {
+   "LeftPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 72.2,
+     "per_frame_median_ms": 13.84,
+     "per_frame_p95_ms": 14.545
+    }
+   ],
+   "RightPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 71.4,
+     "per_frame_median_ms": 14.001,
+     "per_frame_p95_ms": 14.627
+    }
+   ]
+  },
+  "F1": {
+   "LeftPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 38.7,
+     "per_frame_median_ms": 25.777,
+     "per_frame_p95_ms": 26.512
+    },
+    {
+     "workers": 2,
+     "frames_per_s": 84.6,
+     "per_frame_median_ms": 23.642,
+     "per_frame_p95_ms": 24.354
+    },
+    {
+     "workers": 3,
+     "frames_per_s": 123.6,
+     "per_frame_median_ms": 24.2,
+     "per_frame_p95_ms": 25.162
+    },
+    {
+     "workers": 4,
+     "frames_per_s": 158.7,
+     "per_frame_median_ms": 25.182,
+     "per_frame_p95_ms": 26.193
+    }
+   ],
+   "RightPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 36.7,
+     "per_frame_median_ms": 27.213,
+     "per_frame_p95_ms": 28.017
+    },
+    {
+     "workers": 2,
+     "frames_per_s": 80.3,
+     "per_frame_median_ms": 24.917,
+     "per_frame_p95_ms": 25.689
+    },
+    {
+     "workers": 3,
+     "frames_per_s": 114.9,
+     "per_frame_median_ms": 25.633,
+     "per_frame_p95_ms": 28.514
+    },
+    {
+     "workers": 4,
+     "frames_per_s": 150.9,
+     "per_frame_median_ms": 26.503,
+     "per_frame_p95_ms": 27.365
+    }
+   ]
+  },
+  "F2": {
+   "LeftPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 40.8,
+     "per_frame_median_ms": 24.435,
+     "per_frame_p95_ms": 25.243
+    },
+    {
+     "workers": 2,
+     "frames_per_s": 89.6,
+     "per_frame_median_ms": 22.3,
+     "per_frame_p95_ms": 23.027
+    },
+    {
+     "workers": 3,
+     "frames_per_s": 131.7,
+     "per_frame_median_ms": 22.707,
+     "per_frame_p95_ms": 23.492
+    },
+    {
+     "workers": 4,
+     "frames_per_s": 173.6,
+     "per_frame_median_ms": 23.022,
+     "per_frame_p95_ms": 23.727
+    }
+   ],
+   "RightPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 41.8,
+     "per_frame_median_ms": 23.896,
+     "per_frame_p95_ms": 24.643
+    },
+    {
+     "workers": 2,
+     "frames_per_s": 84.8,
+     "per_frame_median_ms": 23.576,
+     "per_frame_p95_ms": 24.303
+    },
+    {
+     "workers": 3,
+     "frames_per_s": 124.2,
+     "per_frame_median_ms": 24.065,
+     "per_frame_p95_ms": 24.854
+    },
+    {
+     "workers": 4,
+     "frames_per_s": 164.1,
+     "per_frame_median_ms": 24.347,
+     "per_frame_p95_ms": 25.169
+    }
+   ]
+  },
+  "F3": {
+   "LeftPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 52.4,
+     "per_frame_median_ms": 19.03,
+     "per_frame_p95_ms": 19.512
+    },
+    {
+     "workers": 2,
+     "frames_per_s": 101.4,
+     "per_frame_median_ms": 19.692,
+     "per_frame_p95_ms": 20.335
+    },
+    {
+     "workers": 3,
+     "frames_per_s": 153.9,
+     "per_frame_median_ms": 19.407,
+     "per_frame_p95_ms": 20.556
+    },
+    {
+     "workers": 4,
+     "frames_per_s": 198.5,
+     "per_frame_median_ms": 20.06,
+     "per_frame_p95_ms": 21.106
+    }
+   ],
+   "RightPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 46.5,
+     "per_frame_median_ms": 21.446,
+     "per_frame_p95_ms": 22.113
+    },
+    {
+     "workers": 2,
+     "frames_per_s": 101.2,
+     "per_frame_median_ms": 19.725,
+     "per_frame_p95_ms": 20.385
+    },
+    {
+     "workers": 3,
+     "frames_per_s": 145.1,
+     "per_frame_median_ms": 20.631,
+     "per_frame_p95_ms": 21.672
+    },
+    {
+     "workers": 4,
+     "frames_per_s": 190.0,
+     "per_frame_median_ms": 20.989,
+     "per_frame_p95_ms": 21.857
+    }
+   ]
+  },
+  "F4": {
+   "LeftPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 19.0,
+     "per_frame_median_ms": 52.442,
+     "per_frame_p95_ms": 53.988
+    },
+    {
+     "workers": 2,
+     "frames_per_s": 42.1,
+     "per_frame_median_ms": 47.421,
+     "per_frame_p95_ms": 48.877
+    },
+    {
+     "workers": 3,
+     "frames_per_s": 62.1,
+     "per_frame_median_ms": 48.281,
+     "per_frame_p95_ms": 49.807
+    },
+    {
+     "workers": 4,
+     "frames_per_s": 78.7,
+     "per_frame_median_ms": 49.036,
+     "per_frame_p95_ms": 51.171
+    }
+   ],
+   "RightPi": [
+    {
+     "workers": 1,
+     "frames_per_s": 20.8,
+     "per_frame_median_ms": 48.073,
+     "per_frame_p95_ms": 49.384
+    },
+    {
+     "workers": 2,
+     "frames_per_s": 40.6,
+     "per_frame_median_ms": 49.258,
+     "per_frame_p95_ms": 50.496
+    },
+    {
+     "workers": 3,
+     "frames_per_s": 62.5,
+     "per_frame_median_ms": 47.94,
+     "per_frame_p95_ms": 49.214
+    },
+    {
+     "workers": 4,
+     "frames_per_s": 79.0,
+     "per_frame_median_ms": 48.673,
+     "per_frame_p95_ms": 50.743
+    }
+   ]
+  }
+ },
+ "baseline_check": {
+  "F0a": {
+   "robot": "11-10 B1, 800x600 dec 1, 8 threads",
+   "LeftPi": {
+    "bench_frame_ms": 14.16,
+    "robot_frame_ms": 14.6,
+    "ratio": 0.97
+   },
+   "RightPi": {
+    "bench_frame_ms": 14.66,
+    "robot_frame_ms": 14.6,
+    "ratio": 1.0
+   }
+  },
+  "F0b": {
+   "robot": "11-07 R13, 1280x800 dec 2, 8 threads",
+   "LeftPi": {
+    "bench_frame_ms": 13.85,
+    "robot_frame_ms": 15.9,
+    "ratio": 0.87
+   },
+   "RightPi": {
+    "bench_frame_ms": 14.01,
+    "robot_frame_ms": 15.9,
+    "ratio": 0.88
+   }
+  }
+ }
+}

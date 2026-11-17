@@ -600,6 +600,7 @@ public class Full_Autos {
                 NamedCommands.registerCommand("TEST", TEST);
                 NamedCommands.registerCommand("CircleHub", CircleHub);
                 NamedCommands.registerCommand("CircleFacingTag", cmds.CircleFacingTag.get());
+                NamedCommands.registerCommand("CalibrateCameras", cmds.CalibrateCameras.get());
                 // TODO: use DepotFaceIn
                 // NamedCommands.registerCommand("DepotFaceIn", DepotFaceIn);
                 NamedCommands.registerCommand("JUSTSHOOT", JUSTSHOOT);
@@ -612,6 +613,7 @@ public class Full_Autos {
                 NamedCommands.registerCommand("runPickupStop", cmds.pickup.runPickupStop());
                 NamedCommands.registerCommand("runIntakeOut", cmds.intake.runIntakeOut());
                 NamedCommands.registerCommand("mediumShoot", cmds.mediumShoot.get());
+                NamedCommands.registerCommand("ClosestShootingPos", cmds.MoveTo_ClosestShootingPosition_MEDIUM.get());
                 
                 // TODO: Actually cook in autos
                 // TODO: Random circle auto, Ask leeland about get those leftovers, tweak get

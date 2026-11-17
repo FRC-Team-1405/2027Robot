@@ -27,8 +27,21 @@
 
     It is safe to re-run: every step checks before it changes anything.
 
+    Run it with NO options and it starts a short wizard: which robot (if robots.json has more
+    than one), which board(s), and whether to run straight through. Numbered choices, Enter takes
+    the default, and at the end it prints the equivalent command line for next time.
+
+    Each robot's boards and cameras are listed once in robots.json (next to this script), so
+    ".\Bootstrap-OrangePi.ps1 LeftPi" or ".\Bootstrap-OrangePi.ps1 -All" needs no typing.
+    Options given on the command line win over the file. A board that isn't in the file is
+    set up interactively, as before.
+
+    On a laptop without ~\.ssh\id_ed25519_orangepi, the team key in ssh\ (committed on purpose,
+    see ssh\README.md) is copied there, so no Pi password is needed.
+
 .PARAMETER Address
-    The Pi's IP or hostname. If omitted the script searches for it.
+    The Pi's IP or hostname, or a board name from robots.json (e.g. LeftPi), which then uses
+    that board's addresses, cameras and streams. If omitted the script searches for it.
 
 .PARAMETER User
     SSH account on the Pi. Must be 'pi' (the installer requires it).
@@ -49,8 +62,23 @@
 .PARAMETER Yes
     Accept the safe default at every confirmation (it still stops for things only you can do).
 
+.PARAMETER Robot
+    Which robot in robots.json (default: its "defaultRobot").
+
+.PARAMETER All
+    Set up every board of the robot in robots.json, one after another.
+
+.PARAMETER ConfigPath
+    The robots file. Default: robots.json next to this script.
+
 .EXAMPLE
-    .\Bootstrap-OrangePi.ps1
+    .\Bootstrap-OrangePi.ps1 LeftPi
+
+.EXAMPLE
+    .\Bootstrap-OrangePi.ps1 -All -Yes
+
+.EXAMPLE
+    .\Bootstrap-OrangePi.ps1 -Robot practice RightPi
 
 .EXAMPLE
     .\Bootstrap-OrangePi.ps1 -Address 192.168.137.241 -BoardName LeftPi -Cameras left
@@ -63,11 +91,19 @@ param(
     [string]$BoardName,
     [string[]]$Cameras,
     [hashtable]$StreamUrls,
-    [switch]$Yes
+    [switch]$Yes,
+    [string]$Robot,
+    [switch]$All,
+    [string]$ConfigPath   # default robots.json next to this script (set below; $PSScriptRoot isn't usable here on PS 5.1)
 )
 
 $ErrorActionPreference = 'Stop'
-$script:Version = '2026-10-20.1'
+. (Join-Path $PSScriptRoot 'lib\Wizard.ps1')   # start-up wizard + robots.json reader (shared with sim\)
+if (-not $ConfigPath) { $ConfigPath = Join-Path $PSScriptRoot 'robots.json' }
+$script:Version = '2026-11-07.1'
+$script:KeyPathGiven = $PSBoundParameters.ContainsKey('KeyPath')
+$script:HostCandidates = @()  # addresses from robots.json, tried before searching
+$script:ConfigLabel = ''      # "robots.json, robot 2027" when the board came from the file
 $script:CoprocessorDir = $PSScriptRoot
 $script:Results = New-Object System.Collections.ArrayList
 $script:StepNumber = 0
@@ -100,7 +136,9 @@ function Ask-YesNo([string]$Question, [bool]$Default = $true) {
     if ($Yes) { return $Default }
     $suffix = if ($Default) { '[Y/n]' } else { '[y/N]' }
     while ($true) {
-        $a = (Read-Host ("  ? {0} {1}" -f $Question, $suffix)).Trim().ToLower()
+        $a = Read-Host ("  ? {0} {1}" -f $Question, $suffix)
+        if ($null -eq $a) { Stop-Run 'No more input (stdin closed); run it in a terminal or add -Yes.' }
+        $a = $a.Trim().ToLower()
         if ($a -eq '') { return $Default }
         if ($a -in @('y', 'yes')) { return $true }
         if ($a -in @('n', 'no')) { return $false }
@@ -109,7 +147,9 @@ function Ask-YesNo([string]$Question, [bool]$Default = $true) {
 
 function Ask-Text([string]$Question, [string]$Default = '') {
     $shown = if ($Default) { " [$Default]" } else { '' }
-    $a = (Read-Host ("  ? {0}{1}" -f $Question, $shown)).Trim()
+    $a = Read-Host ("  ? {0}{1}" -f $Question, $shown)
+    if ($null -eq $a) { Stop-Run 'No more input (stdin closed); run it in a terminal or give the options on the command line.' }
+    $a = $a.Trim()
     if ($a -eq '') { return $Default }
     return $a
 }
@@ -205,6 +245,25 @@ function Find-OpenPort([string[]]$Hosts, [int]$Port, [int]$TimeoutMs = 2000) {
     return $found
 }
 
+# robots.json reading (Resolve-RobotConfig) and the start-up wizard live in lib\Wizard.ps1,
+# shared with the sim\ scripts.
+
+# Copies the team key (ssh\id_ed25519_orangepi, committed on purpose) to the default key path
+# when this laptop has none, and limits the copy to the current user: Windows OpenSSH refuses a
+# private key that other accounts can read.
+function Install-TeamKey {
+    $teamKey = Join-Path $script:CoprocessorDir 'ssh\id_ed25519_orangepi'
+    if ($script:KeyPathGiven -or (Test-Path $KeyPath) -or -not (Test-Path $teamKey)) { return }
+    Write-Do "No key at $KeyPath - copying the team Orange Pi key from the repo (see coprocessor\ssh\README.md)."
+    New-Item -ItemType Directory -Force (Split-Path $KeyPath) | Out-Null
+    Copy-Item -LiteralPath $teamKey -Destination $KeyPath
+    if (Test-Path "$teamKey.pub") { Copy-Item -LiteralPath "$teamKey.pub" -Destination "$KeyPath.pub" }
+    $me = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $r = Invoke-Native -File 'icacls' -Arguments @($KeyPath, '/inheritance:r', '/grant:r', "${me}:F")
+    if ($r.ExitCode -ne 0) { Write-Warn2 ("Could not restrict access to {0} (icacls: {1}); ssh may reject it." -f $KeyPath, ($r.Err + $r.Out).Trim()) }
+    Write-Pass "Copied the team key to $KeyPath"
+}
+
 # ---------------------------------------------------------------- steps
 function Step-Preflight {
     Start-Step 'Preflight' 'Everything below uses the Windows OpenSSH client (ssh, scp, ssh-keygen) and the files in this folder.'
@@ -236,6 +295,13 @@ function Step-Preflight {
 
 function Step-FindPi {
     Start-Step 'Find the Pi' 'We need the Pi''s network address. A Pi plugged straight into the laptop''s USB-Ethernet dongle only gets one if Windows Internet Connection Sharing (ICS) is on.'
+    if (-not $Address -and $script:HostCandidates.Count -gt 0) {
+        foreach ($h in $script:HostCandidates) {
+            Write-Do "Trying $h ($($script:ConfigLabel))"
+            if (Test-TcpPort $h 22 3000) { $script:Pi = $h; Write-Pass "SSH answers at $h"; Add-Result 'PASS' 'Find the Pi' $h; return }
+        }
+        Write-Warn2 ('None of the addresses in robots.json answered ({0}); searching instead.' -f ($script:HostCandidates -join ', '))
+    }
     if ($Address) {
         Write-Do "Checking the address you gave: $Address"
         if (Test-TcpPort $Address 22) { $script:Pi = $Address; Write-Pass "SSH answers at $Address"; Add-Result 'PASS' 'Find the Pi' $Address; return }
@@ -296,6 +362,7 @@ function Set-SshBase {
 function Step-SshKey {
     Start-Step 'SSH key login' 'Key-based login lets the rest of this script (and later tooling) run without typing the Pi password again.'
     $pub = "$KeyPath.pub"
+    Install-TeamKey
     if (-not (Test-Path $KeyPath)) {
         Write-Do "No key at $KeyPath - creating a new ed25519 key with no passphrase (it is only used for this Pi)."
         if (-not (Ask-YesNo 'Create it?' $true)) { Add-Result 'FAIL' 'SSH key' 'declined'; Stop-Run 'An SSH key is required.' }
@@ -430,9 +497,14 @@ function Step-Plan {
     $cur = ''
     $r = Invoke-Pi 'sudo cat /etc/default/orangepi-nt-publisher 2>/dev/null | sed -n "s/^ORANGEPI_METRICS_NAME=//p" | tail -1' 20
     $cur = $r.Out.Trim()
+    if ($script:ConfigLabel) { Write-Info ("Board and cameras from {0}." -f $script:ConfigLabel) }
     if (-not $BoardName) {
         Write-Info 'Examples: LeftPi, RightPi, VisionFront, BenchPi. Letters, digits, _ and - only.'
         $BoardName = Ask-Text 'Board NT name' $cur
+    } elseif ($cur -and $cur -ne $BoardName) {
+        # Guards against setting up the wrong Pi (e.g. "LeftPi" resolving to the right-hand board).
+        Write-Warn2 ("This Pi is currently set up as '{0}', not '{1}'." -f $cur, $BoardName)
+        if (-not (Ask-YesNo ("Rename it to '{0}'?" -f $BoardName) $false)) { Add-Result 'SKIP' 'Plan' "Pi is '$cur', not '$BoardName'"; Stop-Run "Stopped: this Pi is '$cur'. Check you reached the right board." }
     }
     if ($BoardName -notmatch '^[A-Za-z0-9_-]+$') { Add-Result 'FAIL' 'Plan' 'bad board name'; Stop-Run "Board name '$BoardName' is invalid (letters, digits, _ and - only)." }
     $script:Board = $BoardName
@@ -500,7 +572,7 @@ function Step-Install {
         Add-Result 'FAIL' 'Install' ("exit $($r.ExitCode)")
         Stop-Run 'Installer failed.'
     }
-    $lines | Where-Object { $_ -match 'ntcore import|Metrics namespace|Stream responds|WARNING|Setup checks passed|Created symlink' } | ForEach-Object { Write-Info $_ }
+    $lines | Where-Object { $_ -match 'ntcore import|Metrics namespace|Stream responds|Updated /etc|WARNING|Setup checks passed|Created symlink' } | ForEach-Object { Write-Info $_ }
     if ($r.Out -match 'WARNING: camera stream check failed') { Write-Warn2 'The installer could not open a camera stream URL (see above); the recorder will keep retrying.' }
     Write-Pass 'Installer finished without errors.'
     Add-Result 'PASS' 'Install' 'setup-orangepi.sh ok'
@@ -550,7 +622,84 @@ function Show-Summary {
 Write-Host ("Bootstrap-OrangePi {0} - guided one-time setup of a team Orange Pi (runs on this laptop)" -f $script:Version) -ForegroundColor Cyan
 Write-Host 'Not to be confused with setup-orangepi.sh, which runs ON the Pi - this script drives it for you.' -ForegroundColor DarkGray
 $exitCode = 0
+
+# Wizard: run with no options at all and it asks what to do (numbered choices, Enter = default),
+# then prints the equivalent command line. Any option on the command line skips it.
+if ($PSBoundParameters.Count -eq 0 -and (Test-CanAsk)) {
+    try { $w = Resolve-RobotConfig -Path $ConfigPath } catch { Write-Fail $_.Exception.Message; exit 2 }
+    $equiv = [ordered]@{}
+    if ($w) {
+        $w = Select-Robot $w
+        if (@($w.Robots).Count -gt 1) { $Robot = $w.RobotName; $equiv.Robot = $Robot }
+        $boards = @($w.Robot.boards)
+        $opts = @()
+        if ($boards.Count -gt 1) {
+            $opts += @{ Label = ('Every board: ' + (($boards | ForEach-Object { $_.name }) -join ', ')); Detail = 'One after another, each with its own summary'; Value = '__all__' }
+        }
+        foreach ($b in $boards) { $opts += @{ Label = "$($b.name) only"; Detail = (Format-Board $b); Value = [string]$b.name } }
+        $opts += @{ Label = 'A Pi that is not in robots.json'; Detail = 'Searches for it (or you type its address), then asks for its name and cameras'; Value = '__other__' }
+        $what = Select-Choice -Title 'What do you want to set up?' -Options $opts -Why ("Robot '{0}' from robots.json" -f $w.RobotName)
+        if ($what -eq '__all__') { $All = [switch]$true; $equiv.All = $true }
+        elseif ($what -eq '__other__') {
+            $Address = Read-Answer -Prompt 'Pi address, e.g. 192.168.137.241 (Enter to search for it)' -Pattern '[A-Za-z0-9._:-]*' -Hint 'Letters, digits, dots, dashes only.'
+            if ($Address) { $equiv.Address = $Address }
+        } else { $BoardName = $what; $equiv.BoardName = $what }
+    } else {
+        Write-Info "No robots.json at $ConfigPath, so this Pi is set up by answering questions."
+    }
+    $mode = Select-Choice -Title 'How should it run?' -Options @(
+        @{ Label = 'Straight through'; Detail = 'Takes the safe default at each confirmation; still stops for things only you can do (a password, activating the camera)'; Value = 'yes' },
+        @{ Label = 'Ask me before each change'; Detail = 'Confirms the plan and each optional change (passwordless sudo, renaming a board)'; Value = 'ask' })
+    if ($mode -eq 'yes') { $Yes = [switch]$true; $equiv.Yes = $true }
+    Show-EquivalentCommand -ScriptName 'Bootstrap-OrangePi.ps1' -Options $equiv
+}
+
+# -All: run this script once per board in robots.json, each as its own complete run.
+if ($All) {
+    if ($Address -or $BoardName -or $Cameras -or $StreamUrls) { Write-Fail '-All sets up every board in robots.json; leave out -Address, -BoardName, -Cameras and -StreamUrls.'; exit 2 }
+    try { $cfg = Resolve-RobotConfig -Path $ConfigPath -RobotName $Robot -Required $true } catch { Write-Fail $_.Exception.Message; exit 2 }
+    $boards = @($cfg.Robot.boards)
+    Write-Info ("Robot '{0}': {1} board(s): {2}" -f $cfg.RobotName, $boards.Count, (($boards | ForEach-Object { $_.name }) -join ', '))
+    $codes = [ordered]@{}
+    foreach ($b in $boards) {
+        Write-Banner ("Board {0} of robot {1}" -f $b.name, $cfg.RobotName)
+        # A separate PowerShell process per board: re-running this script in the same session
+        # would redefine the StepAbort class and its catch would stop matching.
+        $childArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath,
+                       '-Robot', $cfg.RobotName, '-BoardName', $b.name, '-ConfigPath', $ConfigPath, '-User', $User)
+        if ($script:KeyPathGiven) { $childArgs += @('-KeyPath', $KeyPath) }
+        if ($Yes) { $childArgs += '-Yes' }
+        & (Get-Process -Id $PID).Path @childArgs
+        $codes[$b.name] = $LASTEXITCODE
+    }
+    Write-Banner 'All boards'
+    foreach ($k in $codes.Keys) { if ($codes[$k] -eq 0) { Write-Pass "$k set up" } else { Write-Fail "$k not finished (exit $($codes[$k])); see its summary above" } }
+    exit ([int](@($codes.Values | Measure-Object -Maximum).Maximum))
+}
+
 try {
+    # robots.json fills in what the command line left out (it never overrides an option you gave).
+    try { $cfg = Resolve-RobotConfig -Path $ConfigPath -RobotName $Robot -Board $BoardName -Addr $Address -Required ([bool]$Robot) } catch { Stop-Run $_.Exception.Message }
+    if ($cfg -and $cfg.Board) {
+        $b = $cfg.Board
+        $script:ConfigLabel = "robots.json, robot $($cfg.RobotName)"
+        if (-not $BoardName) { $BoardName = [string]$b.name }
+        # A board name means "this board's hosts" (LeftPi -> LeftPi.local); one of its hosts is
+        # tried first. Any other address is used as given.
+        if (-not $Address -or $Address -ieq $b.name -or (@($b.hosts) -icontains $Address)) {
+            $first = if ($Address -and $Address -ine $b.name) { @($Address) } else { @() }
+            $script:HostCandidates = @($first + @($b.hosts) | Where-Object { $_ } | Select-Object -Unique)
+            if ($script:HostCandidates.Count -eq 0) { $script:HostCandidates = @([string]$b.name) }
+            $Address = $null
+        }
+        if (-not $Cameras -or $Cameras.Count -eq 0) { $Cameras = @($b.cameras | ForEach-Object { [string]$_.name }) }
+        $merged = @{}
+        foreach ($c in @($b.cameras)) { if ($c.stream) { $merged[[string]$c.name] = [string]$c.stream } }
+        if ($StreamUrls) { foreach ($k in $StreamUrls.Keys) { $merged[$k] = $StreamUrls[$k] } }
+        $StreamUrls = $merged
+    } elseif ($cfg -and ($BoardName -or $Address)) {
+        Write-Info ("'{0}' is not a board of robot '{1}' in robots.json; asking instead." -f $(if ($BoardName) { $BoardName } else { $Address }), $cfg.RobotName)
+    }
     Step-Preflight
     Step-FindPi
     Step-SshKey

@@ -1,0 +1,92 @@
+# Run plan for the frame-cost bench test (README.md next to this file).
+# Run from tools/exprunner:
+#   python -m exprunner check  ../../docs/experiments/vision/2026-11-11-pv-frame-cost/runs.toml
+#   python -m exprunner run    ../../docs/experiments/vision/2026-11-11-pv-frame-cost/runs.toml
+#
+# No robot needed: the Pis need power and network only. Every step except capture stops PhotonVision
+# while it runs (so it doesn't compete for CPU) and starts it again afterwards.
+
+experiment = "VIS-2026-11-11-pv-frame-cost"
+kind = "bench"
+boards = ["LeftPi", "RightPi"]
+
+# PhotonVision ran only on the fast cores (4-7) in every 11-07/11-10 log, so the timing steps do too.
+[defaults.steps]
+cores = "4-7"
+max = 200
+decimates = [1, 2, 3]
+threads = [1, 4, 8]
+iterations = [100, 40]
+
+[defaults.inflight]
+cores = "4-7"
+workers = [1, 2, 3, 4]
+seconds = 10
+iterations = 100
+
+[[runs]]
+id = "S0"
+what = "Self-test: synthetic frames, no camera. Checks the bundle and PhotonVision's libraries load"
+step = "selftest"
+args = { cores = "4-7" }
+
+[[runs]]
+id = "C1"
+what = "Capture 300 frames at 800x600 MJPG @100, straight from the camera"
+step = "capture"
+prompt = "Robot still, both cameras looking at 2+ AprilTags 1-3 m away (same view for C1 and C2). Nobody walking through the view."
+args = { name = "800x600", width = 800, height = 600, fps = 100, count = 300 }
+
+[[runs]]
+id = "C2"
+what = "Capture 300 frames at 1280x800 MJPG @100, same view"
+step = "capture"
+args = { name = "1280x800", width = 1280, height = 800, fps = 100, count = 300 }
+
+[[runs]]
+id = "T1"
+what = "Per-step time at 800x600: decode colour/grey, colour->grey, detect (dec x threads), 3D pose"
+step = "steps"
+args = { frames = "800x600" }
+
+[[runs]]
+id = "T2"
+what = "Per-step time at 1280x800"
+step = "steps"
+args = { frames = "1280x800" }
+
+[[runs]]
+id = "F0a"
+what = "PhotonVision-like baseline: 1 frame at a time, 8 detector threads, 800x600 dec 1 (compare with 11-10 B1: 14.6 ms)"
+step = "inflight"
+args = { frames = "800x600", workers = [1], detector-threads = 8, decimate = 1, decode = "color" }
+
+[[runs]]
+id = "F0b"
+what = "PhotonVision-like baseline: 1280x800 dec 2, 8 detector threads (compare with 11-07 R13: 15.9 ms)"
+step = "inflight"
+args = { frames = "1280x800", workers = [1], detector-threads = 8, decimate = 2, decode = "color" }
+
+[[runs]]
+id = "F1"
+what = "Frames in flight, 800x600 dec 1, colour decode (as PhotonVision does)"
+step = "inflight"
+args = { frames = "800x600", decimate = 1, decode = "color" }
+
+[[runs]]
+id = "F2"
+what = "Frames in flight, 800x600 dec 1, grey decode"
+step = "inflight"
+args = { frames = "800x600", decimate = 1, decode = "gray" }
+
+[[runs]]
+id = "F3"
+what = "Frames in flight, 1280x800 dec 2, colour decode"
+step = "inflight"
+args = { frames = "1280x800", decimate = 2, decode = "color" }
+
+[[runs]]
+id = "F4"
+what = "Frames in flight, 1280x800 dec 1, grey decode (the heaviest useful setting)"
+step = "inflight"
+args = { frames = "1280x800", decimate = 1, decode = "gray" }

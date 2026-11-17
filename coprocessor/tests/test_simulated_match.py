@@ -211,6 +211,14 @@ class SimulatedMatchTests(unittest.TestCase):
                 # nothing in the middle of the pause (after the recorder's one-period lag)
                 self.assertFalse(pause_start + 0.5 < m["t_sec"] < pause_end - 0.05, m)
 
+    def test_a_live_camera_is_never_reported_lost(self):
+        """End-to-end false-positive guard for the Camera Lost detector: the simulated camera's
+        frames all differ, so no row may be flagged and the log may not say the camera was lost."""
+        self.assertNotIn("Camera lost", self.run1.log_text())
+        for name, rows in self.run1_manifests.items():
+            self.assertTrue(rows, name)
+            self.assertTrue(all(r["camera_lost"] is False for r in rows), name)
+
     def test_recorded_frames_are_fresh(self):
         """The regression this guards: the recorder used to read one frame per sample from a stream
         running far faster, so recorded frames fell further and further behind real time (minutes

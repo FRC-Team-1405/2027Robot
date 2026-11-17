@@ -11,6 +11,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import frc.robot.Constants.ShooterPreferences;
+import frc.robot.commands.CalibrateCamerasCommand;
 import frc.robot.commands.CircleFacingTagCommand;
 import frc.robot.commands.DriveToHubDistance;
 import frc.robot.commands.AutoPilot.AutoPilotV2Command;
@@ -140,6 +141,10 @@ public class CommandsForAutos {
         private static final int VISION_CIRCLE_TEST_TAG_ID = 10;
         Supplier<Command> CircleFacingTag = () -> CircleFacingTagCommand.atFixedStart(drivetrain,
                         VISION_CIRCLE_TEST_TAG_ID);
+
+        // Camera mount calibration: spins and drives in front of a tag with vision corrections off.
+        // See docs/camera-autocal-plan.md and tools/camera-calibration ("Quick (spin & drive)").
+        Supplier<Command> CalibrateCameras = () -> new CalibrateCamerasCommand(drivetrain);
 
         // endregion Test Commands
 

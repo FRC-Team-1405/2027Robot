@@ -413,3 +413,5 @@
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
+
+.health__log { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; padding: 4px 0; }

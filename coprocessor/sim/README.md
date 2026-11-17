@@ -7,9 +7,11 @@ Test `orangepi-vision-recorder.py` end to end without a roboRIO.
 From the laptop (after `..\Bootstrap-OrangePi.ps1` has set the Pi up):
 
 ```powershell
-.\Run-SimulatedMatch.ps1 -Address <pi-ip> -KeyPath $HOME\.ssh\id_ed25519_claude
-# -Fast 4 for a quick run, -Extra '--drop-at-sec 30 --drop-for-sec 3' for a comms dropout,
-# -Extra '--loops 2' for two matches, -Extra '--no-clock' for the unsynced-clock path
+.\Run-SimulatedMatch.ps1            # wizard: which Pi, which scenario, how fast
+.\Run-SimulatedMatch.ps1 LeftPi -Fast 4
+# a board name from ..\robots.json also picks its camera; -Address <pi-ip> -Camera <name> for others.
+# -Extra '--drop-at-sec 30 --drop-for-sec 3' for a comms dropout, '--loops 2' for two matches,
+# '--no-clock' for the unsynced-clock path
 ```
 
 It points the real `orangepi-vision-recorder@<camera>.service` at a fake roboRIO running on the Pi
@@ -50,7 +52,8 @@ path to the LogBench dashboard, run the **actual robot code** in `gradlew simula
 laptop and let the Pi record it:
 
 ```powershell
-.\Run-SimRobotMatch.ps1 -Address <pi-ip> -KeyPath $HOME\.ssh\id_ed25519_claude
+.\Run-SimRobotMatch.ps1            # wizard: which Pi, this laptop's address, speed, where to record
+.\Run-SimRobotMatch.ps1 LeftPi -LaptopAddress 192.168.137.1
 # -Fast 4 to compress it, -Script 'disabled:5,auto:10,disabled:4,teleop:40,disabled:6' for a custom timeline,
 # -LogCameras LeftCam,RightCam,Rear for more feeds, -UseRealRecordings to write into ~/vision-recordings
 ```

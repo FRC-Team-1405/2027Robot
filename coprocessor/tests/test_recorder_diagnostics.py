@@ -28,9 +28,10 @@ class RecorderDiagnosticsTests(unittest.TestCase):
             SimpleNamespace(value=1792332000000, serverTime=12_000_000)
         ntcore = SimpleNamespace(NetworkTableInstance=SimpleNamespace(getDefault=lambda: inst))
         # The drain thread is replaced by a scripted source so the loop is deterministic: one fresh
-        # frame, then a failure in the capture step, then the robot disables.
+        # frame, then a failure in the capture step, then the robot disables. latest() is polled
+        # every loop (the Camera Lost check runs while disabled too), so loop 3 needs a value.
         frame_source = MagicMock()
-        frame_source.latest.side_effect = [(b"jpeg", 12.5, 1), TimeoutError("camera stream stalled"), None]
+        frame_source.latest.side_effect = [(b"jpeg", 12.5, 1), TimeoutError("camera stream stalled"), None, None]
         with tempfile.TemporaryDirectory() as root, \
              patch.dict(sys.modules, ntcore=ntcore), \
              patch.object(module, "RECORDINGS_BASE", root), \

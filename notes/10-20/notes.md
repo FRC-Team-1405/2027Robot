@@ -268,6 +268,74 @@ drastically reduced robot loop times! still almost hit 100ms and i saw the robot
 pulled git commit "Reduce repeated bench console warnings and retain loop deadline diagnostics"
 recorded akit_26-10-21_01-39-52-bundle
 
+# Analysis of the recordings (done 2026-10-21)
+
+Logs: `C:\Users\importsjc\robotics\logs\10-20\`. Every run from 00:57 on was the same ~20 s auto
+(the circle), so the runs compare like for like. Numbers are the Health Check (LogBench) over the
+enabled time of the full `akit_*.wpilog`. Each log's `RealMetadata/FeatureSwitches` was checked
+against these notes: each deploy changed exactly the switch(es) written above, nothing else.
+
+## How big is the noise?
+
+- **Loop time, run to run: about ±3-4 ms on the mean (±15 %), ±10 ms on the p95**, for one 20 s run.
+  The CAN-only changes (LOW_RATE_SHOOTER_DIAGNOSTICS, ZERO_UNUSED_MECHANISM_STATUS_SIGNALS) can't
+  change CPU time, yet the mean moved -3.7 ms then +5.7 ms. In those runs *every* subsystem got
+  faster or slower together (Hopper, Intake, Pickup, Drivetrain, Indexer: the ones no switch
+  touched), so it is the roboRIO as a whole running faster or slower, not the code that changed.
+- **One known cause:** LogBench's live Health Check connected as an NetworkTables client starting
+  with the 01:14 run, the same run where the loop jumped +5.7 ms with untouched subsystems ~20 %
+  slower. Every later run had it connected too, so 01:14 onward compares fairly with itself. Keep the
+  same dashboards connected for a whole A/B session (the Health Check now lists them).
+- **CAN utilization: ±3 points between runs.** Idle 64-70 % and enabled 74-80 % in every log tonight,
+  including the three before the notes start. Peak was 100 % in all of them.
+- So: treat a single-run change under ~4 ms mean or ~3 CAN points as noise. The real ones below are
+  either much bigger than that or show up directly in their own `Timing/*` entry.
+
+## Change -> effect
+
+| Log | Change | Loop mean | p95 | Loops >20 ms | CAN idle / enabled | Significant? |
+|---|---|---|---|---|---|---|
+| 00-08-44 | baseline (no switch metadata in this build) | 65.3 ms | 122 ms | 100 % | 70 / 77 % | - |
+| 00-57-37 | ENABLE_POWER_TELEMETRY off | **32.7** | 59 | 99 % | 66 / 76 % | **Yes, the biggest win.** PowerTelemetryMs 20.6 -> 0 ms directly; CoprocessorHealthLogger 7.3 -> 1.7 ms also dropped. This deploy was also the first with switch metadata, so part of the 33 ms may be other code in that build. No CAN change (signals were already off). |
+| 01-03-57 | PHOENIX_SIGNAL_LOGGING off | 26.7 | 55 | 75 % | 69 / 78 % | **Probably, small.** PhoenixReplayMs 1.2 -> 0 ms directly; the rest of the -6 ms is within noise (the .hoot writer is a background thread, so it may save a bit more). |
+| 01-07-50 | LOW_RATE_SHOOTER_DIAGNOSTICS on | 23.0 | 45 | 47 % | 70 / 80 % | **No.** CAN didn't move. The -3.7 ms loop change is noise (untouched subsystems were 17 % faster too). |
+| 01-14-29 | ZERO_UNUSED_MECHANISM_STATUS_SIGNALS on | 28.7 | 59 | 89 % | 67 / 77 % | **No** (confirms "no effect?"). CAN -3/-3 points is within noise. The +5.7 ms is LogBench connecting, not this switch. |
+| 01-17-36 | ROBOT_DASHBOARD_10_HZ on | 26.2 | 56 | 71 % | 65 / 76 % | **Yes, small.** PublishingMs 2.1 -> 0.7 ms directly. |
+| 01-21-36 | SWERVE_TELEMETRY_10_HZ on | 25.1 | 49 | 60 % | 68 / 78 % | **Can't tell.** PublishingMs 0.7 -> 0.55. Telemetry.telemeterize runs on CTRE's odometry thread, not the main loop, so only shows indirectly. Cheap to keep. |
+| 01-23-34 | LOG_NETWORKTABLES_TO_WPILOG off | 22.9 | 45 | 35 % | 66 / 77 % | **Maybe.** No timer covers DataLogManager (it's a background thread); -2.2 ms with untouched subsystems ~9 % faster fits a background CPU saving, but one run can't separate it from noise. |
+| 01-32-18 | POWER_REQUEST_DETAILS, COPROCESSOR_HEALTH_LOGGING, MIRROR_TRACER_TIMINGS off | 19.0 | 35 | 19 % | 64 / 76 % | **Yes.** TracerMirrorMs 3.8 -> 0 and CoprocessorHealthLoggerMs 1.35 -> 0 (5.1 ms directly). POWER_REQUEST_DETAILS has no timer of its own. |
+| 01-39-52 | commit: quiet repeated console warnings (QUIET_JOYSTICK_WARNINGS, QUIET_SCHEDULER_OVERRUN_WARNINGS) | **15.6** | **21.5** | **7 %** | 70 / 77 % | **Yes, mostly in the tail.** Worst loop 97 -> 61 ms. Printing an overrun dump costs time and causes the next overrun, so quieting it breaks that loop. First run with the mean under 20 ms. |
+
+Overall, 00:08 -> 01:39 cut the mean loop from 65 to 15.6 ms (code time per loop 61 -> 12.8 ms), the
+p95 from 122 to 21.5 ms and overrunning loops from 100 % to 7 %. **None of the CAN switches changed
+CAN utilization.** The ~65 % idle load is from something those switches don't touch. The swerve
+(8 TalonFX, 4 CANcoders, Pigeon on the roboRIO bus, `TunerConstants.kCANBus = ""`) is the
+main suspect and the next thing to test.
+
+## The jump/drop while driving the circle (01-32-18)
+
+At 38.6 s into that log the main loop stalled: about 260 ms between pose updates, and the run's
+largest GC reading (239 ms). The robot kept driving on its last command, so the pose jumped about
+0.3 m when the loop came back. Vision then made 15-20 cm corrections (38.7-39.4 s) pulling it back.
+So it was a loop stall (very likely a garbage-collection pause), not bad odometry or vision. 01-39-52's
+worst pose step was 0.1 m. GC averaged 6.0 ms/loop in 01-32 vs about 3 ms in the other runs.
+
+## Health Check changes made from this
+
+- Loop-time "mean" is now a mean **per loop**. Before, it was time-weighted, so one 100 ms loop counted
+  five times as much as a 20 ms loop (the 23:22 log read 103 ms; per loop it's 66 ms). Same for code
+  time and the Timing breakdown.
+- New rows: **loop time p95**, **share of loops over 20 ms**, **GC time per loop**, **feature switches
+  deployed** (from the log, not the laptop), and **NetworkTables clients connected while enabled**,
+  so a changed dashboard setup shows up before you trust a difference.
+
+## Next time
+
+- Record each setting twice, or go A-B-A. One run per setting can't separate a 3 ms change from noise.
+- Drive at least 60 s enabled per run. The 20 s autos give about 1000 loops, enough for big effects only.
+- Connect the same dashboards for the whole session and check the NT clients row matches.
+- Compare the untouched subsystems' Timing rows across runs. If they all moved, it's noise.
+
 # console logs examples
 
 plugged in

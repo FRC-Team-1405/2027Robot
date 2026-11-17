@@ -28,6 +28,7 @@ from core.log import Log
 # composites mix categories.
 DEFAULT_METRICS = [
     'health_score', 'availability_score', 'quality_score',
+    'accepted_poses_per_sec', 'generated_poses_per_sec', 'best_3s_accepted_poses_per_sec',
     'tag_in_view_pct', 'longest_gap_ms', 'fps_pct', 'latency_pct',
     'conn_uptime_pct', 'fps_mean', 'fps_min', 'latency_mean_ms',
     'area_pct', 'ambiguity_pct', 'acceptance_pct', 'multitag_pct', 'acceptance_rate',

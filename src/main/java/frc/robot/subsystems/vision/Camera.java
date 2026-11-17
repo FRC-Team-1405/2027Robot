@@ -86,6 +86,11 @@ public class Camera {
 
     private ArrayList<Integer> seenTags = new ArrayList<>();
     private ArrayList<RawVisionData> rawData = new ArrayList<>();
+    // Per result received (with or without targets) since the last flush: PhotonVision's own
+    // capture-to-publish time on the coprocessor, and its sequence id. Unlike LatencyMsLatest these
+    // exclude NT transport and the wait for the next robot loop, so they show coprocessor load.
+    private ArrayList<Double> pipelineLatenciesMs = new ArrayList<>();
+    private ArrayList<Long> sequenceIds = new ArrayList<>();
 
     private int fpsResultCount = 0;
     private double fpsWindowStart = 0.0;
@@ -97,6 +102,8 @@ public class Camera {
         this.cameraToRobot = robotToCamera.inverse();
         this.trustScalar = trustScalar;
         this.intrinsics = intrinsics;
+        this.imageWidth = intrinsics.width;
+        this.imageHeight = intrinsics.height;
         this.cachedDistortionMatrix = Optional.of(intrinsics.distortionMatrix());
         this.cachedCameraMatrix = Optional.of(intrinsics.cameraMatrix());
 
@@ -106,9 +113,43 @@ public class Camera {
         poseEstimator.setMultiTagFallbackStrategy(PoseStrategy.LOWEST_AMBIGUITY);
     }
 
+    // Image sizes PhotonVision may run these cameras at. The pixel-offset filter has to divide by the size of
+    // the image PhotonVision actually used, not the size in VisionConstants (800x600): at 1280x800 every
+    // corner would otherwise look too far from the centre and be trusted less.
+    private static final double[][] KNOWN_IMAGE_SIZES = {
+            { 800, 600 }, { 1280, 800 }, { 640, 480 }, { 1280, 720 }, { 960, 720 }, { 320, 240 } };
+    private double imageWidth;
+    private double imageHeight;
+
+    /**
+     * Re-reads PhotonVision's calibration for the current camera mode and picks the known image size whose
+     * centre is nearest its principal point. With 800x600 running this returns 800x600, the same as
+     * VisionConstants, so nothing changes at the competition setting.
+     */
+    private void updateImageSize() {
+        var matrix = camera.getCameraMatrix();
+        if (matrix.isEmpty()) {
+            return;
+        }
+        double cx = matrix.get().get(0, 2);
+        double cy = matrix.get().get(1, 2);
+        if (cx <= 0 || cy <= 0) {
+            return;
+        }
+        double best = Double.MAX_VALUE;
+        for (double[] size : KNOWN_IMAGE_SIZES) {
+            double d = Math.hypot(cx - size[0] / 2.0, cy - size[1] / 2.0);
+            if (d < best) {
+                best = d;
+                imageWidth = size[0];
+                imageHeight = size[1];
+            }
+        }
+    }
+
     private double normalizedDistanceFromCenter(PhotonTrackedTarget target) {
-        final double HEIGHT = intrinsics.height;
-        final double WIDTH = intrinsics.width;
+        final double HEIGHT = imageHeight;
+        final double WIDTH = imageWidth;
         double sumX = 0.0;
         double sumY = 0.0;
         for (var corner : target.minAreaRectCorners) {
@@ -183,6 +224,20 @@ public class Camera {
         return out;
     }
 
+    /** PhotonVision capture-to-publish latency (ms) of every result since the last call. */
+    public double[] flushPipelineLatenciesMs() {
+        double[] out = pipelineLatenciesMs.stream().mapToDouble(Double::doubleValue).toArray();
+        pipelineLatenciesMs.clear();
+        return out;
+    }
+
+    /** PhotonVision sequence id of every result since the last call; a gap means results were missed. */
+    public long[] flushSequenceIds() {
+        long[] out = sequenceIds.stream().mapToLong(Long::longValue).toArray();
+        sequenceIds.clear();
+        return out;
+    }
+
     public int[] getSeenTagIds() {
         return seenTags.stream().mapToInt(Integer::intValue).toArray();
     }
@@ -209,8 +264,13 @@ public class Camera {
     public void periodic() {
         if (Robot.isReal()) {
             seenTags.clear();
+            updateImageSize();
             final var results = camera.getAllUnreadResults();
             for (var result : results) {
+                if (result.metadata != null) {
+                    pipelineLatenciesMs.add(result.metadata.getLatencyMillis());
+                    sequenceIds.add(result.metadata.getSequenceID());
+                }
                 if (result.hasTargets()) {
                     result = pruneTags(result);
                     Optional<EstimatedRobotPose> estRoboPose = poseEstimator.update(

@@ -67,9 +67,9 @@
           }
         },
         {
-          "type": "path",
+          "type": "named",
           "data": {
-            "pathName": "BACK_Left_Bump_To_ShootPos"
+            "name": "ClosestShootingPos"
           }
         },
         {

@@ -1,6 +1,7 @@
 plugins {
     id "java"
     id "edu.wpi.first.GradleRIO" version "2026.2.1"
+    id "com.peterabeles.gversion" version "1.10"
 }
 
 java {
@@ -49,6 +50,18 @@ wpi.java.debugJni = false
 
 // Set this to true to enable desktop support.
 def includeDesktopSupport = true
+
+// AdvantageKit: generate BuildConstants.java (git SHA, branch, dirty flag, build date) before every
+// compile, so Robot() can record which code each log came from. The file is generated, not committed.
+project.compileJava.dependsOn(createVersionFile)
+gversion {
+    srcDir       = "src/main/java/"
+    classPackage = "frc.robot"
+    className    = "BuildConstants"
+    dateFormat   = "yyyy-MM-dd HH:mm:ss z"
+    timeZone     = "America/New_York"
+    indent       = "    "
+}
 
 // AdvantageKit: replay-watch task lets you run replay mode from the terminal.
 def akitJson = new groovy.json.JsonSlurper().parseText(

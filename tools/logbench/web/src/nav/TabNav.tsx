@@ -1,41 +1,38 @@
-// Replaces the old <details> dropdown menu (and, briefly, a collapsible hamburger
-// version of this component) with a plain, always-visible tab bar -- collapsing it
-// bought no vertical space back since the bar stayed on screen either way, and hiding
+// A plain, always-visible tab bar -- collapsing it bought no vertical space back, and hiding
 // navigation behind a click made "which page am I on" harder to answer, not easier.
-// Still query-param routing (?view=...), no router dependency. Rendered once at the top
-// of App.tsx so every view (including Compare/Health Check/Fetch Bundle/the log picker) gets
-// the same bar, instead of each page rolling its own back-link.
+// Tabs are ordinary links to `?view=...`; App intercepts clicks on them (see nav/route.ts) so
+// switching pages is a pushState, not a reload, and the open log travels with you.
+
+import { resolveView, useRoute } from './route';
 
 interface Tab {
   label: string;
-  view: string | null; // null = default view (Vision Logs / replay)
+  view: string;
 }
 
 const TABS: Tab[] = [
-  { label: 'Vision Logs', view: null },
+  { label: 'Health Check', view: 'health' },
+  { label: 'Vision Logs', view: 'replay' },
+  { label: 'Vision Insights', view: 'vision' },
   { label: 'Compare', view: 'compare' },
   { label: 'Battery Insights', view: 'battery' },
-  { label: 'Health Check', view: 'health' },
   { label: 'Connections', view: 'connections' },
   { label: 'Fetch Bundle', view: 'fetch' },
 ];
 
-function href(view: string | null): string {
-  return view ? `?view=${view}` : window.location.pathname;
-}
-
 export function TabNav() {
-  const activeView = new URLSearchParams(window.location.search).get('view');
+  const activeView = resolveView(useRoute());
 
   return (
     <nav className="tab-nav">
       {TABS.map((tab) => {
-        const isActive = tab.view === activeView || (tab.view === 'health' && activeView === 'pit') || (tab.view === null && !activeView);
+        const isActive = tab.view === activeView;
         return (
           <a
             key={tab.label}
             className={`tab-nav__tab${isActive ? ' tab-nav__tab--active' : ''}`}
-            href={href(tab.view)}
+            href={`?view=${tab.view}`}
+            aria-current={isActive ? 'page' : undefined}
           >
             {tab.label}
           </a>

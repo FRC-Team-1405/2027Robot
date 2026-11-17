@@ -17,6 +17,16 @@
     and recordings go to a throwaway ~/sim-recordings, never your real ~/vision-recordings.
     Prerequisites: run Bootstrap-OrangePi.ps1 first (installs the services and copies sim\*.py to the Pi).
 
+    Run it with NO options for a short wizard (which Pi, which scenario, how fast); it prints the
+    equivalent command line at the end.
+
+.PARAMETER Address
+    The Pi: an address, or a board name from ..\robots.json (e.g. LeftPi), which also picks that
+    board's camera. Asked for when left out.
+
+.PARAMETER Camera
+    The recorder instance on the Pi (default: the board's first camera in robots.json, else 'bench').
+
 .PARAMETER Fast
     Divide all phase durations by this (default 1 = real match: 20 s auto, 3 s pause, 140 s teleop).
 
@@ -24,11 +34,17 @@
     Extra fake_robot.py arguments, e.g. '--drop-at-sec 30 --drop-for-sec 3' or '--no-clock'.
 
 .EXAMPLE
-    .\Run-SimulatedMatch.ps1 -Address 192.168.137.241 -KeyPath $HOME\.ssh\id_ed25519_claude
+    .\Run-SimulatedMatch.ps1
+
+.EXAMPLE
+    .\Run-SimulatedMatch.ps1 LeftPi -Fast 4
+
+.EXAMPLE
+    .\Run-SimulatedMatch.ps1 -Address 192.168.137.241 -Camera bench -Extra '--drop-at-sec 30 --drop-for-sec 3'
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$Address,
+    [string]$Address,
     [string]$User = 'pi',
     [string]$KeyPath = (Join-Path $HOME '.ssh\id_ed25519_orangepi'),
     [string]$Camera = 'bench',
@@ -43,6 +59,54 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $simDir = $PSScriptRoot
+. (Join-Path $simDir '..\lib\Wizard.ps1')
+
+# Wizard when no Pi was given; then fill the camera from robots.json when -Address names a board.
+$cameraGiven = $PSBoundParameters.ContainsKey('Camera')
+if (-not $Address) {
+    if (-not (Test-CanAsk)) { throw 'Give -Address (a Pi address or a board name from robots.json), or run this in a terminal to be asked.' }
+    $equiv = [ordered]@{}
+    $cfg = Resolve-RobotConfig
+    $board = $null
+    if ($cfg) { $cfg = Select-Robot $cfg; $board = Select-Board $cfg -Title 'Which Orange Pi plays the match?' }
+    if ($board) {
+        $Address = [string]$board.name
+        $cams = @($board.cameras)
+        if (-not $cameraGiven -and $cams.Count -gt 1) {
+            $Camera = Select-Choice -Title 'Which camera records it?' -Options @($cams | ForEach-Object { @{ Label = $_.name; Detail = $_.stream; Value = [string]$_.name } })
+            $cameraGiven = $true; $equiv.Camera = $Camera
+        }
+    } else {
+        $Address = Read-Answer -Prompt 'Pi address, e.g. 192.168.137.241' -Pattern '[A-Za-z0-9._:-]+' -Hint 'Type an address or host name.'
+        if (-not $cameraGiven) { $Camera = Read-Answer -Prompt "Recorder camera name on that Pi" -Default 'bench' -Pattern '[A-Za-z0-9_-]+'; $cameraGiven = $true; $equiv.Camera = $Camera }
+    }
+    $equiv.Address = $Address
+    if (-not $PSBoundParameters.ContainsKey('Extra')) {
+        $Extra = Select-Choice -Title 'Which scenario?' -Options @(
+            @{ Label = 'A normal match'; Detail = 'pre-match, auto, pause, teleop, post-match'; Value = '' },
+            @{ Label = 'Comms dropout'; Detail = 'the fake roboRIO goes silent 30 s in, for 3 s'; Value = '--drop-at-sec 30 --drop-for-sec 3' },
+            @{ Label = 'Two matches back to back'; Value = '--loops 2' },
+            @{ Label = 'Pi clock not synced'; Detail = 'no wall-clock time from the roboRIO'; Value = '--no-clock' })
+        if ($Extra) { $equiv.Extra = $Extra }
+    }
+    if (-not $PSBoundParameters.ContainsKey('Fast')) {
+        $Fast = Select-Choice -Title 'How fast?' -Options @(
+            @{ Label = 'Real time'; Detail = 'about 3.5 minutes, real phase lengths'; Value = 1 },
+            @{ Label = '4x faster'; Detail = 'about 1 minute; enough to check that it works'; Value = 4 })
+        if ($Fast -ne 1) { $equiv.Fast = $Fast }
+    }
+    Show-EquivalentCommand -ScriptName 'Run-SimulatedMatch.ps1' -Options $equiv
+}
+# A board name from robots.json means that board: connect to its host (LeftPi -> LeftPi.local)
+# and, unless -Camera was given, use its camera.
+$cfg = Resolve-RobotConfig -Addr $Address
+if ($cfg -and $cfg.Board) {
+    $hostName = @(@($cfg.Board.hosts) | Where-Object { $_ }) | Select-Object -First 1
+    if ($Address -ieq $cfg.Board.name -and $hostName) { $Address = [string]$hostName }
+    if (-not $cameraGiven -and @($cfg.Board.cameras).Count -gt 0) { $Camera = [string]@($cfg.Board.cameras)[0].name }
+}
+Write-Host ("Pi {0}, recorder camera '{1}'" -f $Address, $Camera) -ForegroundColor DarkGray
+
 if (-not $OutDir) { $OutDir = Join-Path $simDir ("runs\{0}-{1}" -f (Get-Date -Format 'yyyyMMdd-HHmmss'), $Label) }
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $sshBase = @('-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-o', 'StrictHostKeyChecking=accept-new', '-o', 'ServerAliveInterval=15', '-i', $KeyPath, '-o', 'IdentitiesOnly=yes')

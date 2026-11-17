@@ -38,6 +38,7 @@ def healthy():
         f'{REC}/NtDisconnects': ts((0, 0)),
         f'{REC}/NtDownSec': ts((0, 0.0)),
         f'{REC}/NtLongestOutageSec': ts((0, 0.0)),
+        f'{REC}/CameraLostCount': ts((0, 0)),
     }
 
 
@@ -54,7 +55,7 @@ def rows(signals):
 
 
 DIAGNOSTIC_IDS = ('pi.rebooted', 'pi.link_flaps', 'pi.usb_camera_loss', 'rec.nt_disconnects_match',
-                  'rec.nt_down_match', 'rec.nt_longest')
+                  'rec.nt_down_match', 'rec.nt_longest', 'rec.camera_lost_match')
 
 
 def test_the_shipped_config_is_valid_and_has_the_diagnostic_checks():
@@ -123,6 +124,46 @@ def test_a_camera_falling_off_usb_is_told_apart_from_a_link_flap_or_reboot():
     assert r['pi.usb_camera_loss']['status'] == 'warn'
     assert r['pi.rebooted']['status'] == 'ok' and r['pi.link_flaps']['status'] == 'ok'
     assert r['rec.nt_disconnects_match']['status'] == 'ok'
+
+
+def test_photonvisions_camera_lost_card_fails_the_match_even_though_the_stream_looks_fine():
+    # The 2026-10-24 practice log: LeftCam's USB camera dropped mid-teleop and never came back, while
+    # PhotonVision kept streaming its 'Camera Lost' card (so StreamOk stayed true).
+    s = healthy()
+    s[f'{REC}/StreamOk'] = ts((0, True))
+    s[f'{REC}/CameraLostCount'] = ts((0, 0), (55, 1))
+    r = rows(s)
+    assert (r['rec.camera_lost_match']['status'], r['rec.camera_lost_match']['display']) == ('fail', '1')
+    assert r['pi.rebooted']['status'] == 'ok' and r['rec.nt_disconnects_match']['status'] == 'ok'
+
+
+def test_a_camera_lost_in_the_pits_is_not_blamed_on_the_match():
+    s = healthy()
+    s[f'{REC}/CameraLostCount'] = ts((0, 0), (5, 1))                          # while disabled
+    r = rows(s)
+    assert r['rec.camera_lost_match']['status'] == 'ok'
+
+
+def test_throttling_and_a_saturated_core_show_while_the_average_looks_fine():
+    s = healthy()
+    s[f'{BOARD}/CPU_Pct'] = ts((0, 20.0))                                     # the 8-core average
+    s[f'{BOARD}/CpuCoreMaxPct'] = ts((0, 10.0), (20, 99.0), (90, 10.0))      # one core pegged while enabled
+    s[f'{BOARD}/CpuThrottled'] = ts((0, False), (60, True), (75, False))     # capped for 15 of 70 s
+    s[f'{BOARD}/TempMaxC'] = ts((0, 55.0), (60, 86.5))
+    r = rows(s)
+    assert r['pi.cpu']['status'] == 'ok'
+    assert r['pi.core_max']['status'] == 'fail'
+    assert r['pi.throttled']['status'] == 'fail'
+    assert r['pi.temp_max']['status'] == 'fail'
+
+
+def test_throttling_while_disabled_is_not_blamed_on_the_match():
+    s = healthy()
+    s[f'{BOARD}/CpuThrottled'] = ts((0, True), (15, False))
+    s[f'{BOARD}/CpuCoreMaxPct'] = ts((0, 30.0))
+    r = rows(s)
+    assert r['pi.throttled']['status'] == 'ok'
+    assert r['pi.core_max']['status'] == 'ok'
 
 
 def test_a_log_recorded_before_the_mirror_existed_says_no_data_not_fine():

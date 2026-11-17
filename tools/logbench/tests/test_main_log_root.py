@@ -53,3 +53,36 @@ def test_only_one_folder_dialog_at_a_time(two_roots):
         assert client.post('/api/log-root/pick').status_code == 409
     finally:
         main._pick_lock.release()
+
+
+def test_listing_reports_folder_and_recorded_vision_cameras(two_roots):
+    a, _ = two_roots
+    session = a / 'sub' / 'one.vision' / 'LeftCam' / 'boot0001-20260101'
+    session.mkdir(parents=True)
+    (session / 'frame.jpg').write_bytes(b'x')
+    row = client.get('/api/logs').json()['logs'][0]
+    assert row['folder'] == 'sub'
+    assert row['vision_cameras'] == ['LeftCam']
+
+
+def test_log_details_reports_the_match_the_driver_station_recorded(two_roots, monkeypatch):
+    from core.log import Log
+    signals = {
+        'DriverStation/EventName': [(0, ''), (5, 'nyroc1')],
+        'DriverStation/MatchType': [(0, 0), (5, 2)],
+        'DriverStation/MatchNumber': [(0, 0), (5, 17)],
+        'DriverStation/FMSAttached': [(0, False), (5, True)],
+        'DriverStation/Enabled': [(0, False), (10, True), (40, False)],
+        'DriverStation/Autonomous': [(0, False), (10, True), (25, False)],
+    }
+    monkeypatch.setattr(main, '_load_log', lambda path: Log(pathlib.Path(path), signals))
+    body = client.get('/api/log-details', params={'log': 'sub/one.wpilog'}).json()
+    assert (body['event'], body['match_type'], body['match_number'], body['fms']) == ('nyroc1', 'Qualification', 17, True)
+    assert body['auto_sec'] == pytest.approx(15) and body['teleop_sec'] == pytest.approx(15)
+
+
+def test_log_details_leaves_unrecorded_match_fields_empty(two_roots, monkeypatch):
+    from core.log import Log
+    monkeypatch.setattr(main, '_load_log', lambda path: Log(pathlib.Path(path), {'DriverStation/Enabled': [(0, False), (9, False)]}))
+    body = client.get('/api/log-details', params={'log': 'sub/one.wpilog'}).json()
+    assert body['event'] is None and body['match_type'] is None and body['match_number'] is None and body['fms'] is False

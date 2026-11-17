@@ -87,6 +87,7 @@ public class AutoCommands {
 
                 commandsToAddToChooser.put("CircleHub", NamedCommands.getCommand("CircleHub"));
                 commandsToAddToChooser.put("CircleFacingTag_Tag10", NamedCommands.getCommand("CircleFacingTag"));
+                commandsToAddToChooser.put("CalibrateCameras", NamedCommands.getCommand("CalibrateCameras"));
                 commandsToAddToChooser.put("TEST", NamedCommands.getCommand("TEST"));
                 // commandsToAddToChooser.put("fourMeters",
                 // NamedCommands.getCommand("fourMeters"));
@@ -121,10 +122,10 @@ public class AutoCommands {
 
                 // // commandsToAddToChooser.put("LeftDepotShootCenterHarvestInLeftShoot",
                 // // NamedCommands.getCommand("LeftDepotShootCenterHarvestInLeftShoot"));
-                // commandsToAddToChooser.put("RightQuad",
-                //                 NamedCommands.getCommand("RightQuad"));
-                // commandsToAddToChooser.put("LeftQuad",
-                //                 NamedCommands.getCommand("LeftQuad"));
+                commandsToAddToChooser.put("RightQuad",
+                                 NamedCommands.getCommand("RightQuad"));
+                 commandsToAddToChooser.put("LeftQuad",
+                                 NamedCommands.getCommand("LeftQuad"));
                 // commandsToAddToChooser.put("Zac_RightQuad",
                 //                 NamedCommands.getCommand("Zac_RightQuad"));
                 // commandsToAddToChooser.put("Zac_LeftQuad",
@@ -141,8 +142,8 @@ public class AutoCommands {
                                     new PathPlannerAuto("PP_Right_Quad"));
                 commandsToAddToChooser.put("Sit_And_Shoot",
                                     new PathPlannerAuto("Sit_And_Shoot"));
-                commandsToAddToChooser.put("BACK_Right_Bump_To_Alliance",
-                                    new PathPlannerAuto("BACK_Right_Bump_To_Alliance"));
+                commandsToAddToChooser.put("BACK_Left_Bump_To_Alliance",
+                                    new PathPlannerAuto("BACK_Left_Bump_To_Alliance"));
                 commandsToAddToChooser.put("BACK_Right_Bump_To_Field",
                                     new PathPlannerAuto("BACK_Right_Bump_To_Field"));
                 // Add all commands in Map to chooser

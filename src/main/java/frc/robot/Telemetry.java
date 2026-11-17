@@ -16,6 +16,7 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -97,7 +98,7 @@ public class Telemetry {
      * SignalLogger.
      */
     public void telemeterize(SwerveDriveState state) {
-        if (FeatureSwitches.SWERVE_TELEMETRY_10_HZ && !outputGate.ready(state.Timestamp, 0.1)) return;
+        if (RobotBase.isReal() && FeatureSwitches.SWERVE_TELEMETRY_10_HZ && !outputGate.ready(state.Timestamp, 0.1)) return;
         /* Telemeterize the swerve drive state */
         drivePose.set(state.Pose);
         driveSpeeds.set(state.Speeds);

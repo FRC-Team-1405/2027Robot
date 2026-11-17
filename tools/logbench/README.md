@@ -1,32 +1,52 @@
 # Logbench
+One stop shop for logging!
 
-Play back a `.wpilog` and watch metrics move against the robot's position on the field —
-smoothly, at 60fps, with a play button that actually plays.
+## Install
 
-Built for camera health, but the player itself knows nothing about cameras. "Metrics over
-a match timeline" is a shape we keep wanting (shooter tuning, swerve module health, intake
-state), so the domain knowledge is isolated in one file per view.
+### Prereqs
 
-## Why this exists
+Python 3.13
+```powershell
+winget install -e --id Python.Python.3.13
+```
 
-The Replay tab in the camera-calibration Streamlit app had the right features and was
-unusable. It drove playback with `st.fragment(run_every=0.2)`, so every frame was a full
-server round-trip: re-run Python, rebuild two Plotly trend figures containing *every
-sample of all nine health traces per camera* (~135k points), rebuild the field figure,
-rescan the whole pose series three times for a 3-second trail, serialize it all to JSON,
-ship it over the websocket, re-render. Seconds per frame.
+NPM
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
 
-Streamlit's execution model is request/response. The fix was not a faster Streamlit — it
-was to send the data to the browser **once** and animate client-side with no round-trips
-at all.
+FFmpeg
+```powershell
+winget install Gyan.FFmpeg
+ffmpeg -version
+```
+> **Restart VS Code** after installing prereqs!
 
-Measured on a 5.5-minute log with 26 tracks and 199k samples:
+### Install logbench
 
-| | before | after |
-|---|---|---|
-| per frame | seconds | **0.09 ms** mean, 1.3 ms worst |
-| data sent | all traces, 5×/second | 0.47 MB gzipped, once |
-| trail lookup | O(N) scan ×3 per tick | O(1) amortized |
+```powershell
+cd tools/logbench
+pip install -r requirements.txt
+cd web; npm install; npm run build
+```
+
+### Fix Script Execution Error
+
+Example error:
+```
+npm : File C:\Program Files\nodejs\npm.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see
+about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.
+At line:1 char:1
++ npm install
++ ~~~
+    + CategoryInfo          : SecurityError: (:) [], PSSecurityException
+    + FullyQualifiedErrorId : UnauthorizedAccess
+```
+
+Fix:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
 
 ## Running it
 
@@ -53,8 +73,6 @@ pip install -r requirements.txt
 cd web && npm install && npm run build && cd ..
 python server/main.py --logs ../../logs
 ```
-
-Install NPM if you see an error indicating NPM missing: `winget install OpenJS.NodeJS.LTS`
 
 `--logs` is only the starting folder. The pages that list logs (Vision Logs, Compare,
 Battery Insights) have a **Change folder…** button that opens the OS folder picker and
@@ -172,7 +190,11 @@ shows the current remote phase, elapsed time, bytes/files transferred, rolling t
 and ETA when a byte total is known. A transfer that receives no data for 60 seconds fails
 instead of appearing stalled; set the optional top-level
 `"transfer_idle_timeout_seconds"` value in the ignored
-`server/remote_config.json` to adjust that per network. Each server run writes a detailed
+`server/remote_config.json` to adjust that per network. A roboRIO log the robot is still
+writing (the newest one, while robot code runs) is copied as it is at the moment of the
+download, plus one catch-up pass, and the result says how much was left on the robot; fetch
+it again after the robot code restarts for the rest. Before this, the download followed the end
+of the growing file, and over a slow link it never finished (11-03). Each server run writes a detailed
 diagnostic log under `tools/logbench/logs/`; the newest ten runs are retained locally and
 the folder is ignored by Git.
 
@@ -219,8 +241,8 @@ doesn't recognise are reported the same way instead of being silently ignored. I
 the logs still appear but there are no vision recordings to fetch.
 
 A board that shows up on NetworkTables with no address was not re-synced with the current
-publisher: copy `coprocessor/` to it again (`sync-to-orangepi.bat`) and restart
-`orangepi-nt-publisher`.
+publisher: re-run `coprocessor\Bootstrap-OrangePi.ps1` for that board (it copies the current
+publisher and restarts it).
 
 #### How cameras are named
 

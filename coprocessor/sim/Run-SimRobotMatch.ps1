@@ -33,7 +33,11 @@
     simulateJava run normally prompts; or, as admin:
       New-NetFirewallRule -DisplayName 'NT4 sim' -Direction Inbound -Protocol TCP -LocalPort 5810 -Action Allow ).
 
-.PARAMETER Address        The Pi's address (for example 192.168.137.241 on the laptop's shared connection).
+    Run it with NO options for a short wizard (which Pi, this laptop's address, how fast, where to
+    record); it prints the equivalent command line at the end.
+
+.PARAMETER Address        The Pi: an address (e.g. 192.168.137.241) or a board name from ..\robots.json (e.g. LeftPi),
+                      which also sets -Camera to that board's camera. Asked for when left out.
 .PARAMETER LaptopAddress  This laptop's address as the Pi sees it (default 192.168.137.1, Windows' shared-connection address).
 .PARAMETER Camera         The Pi's normal recorder instance (default bench); only read, to learn the real stream URL.
 .PARAMETER LogCameras     Camera names to record as, matching the robot's cameras (default LeftCam,RightCam). The first is the real camera.
@@ -45,11 +49,17 @@
 .PARAMETER UseRealRecordings  Record into the Pi's normal ~/vision-recordings (mixes with real data) instead of a throwaway folder.
 
 .EXAMPLE
-    .\Run-SimRobotMatch.ps1 -Address 192.168.137.241 -KeyPath $HOME\.ssh\id_ed25519_claude -Fast 4
+    .\Run-SimRobotMatch.ps1
+
+.EXAMPLE
+    .\Run-SimRobotMatch.ps1 LeftPi -Fast 4
+
+.EXAMPLE
+    .\Run-SimRobotMatch.ps1 -Address 192.168.137.241 -Camera bench -LaptopAddress 192.168.137.1
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$Address,
+    [string]$Address,
     [string]$User = 'pi',
     [string]$KeyPath = (Join-Path $HOME '.ssh\id_ed25519_orangepi'),
     [string]$LaptopAddress = '192.168.137.1',
@@ -68,6 +78,57 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $simDir = $PSScriptRoot
+. (Join-Path $simDir '..\lib\Wizard.ps1')
+
+# Wizard when no Pi was given; then fill the camera from robots.json when -Address names a board.
+$cameraGiven = $PSBoundParameters.ContainsKey('Camera')
+if (-not $Address) {
+    if (-not (Test-CanAsk)) { throw 'Give -Address (a Pi address or a board name from robots.json), or run this in a terminal to be asked.' }
+    $equiv = [ordered]@{}
+    $cfg = Resolve-RobotConfig
+    $board = $null
+    if ($cfg) { $cfg = Select-Robot $cfg; $board = Select-Board $cfg -Title 'Which Orange Pi records the match?' }
+    if ($board) { $Address = [string]$board.name }
+    else {
+        $Address = Read-Answer -Prompt 'Pi address, e.g. 192.168.137.241' -Pattern '[A-Za-z0-9._:-]+' -Hint 'Type an address or host name.'
+        if (-not $cameraGiven) { $Camera = Read-Answer -Prompt "That Pi's recorder camera name" -Default 'bench' -Pattern '[A-Za-z0-9_-]+'; $cameraGiven = $true; $equiv.Camera = $Camera }
+    }
+    $equiv.Address = $Address
+    if (-not $PSBoundParameters.ContainsKey('LaptopAddress')) {
+        # The Pi connects back to the simulation's NetworkTables server on this laptop.
+        $ips = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                 Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } |
+                 Sort-Object { if ($_.IPAddress -like '192.168.137.*') { 0 } elseif ($_.IPAddress -like '10.14.5.*') { 1 } else { 2 } })
+        $opts = @($ips | ForEach-Object { @{ Label = $_.IPAddress; Detail = $(if ($_.IPAddress -like '192.168.137.*') { "$($_.InterfaceAlias): Internet Connection Sharing (Pi plugged into this laptop)" } elseif ($_.IPAddress -like '10.14.5.*') { "$($_.InterfaceAlias): robot network" } else { $_.InterfaceAlias }); Value = $_.IPAddress } })
+        $opts += @{ Label = 'Type another address'; Value = '__other__' }
+        $LaptopAddress = Select-Choice -Title "This laptop's address, as the Pi sees it" -Options $opts -Why 'The Pi connects back to the simulation on this laptop.'
+        if ($LaptopAddress -eq '__other__') { $LaptopAddress = Read-Answer -Prompt 'Laptop address' -Default '192.168.137.1' -Pattern '[0-9.]+' }
+        if ($LaptopAddress -ne '192.168.137.1') { $equiv.LaptopAddress = $LaptopAddress }
+    }
+    if (-not $PSBoundParameters.ContainsKey('Fast')) {
+        $Fast = Select-Choice -Title 'How fast?' -Options @(
+            @{ Label = 'Real time'; Detail = 'a full match, about 3.5 minutes'; Value = 1 },
+            @{ Label = '4x faster'; Detail = 'about 1 minute; enough to check the bundle'; Value = 4 })
+        if ($Fast -ne 1) { $equiv.Fast = $Fast }
+    }
+    if (-not $PSBoundParameters.ContainsKey('UseRealRecordings')) {
+        $real = Select-Choice -Title 'Where should the Pi record?' -Options @(
+            @{ Label = 'A throwaway folder'; Detail = '~/sim-recordings; your real recordings are untouched'; Value = 'sim' },
+            @{ Label = "The Pi's real recordings folder"; Detail = '~/vision-recordings; mixes with real match data'; Value = 'real' })
+        if ($real -eq 'real') { $UseRealRecordings = [switch]$true; $equiv.UseRealRecordings = $true }
+    }
+    Show-EquivalentCommand -ScriptName 'Run-SimRobotMatch.ps1' -Options $equiv
+}
+# A board name from robots.json means that board: connect to its host (LeftPi -> LeftPi.local)
+# and, unless -Camera was given, use its camera.
+$cfg = Resolve-RobotConfig -Addr $Address
+if ($cfg -and $cfg.Board) {
+    $hostName = @(@($cfg.Board.hosts) | Where-Object { $_ }) | Select-Object -First 1
+    if ($Address -ieq $cfg.Board.name -and $hostName) { $Address = [string]$hostName }
+    if (-not $cameraGiven -and @($cfg.Board.cameras).Count -gt 0) { $Camera = [string]@($cfg.Board.cameras)[0].name }
+}
+Write-Host ("Pi {0}, its recorder camera '{1}', laptop {2}" -f $Address, $Camera, $LaptopAddress) -ForegroundColor DarkGray
+
 $repo = (Resolve-Path (Join-Path $simDir '..\..')).Path
 if (-not $OutDir) { $OutDir = Join-Path $simDir ("runs\{0}-simrobot" -f (Get-Date -Format 'yyyyMMdd-HHmmss')) }
 New-Item -ItemType Directory -Force $OutDir | Out-Null

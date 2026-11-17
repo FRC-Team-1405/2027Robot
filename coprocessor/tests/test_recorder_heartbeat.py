@@ -203,7 +203,7 @@ class HeartbeatTests(unittest.TestCase):
         self.assertTrue(table.values["StreamOk"])
         self.assertEqual(table.values["Recording"], False)
         self.assertGreaterEqual(table.values["DiskFreeGB"], 0)
-        self.assertEqual(table.values["Version"], module.RECORDER_VERSION)
+        self.assertEqual(table.values["Version"], module.RECORDER_BUILD)
 
 
 class NtOutageTrackerTests(unittest.TestCase):

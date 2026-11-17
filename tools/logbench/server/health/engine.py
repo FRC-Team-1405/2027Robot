@@ -13,13 +13,15 @@ Everything the page needs comes back in one plain-dict report: sections -> group
 carrying a status, a display value, the rule that was applied in words, and any detail worth
 reading (when the worst value happened, what an alert said). Roll-ups take the worst child.
 """
+import functools
+import json
 import math
 import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from core import signals as sig
 
-from .config import CheckSpec, HISTORY_MEASURES
+from .config import CheckSpec, HISTORY_MEASURES, SAMPLE_MEASURES
 
 OK, WARN, FAIL, NODATA, NA = 'ok', 'warn', 'fail', 'nodata', 'na'
 # na (does not apply here) < ok < nodata (could not tell) < warn < fail
@@ -126,6 +128,27 @@ def _matches(v: Any, wanted: Any) -> bool:
     return str(v) == str(wanted)
 
 
+@functools.lru_cache(maxsize=256)
+def _json(text: str) -> Any:
+    try:
+        return json.loads(text)
+    except ValueError:
+        return None
+
+
+def _field(v: Any, path: str) -> Any:
+    """For a check with `field`: the value at a dotted path inside a JSON string sample
+    (RadioStatus/Status is one JSON object per sample), or None when it isn't there."""
+    if not isinstance(v, str):
+        return None
+    node = _json(v)
+    for part in path.split('.'):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node if isinstance(node, (bool, int, float, str)) else None
+
+
 def _length(v: Any) -> float:
     return float(len(v)) if isinstance(v, (str, list, tuple)) else 0.0
 
@@ -168,6 +191,8 @@ class LogSource:
 
     def reduce(self, canonical: str, spec: CheckSpec) -> Optional[Reduced]:
         series = self.signals.get(self.keys.real.get(canonical, ''))
+        if series and spec.field:
+            series = [(t, x) for t, v in series for x in (_field(v, spec.field),) if x is not None]
         if not series:
             return None
         spans = self._window(spec.window)
@@ -175,12 +200,30 @@ class LogSource:
             r = Reduced(None)
             r.sample = 'this log has no driver-station mode data, so "%s" cannot be selected' % spec.window
             return r
+        if spec.measure in SAMPLE_MEASURES:
+            # a record exactly at a window's end belongs to the next mode, as in the spans themselves
+            values = [x for t, v in series if spec.window == 'all' or any(a <= t < b for a, b in spans)
+                      for x in (_num(v),) if x is not None]
+            return _reduce_samples(values, spec)
         pieces = sig.hold_intervals(series, self.t0, self.t1)
         if spec.window != 'all':
             pieces = sig.clip_to_spans(pieces, spans)
         if not pieces:
             return None
         return _reduce_pieces(pieces, spec, self.t0)
+
+
+def _reduce_samples(values: List[float], spec: CheckSpec) -> Optional[Reduced]:
+    """One number from the records inside the window, each record counted once."""
+    if not values:
+        return None
+    if spec.measure == 'sample_mean':
+        return Reduced(sum(values) / len(values))
+    if spec.measure == 'share_above':
+        return Reduced(sum(x > spec.above for x in values) / len(values))
+    ordered = sorted(values)                     # percentile: nearest rank
+    rank = max(1, math.ceil(spec.q / 100 * len(ordered)))
+    return Reduced(ordered[rank - 1])
 
 
 def _reduce_pieces(pieces: List[sig.Piece], spec: CheckSpec, t0: float) -> Reduced:
@@ -263,6 +306,10 @@ class SnapshotSource:
         if entry is None:
             return None
         v, age = entry
+        if spec.field:
+            v = _field(v, spec.field)
+            if v is None:
+                return None
         if spec.measure in HISTORY_MEASURES:
             return Reduced(None, age=age, history_needed=True)
         if spec.measure in ('any_true', 'all_true'):

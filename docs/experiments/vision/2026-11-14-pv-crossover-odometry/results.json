@@ -1,0 +1,458 @@
+{
+ "plan": "C:\\Users\\FinneyRobotics\\VS Code\\2027Robot\\docs\\experiments\\vision\\2026-11-14-pv-crossover-odometry\\runs.toml",
+ "manifest": "C:\\Users\\FinneyRobotics\\VS Code\\2027Robot\\docs\\experiments\\vision\\2026-11-14-pv-crossover-odometry\\manifest.json",
+ "runs": [
+  {
+   "id": "X1b",
+   "log": "FRC_20261114_202608.wpilog",
+   "window_s": 19.77808600000003,
+   "window_source": "enable window from the runner",
+   "git_sha": null,
+   "git_dirty": null,
+   "feature_switches": null,
+   "cameras": {
+    "left": {
+     "camera": "LeftCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    },
+    "right": {
+     "camera": "RightCam",
+     "setting": "B",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    }
+   },
+   "problems": [
+    "left (LeftCam) decimate: asked for 2, the log says None",
+    "left (LeftCam) threads: asked for 8, the log says None",
+    "left (LeftCam) low_latency: asked for False, the log says None",
+    "left (LeftCam) exposure: asked for 80.0, the log says None",
+    "left (LeftCam) gain: asked for 25, the log says None",
+    "left (LeftCam) camera_mode: asked for 800x600 MJPG @100, the log says None",
+    "right (RightCam) decimate: asked for 2, the log says None",
+    "right (RightCam) threads: asked for 8, the log says None",
+    "right (RightCam) low_latency: asked for False, the log says None",
+    "right (RightCam) exposure: asked for 80.0, the log says None",
+    "right (RightCam) gain: asked for 25, the log says None",
+    "right (RightCam) camera_mode: asked for 1280x800 MJPG @100, the log says None"
+   ],
+   "left_minus_right": {}
+  },
+  {
+   "id": "X1a",
+   "log": "FRC_20261114_202608.wpilog",
+   "window_s": 20.392014000000017,
+   "window_source": "enable window from the runner",
+   "git_sha": null,
+   "git_dirty": null,
+   "feature_switches": null,
+   "cameras": {
+    "left": {
+     "camera": "LeftCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    },
+    "right": {
+     "camera": "RightCam",
+     "setting": "B",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    }
+   },
+   "problems": [
+    "left (LeftCam) decimate: asked for 2, the log says None",
+    "left (LeftCam) threads: asked for 8, the log says None",
+    "left (LeftCam) low_latency: asked for False, the log says None",
+    "left (LeftCam) exposure: asked for 80.0, the log says None",
+    "left (LeftCam) gain: asked for 25, the log says None",
+    "left (LeftCam) camera_mode: asked for 800x600 MJPG @100, the log says None",
+    "right (RightCam) decimate: asked for 2, the log says None",
+    "right (RightCam) threads: asked for 8, the log says None",
+    "right (RightCam) low_latency: asked for False, the log says None",
+    "right (RightCam) exposure: asked for 80.0, the log says None",
+    "right (RightCam) gain: asked for 25, the log says None",
+    "right (RightCam) camera_mode: asked for 1280x800 MJPG @100, the log says None"
+   ],
+   "left_minus_right": {}
+  },
+  {
+   "id": "AA1",
+   "log": "FRC_20261114_202608.wpilog",
+   "window_s": 22.496591000000024,
+   "window_source": "enable window from the runner",
+   "git_sha": null,
+   "git_dirty": null,
+   "feature_switches": null,
+   "cameras": {
+    "left": {
+     "camera": "LeftCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    },
+    "right": {
+     "camera": "RightCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    }
+   },
+   "problems": [
+    "left (LeftCam) decimate: asked for 2, the log says None",
+    "left (LeftCam) threads: asked for 8, the log says None",
+    "left (LeftCam) low_latency: asked for False, the log says None",
+    "left (LeftCam) exposure: asked for 80.0, the log says None",
+    "left (LeftCam) gain: asked for 25, the log says None",
+    "left (LeftCam) camera_mode: asked for 800x600 MJPG @100, the log says None",
+    "right (RightCam) decimate: asked for 2, the log says None",
+    "right (RightCam) threads: asked for 8, the log says None",
+    "right (RightCam) low_latency: asked for False, the log says None",
+    "right (RightCam) exposure: asked for 80.0, the log says None",
+    "right (RightCam) gain: asked for 25, the log says None",
+    "right (RightCam) camera_mode: asked for 800x600 MJPG @100, the log says None"
+   ],
+   "left_minus_right": {}
+  },
+  {
+   "id": "X2a",
+   "log": "FRC_20261114_202608.wpilog",
+   "window_s": 21.990345000000048,
+   "window_source": "enable window from the runner",
+   "git_sha": null,
+   "git_dirty": null,
+   "feature_switches": null,
+   "cameras": {
+    "left": {
+     "camera": "LeftCam",
+     "setting": "B",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    },
+    "right": {
+     "camera": "RightCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    }
+   },
+   "problems": [
+    "left (LeftCam) decimate: asked for 2, the log says None",
+    "left (LeftCam) threads: asked for 8, the log says None",
+    "left (LeftCam) low_latency: asked for False, the log says None",
+    "left (LeftCam) exposure: asked for 80.0, the log says None",
+    "left (LeftCam) gain: asked for 25, the log says None",
+    "left (LeftCam) camera_mode: asked for 1280x800 MJPG @100, the log says None",
+    "right (RightCam) decimate: asked for 2, the log says None",
+    "right (RightCam) threads: asked for 8, the log says None",
+    "right (RightCam) low_latency: asked for False, the log says None",
+    "right (RightCam) exposure: asked for 80.0, the log says None",
+    "right (RightCam) gain: asked for 25, the log says None",
+    "right (RightCam) camera_mode: asked for 800x600 MJPG @100, the log says None"
+   ],
+   "left_minus_right": {}
+  },
+  {
+   "id": "X1c",
+   "log": "FRC_20261114_202608.wpilog",
+   "window_s": 21.694007000000056,
+   "window_source": "enable window from the runner",
+   "git_sha": null,
+   "git_dirty": null,
+   "feature_switches": null,
+   "cameras": {
+    "left": {
+     "camera": "LeftCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    },
+    "right": {
+     "camera": "RightCam",
+     "setting": "B",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    }
+   },
+   "problems": [
+    "left (LeftCam) decimate: asked for 2, the log says None",
+    "left (LeftCam) threads: asked for 8, the log says None",
+    "left (LeftCam) low_latency: asked for False, the log says None",
+    "left (LeftCam) exposure: asked for 80.0, the log says None",
+    "left (LeftCam) gain: asked for 25, the log says None",
+    "left (LeftCam) camera_mode: asked for 800x600 MJPG @100, the log says None",
+    "right (RightCam) decimate: asked for 2, the log says None",
+    "right (RightCam) threads: asked for 8, the log says None",
+    "right (RightCam) low_latency: asked for False, the log says None",
+    "right (RightCam) exposure: asked for 80.0, the log says None",
+    "right (RightCam) gain: asked for 25, the log says None",
+    "right (RightCam) camera_mode: asked for 1280x800 MJPG @100, the log says None"
+   ],
+   "left_minus_right": {}
+  },
+  {
+   "id": "AA2",
+   "log": "FRC_20261114_202608.wpilog",
+   "window_s": 21.394271000000003,
+   "window_source": "enable window from the runner",
+   "git_sha": null,
+   "git_dirty": null,
+   "feature_switches": null,
+   "cameras": {
+    "left": {
+     "camera": "LeftCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    },
+    "right": {
+     "camera": "RightCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    }
+   },
+   "problems": [
+    "left (LeftCam) decimate: asked for 2, the log says None",
+    "left (LeftCam) threads: asked for 8, the log says None",
+    "left (LeftCam) low_latency: asked for False, the log says None",
+    "left (LeftCam) exposure: asked for 80.0, the log says None",
+    "left (LeftCam) gain: asked for 25, the log says None",
+    "left (LeftCam) camera_mode: asked for 800x600 MJPG @100, the log says None",
+    "right (RightCam) decimate: asked for 2, the log says None",
+    "right (RightCam) threads: asked for 8, the log says None",
+    "right (RightCam) low_latency: asked for False, the log says None",
+    "right (RightCam) exposure: asked for 80.0, the log says None",
+    "right (RightCam) gain: asked for 25, the log says None",
+    "right (RightCam) camera_mode: asked for 800x600 MJPG @100, the log says None"
+   ],
+   "left_minus_right": {}
+  },
+  {
+   "id": "X2c",
+   "log": "FRC_20261114_202608.wpilog",
+   "window_s": 22.898279000000002,
+   "window_source": "enable window from the runner",
+   "git_sha": null,
+   "git_dirty": null,
+   "feature_switches": null,
+   "cameras": {
+    "left": {
+     "camera": "LeftCam",
+     "setting": "B",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    },
+    "right": {
+     "camera": "RightCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    }
+   },
+   "problems": [
+    "left (LeftCam) decimate: asked for 2, the log says None",
+    "left (LeftCam) threads: asked for 8, the log says None",
+    "left (LeftCam) low_latency: asked for False, the log says None",
+    "left (LeftCam) exposure: asked for 80.0, the log says None",
+    "left (LeftCam) gain: asked for 25, the log says None",
+    "left (LeftCam) camera_mode: asked for 1280x800 MJPG @100, the log says None",
+    "right (RightCam) decimate: asked for 2, the log says None",
+    "right (RightCam) threads: asked for 8, the log says None",
+    "right (RightCam) low_latency: asked for False, the log says None",
+    "right (RightCam) exposure: asked for 80.0, the log says None",
+    "right (RightCam) gain: asked for 25, the log says None",
+    "right (RightCam) camera_mode: asked for 800x600 MJPG @100, the log says None"
+   ],
+   "left_minus_right": {}
+  },
+  {
+   "id": "X2b",
+   "log": "FRC_20261114_202608.wpilog",
+   "window_s": 21.592194000000063,
+   "window_source": "enable window from the runner",
+   "git_sha": null,
+   "git_dirty": null,
+   "feature_switches": null,
+   "cameras": {
+    "left": {
+     "camera": "LeftCam",
+     "setting": "B",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    },
+    "right": {
+     "camera": "RightCam",
+     "setting": "A",
+     "log_settings": {
+      "camera_mode": null,
+      "decimate": null,
+      "threads": null,
+      "exposure": null,
+      "gain": null,
+      "multitag": null,
+      "low_latency": null,
+      "pipeline": null
+     },
+     "n": 0
+    }
+   },
+   "problems": [
+    "left (LeftCam) decimate: asked for 2, the log says None",
+    "left (LeftCam) threads: asked for 8, the log says None",
+    "left (LeftCam) low_latency: asked for False, the log says None",
+    "left (LeftCam) exposure: asked for 80.0, the log says None",
+    "left (LeftCam) gain: asked for 25, the log says None",
+    "left (LeftCam) camera_mode: asked for 1280x800 MJPG @100, the log says None",
+    "right (RightCam) decimate: asked for 2, the log says None",
+    "right (RightCam) threads: asked for 8, the log says None",
+    "right (RightCam) low_latency: asked for False, the log says None",
+    "right (RightCam) exposure: asked for 80.0, the log says None",
+    "right (RightCam) gain: asked for 25, the log says None",
+    "right (RightCam) camera_mode: asked for 800x600 MJPG @100, the log says None"
+   ],
+   "left_minus_right": {}
+  }
+ ],
+ "summary": {
+  "left": {},
+  "right": {}
+ }
+}

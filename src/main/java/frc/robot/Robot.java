@@ -47,6 +47,16 @@ public class Robot extends LoggedRobot {
         // ── AdvantageKit setup — must run before any other initialization ──────
         Logger.recordMetadata("ProjectName", "2027Robot");
         Logger.recordMetadata("FeatureSwitches", PerformanceProfile.describe());
+        // Which code this log came from: check out GitSHA to replay a match with the code that ran in it.
+        Logger.recordMetadata("GitSHA", BuildConstants.GIT_SHA);
+        Logger.recordMetadata("GitBranch", BuildConstants.GIT_BRANCH);
+        Logger.recordMetadata("GitDate", BuildConstants.GIT_DATE);
+        Logger.recordMetadata("BuildDate", BuildConstants.BUILD_DATE);
+        Logger.recordMetadata("GitDirty", switch (BuildConstants.DIRTY) {
+            case 0 -> "All changes committed";
+            case 1 -> "Uncommitted changes";
+            default -> "Unknown";
+        });
         if (!FeatureSwitches.PHOENIX_SIGNAL_LOGGING) {
             com.ctre.phoenix6.SignalLogger.enableAutoLogging(false);
             com.ctre.phoenix6.SignalLogger.stop();
@@ -172,12 +182,13 @@ public class Robot extends LoggedRobot {
         t = LoopTimings.begin();
         frc.robot.util.CoprocessorHealthLogger.periodic(); // Orange Pi + recorder health into the log
         LoopTimings.end("Timing/CoprocessorHealthLogger", t);
+        frc.robot.util.RioSystemStats.periodic(); // roboRIO CPU/memory/ethernet into the log
         diagnostics.updateControllers();
         frc.robot.util.WallClockEpoch.periodic(); // which roboRIO boot this log is (LogBench ties Pi frames to it)
         t = LoopTimings.begin();
         // Keep the coprocessor clock reference at its original cadence.
         RobotContainer.publishRobotData();
-        if (!FeatureSwitches.ROBOT_DASHBOARD_10_HZ || dashboardGate.ready(Timer.getFPGATimestamp(), 0.1)) {
+        if (!RobotBase.isReal() || !FeatureSwitches.ROBOT_DASHBOARD_10_HZ || dashboardGate.ready(Timer.getFPGATimestamp(), 0.1)) {
             RobotContainer.updateNT();
             m_robotContainer.drivetrain.publishDriveOutputVoltage();
             m_robotContainer.drivetrain.publishMotorCurrent();

@@ -121,7 +121,7 @@ mode = "live"
 stale_after = 5
 expect_items = ["LeftPi", "RightPi"]
 missing = "fail"
-help = "The Pi's metrics publisher updates once a second. Silent for 5 s means the Pi is off, rebooting, or off the network."
+help = "The Pi's metrics publisher updates twice a second. Silent for 5 s means the Pi is off, rebooting, or off the network."
 
 [[check]]
 id = "pi.cpu"
@@ -173,6 +173,50 @@ warn_above = 70
 fail_above = 85
 help = "The board throttles when it gets hot, which slows detection."
 
+[[check]]
+id = "pi.temp_max"
+section = "Orange Pis"
+group = "{1}"
+label = "Hottest thermal zone"
+signal = "OrangePi/*/TempMaxC"
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 75
+fail_above = 85
+help = "The hottest of every thermal zone (TempMaxZone names it; ThermalZones/ThermalTempC have all of them). Temperature above reads only the first zone, which may not be the one that throttles. ThermalPassiveTripC is where each zone starts throttling."
+
+[[check]]
+id = "pi.throttled"
+section = "Orange Pis"
+group = "{1}"
+label = "CPU clock capped (thermal throttling)"
+signal = "OrangePi/*/CpuThrottled"
+measure = "fraction_true"
+window = "enabled"
+mode = "log"
+scale = 100
+unit = "% of enabled time"
+decimals = 0
+warn_above = 0
+fail_above = 10
+help = "A CPU cluster's clock limit (CpuFreqCapMHz) was below its hardware maximum (CpuFreqMaxMHz): the kernel was throttling, so PhotonVision had less CPU than normal."
+
+[[check]]
+id = "pi.core_max"
+section = "Orange Pis"
+group = "{1}"
+label = "Busiest CPU core (average while enabled)"
+signal = "OrangePi/*/CpuCoreMaxPct"
+measure = "mean"
+window = "enabled"
+mode = "log"
+unit = "%"
+decimals = 0
+warn_above = 80
+fail_above = 95
+help = "One saturated core shows as only ~12% in the 8-core CPU average. If this sits near 100% while the average is low, a single thread is the limit; PvTopThreads / PvTopThreadPct / PvTopThreadCore say which."
+
 # ── Why did the Pi's clients drop? Reboot vs link flap vs camera loss ─────────────────────────
 # When the cameras and every other Pi client vanish from the robot's log together, these say which
 # of the causes it was: BootId changes only on a real reboot; NetCarrierChanges climbs when the
@@ -223,13 +267,52 @@ section = "Orange Pis"
 group = "{1}"
 label = "Network link speed"
 signal = "OrangePi/*/NetSpeedMbps"
-measure = "last"
-mode = "live"
+measure = "min"
 unit = "Mbit/s"
 decimals = 0
 warn_below = 1000
 fail_below = 100
-help = "The Orange Pi's port is gigabit. Negotiating 100 Mbit/s (warning) or 10 (problem) often means a damaged cable or connector. Remove this check if a board uses a slower USB adapter."
+help = "The Orange Pi's port is gigabit. Negotiating 100 Mbit/s (warning) or 10 (problem) often means a damaged cable or connector. Remove this check if a board uses a slower USB adapter. Log: the slowest it negotiated (every 10-27 log had LeftPi at 100)."
+
+[[check]]
+id = "pi.net_tx"
+section = "Orange Pis"
+group = "{1}"
+label = "Network sent (peak)"
+signal = "OrangePi/*/NetTxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 50
+fail_above = 80
+help = "What the Pi sends: PhotonVision results to the roboRIO plus every camera stream someone is watching (PhotonVision UI, dashboards, the recorder reads its stream locally and does not count). Thresholds are against a 100 Mbit/s link; on gigabit they are cautious. Streams to a laptop also cross the radio, which is limited to 7 Mbit/s on the field: see roboRIO > Radio bandwidth."
+
+[[check]]
+id = "pi.net_rx"
+section = "Orange Pis"
+group = "{1}"
+label = "Network received (peak)"
+signal = "OrangePi/*/NetRxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 50
+fail_above = 80
+help = "What the Pi receives (NetworkTables from the roboRIO, browser requests). Normally well under 1 Mbit/s."
+
+[[check]]
+id = "pi.net_errors"
+section = "Orange Pis"
+group = "{1}"
+label = "Network receive errors while enabled"
+signal = "OrangePi/*/NetRxErrors"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+warn_above = 0
+fail_above = 20
+help = "Frames that arrived damaged (CRC errors). Any during a match points at the cable or connector, like a low link speed does."
 
 [[check]]
 id = "pi.link_flaps"
@@ -442,7 +525,33 @@ subject = "Recorder ({2})"
 label = "Recorder version"
 signal = "OrangePi/*/Recorders/*/Version"
 measure = "last"
-help = "Which recorder code is running."
+help = "Which recorder code is running: RECORDER_VERSION+<start of the script's git blob id>. `git log --all --find-object=<id> -- coprocessor/orangepi-vision-recorder.py` names the commit (full id in ScriptBlob)."
+
+[[check]]
+id = "rec.camera_lost_match"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Camera lost while enabled"
+signal = "OrangePi/*/Recorders/*/CameraLostCount"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+fail_above = 0
+help = "Times the stream showed PhotonVision's static 'Camera Lost' card (the USB camera disappeared) while enabled. StreamOk stays true during this, so only this row shows it. Check the camera's USB cable and connectors at both ends."
+
+[[check]]
+id = "rec.camera_lost_live"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Camera present"
+signal = "OrangePi/*/Recorders/*/CameraLost"
+measure = "last"
+mode = "live"
+expect = false
+help = "False when the stream is repeating one identical frame: PhotonVision's 'Camera Lost' card, or a frozen stream."
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -625,6 +734,101 @@ warn_above = 70
 fail_above = 85
 
 [[check]]
+id = "rio.cpu"
+section = "roboRIO"
+group = "Controller"
+label = "CPU (mean while enabled)"
+signal = "RealOutputs/RIO/CpuPct"
+measure = "sample_mean"
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 70
+fail_above = 85
+help = "Both roboRIO cores together, sampled once a second (RioSystemStats). A busy CPU makes every loop slow, not one subsystem, so read it next to the loop times below. Live: the latest second."
+
+[[check]]
+id = "rio.cpu_p95"
+section = "roboRIO"
+group = "Controller"
+label = "CPU (95th percentile while enabled)"
+signal = "RealOutputs/RIO/CpuPct"
+measure = "percentile"
+q = 95
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 90
+fail_above = 98
+mode = "log"
+help = "1 second in 20 was busier than this. Near 100 % means the loop has nothing left for spikes."
+
+[[check]]
+id = "rio.memory"
+section = "roboRIO"
+group = "Controller"
+label = "Memory used (peak)"
+signal = "RealOutputs/RIO/MemUsedPct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 85
+fail_above = 95
+help = "Share of RAM in use (MemAvailable). Low free memory on the roboRIO makes the JVM collect garbage more often."
+
+[[check]]
+id = "rio.net_rx"
+section = "roboRIO"
+group = "Network"
+label = "Ethernet received (peak)"
+signal = "RealOutputs/RIO/NetRxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+help = "Everything into the roboRIO's ethernet port: PhotonVision results from both Pis, Driver Station and dashboard traffic. Informational until we know a normal value."
+
+[[check]]
+id = "rio.net_tx"
+section = "roboRIO"
+group = "Network"
+label = "Ethernet sent (peak)"
+signal = "RealOutputs/RIO/NetTxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+help = "Everything out of the roboRIO's ethernet port: NetworkTables to dashboards (AdvantageScope live, Elastic, LogBench) and to the Pis. Informational until we know a normal value."
+
+[[check]]
+id = "rio.radio_bandwidth"
+section = "roboRIO"
+group = "Network"
+label = "Radio bandwidth used, 6 GHz link (peak while enabled)"
+signal = "RadioStatus/Status"
+field = "networkStatus6.bandwidthUsedMbps"
+measure = "max"
+window = "enabled"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 5
+fail_above = 7
+help = "What the radio reports crossing it, robot to Driver Station side. R704: at most 7 Mbit/s with the Vivid Hosting radio; above that the field limits it and packets are dropped or delayed. Camera streams viewed on a laptop are the usual cause. The radio reports this about every 5 s. 10-27: under 1.3 Mbit/s in every run except one at 7.2-8.7 (a PhotonVision stream open on the laptop)."
+
+[[check]]
+id = "rio.radio_bandwidth_24"
+section = "roboRIO"
+group = "Network"
+label = "Radio bandwidth used, 2.4 GHz link (peak while enabled)"
+signal = "RadioStatus/Status"
+field = "networkStatus24.bandwidthUsedMbps"
+measure = "max"
+window = "enabled"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 5
+fail_above = 7
+help = "Same as the 6 GHz row, for the 2.4 GHz link (zero when nothing is linked on 2.4 GHz)."
+
+[[check]]
 id = "rio.loop_time"
 section = "roboRIO"
 group = "Controller"
@@ -644,14 +848,60 @@ section = "roboRIO"
 group = "Controller"
 label = "Robot loop time (mean while enabled)"
 signal = "RealOutputs/LoggedRobot/FullCycleMS"
-measure = "mean"
+measure = "sample_mean"
 window = "enabled"
 unit = "ms"
 decimals = 1
 warn_above = 25
 fail_above = 45
 mode = "log"
-help = "The typical loop, not the worst: the target is 20 ms. Ruckus 2026 averaged about 38 ms. Turn on FeatureSwitches LOG_SUBSYSTEM_TIMINGS to see where it goes."
+help = "The typical loop, not the worst: the target is 20 ms. Ruckus 2026 averaged about 38 ms. A mean of loops (each loop counted once), not of time: a time-weighted mean counts a 100 ms loop five times and reads high. Turn on FeatureSwitches LOG_SUBSYSTEM_TIMINGS to see where it goes."
+
+[[check]]
+id = "rio.loop_p95"
+section = "roboRIO"
+group = "Controller"
+label = "Robot loop time (95th percentile while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "percentile"
+q = 95
+window = "enabled"
+unit = "ms"
+decimals = 1
+warn_above = 30
+fail_above = 60
+mode = "log"
+help = "1 loop in 20 was slower than this. Steadier than the worst loop (one GC pause sets that) and shows the tail the mean hides. Bench 2026-10-20: 56 ms before the CPU switches, 20.5 ms after."
+
+[[check]]
+id = "rio.loop_overrun_share"
+section = "roboRIO"
+group = "Controller"
+label = "Loops over 20 ms (share while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "share_above"
+above = 20
+scale = 100
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 10
+fail_above = 50
+mode = "log"
+help = "How many loops overran the 20 ms period. Bench 2026-10-20: 99 % before the CPU switches, 6 % after."
+
+[[check]]
+id = "rio.gc_time_mean"
+section = "roboRIO"
+group = "Controller"
+label = "Java garbage collection per loop (mean while enabled)"
+signal = "RealOutputs/LoggedRobot/GCTimeMS"
+measure = "sample_mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+mode = "log"
+help = "Time the JVM reported in garbage collection each loop. Allocation-heavy code (string building, new objects every loop) raises it; one long collection is a whole-robot freeze."
 
 [[check]]
 id = "rio.loop_usercode_mean"
@@ -659,7 +909,7 @@ section = "roboRIO"
 group = "Controller"
 label = "Robot code time per loop (mean while enabled)"
 signal = "RealOutputs/LoggedRobot/UserCodeMS"
-measure = "mean"
+measure = "sample_mean"
 window = "enabled"
 unit = "ms"
 decimals = 1
@@ -674,7 +924,7 @@ section = "roboRIO"
 group = "Loop time breakdown"
 label = "{1} (mean while enabled)"
 signal = "RealOutputs/Timing/*"
-measure = "mean"
+measure = "sample_mean"
 window = "enabled"
 unit = "ms"
 decimals = 1
@@ -692,6 +942,16 @@ decimals = 0
 warn_above = 10
 fail_above = 40
 help = "AdvantageKit cycles waiting to be written; a growing queue risks dropped log data."
+
+[[check]]
+id = "rio.feature_switches"
+section = "roboRIO"
+group = "Build"
+label = "Feature switches deployed"
+signal = "RealMetadata/FeatureSwitches"
+measure = "last"
+mode = "log"
+help = "What the deployed code was compiled with (PerformanceProfile), not what the laptop's file says now. Compare two logs' values before comparing their numbers."
 
 [[check]]
 id = "rio.radio"

@@ -32,6 +32,7 @@ import paths  # noqa: F401  (side effect: sys.path bridges)
 import bundles
 import bundle_pairing
 import vision_coverage
+import nt_clients
 import match_bundle
 import app_logging
 import compare_export
@@ -51,6 +52,8 @@ from core.compare import WindowSelector, compare, make_run
 from core.composites import COMPOSITES
 from core.log import Log
 from core.metrics import METRICS
+from core import signals as sig
+from core import throughput
 from core.severity import BANDS as SEVERITY_BANDS
 from health import config as health_config
 from health import engine as health_engine
@@ -153,11 +156,15 @@ def list_logs() -> dict:
         if '.bundles' in p.relative_to(root).parts:
             continue  # prepared downloads are job artifacts, not additional input logs
         stat = p.stat()
+        rel = p.relative_to(root)
         out.append({
-            'path': p.relative_to(root).as_posix(),
+            'path': rel.as_posix(),
             'name': p.name,
             'size': stat.st_size,
             'mtime': stat.st_mtime,
+            'folder': rel.parent.as_posix() if rel.parent.parts else '',
+            # Cheap directory listing only (no parsing): cameras that have a recorded .vision session.
+            'vision_cameras': sorted(c or '(unnamed)' for c, sessions in bundles.list_vision_sessions(p).items() if sessions),
         })
     return {'root': str(root), 'logs': out, 'specs': specs.listing()}
 
@@ -253,6 +260,41 @@ def log_info(log: str = Query(..., description='log path relative to the log roo
     }
 
 
+def _last_value(parsed, name, empty=(None, '', 0)):
+    """Latest non-empty value of a DriverStation signal, or None. Event and match fields start out blank
+    and fill in once the robot connects to FMS, so the first sample is not the interesting one."""
+    series = sig.find_signal(parsed.signals, name) or []
+    for _, value in reversed(series):
+        if value not in empty:
+            return value
+    return None
+
+
+_MATCH_TYPES = {1: 'Practice', 2: 'Qualification', 3: 'Elimination'}
+
+
+@app.get('/api/log-details')
+def log_details(log: str = Query(..., description='log path relative to the log root')) -> dict:
+    """What the log browser shows when asked to inspect a log: log-info plus the match identity the
+    driver station recorded and how long the robot was enabled. Parses the log (cached like the rest)."""
+    info = log_info(log)
+    parsed = _load_log(_resolve(log))
+    seconds = {'auto': 0.0, 'teleop': 0.0}
+    for span in info['mode_spans']:
+        if span['mode'] in seconds:
+            seconds[span['mode']] += span['hi'] - span['lo']
+    match_type = _last_value(parsed, 'DriverStation/MatchType')
+    return {
+        **info,
+        'event': _last_value(parsed, 'DriverStation/EventName'),
+        'match_type': _MATCH_TYPES.get(match_type) if isinstance(match_type, int) else None,
+        'match_number': _last_value(parsed, 'DriverStation/MatchNumber'),
+        'fms': bool(_last_value(parsed, 'DriverStation/FMSAttached', empty=(None, False))),
+        'auto_sec': seconds['auto'],
+        'teleop_sec': seconds['teleop'],
+    }
+
+
 @app.get('/api/metric-catalog')
 def metric_catalog() -> dict:
     """Every registered Metric and Composite, so the compare page's metric picker never
@@ -273,6 +315,20 @@ def metric_catalog() -> dict:
                 'description': desc.get(c.id, '')} for c in COMPOSITES.values()]
         ),
     }
+
+
+@app.get('/api/vision-insights')
+def vision_insights(log: str = Query(...), mode: str = Query('whole'),
+                    window: Optional[str] = Query(None), rolling_sec: float = Query(1.0),
+                    tracking_gap_sec: float = Query(throughput.DEFAULT_TRACKING_GAP_SEC)) -> dict:
+    try:
+        loaded = _load_log(_resolve(log))
+        selector = WindowSelector(manual=_parse_manual_window(window)) if window else WindowSelector(mode=mode)
+        result = throughput.analyze(make_run(loaded, selector), rolling_sec, tracking_gap_sec)
+        result['order'] = _order_notice(loaded.order_stats)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.get('/api/battery')
@@ -398,6 +454,7 @@ def live_connect(
     Check page polls. There is exactly one live connection at a time -- this tool runs on
     a laptop on a bench next to one robot, not a fleet."""
     try:
+        _want_health_signals(_health_specs()[0])
         live_nt.connect(server, root_table)
     except ModuleNotFoundError as exc:
         raise HTTPException(status_code=501, detail=(
@@ -435,6 +492,11 @@ def _health_specs():
     return specs_, errors
 
 
+def _want_health_signals(specs_) -> None:
+    """Tell the live client which topics' values the checks read, so it never subscribes to all."""
+    live_nt.set_health_signals([s.signal for s in specs_] + [p for s in specs_ for _n, p in s.lookup])
+
+
 @app.get('/api/health/config')
 def health_config_info() -> dict:
     specs_, errors = _health_specs()
@@ -452,6 +514,7 @@ def health_for_log(path: str = Query(..., description='log path relative to the 
     lo, hi = log_.bounds()
     # Rows that need the bundle's files, not just the log: how much of the match each Pi camera saw.
     coverage_rows = vision_coverage.for_log(p, log_.mode_spans(), lo, log_.cameras())
+    coverage_rows += nt_clients.for_log(log_.signals, log_.mode_spans(), lo)
     report = health_engine.evaluate(specs_, source, extra_rows=coverage_rows)
     report['config_errors'] = errors
     report['meta'] = {
@@ -469,6 +532,7 @@ def health_live() -> dict:
     specs_, errors = _health_specs()
     if not live_nt.is_connected():
         return {'connected': False, 'config_errors': errors}
+    _want_health_signals(specs_)
     data = live_nt.health_snapshot()
     report = health_engine.evaluate(specs_, health_engine.SnapshotSource(data), latch=_health_latch)
     enabled = data.get('DriverStation/Enabled', (None, None))[0]
@@ -757,10 +821,19 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
         def rio_progress(name: str, done: int, total: int) -> None:
             remote_jobs.file_progress(job_id, name, done, total)
 
+        log_warnings: List[str] = []
+
+        def still_growing(copied: int, remote_size: int) -> None:
+            log_warnings.append(
+                'The robot was still writing %s, so this bundle has it up to the moment of the '
+                'download (%.1f of %.1f MB so far). Fetch it again after the robot code restarts '
+                'to get the rest.' % (body.rio_log, copied / 1e6, remote_size / 1e6))
+
         remote_jobs.set_phase(job_id, 'Downloading RoboRIO log', body.rio_log)
         local_log = remote_fetch.fetch_rio_log(
             cfg.rio, body.rio_log, LOG_ROOT, progress=rio_progress,
-            idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
+            idle_timeout_seconds=cfg.transfer_idle_timeout_seconds,
+            on_still_growing=still_growing)
         remote_jobs.file_complete(job_id, body.rio_log)
 
         pairing_note = None
@@ -803,6 +876,8 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
                 cancelled=lambda: remote_jobs.cancelled(job_id), include_battery=body.include_battery)
             result.update(prepared)
             result['download_url'] = f'/api/remote/jobs/{job_id}/download'
+        if log_warnings:
+            result['warnings'] = log_warnings + list(result.get('warnings') or [])
         remote_jobs.set_phase(job_id, 'Ready')
         return result
 

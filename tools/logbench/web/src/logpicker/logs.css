@@ -1,0 +1,102 @@
+/* Log bar: sits above the tab bar on every page. */
+.log-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 10px;
+  background: #0e1521;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.log-bar .log-root { margin: 0; flex: 0 1 auto; min-width: 0; }
+.log-bar__pick { display: flex; align-items: center; gap: 8px; flex: 1 1 360px; min-width: 240px; max-width: 720px; }
+.log-bar__pick span { color: var(--muted); }
+.log-bar__pick select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: inherit;
+}
+.log-bar__btn {
+  padding: 5px 10px;
+  background: #161f2c;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: inherit;
+  cursor: pointer;
+}
+.log-bar__btn:hover { border-color: var(--accent); }
+.log-bar__link { color: var(--muted); text-decoration: none; }
+.log-bar__link:hover { color: var(--text); }
+.log-bar__error { color: #f0a0a0; }
+
+/* Full-page log browser. */
+.logs-page { max-width: 1400px; margin: 0 auto; padding: 18px 16px 32px; }
+.logs-page h1 { font-size: 18px; margin: 0 0 4px; }
+.logs-muted { color: var(--muted); font-size: 12px; }
+.warning-text { color: #f0a0a0; }
+.logs-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 12px 0; }
+.logs-toolbar .log-root { margin: 0; }
+.logs-toolbar__search {
+  flex: 1 1 260px;
+  max-width: 420px;
+  padding: 6px 10px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: inherit;
+}
+.logs-scroll { overflow-x: auto; }
+.logs-table { width: 100%; min-width: 880px; border-collapse: collapse; font-size: 12px; }
+.logs-table th, .logs-table td { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.logs-table th { position: sticky; top: 0; background: var(--bg); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.logs-table tbody tr:hover { background: #121a28; }
+.logs-table__row--open { background: #12203a; box-shadow: inset 3px 0 0 var(--accent); }
+.logs-table__num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.logs-table__file { word-break: break-all; max-width: 34ch; min-width: 18ch; }
+.logs-table__sort { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; }
+.logs-table__sort:hover { color: var(--text); }
+.logs-table__btn {
+  padding: 4px 10px;
+  background: #161f2c;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.logs-table__btn:hover:not(:disabled) { border-color: var(--accent); }
+.logs-table__btn:disabled { opacity: 0.5; cursor: default; }
+.logs-table__btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.logs-inside { display: flex; flex-direction: column; gap: 2px; }
+.logs-badge {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
+/* A page that needs an open log and has none. */
+.need-log { max-width: 560px; margin: 48px auto; padding: 0 16px; text-align: center; }
+.need-log h1 { font-size: 16px; }
+.need-log p { color: var(--muted); }
+
+@media (max-width: 700px) {
+  .logs-table__file { max-width: 22ch; }
+}
+
+/* The open log shown (not picked) inside a page that analyses it. */
+.compare-side__locked { padding: 6px 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 5px; word-break: break-all; }
+.battery-log { display: inline-flex; gap: 6px; align-items: baseline; word-break: break-all; }
