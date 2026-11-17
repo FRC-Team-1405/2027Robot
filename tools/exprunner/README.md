@@ -2,7 +2,7 @@
 
 Runs an experiment from its plan file (`runs.toml`, next to the experiment's README), run by run,
 and records what actually ran in `manifest.json`. Design and roadmap:
-[docs/experiment-runner-plan.md](../../docs/experiment-runner-plan.md).
+[docs/tools/experiment-runner-plan.md](../../docs/tools/experiment-runner-plan.md).
 
 Two kinds of experiment:
 

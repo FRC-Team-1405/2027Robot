@@ -1,6 +1,6 @@
 """Regenerates tests/golden/legacy_fingerprints.json from the ORIGINAL vision_analyzer code.
 
-Run once, before the parser moved into wpilog_utils (see docs/wpilog-janitor-plan.md, M0). The
+Run once, before the parser moved into wpilog_utils (see docs/tools/wpilog-janitor-plan.md, M0). The
 JSON it wrote is what test_characterization.py holds wpilog_utils to. Re-running it now goes
 through the vision_analyzer shim, i.e. through wpilog_utils, so it can no longer catch drift --
 it is kept only so the fingerprint format is documented and reproducible.

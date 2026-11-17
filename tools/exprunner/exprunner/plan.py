@@ -39,7 +39,7 @@ A ``robot`` plan sets PhotonVision on the Pis, hands over for an auto, and fetch
     what = "Left on A, Right on B"
     use = { LeftCam = "A", RightCam = "B" }         # camera -> setting name ("all = "A"" sets every camera)
 
-The settings a plan can name are in ``settings.py``. See docs/experiment-runner-plan.md.
+The settings a plan can name are in ``settings.py``. See docs/tools/experiment-runner-plan.md.
 """
 from __future__ import annotations
 

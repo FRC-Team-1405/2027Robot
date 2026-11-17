@@ -623,7 +623,7 @@ def compute_camera_metrics(
 
 # ─── Signal Filtering ──────────────────────────────────────────────────────────
 
-from wpilog_utils.modes import (  # noqa: E402  (moved to wpilog-utils; see docs/wpilog-janitor-plan.md)
+from wpilog_utils.modes import (  # noqa: E402  (moved to wpilog-utils; see docs/tools/wpilog-janitor-plan.md)
     compute_mode_spans as _compute_mode_spans,
     filter_signals_by_time as _filter_signals_by_time,
 )

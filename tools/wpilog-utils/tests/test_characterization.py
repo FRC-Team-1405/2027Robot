@@ -1,7 +1,7 @@
 """Holds wpilog_utils to what the ORIGINAL vision_analyzer parser/metrics/trim produced.
 
 tests/golden/legacy_fingerprints.json was captured from the pre-move code (see make_golden.py) on
-real logs in notes/6-20. These tests are the guard for M0's "move verbatim" claim: any behavioural
+real logs in notes/06-20. These tests are the guard for M0's "move verbatim" claim: any behavioural
 drift in the moved code fails here. Skipped when the sample logs aren't checked out.
 """
 import hashlib

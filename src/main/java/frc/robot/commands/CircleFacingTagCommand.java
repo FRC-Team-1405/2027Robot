@@ -57,7 +57,7 @@ public class CircleFacingTagCommand extends Command {
     // purely so this run reproduces the exact maneuver in
     // logs/offseason/9-5/akit_26-09-05_14-27-33_CircleFacingTag_PreCalibration.wpilog
     // (same speed profile, cut at the same point) with the corrected camera intrinsics as
-    // the only variable that's changed -- see notes/9-8 calibration exports and
+    // the only variable that's changed -- see notes/09-08 calibration exports and
     // VisionConstants.java. Once that baseline-vs-corrected-intrinsics comparison log is
     // captured, revert this whole block back to:
     //   MAX_TANGENTIAL_SPEED_MPS = 1.0, ACCELERATION_MPS2 = 0.2,

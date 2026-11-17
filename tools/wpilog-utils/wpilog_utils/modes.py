@@ -1,7 +1,7 @@
 """
 Driver-station mode spans (disabled / auto / teleop) and time-window filtering of parsed signals.
 
-Moved verbatim from vision_analyzer.metrics (see docs/wpilog-janitor-plan.md, M0); the leading
+Moved verbatim from vision_analyzer.metrics (see docs/tools/wpilog-janitor-plan.md, M0); the leading
 underscores were dropped from the names. Operates on the {name: [(t, value), ...]} dict that
 `wpilog_utils.decode.parse_wpilog` returns.
 """

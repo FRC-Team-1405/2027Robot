@@ -8,7 +8,7 @@ decision: 800x600 @100, decimate 2, Low Latency Mode off (both Pis). Pushing fur
 robot_code: 11-03 beta @338bcfa; 11-07 see the runs table (L-runs on 338bcfa, R-runs on beta @d0b8b2c + local edits)
 logs: logs/offseason/11-3/, logs/offseason/11-7/
 analysis: analyze.py → results.json
-raw_notes: notes.md (this folder), notes/11-7/myNotes.md
+raw_notes: notes.md (this folder), notes/11-07/myNotes.md
 ---
 
 # PhotonVision frame pacing: Low Latency Mode, detector threads, streams

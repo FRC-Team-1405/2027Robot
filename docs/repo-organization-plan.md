@@ -19,7 +19,7 @@ Must stay at the root (the tools expect them there): `build.gradle`, `settings.g
 | `MacyTestAuto1.traj`, `NewPath.traj`, `Constraint-Honoring Omnidirectional Route Editor and Optimizer.chor` | Choreo files that exist only at the root, from July and September | archive in `resources/choreo-archive/` or delete (see Questions) |
 | `data/` (19 files, 3.9 MB) | **The Choreo desktop app's own program files** (Flutter assets: field images, icons, fonts), committed by accident on 2026-09-05 when Choreo was set up in this folder. Nothing in the repo reads them | delete |
 | `unins001.dat` | The same Choreo install's Windows uninstaller record, same commit | delete |
-| `Guides/` (13 files) | How-to guides (tuning, checklists, logs, GitHub setup) | `docs/guides/` (one reference to it needs updating) |
+| `docs/guides/` (13 files) | How-to guides (tuning, checklists, logs, GitHub setup) | `docs/guides/` (one reference to it needs updating) |
 | `resources/*.md` (`Autonomous.md`, `ControllerLayouts.md`, `RadioConfigurations.md`, `handyLinks.md`, `swerveTuneLog.md`) | Reference notes, not assets | `docs/guides/` with their images |
 | `resources/` the rest | AprilTag layouts, motor configs, images, `fuel_detector.vpr`, `vision-dashboard.html` | stays as `resources/` (the assets folder) |
 
@@ -30,9 +30,9 @@ That takes the root from **28 files plus 9 folders** to about **9 files plus 8 f
 The structure (`notes/<date>/`) is good. The problems:
 
 - **14 loose files at the top**: `9-5.md`, `testingVision_6-16.md`, and 12 pasted `image*.png` (`testingVision_6-16.md` is the one
-  that uses them). Proposed: `notes/9-5/` and `notes/6-16/` take them (images in `notes/6-16/images/`).
+  that uses them). Proposed: `notes/09-05/` and `notes/06-16/` take them (images in `notes/06-16/images/`).
 - **Date folders don't sort**: `10-3`, `11-7`, `9-1` sort after `10-27`. Proposed: zero-padded `MM-DD`
-  (`09-01`, `10-03`, `11-07`). Links in docs that name `notes/11-7/...`, `notes/9-5.md` etc. are updated in the same step.
+  (`09-01`, `10-03`, `11-07`). Links in docs that name `notes/11-07/...`, `notes/09-05/9-5.md` etc. are updated in the same step.
 
 ## logs/ (local only: 3.3 GB, not in git)
 
@@ -67,7 +67,7 @@ Proposed: **`logs/<MM-DD>/` holds everything from that day**, nothing else at th
 ## Order of work
 
 - [ ] Root: move the layouts and calibrations; delete the stray duplicates.
-- [ ] `Guides/` and the `resources/` notes into `docs/guides/`.
+- [ ] `docs/guides/` and the `resources/` notes into `docs/guides/`.
 - [ ] `data/` and `unins001.dat` removed (if yes).
 - [ ] `notes/`: loose files into dated folders; rename date folders; fix links.
 - [ ] `logs/`: script with a dry run, run it, point the 19 files at `logs/`.

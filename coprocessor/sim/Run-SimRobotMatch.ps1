@@ -4,7 +4,7 @@
     assembles a LogBench bundle (simulation .wpilog + the Pi's recordings) ready to open.
 
 .DESCRIPTION
-    Tier 2 of docs/logbench-e2e-test-plan.md. Unlike Run-SimulatedMatch.ps1 (a fake roboRIO that
+    Tier 2 of docs/tools/logbench-e2e-test-plan.md. Unlike Run-SimulatedMatch.ps1 (a fake roboRIO that
     runs on the Pi, no AdvantageKit log), this runs the real robot code in `gradlew simulateJava`
     on this laptop. frc.robot.sim.ScriptedMatch drives the simulated Driver Station through
     disabled -> auto -> pause -> teleop -> disabled with random stick input, and the Pi's

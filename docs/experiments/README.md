@@ -70,5 +70,5 @@ brownout), `drivetrain`, `mechanisms`, `tools`. Add an area when the first exper
 
 | Area | Doc |
 |---|---|
-| vision | [vision-testing-protocol.md](../vision-testing-protocol.md), [vision-ab-test-plan.md](../vision-ab-test-plan.md), [two-orangepi-vision-ab-test.md](../two-orangepi-vision-ab-test.md), [vision-log-analysis.md](../vision-log-analysis.md) |
-| roborio / can | [can-bus-load-ab-test.md](../can-bus-load-ab-test.md), [console-load-ab-test.md](../console-load-ab-test.md) |
+| vision | [vision-testing-protocol.md](../vision/vision-testing-protocol.md), [vision-ab-test-plan.md](../vision/vision-ab-test-plan.md), [two-orangepi-vision-ab-test.md](../vision/two-orangepi-vision-ab-test.md), [vision-log-analysis.md](../vision/vision-log-analysis.md) |
+| roborio / can | [can-bus-load-ab-test.md](../performance/can-bus-load-ab-test.md), [console-load-ab-test.md](../performance/console-load-ab-test.md) |

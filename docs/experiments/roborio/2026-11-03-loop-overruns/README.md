@@ -8,7 +8,7 @@ decision: pending           # not dashboards, not extended vision logging; the C
 robot_code: 11-07 L1–L3 338bcfa (old!), L5 vision-throughput-10-27 a9925d1+edits, L4'/L4''/L2' beta d0b8b2c+edits
 logs: logs/offseason/11-7/
 analysis: analyze.py → results.json
-raw_notes: notes/11-7/myNotes.md
+raw_notes: notes/11-07/myNotes.md
 ---
 
 # roboRIO loop overruns: what takes the 20 ms away
@@ -118,7 +118,7 @@ it's close.
 ### Before the session
 
 - [ ] Deploy code from `beta` (has `RioSystemStats`, `RIO_SYSTEM_STATS_LOGGING = true`). Check that
-  `RIO/CpuPct` shows up (check 2a in [notes/11-7](../../../../notes/11-7/notes.md)).
+  `RIO/CpuPct` shows up (check 2a in [notes/11-07](../../../../notes/11-07/notes.md)).
 - [ ] Note which dashboards are open in each run. The log lists NT clients under
   `SystemStats/NTClients/`, and `analyze.py` counts them.
 - [ ] Have a second deploy ready with `VISION_EXTENDED_NT_LOGGING = false`, for L5–L6.
@@ -202,11 +202,11 @@ python docs/experiments/roborio/2026-11-03-loop-overruns/analyze.py
 <details>
 <summary><b>Earlier work on loop time</b></summary>
 
-- [console-load-ab-test.md](../../../console-load-ab-test.md) (10-20): watchdog warnings and
+- [console-load-ab-test.md](../../../performance/console-load-ab-test.md) (10-20): watchdog warnings and
   console traffic. That's where `QUIET_JOYSTICK_WARNINGS` and `QUIET_SCHEDULER_OVERRUN_WARNINGS`
   came from. It notes that the watchdog's elapsed times include GC and scheduling pauses, which
   matches what the baseline above shows.
-- [can-bus-load-ab-test.md](../../../can-bus-load-ab-test.md): CAN bus load, a separate question.
+- [can-bus-load-ab-test.md](../../../performance/can-bus-load-ab-test.md): CAN bus load, a separate question.
 - The 10-27 vision write-up found LogBench live stalling vision; fixed in `7363770`.
 
 </details>

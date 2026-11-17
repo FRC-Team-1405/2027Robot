@@ -1,6 +1,6 @@
 """Finding data that is logged more than once.
 
-Every entry lands in at most one bucket, in this order (see docs/wpilog-janitor-plan.md, "Duplicates"):
+Every entry lands in at most one bucket, in this order (see docs/tools/wpilog-janitor-plan.md, "Duplicates"):
 
   1. constant           one distinct value for the whole window. Reported on its own, never as duplicates
                         of each other -- 200+ of an AdvantageKit log's ~300 entries are constants (zeroed

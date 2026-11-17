@@ -1,4 +1,4 @@
-"""End-to-end vision scenarios (Tier 1 of docs/logbench-e2e-test-plan.md).
+"""End-to-end vision scenarios (Tier 1 of docs/tools/logbench-e2e-test-plan.md).
 
 `testkit.build_bundle` writes a match-shaped log plus the recorder's `.vision/<camera>/boot####-<ts>/`
 folders for each scenario -- clean, NT flapping, only-auto-recorded, an empty session, a camera

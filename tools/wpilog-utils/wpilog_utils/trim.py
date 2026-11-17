@@ -3,7 +3,7 @@ Trimming a WPILog to a time window.
 
 `trim_wpilog_bytes` is the original single-window trim, moved verbatim from vision_analyzer.parser
 (M0), kept for its existing callers. Below it is the multi-segment engine described in
-docs/wpilog-janitor-plan.md ("Trim: how re-timing stays 'looks really captured'"):
+docs/tools/wpilog-janitor-plan.md ("Trim: how re-timing stays 'looks really captured'"):
 
     index = build_index(raw)
     plan = TrimPlan(segments=mode_segments(index, ['auto']), gap_ms=200)

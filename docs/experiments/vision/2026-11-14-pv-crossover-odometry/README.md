@@ -53,7 +53,7 @@ Caveats built into the numbers:
 
 - **Jitter is not accuracy.** It measures scatter around a smooth curve, so it catches noise and
   timestamp jitter, but not a bias that depends on where the robot is (the few-cm errors seen in the
-  camera calibration work; see [the notes](../../../camera-mount-calibration-notes.md)). Such a bias does not
+  camera calibration work; see [the notes](../../../vision/camera-mount-calibration-notes.md)). Such a bias does not
   average away, so rate cannot buy it back. The Left-minus-Right bias and scatter are reported to
   keep an eye on it.
 - **Noise-per-sqrt(s) assumes frame-to-frame noise is independent.**

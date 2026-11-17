@@ -16,10 +16,10 @@ public class VisionConstants {
         }
 
         // PhotonVision intrinsics procedure and CONFIGS mapping:
-        // docs/photonvision-camera-intrinsics-calibration.md
+        // docs/vision/photonvision-camera-intrinsics-calibration.md
         // Recalibrated 2026-09-08 at 800x600 (Charuco board, PhotonVision calibrator):
-        // notes/9-8/left_photon_calibration_2a71f56c-10ea-45f0-ae8d-8483c4dcfd7f_800x600.json
-        // notes/9-8/right_photon_calibration_7ad62358-e6fe-4156-972e-6b9c2f831fc4_800x600.json
+        // notes/09-08/left_photon_calibration_2a71f56c-10ea-45f0-ae8d-8483c4dcfd7f_800x600.json
+        // notes/09-08/right_photon_calibration_7ad62358-e6fe-4156-972e-6b9c2f831fc4_800x600.json
         // TODO(2027): Re-run PhotonVision camera calibration for each final physical camera.
         // TODO(2027): Update camera positions/angles to match 2027 physical layout.
         public static final CameraConfig[] CONFIGS = {
@@ -129,7 +129,7 @@ public class VisionConstants {
                  * Low weight (far, edge-of-frame) -> high stddev (essentially ignore heading).
                  *
                  * TODO: Tune these breakpoints on the 2027 robot during pre-season testing.
-                 * See docs/vision-testing-protocol.md Experiment 2.
+                 * See docs/vision/vision-testing-protocol.md Experiment 2.
                  */
                 public static final LerpTable THETA_STDDEV_WEIGHT_COEFFICIENT = new LerpTable(
                                 new LerpTable.LerpTableEntry(0.0, 99999.0),

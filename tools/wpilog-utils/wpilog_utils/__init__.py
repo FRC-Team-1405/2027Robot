@@ -9,7 +9,7 @@ Modules:
     trim      -- trimming to time windows: legacy single window + the multi-segment engine
 
 Used by wpilog-janitor, logbench, vision-analyzer and camera-calibration. Nothing here knows about
-vision, the UI, or which entries are worth keeping. See docs/wpilog-janitor-plan.md.
+vision, the UI, or which entries are worth keeping. See docs/tools/wpilog-janitor-plan.md.
 
 Logging: this package logs to the 'wpilog_utils' logger and configures nothing itself. Tools that
 own a log file (vision_analyzer, camera_calibration) attach their handlers to it.

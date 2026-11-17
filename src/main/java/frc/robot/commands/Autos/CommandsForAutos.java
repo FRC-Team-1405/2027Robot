@@ -143,7 +143,7 @@ public class CommandsForAutos {
                         VISION_CIRCLE_TEST_TAG_ID);
 
         // Camera mount calibration: spins and drives in front of a tag with vision corrections off.
-        // See docs/camera-autocal-plan.md and tools/camera-calibration ("Quick (spin & drive)").
+        // See docs/vision/camera-autocal-plan.md and tools/camera-calibration ("Quick (spin & drive)").
         Supplier<Command> CalibrateCameras = () -> new CalibrateCamerasCommand(drivetrain);
 
         // endregion Test Commands

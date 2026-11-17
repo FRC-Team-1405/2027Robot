@@ -2,7 +2,7 @@
 WPILog binary parser -- compatibility shim.
 
 The implementation moved to tools/wpilog-utils (package `wpilog_utils`) so that logbench,
-wpilog-janitor and this tool share one copy; see docs/wpilog-janitor-plan.md. This module only
+wpilog-janitor and this tool share one copy; see docs/tools/wpilog-janitor-plan.md. This module only
 re-exports the original names (including the private ones other modules import) so existing
 callers keep working. New code should import `wpilog_utils` directly.
 """

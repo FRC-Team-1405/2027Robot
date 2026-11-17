@@ -161,7 +161,7 @@ in `Robot.java` once you no longer need CTRE Hoot replay.
 The robot uses PhotonVision cameras for AprilTag-based pose estimation.
 Vision filtering parameters (boundary rejection, stddev tuning, tag rankings)
 are controlled via feature switches in `FeatureSwitches.java`. See
-`docs/vision-testing-protocol.md` for the A/B testing methodology.
+`docs/vision/vision-testing-protocol.md` for the A/B testing methodology.
 
 Coprocessor (Orange Pi) scripts — metrics publishing and raw-frame vision recording — live
 in `coprocessor/`; see `coprocessor/README.md`.

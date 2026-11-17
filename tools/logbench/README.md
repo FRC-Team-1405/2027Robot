@@ -55,7 +55,7 @@ configurable warning level, what was drawing current in each dip, every current 
 the log, physical motor/subsystem draw, and reported current limiting. It supports legacy
 logs (including plain WPILib competition logs), recorded robot states and future
 allocation telemetry, window comparisons, and small HTML (people) / JSON (LLMs) insight
-exports. See [the operating and telemetry guide](../../docs/battery-insights.md)
+exports. See [the operating and telemetry guide](../../docs/logging/battery-insights.md)
 for interpretation, battery practices, and hardware commissioning checks.
 
 Three ways, one codebase.
@@ -319,7 +319,7 @@ The **Health Check** tab (it replaced Pit Check) runs one configurable list of c
 robot in the pits (NetworkTables) or a finished match log: vision, the Orange Pis and their recorders, the
 roboRIO (CAN, battery, loop time, alerts) and every motor, each with a green/amber/red icon, the value, and
 the rule in words. The checks live in `server/health_checks.toml`; adding a metric is a few lines of TOML and
-no code. See `docs/health-check.md`.
+no code. See `docs/logging/health-check.md`.
 
 ## Layout
 

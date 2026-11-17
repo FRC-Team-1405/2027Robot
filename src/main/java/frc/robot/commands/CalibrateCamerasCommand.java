@@ -15,7 +15,7 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
 /**
  * "Calibrate Cameras": the robot moves in a known way in front of an AprilTag so the camera
  * calibration tool (tools/camera-calibration, "Quick (spin &amp; drive)") can solve each camera's
- * mount from the log, with no tape measuring. See docs/camera-autocal-plan.md.
+ * mount from the log, with no tape measuring. See docs/vision/camera-autocal-plan.md.
  *
  * <p>
  * Setup: robot level on the floor, roughly facing the tag(s), about 2-2.5 m away, with about

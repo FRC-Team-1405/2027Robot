@@ -53,7 +53,7 @@ Run:
     ~/.venv-ntpublisher/bin/python3 orangepi-vision-recorder.py
 
 To run on boot, add a systemd service instance (see orangepi-vision-recorder@.service
-and docs/orangepi-vision-recorder-setup.md).
+and docs/coprocessor/orangepi-vision-recorder-setup.md).
 """
 
 import json
@@ -165,7 +165,7 @@ NT_SETTLE_SEC = 2.0
 # Health heartbeat: where this recorder publishes its own status, next to orangepi-nt-publisher's
 # CPU/RAM/disk numbers: /OrangePi/[<ORANGEPI_METRICS_NAME>/]Recorders/<camera>/. LogBench's Health
 # Check page reads it live; the robot code mirrors /OrangePi/** into the AdvantageKit log so a
-# match log can be checked afterwards too. See docs/orangepi-vision-recorder-setup.md.
+# match log can be checked afterwards too. See docs/coprocessor/orangepi-vision-recorder-setup.md.
 METRICS_NAME = os.environ.get("ORANGEPI_METRICS_NAME", "").strip()
 HEARTBEAT_ROOT = "OrangePi"
 HEARTBEAT_INTERVAL_SEC = 1.0
@@ -174,7 +174,7 @@ USED_CHECK_INTERVAL_SEC = 60.0
 
 FMS_INFO_TABLE = "FMSInfo"
 FMS_CONTROL_TOPIC = "FMSControlData"
-ENABLED_BIT = 0  # HAL_ControlWord bit order: enabled, autonomous, test, eStop, fmsAttached, dsAttached — verify on bench (see docs/orangepi-vision-recorder-setup.md)
+ENABLED_BIT = 0  # HAL_ControlWord bit order: enabled, autonomous, test, eStop, fmsAttached, dsAttached — verify on bench (see docs/coprocessor/orangepi-vision-recorder-setup.md)
 
 # The roboRIO's system clock is set from the Driver Station laptop on every connect, so it
 # stays accurate even though it (like this Pi) has no RTC battery. RobotContainer.publishRobotData()
