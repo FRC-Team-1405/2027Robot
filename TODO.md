@@ -11,23 +11,23 @@ In the order to run them. Each detail doc has the commands and what the result w
 robot experiment, run its `analyze.py` **before leaving the robot** and commit its `manifest.json`,
 `results.json` and `data/` (the small extract; the full logs stay out of git).
 
-1. **Redo: 800x600 vs 1280x800 on the same autonomous** (about 30 min). The 11-14 session ran but its
+- **Redo: 800x600 vs 1280x800 on the same autonomous** (about 30 min). The 11-14 session ran but its
    robot log wasn't saved, so there are no numbers. Run with `--redo`. The runner and LogBench are fixed.
    [detail](docs/experiments/vision/2026-11-14-pv-crossover-odometry/README.md)
-2. **Camera mounts: a trustworthy reference for the robot's centreline and heading**, so mount accuracy
+- **Camera mounts: a trustworthy reference for the robot's centreline and heading**, so mount accuracy
    can be measured, not assumed. Constants stay as they are until then (they match tape).
    [detail](docs/camera-mount-calibration-notes.md)
-3. **Frame-budget B6** (800x600 @120): the one run left of that experiment, about 5 min.
+- **Frame-budget B6** (800x600 @120): the one run left of that experiment, about 5 min.
    [detail](docs/experiments/vision/2026-11-10-pv-frame-budget/README.md)
-4. **Range experiment** (2 / 4 / 6 / 8 m): whether a finer image sees tags farther. Matters before spending
+- **Range experiment** (2 / 4 / 6 / 8 m): whether a finer image sees tags farther. Matters before spending
    effort on faster pipelines. [detail](docs/experiments/vision/2026-11-03-pv-range/README.md)
-5. **roboRIO loop overruns**: log the robot program's own CPU, then two runs to measure run-to-run noise.
+- **roboRIO loop overruns**: log the robot program's own CPU, then two runs to measure run-to-run noise.
    [detail](docs/experiments/roborio/2026-11-03-loop-overruns/README.md)
-6. **Frame-cost follow-up (bench)**: 2 workers x 2 threads. Only if experiment 1 says finer images help.
+- **Frame-cost follow-up (bench)**: 2 workers x 2 threads. Only if the redo says finer images help.
    [detail](docs/experiments/vision/2026-11-11-pv-frame-cost/README.md)
 
 Parked: the automatic camera calibration ("spin and drive"). It didn't agree with the tape because the vision
-it relies on isn't accurate enough; revisit after experiment 2. [detail](docs/camera-autocal-plan.md)
+it relies on isn't accurate enough; revisit after the camera-mount reference work. [detail](docs/camera-autocal-plan.md)
 
 ## Robot software, 2027 preparation
 
@@ -74,15 +74,34 @@ it relies on isn't accurate enough; revisit after experiment 2. [detail](docs/ca
 
 ## Done
 
-| Date | What | Where |
-|---|---|---|
-| 2026-11-14 | Robot-experiment runner: sets PhotonVision, confirms from the Pis, detects enable/disable, fetches the log (resuming), records a manifest | `tools/exprunner`, `docs/experiment-runner-plan.md` |
-| 2026-11-14 | Frame cost on the Pi (bench): bench matches the robot; 4 frames in flight give ~4x results/s, ~10 ms later each; grey decode saves 1.3-2.8 ms | `docs/experiments/vision/2026-11-11-pv-frame-cost/` |
-| 2026-11-14 | Camera mounts checked against tape and an aim check: current constants match to ~0.2 in / 0.3 deg, kept | `docs/camera-mount-calibration-notes.md` |
-| 2026-11-14 | LogBench fetch resumes a growing log; Pi recordings off by default | `tools/logbench/server/remote_fetch.py` |
-| 2026-11-10 | Frame-budget B1-B5 (threads 8/4/3/1, drawing): keep threads 8 | `docs/experiments/vision/2026-11-10-pv-frame-budget/` |
+<details>
+<summary>Done (newest first)</summary>
 
-Everything finished before that is in the table under "Detailed items" below, and in `notes/9-22/todos.md`.
+- 2026-11-14: robot-experiment runner (sets PhotonVision, confirms from the Pis, detects enable/disable, fetches the log, records a manifest) (`tools/exprunner`, `docs/experiment-runner-plan.md`)
+- 2026-11-14: frame cost on the Pi, bench: matches the robot; 4 frames in flight give ~4x results/s, each ~10 ms later; grey decode saves 1.3-2.8 ms (`docs/experiments/vision/2026-11-11-pv-frame-cost/`)
+- 2026-11-14: camera mounts checked against tape and an aim check: constants match to ~0.2 in / 0.3 deg, kept (`docs/camera-mount-calibration-notes.md`)
+- 2026-11-14: LogBench fetch resumes a growing log; Pi recordings off by default (`tools/logbench/server/remote_fetch.py`)
+- 2026-11-10: frame-budget B1-B5 (threads 8/4/3/1, drawing): keep threads 8 (`docs/experiments/vision/2026-11-10-pv-frame-budget/`)
+
+Earlier:
+
+- Frame-budget experiment B1–B5 on 11-10 (threads 8/4/3/1, "drawing off"). Keep threads 8; drawing has no UI switch for AprilTag pipelines and runs off the main thread, so no drawing run planned. B7 = the reset run — `docs/experiments/vision/2026-11-10-pv-frame-budget/`, `notes/11-10/notes.md`. B6 stays open above
+- 11-07 robot session: deploy `beta`, re-bootstrap both Pis, checks 2a/2b, frame-pacing R5/R6/R12/R13, loop-overrun L1–L5 — `notes/11-7/notes.md`, both write-ups. Checks 2c–2e not done; they stay open above
+- Start-up wizard for the laptop-side coprocessor scripts (Bootstrap, both sim scripts): numbered choices, Enter = default, prints the equivalent command [user, 11-07] — `coprocessor/lib/Wizard.ps1`
+- Our `.wpilog` parser dropped every `string[]` entry (PhotonVision thread names, AdvantageKit Alerts) [11-07] — `tools/wpilog-utils/wpilog_utils/decode.py`, `tests/test_decode_arrays.py`
+- Bootstrap without typing names: per-robot boards/cameras in `coprocessor/robots.json`, `-All`, `-Robot`, wrong-board guard; shared Orange Pi SSH key [user, 11-07] — `coprocessor/robots.json`, `coprocessor/ssh/`, `Bootstrap-OrangePi.ps1` 2026-11-07.1
+- LogBench download of a log the robot is still writing finishes (snapshot) [11-03] — Confirmed on 11-07: all nine bundles were such snapshots and finished
+- PhotonVision settings in the log (camera mode, decimate, threads, Low Latency, streams) [10-27] — Pi publisher, working on both Pis 11-07; caught an unnoted camera mode change the same day
+- roboRIO CPU / memory / network logging (`RIO/*`) [10-27] — Working 11-07
+- roboRIO CPU in the Health Check [10-27] — `RioSystemStats`, `rio.cpu` rows (on `beta`, 11-04)
+- Bandwidth logging, rows and thresholds [10-27] — Pi `Net*` topics, `RIO/Net*`, radio bandwidth rows (same branch)
+- Each camera mode's real fps (`v4l2-ctl`) [10-27 open question 1] — `docs/experiments/vision/2026-10-28-pv-frame-pacing/notes.md`: 1280x800 and 800x600 both offer 100 and 120
+- Periodic vision dropouts in 10-27 T1/T2 — Traced to LogBench live; fixed in `7363770`, still to confirm on the robot
+- Vision recorder manifest with a real timestamp per frame [10-17] — Manifest rows carry a UTC receipt time (`orangepi-vision-recorder.py`)
+
+Older finished items are in `notes/9-22/todos.md`.
+
+</details>
 
 <details>
 <summary><b>Detailed items</b> (carried from older notes; specific, unverified, check before trusting)</summary>
@@ -217,25 +236,5 @@ Everything finished before that is in the table under "Detailed items" below, an
       first check ("argument count: expected 7, got 1"): on 5.1 `ConvertFrom-Json` returns a JSON
       array as one object. Test bug only; it passes on PowerShell 7. [11-07]
 - [ ] **Install the GitHub CLI (`gh`) on the team laptop** so PRs can be opened from the terminal.
-
-### Older Done
-
-| Item | Where it landed |
-|---|---|
-| Frame-budget experiment B1–B5 on 11-10 (threads 8/4/3/1, "drawing off"). Keep threads 8; drawing has no UI switch for AprilTag pipelines and runs off the main thread, so no drawing run planned. B7 = the reset run | `docs/experiments/vision/2026-11-10-pv-frame-budget/`, `notes/11-10/notes.md`. B6 stays open above |
-| 11-07 robot session: deploy `beta`, re-bootstrap both Pis, checks 2a/2b, frame-pacing R5/R6/R12/R13, loop-overrun L1–L5 | `notes/11-7/notes.md`, both write-ups. Checks 2c–2e not done; they stay open above |
-| Start-up wizard for the laptop-side coprocessor scripts (Bootstrap, both sim scripts): numbered choices, Enter = default, prints the equivalent command [user, 11-07] | `coprocessor/lib/Wizard.ps1` |
-| Our `.wpilog` parser dropped every `string[]` entry (PhotonVision thread names, AdvantageKit Alerts) [11-07] | `tools/wpilog-utils/wpilog_utils/decode.py`, `tests/test_decode_arrays.py` |
-| Bootstrap without typing names: per-robot boards/cameras in `coprocessor/robots.json`, `-All`, `-Robot`, wrong-board guard; shared Orange Pi SSH key [user, 11-07] | `coprocessor/robots.json`, `coprocessor/ssh/`, `Bootstrap-OrangePi.ps1` 2026-11-07.1 |
-| LogBench download of a log the robot is still writing finishes (snapshot) [11-03] | Confirmed on 11-07: all nine bundles were such snapshots and finished |
-| PhotonVision settings in the log (camera mode, decimate, threads, Low Latency, streams) [10-27] | Pi publisher, working on both Pis 11-07; caught an unnoted camera mode change the same day |
-| roboRIO CPU / memory / network logging (`RIO/*`) [10-27] | Working 11-07 |
-| roboRIO CPU in the Health Check [10-27] | `RioSystemStats`, `rio.cpu` rows (on `beta`, 11-04) |
-| Bandwidth logging, rows and thresholds [10-27] | Pi `Net*` topics, `RIO/Net*`, radio bandwidth rows (same branch) |
-| Each camera mode's real fps (`v4l2-ctl`) [10-27 open question 1] | `docs/experiments/vision/2026-10-28-pv-frame-pacing/notes.md`: 1280x800 and 800x600 both offer 100 and 120 |
-| Periodic vision dropouts in 10-27 T1/T2 | Traced to LogBench live; fixed in `7363770`, still to confirm on the robot |
-| Vision recorder manifest with a real timestamp per frame [10-17] | Manifest rows carry a UTC receipt time (`orangepi-vision-recorder.py`) |
-
-Older finished items are in `notes/9-22/todos.md`.
 
 </details>
