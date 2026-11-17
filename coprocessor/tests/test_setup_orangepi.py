@@ -4,14 +4,19 @@ Run: python3 -m unittest discover -s coprocessor/tests -v
 """
 import os
 from pathlib import Path
-import pty
 import select
 import shutil
 import subprocess
 import tempfile
+import sys
 import time
 import unittest
 from unittest.mock import MagicMock, patch
+
+if sys.platform == "win32":
+    # The installer is a Linux shell script and these tests drive it in a PTY with fake apt/systemd/sudo.
+    raise unittest.SkipTest("needs a POSIX pty and bash: run it on Linux, macOS or WSL")
+import pty
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "setup-orangepi.sh"
