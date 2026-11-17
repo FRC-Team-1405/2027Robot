@@ -1,6 +1,6 @@
 # Experiments
 
-*What to run next is in [EXPERIMENTS-TO-RUN.md](../../EXPERIMENTS-TO-RUN.md). This folder is the record of the ones done.*
+*What to run next is the first section of [TODO.md](../../TODO.md). This folder is the record of the ones done.*
 
 Write-ups of tests we run on the robot: one question, a few controlled runs, logs, numbers, and a
 verdict. `notes/<date>/` is the lab notebook (rough, written during testing). This folder is the

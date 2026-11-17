@@ -1,16 +1,93 @@
 # To-do
 
-The one open to-do list for the repo. Add to it whenever a note, experiment or PR leaves something
-undone, and put the source in brackets (a note's date, a write-up, a commit) so it can be traced
-back. When an item is finished, move it to **Done** with where it landed. `notes/` stays the rough
-lab notebook, and `TODO(2027):` markers in code are listed in `CLAUDE.md`.
+The high-level list: what to run, what to maintain, what to decide. **Specifics live in the detail doc each
+line links to**, and in `TODO(2027):` markers in the code (listed in `CLAUDE.md`), because specifics here go
+stale. Keep lines short; when one needs more than two lines, it belongs in a doc, with this file linking to it.
+Add things as they come up and put the source in brackets; move finished things to **Done**.
 
-Items marked *(carried)* were copied from older notes and haven't been re-checked against the code.
+## Experiments to run on the robot
 
-**Experiments to run on the robot are listed in [EXPERIMENTS-TO-RUN.md](EXPERIMENTS-TO-RUN.md)**, each with its
-commands and a link to its detail doc. This file is everything else.
+In the order to run them. Each detail doc has the commands and what the result will mean. After every
+robot experiment, run its `analyze.py` **before leaving the robot** and commit its `manifest.json`,
+`results.json` and `data/` (the small extract; the full logs stay out of git).
 
-## Next time on the robot
+1. **Redo: 800x600 vs 1280x800 on the same autonomous** (about 30 min). The 11-14 session ran but its
+   robot log wasn't saved, so there are no numbers. Run with `--redo`. The runner and LogBench are fixed.
+   [detail](docs/experiments/vision/2026-11-14-pv-crossover-odometry/README.md)
+2. **Camera mounts: a trustworthy reference for the robot's centreline and heading**, so mount accuracy
+   can be measured, not assumed. Constants stay as they are until then (they match tape).
+   [detail](docs/camera-mount-calibration-notes.md)
+3. **Frame-budget B6** (800x600 @120): the one run left of that experiment, about 5 min.
+   [detail](docs/experiments/vision/2026-11-10-pv-frame-budget/README.md)
+4. **Range experiment** (2 / 4 / 6 / 8 m): whether a finer image sees tags farther. Matters before spending
+   effort on faster pipelines. [detail](docs/experiments/vision/2026-11-03-pv-range/README.md)
+5. **roboRIO loop overruns**: log the robot program's own CPU, then two runs to measure run-to-run noise.
+   [detail](docs/experiments/roborio/2026-11-03-loop-overruns/README.md)
+6. **Frame-cost follow-up (bench)**: 2 workers x 2 threads. Only if experiment 1 says finer images help.
+   [detail](docs/experiments/vision/2026-11-11-pv-frame-cost/README.md)
+
+Parked: the automatic camera calibration ("spin and drive"). It didn't agree with the tape because the vision
+it relies on isn't accurate enough; revisit after experiment 2. [detail](docs/camera-autocal-plan.md)
+
+## Robot software, 2027 preparation
+
+- **Regenerate `TunerConstants` for the 2027 robot** (swerve geometry, wheel radius, module offsets). Odometry
+  currently reads about 10% long against the camera, which points here. [11-14 camera work]
+- **Settle the camera setup and put it in the code**: setting (resolution/decimate) from experiments 1 and 4,
+  intrinsics in `VisionConstants` to match, mounts after experiment 2.
+- **Update the field and game-specific code** (tag rankings, field size, autonomous length) when the 2027
+  game is published. The `TODO(2027)` list is in [CLAUDE.md](CLAUDE.md).
+- **Deploy `beta`** to the robot before the next session (image-size-aware vision filter, `CalibrateCameras`
+  auto, logging).
+- **Decide and write down**: whether camera score dropping to 0 while moving is intended
+  ([ADR 0001](docs/adr/0001-camera-health-metric-gating-aggregation-and-range.md)); whether to take frames in
+  flight or grey decode to PhotonVision ([ADR 0002](docs/adr/0002-photonvision-throughput-limit.md)).
+
+## Robot maintenance and pit
+
+- **Orange Pi cooling.** They idle at 73-77 C; throttling starts at 85 C.
+- **Left Pi links at 100 Mbit/s** while the right one gets 1000. Try another cable or port.
+- **Re-bootstrap both Pis** (`coprocessor/Bootstrap-OrangePi.ps1 -All`) when convenient, and re-check that
+  PhotonVision still saves (`journalctl -u photonvision`).
+- **Battery log sheet for the pit**, so each match log can be tied to a battery.
+- **Driver Station on the radio's AUX 2 port** through a PoE splitter: confirm it's allowed.
+- **Leftovers from the 11-07 and 11-10 sessions:** [notes/11-10/notes.md](notes/11-10/notes.md).
+
+## Tools and infrastructure
+
+- **Experiment runner**: used live on 11-14; fix what the next session shows. Next candidates: a check that the
+  fetched log really contains the run, converting more experiments to robot plans, bench and robot sessions from
+  one place. [docs/experiment-runner-plan.md](docs/experiment-runner-plan.md), [tools/exprunner](tools/exprunner/README.md)
+- **LogBench usability**: panning on charts, battery insights progress, fetch-and-trim in one step, marking the log
+  the robot is still writing. Details in the list at the bottom.
+- **Make every time on a downloaded log agree** (UTC vs local across file names, metadata, LogBench, recordings).
+- **Log more**: NetworkTables clients, and a vision-gap row in the Health Check.
+- **Turn experiment `analyze.py` scripts into LogBench comparisons** where practical.
+
+## Docs and housekeeping
+
+- **A home Wi-Fi password is committed** in `notes/6-23/sshExport.txt`: redact it and change the password.
+- **Out-of-date docs**: `docs/orangepi-internet-access.md`, the camera settings in
+  `docs/photonvision-camera-intrinsics-calibration.md`.
+- **Tests that fail on Windows** (`coprocessor/tests/test_setup_orangepi.py`, `Test-BootstrapOrangePi.ps1`).
+- **Install the GitHub CLI (`gh`)** on the team laptop.
+
+## Done
+
+| Date | What | Where |
+|---|---|---|
+| 2026-11-14 | Robot-experiment runner: sets PhotonVision, confirms from the Pis, detects enable/disable, fetches the log (resuming), records a manifest | `tools/exprunner`, `docs/experiment-runner-plan.md` |
+| 2026-11-14 | Frame cost on the Pi (bench): bench matches the robot; 4 frames in flight give ~4x results/s, ~10 ms later each; grey decode saves 1.3-2.8 ms | `docs/experiments/vision/2026-11-11-pv-frame-cost/` |
+| 2026-11-14 | Camera mounts checked against tape and an aim check: current constants match to ~0.2 in / 0.3 deg, kept | `docs/camera-mount-calibration-notes.md` |
+| 2026-11-14 | LogBench fetch resumes a growing log; Pi recordings off by default | `tools/logbench/server/remote_fetch.py` |
+| 2026-11-10 | Frame-budget B1-B5 (threads 8/4/3/1, drawing): keep threads 8 | `docs/experiments/vision/2026-11-10-pv-frame-budget/` |
+
+Everything finished before that is in the table under "Detailed items" below, and in `notes/9-22/todos.md`.
+
+<details>
+<summary><b>Detailed items</b> (carried from older notes; specific, unverified, check before trusting)</summary>
+
+### Next time on the robot (old list)
 
 - [ ] **11-10 (Tue): work through [notes/11-10/notes.md](notes/11-10/notes.md)** (re-bootstrap, leftover
       11-07 checks, frame-budget runs).
@@ -34,10 +111,7 @@ commands and a link to its detail doc. This file is everything else.
       bandwidth) once there's a real log with them. They're educated guesses for now.
       [`tools/logbench/server/health_checks.toml`]
 
-## Vision experiments
-
-- [ ] **Run the 11-14 crossover again, and the camera-mount reference work**: now in
-      [EXPERIMENTS-TO-RUN.md](EXPERIMENTS-TO-RUN.md) (experiments 1 and 2).
+### Vision (old list)
 
 - [ ] **Frame-budget B6: 800x600 @120, decimate 2, threads 8** (~5 min, one `CircleFacingTag`
       run). Passes at ≥ 108 results/s. It missed by ~0.6 ms per frame on 11-07; threads didn't
@@ -66,7 +140,7 @@ commands and a link to its detail doc. This file is everything else.
 - [ ] **Try a lower fixed exposure than 86.** Auto exposure off improved quality but cost about
       15% FPS. [9-5] *(carried)*
 
-## Logging and diagnostics
+### Logging and diagnostics
 
 - [ ] **Mark the log the robot is still writing in LogBench's Fetch Bundle list**, so it's obvious
       before the download that you'll get a snapshot. [11-03, follow-up to the download fix]
@@ -87,7 +161,7 @@ commands and a link to its detail doc. This file is everything else.
 - [ ] **Log LogBench's own live connects and disconnects, with the reason**, in its run log. Why it
       reconnected every 2.4 s on 10-27 is still unconfirmed. [10-27 write-up, learning 8]
 
-## LogBench
+### LogBench
 
 - [ ] **Experiment runner, robot runs** (bench runs built in `tools/exprunner`;
       [plan](docs/experiment-runner-plan.md), steps 1–2 first): after each run,
@@ -106,7 +180,7 @@ commands and a link to its detail doc. This file is everything else.
 - [ ] **Live Pit Check crash, `Cannot read properties of null (reading 'toFixed')`.** Reproduce or
       close. [9-12] *(carried)*
 
-## Coprocessor and hardware
+### Coprocessor and hardware
 
 - [ ] **Vision-recorder frame names don't sort in Windows Explorer**: `frame_{t_sec:.6f}.jpg` has
       no padding (`coprocessor/orangepi-vision-recorder.py:954`). [9-15] (still open on 10-28)
@@ -117,12 +191,12 @@ commands and a link to its detail doc. This file is everything else.
 - [ ] **Driver Station on radio port AUX 2** through a PoE splitter with the power lead cut: check
       the VH-109 docs or ask a CSA. [9-5] *(carried)*
 
-## Pit and process
+### Pit and process
 
 - [ ] **Battery log sheet for the pit**: a printable table of match #, time, bumper color, battery
       and notes, so each match log can be tied to a battery. [10-17] *(carried)*
 
-## Docs
+### Docs
 
 - [ ] **`docs/orangepi-internet-access.md` is out of date** (old `pi` user, static IP). Replace with
       the methods that worked. [9-22 roll-up] *(carried)*
@@ -132,7 +206,7 @@ commands and a link to its detail doc. This file is everything else.
 - [ ] **Tick off step 1b of `docs/orangepi-vision-recorder-setup.md`** (`/FMSInfo` enabled bit):
       confirm no session starts while disabled. [9-5] *(carried)*
 
-## Housekeeping
+### Housekeeping
 
 - [ ] **A home Wi-Fi password is committed** in `notes/6-23/sshExport.txt` (the
       `nmcli device wifi connect` line), still there on 10-28. Redact it and change the password;
@@ -144,7 +218,7 @@ commands and a link to its detail doc. This file is everything else.
       array as one object. Test bug only; it passes on PowerShell 7. [11-07]
 - [ ] **Install the GitHub CLI (`gh`) on the team laptop** so PRs can be opened from the terminal.
 
-## Done
+### Older Done
 
 | Item | Where it landed |
 |---|---|
@@ -163,3 +237,5 @@ commands and a link to its detail doc. This file is everything else.
 | Vision recorder manifest with a real timestamp per frame [10-17] | Manifest rows carry a UTC receipt time (`orangepi-vision-recorder.py`) |
 
 Older finished items are in `notes/9-22/todos.md`.
+
+</details>

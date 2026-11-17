@@ -98,9 +98,9 @@ the write-up. Index and conventions: `docs/experiments/README.md`.
 
 ### To-do list
 
-`EXPERIMENTS-TO-RUN.md` at the repo root is where the experiments waiting to be run on the robot are listed (with
-commands and links to their detail docs; finished ones move to its Done table). `TODO.md` at the repo root is the one
-open to-do list for everything else. When a note, experiment or change leaves
+`TODO.md` at the repo root is the one open to-do list, and it is deliberately high level: experiments to run (in
+order, each linking to its detail doc), robot software for 2027, maintenance, tools, housekeeping. Specifics belong in
+the linked doc or a `TODO(2027):` marker in code, because specifics in the list go stale. Keep lines short. When a note, experiment or change leaves
 something undone, add it there with its source in brackets; move finished items to its Done table.
 
 ### Tools
