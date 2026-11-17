@@ -65,7 +65,7 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 ### Feature switches
 
-`constants/FeatureSwitches.java` contains `public static final boolean` flags. All vision improvement candidates (P1/P2/P3) are switches that default to `false` (2026 behavior baseline), allowing scientific A/B comparison against real match logs. See `docs/vision-testing-protocol.md` for the measurement methodology.
+**Every robot-code change goes behind a feature switch until its performance cost is measured**, unless it is clearly negligible. A switch that exists only to validate a change is marked `VALIDATE-THEN-REMOVE` in its comment and listed in `TODO.md`; delete the switch (keep or drop the code) once the change is validated. `constants/FeatureSwitches.java` contains `public static final boolean` flags. All vision improvement candidates (P1/P2/P3) are switches that default to `false` (2026 behavior baseline), allowing scientific A/B comparison against real match logs. See `docs/vision-testing-protocol.md` for the measurement methodology.
 
 ### Swerve drivetrain
 

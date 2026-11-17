@@ -57,4 +57,42 @@ class RioSystemStatsTest {
         assertEquals(-1, s.netRxErrors());
         assertEquals(-1.0, s.memUsedPct());
     }
+
+    @Test
+    void procStatParsesNamesWithSpacesAndParentheses() {
+        // pid (comm) state ppid pgrp session tty tpgid flags minflt cminflt majflt cmajflt utime stime ...
+        String line = "812 (Java (Thread) 1) S 1 812 812 0 -1 4194560 100 0 0 0 250 50 0 0 20 0 30 0 1000 1 2 3\n";
+        Object[] f = RioSystemStats.parseProcStat(line);
+        assertEquals("Java (Thread) 1", f[0]);
+        assertEquals(300L, f[1]);
+        assertNull(RioSystemStats.parseProcStat("garbage"));
+        assertNull(RioSystemStats.parseProcStat("1 (x) S 1 2"));     // too short
+    }
+
+    @Test
+    void trackerReportsPercentOfAllCoresBusiestFirstAndSkipsOneId() {
+        var tracker = new RioSystemStats.CpuTracker();
+        java.util.Map<String, long[]> t0 = new java.util.HashMap<>();
+        t0.put("100", new long[] {1000});
+        t0.put("200", new long[] {500});
+        t0.put("300", new long[] {10});
+        assertTrue(tracker.update(t0, 0, 5, null).isEmpty());          // first call: no interval yet
+        java.util.Map<String, long[]> t1 = new java.util.HashMap<>();
+        t1.put("100", new long[] {1100});    // +100 of 200 total = 50 %
+        t1.put("200", new long[] {520});     // +20 = 10 %
+        t1.put("300", new long[] {10});      // idle: left out
+        t1.put("400", new long[] {99});      // new process: no baseline, ignored
+        var top = tracker.update(t1, 200, 5, null);
+        assertEquals(2, top.size());
+        assertTrue(top.get(0).endsWith(":100:50.0"));
+        assertTrue(top.get(1).endsWith(":200:10.0"));
+        assertEquals(50.0, tracker.lastPct("100"));
+        // skipping our own id leaves the others
+        java.util.Map<String, long[]> t2 = new java.util.HashMap<>();
+        t2.put("100", new long[] {1150});
+        t2.put("200", new long[] {540});
+        var others = tracker.update(t2, 200, 5, "100");
+        assertEquals(1, others.size());
+        assertEquals(25.0, tracker.lastPct("100"));
+    }
 }

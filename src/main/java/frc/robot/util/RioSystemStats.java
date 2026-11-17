@@ -4,7 +4,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import org.littletonrobotics.junction.Logger;
 
@@ -36,8 +40,16 @@ public final class RioSystemStats {
     record Sample(double cpuPct, double[] corePct, double memUsedPct, double memAvailableMb,
             double netRxMbps, double netTxMbps, long netRxErrors, long netRxDropped, long seq) {}
 
+    /** Who is using the CPU over the last interval: our whole process, and the busiest others. Percent of ALL
+     *  cores (the same unit as RIO/CpuPct), so SelfCpuPct and CpuPct can be compared directly. */
+    record ProcSample(double selfPct, String[] topProcesses, String[] selfTopThreads, long seq) {}
+
+    private static final int TOP_N = 5;
+
     private static volatile Sample latest;
+    private static volatile ProcSample latestProc;
     private static long loggedSeq = -1;
+    private static long loggedProcSeq = -1;
     private static Thread thread;
 
     private RioSystemStats() {}
@@ -57,6 +69,13 @@ public final class RioSystemStats {
         Logger.recordOutput("RIO/NetTxMbps", s.netTxMbps());
         Logger.recordOutput("RIO/NetRxErrors", s.netRxErrors());
         Logger.recordOutput("RIO/NetRxDropped", s.netRxDropped());
+        ProcSample p = latestProc;
+        if (FeatureSwitches.RIO_PROCESS_CPU_LOGGING && p != null && p.seq() != loggedProcSeq) {
+            loggedProcSeq = p.seq();
+            Logger.recordOutput("RIO/SelfCpuPct", p.selfPct());
+            Logger.recordOutput("RIO/TopProcesses", p.topProcesses());
+            Logger.recordOutput("RIO/SelfTopThreads", p.selfTopThreads());
+        }
     }
 
     private static void start() {
@@ -72,13 +91,22 @@ public final class RioSystemStats {
         private long[] prevNet;
         private long prevNanos;
         private long seq;
+        private final CpuTracker procs = new CpuTracker();
+        private final CpuTracker threads = new CpuTracker();
+        private long prevTotalJiffies = -1;
+        private long procSeq;
 
         @Override
         public void run() {
             while (true) {
                 try {
-                    Sample s = sample(read("/proc/stat"), read("/proc/meminfo"), read("/proc/net/dev"), System.nanoTime());
+                    String stat = read("/proc/stat");
+                    Sample s = sample(stat, read("/proc/meminfo"), read("/proc/net/dev"), System.nanoTime());
                     if (s != null) latest = s;
+                    if (FeatureSwitches.RIO_PROCESS_CPU_LOGGING) {
+                        ProcSample p = processSample(stat);
+                        if (p != null) latestProc = p;
+                    }
                 } catch (IOException | RuntimeException e) {
                     // /proc unreadable this second; try again next second.
                 }
@@ -92,6 +120,45 @@ public final class RioSystemStats {
 
         private static String read(String path) throws IOException {
             return Files.readString(Path.of(path));
+        }
+
+        /** Who used the CPU since the last call, or null the first time. Reads /proc/<pid>/stat for every
+         *  process and /proc/self/task/<tid>/stat for each of our threads. Unreadable entries (a process that
+         *  exited meanwhile) are skipped. */
+        ProcSample processSample(String stat) throws IOException {
+            long total = parseCpuTimes(stat)[0][1];
+            long selfPid = ProcessHandle.current().pid();
+            Map<String, long[]> nowProcs = new HashMap<>();
+            Map<String, long[]> nowThreads = new HashMap<>();
+            try (Stream<Path> dirs = Files.list(Path.of("/proc"))) {
+                for (Path d : (Iterable<Path>) dirs::iterator) {
+                    String name = d.getFileName().toString();
+                    if (!name.chars().allMatch(Character::isDigit)) continue;
+                    readInto(nowProcs, name, d.resolve("stat"));
+                }
+            }
+            try (Stream<Path> dirs = Files.list(Path.of("/proc/self/task"))) {
+                for (Path d : (Iterable<Path>) dirs::iterator) {
+                    readInto(nowThreads, d.getFileName().toString(), d.resolve("stat"));
+                }
+            }
+            long delta = prevTotalJiffies < 0 ? 0 : total - prevTotalJiffies;
+            prevTotalJiffies = total;
+            List<String> topProcs = procs.update(nowProcs, delta, TOP_N, String.valueOf(selfPid));
+            List<String> topThreads = threads.update(nowThreads, delta, TOP_N, null);
+            double self = procs.lastPct(String.valueOf(selfPid));
+            if (delta <= 0) return null;
+            return new ProcSample(self, topProcs.toArray(new String[0]), topThreads.toArray(new String[0]), procSeq++);
+        }
+
+        private static void readInto(Map<String, long[]> into, String id, Path statFile) {
+            try {
+                Object[] f = parseProcStat(Files.readString(statFile));
+                if (f != null) into.put(id, new long[] {(Long) f[1]});
+                if (f != null) NAMES.put(id, (String) f[0]);
+            } catch (IOException | RuntimeException e) {
+                // gone between listing and reading
+            }
         }
 
         /** A sample from the three files' text, or null for the first call (no interval yet). */
@@ -117,6 +184,50 @@ public final class RioSystemStats {
             prevNet = net;
             prevNanos = nanos;
             return out;
+        }
+    }
+
+    /** Names of the processes/threads last seen, by id, for the log lines. */
+    private static final Map<String, String> NAMES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** {name, utime + stime in jiffies} from one /proc/<pid>/stat (or /task/<tid>/stat) line, or null. The name
+     *  sits in parentheses and may itself contain spaces and parentheses, so find the LAST ')'. */
+    static Object[] parseProcStat(String line) {
+        int open = line.indexOf('(');
+        int close = line.lastIndexOf(')');
+        if (open < 0 || close < open) return null;
+        String[] rest = line.substring(close + 1).trim().split("\\s+");
+        // rest[0] is field 3 (state); utime and stime are fields 14 and 15
+        if (rest.length < 13) return null;
+        return new Object[] {line.substring(open + 1, close), Long.parseLong(rest[11]) + Long.parseLong(rest[12])};
+    }
+
+    /** CPU used per id since the previous update, as percent of all cores. */
+    static final class CpuTracker {
+        private Map<String, long[]> prev = new HashMap<>();
+        private final Map<String, Double> pct = new HashMap<>();
+
+        /** Returns the busiest `n` ids as "name:id:pct" (excluding `skip`), busiest first. */
+        List<String> update(Map<String, long[]> now, long totalJiffies, int n, String skip) {
+            pct.clear();
+            if (totalJiffies > 0) {
+                for (var e : now.entrySet()) {
+                    long[] before = prev.get(e.getKey());
+                    if (before == null || e.getValue()[0] < before[0]) continue;
+                    pct.put(e.getKey(), Math.round(1000.0 * (e.getValue()[0] - before[0]) / totalJiffies) / 10.0);
+                }
+            }
+            prev = now;
+            return pct.entrySet().stream()
+                    .filter(e -> e.getValue() > 0 && !e.getKey().equals(skip))
+                    .sorted(Map.Entry.<String, Double>comparingByValue(Comparator.reverseOrder()))
+                    .limit(n)
+                    .map(e -> NAMES.getOrDefault(e.getKey(), "?") + ":" + e.getKey() + ":" + e.getValue())
+                    .toList();
+        }
+
+        double lastPct(String id) {
+            return pct.getOrDefault(id, 0.0);
         }
     }
 

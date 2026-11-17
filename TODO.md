@@ -1,10 +1,5 @@
 # To-do
 
-The high-level list: what to run, what to maintain, what to decide. **Specifics live in the detail doc each
-line links to**, and in `TODO(2027):` markers in the code (listed in `CLAUDE.md`), because specifics here go
-stale. Keep lines short; when one needs more than two lines, it belongs in a doc, with this file linking to it.
-Add things as they come up and put the source in brackets; move finished things to **Done**.
-
 ## Experiments to run on the robot
 
 In the order to run them. Each detail doc has the commands and what the result will mean. After every
@@ -21,7 +16,8 @@ robot experiment, run its `analyze.py` **before leaving the robot** and commit i
    [detail](docs/experiments/vision/2026-11-10-pv-frame-budget/README.md)
 - **Range experiment** (2 / 4 / 6 / 8 m): whether a finer image sees tags farther. Matters before spending
    effort on faster pipelines. [detail](docs/experiments/vision/2026-11-03-pv-range/README.md)
-- **roboRIO loop overruns**: log the robot program's own CPU, then two runs to measure run-to-run noise.
+- **roboRIO loop overruns**: the logging is written (switch `RIO_PROCESS_CPU_LOGGING`, off by default). Turn it on, deploy, then two
+  2-minute runs to see which process or thread uses the CPU and how much runs vary by chance.
    [detail](docs/experiments/roborio/2026-11-03-loop-overruns/README.md)
 - **Frame-cost follow-up (bench)**: 2 workers x 2 threads. Only if the redo says finer images help.
    [detail](docs/experiments/vision/2026-11-11-pv-frame-cost/README.md)
@@ -37,6 +33,8 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
   intrinsics in `VisionConstants` to match, mounts after experiment 2.
 - **Update the field and game-specific code** (tag rankings, field size, autonomous length) when the 2027
   game is published. The `TODO(2027)` list is in [CLAUDE.md](CLAUDE.md).
+- **Remove feature switches once they're validated.** New robot-code changes go behind a switch until their cost is measured; the
+  ones waiting are marked `VALIDATE-THEN-REMOVE` in `FeatureSwitches.java` (search for it). Now: `RIO_PROCESS_CPU_LOGGING`.
 - **Deploy `beta`** to the robot before the next session (image-size-aware vision filter, `CalibrateCameras`
   auto, logging).
 - **Decide and write down**: whether camera score dropping to 0 while moving is intended

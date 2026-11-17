@@ -164,7 +164,8 @@ Also checked, from the same logs:
 
 ### What would answer it next
 
-1. **Log our own process's CPU next to the total** (`/proc/self/stat` in `RioSystemStats`, plus
+1. **(Written 2026-11-17, behind the off-by-default switch `RIO_PROCESS_CPU_LOGGING`; not yet run on a roboRIO.)
+   Log our own process's CPU next to the total** (`/proc/self/stat` in `RioSystemStats`, plus
    the busiest other process). If the robot program is most of the 80%, it's our own work and the
    fix is a per-section budget; if another process (NetComm, the NT server, the web server) spikes
    during the bursts, it's that.

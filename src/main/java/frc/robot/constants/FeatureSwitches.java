@@ -26,6 +26,10 @@ package frc.robot.constants;
  *   <li><b>Unused</b>: read nowhere in the code. Changing them does nothing. Candidates for removal.</li>
  * </ol>
  *
+ * <p><b>New robot-code changes go behind a switch until their cost is measured.</b> A switch that exists only to
+ * validate a change is marked <code>VALIDATE-THEN-REMOVE</code> in its comment (search for it) and listed in
+ * TODO.md. Once the change is validated (or dropped), delete the switch and keep or remove the code.
+ *
  * <p>The deployed values are logged at startup as Metadata/FeatureSwitches (PerformanceProfile), and
  * LogBench's Health Check shows them under roboRIO -> Build. Check them there before comparing two logs.
  *
@@ -271,6 +275,19 @@ public class FeatureSwitches {
      *  CHANGE WHEN: never expected; the loop-side cost is ~8 recordOutput calls once a second.
      *  MEASURED: not yet. */
     public static final boolean RIO_SYSTEM_STATS_LOGGING = true;
+
+    /** VALIDATE-THEN-REMOVE. Log which process, and which of our own threads, is using the roboRIO's CPU, once
+     *  a second, as RIO/SelfCpuPct, RIO/TopProcesses and RIO/SelfTopThreads. RIO/CpuPct says the CPU is ~80 %
+     *  busy; this says whether that is our robot program (and which threads: main loop, NetworkTables, garbage
+     *  collection, the JIT compiler) or something else on the roboRIO. Needs RIO_SYSTEM_STATS_LOGGING.
+     *  true  = process and thread CPU in the log. false = not logged.
+     *  SET: TESTING true while diagnosing the loop overruns; COMPETITION false until its cost is measured.
+     *  CHANGE WHEN: the loop-overrun experiment (docs/experiments/roborio/2026-11-03-loop-overruns) has its answer;
+     *  then delete this switch and the code behind it (or keep it as a plain diagnostic if the cost is nil).
+     *  MEASURED: not yet. The background thread reads about 100 small /proc files a second at minimum thread
+     *  priority; the robot loop only logs three values once a second. Compare slow-loop share and CpuPct with it
+     *  on and off before turning it on at an event. */
+    public static final boolean RIO_PROCESS_CPU_LOGGING = false;
 
     /** Phoenix .hoot signal logging (automatic and explicit). The AKit .wpilog is unaffected.
      *  true  = .hoot logs for Tuner X / CTRE analysis. false = no .hoot.
