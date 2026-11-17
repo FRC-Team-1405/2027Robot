@@ -43,9 +43,6 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 
 ## Robot maintenance and pit
 
-- **Orange Pi cooling.** They idle at 73-77 C; throttling starts at 85 C.
-- **Re-bootstrap both Pis** (`coprocessor/Bootstrap-OrangePi.ps1 -All`) when convenient, and re-check that
-  PhotonVision still saves (`journalctl -u photonvision`).
 - **Battery log sheet for the pit**, so each match log can be tied to a battery.
 - **Driver Station on the radio's AUX 2 port** through a PoE splitter: confirm it's allowed.
 - **Leftovers from the 11-07 and 11-10 sessions:** [notes/11-10/notes.md](notes/11-10/notes.md).
