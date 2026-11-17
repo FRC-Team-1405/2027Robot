@@ -7,6 +7,9 @@ lab notebook, and `TODO(2027):` markers in code are listed in `CLAUDE.md`.
 
 Items marked *(carried)* were copied from older notes and haven't been re-checked against the code.
 
+**Experiments to run on the robot are listed in [EXPERIMENTS-TO-RUN.md](EXPERIMENTS-TO-RUN.md)**, each with its
+commands and a link to its detail doc. This file is everything else.
+
 ## Next time on the robot
 
 - [ ] **11-10 (Tue): work through [notes/11-10/notes.md](notes/11-10/notes.md)** (re-bootstrap, leftover
@@ -33,23 +36,8 @@ Items marked *(carried)* were copied from older notes and haven't been re-checke
 
 ## Vision experiments
 
-- [ ] **Re-analyze the 11-14 crossover runs**: fetch the session's `akit_*` log (the first fetch took the
-      `FRC_*` log, so the analysis had no data; all 8 runs are in one log at the windows in the manifest), run
-      `analyze.py`, commit `data/` (the extract). [`docs/experiments/vision/2026-11-14-pv-crossover-odometry/`, 11-14]
-- [ ] **Run the resolution crossover experiment with the experiment runner**: `doctor`, `run`, `finish`,
-      then `analyze.py`. First live use of the robot-experiment runner, so also the first test of its
-      PhotonVision web socket messages (`pv-dump` if they differ).
-      [`docs/experiments/vision/2026-11-14-pv-crossover-odometry/`, `tools/exprunner/README.md`, 11-14]
-- [ ] **Camera mounts: find a trustworthy reference for the robot centreline and heading**, then
-      redo the crosshair aim check and a static truth stop; try the "robot against the wall, back
-      straight off" run. Constants stay as they are for now (they match tape).
-      [`docs/camera-mount-calibration-notes.md`, 11-14]
-- [ ] **Run the camera auto-calibration on the robot** (hub tag pair, 2-2.5 m, other tags covered,
-      "CalibrateCameras" auto), then validate once against a tape-measured calibration. Check the
-      tag height, tilt, spacing and size first.
-      [`docs/camera-autocal-plan.md`, 11-14]
-- [ ] **Run the camera-setting crossover experiment** after the cameras are calibrated; pick
-      setting B first. [`docs/experiments/vision/2026-11-14-pv-crossover-odometry/`, 11-14]
+- [ ] **Run the 11-14 crossover again, and the camera-mount reference work**: now in
+      [EXPERIMENTS-TO-RUN.md](EXPERIMENTS-TO-RUN.md) (experiments 1 and 2).
 
 - [ ] **Frame-budget B6: 800x600 @120, decimate 2, threads 8** (~5 min, one `CircleFacingTag`
       run). Passes at ≥ 108 results/s. It missed by ~0.6 ms per frame on 11-07; threads didn't

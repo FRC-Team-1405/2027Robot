@@ -194,7 +194,8 @@ def _run_robot(plan: Plan, args) -> int:
                 return 1
     if s.fetch == "end":
         robot.fetch_pending(s, m)
-    print(f"\ndone: {len(todo)} run(s), {failed} failed. `finish` puts the cameras back to their baseline.")
+    print(f"\ndone: {len(todo)} run(s), {failed} failed. Next: `finish` puts the cameras back to their baseline, and "
+          "run the experiment's analyze.py NOW, before leaving the robot, so a wrong or missing log is caught while it can be fixed.")
     return 1 if failed else 0
 
 
