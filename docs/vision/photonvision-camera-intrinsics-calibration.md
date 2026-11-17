@@ -54,15 +54,23 @@ They are calibrated results, not values to replace with the exact image center. 
 ## Before collecting images
 
 If exposure, brightness, and gain are not settled yet, compare them first with the
-[`tools/camera-tuning`](../../tools/camera-tuning/README.md) multi-frame tuner. The current bench
-starting point is manual exposure **100**, brightness **60**, and camera gain **60**. These are
-starting values, not universal constants; record trials under representative lighting and keep the
-winning settings fixed throughout calibration and normal AprilTag use.
+[`tools/camera-tuning`](../../tools/camera-tuning/README.md) multi-frame tuner. Auto exposure caused
+flicker and a worse calibration under the shop's overhead LEDs (09-05 notes), so turn it **off**.
+Both cameras currently run **auto exposure off, exposure 80, brightness 25, gain 25** (read from the
+Pi publisher in the 11-14 log: `OrangePi/<Pi>/PhotonVision/<camera>/Exposure`, `Brightness`, `Gain`);
+the 09-05 trials used exposure 86, brightness 0, gain 25. These are starting values, not universal
+constants; record trials under representative lighting and keep the winning settings fixed
+throughout calibration and normal AprilTag use. Check the live values with
+`python -m exprunner doctor` or in a log before you calibrate, rather than trusting this paragraph.
 
-1. Put the final camera on its final USB port and confirm its PhotonVision nickname (`Left` or
-   `Right`). Keep each physical camera associated with its own calibration.
+1. Put the final camera on its final USB port and confirm its PhotonVision nickname (`LeftCam` or
+   `RightCam`, the names in `VisionConstants.CONFIGS`). Keep each physical camera associated with its own calibration.
 2. Select the resolution and image rotation that the AprilTag pipeline will actually use. For the
    settings recorded in `notes/09-05/9-5.md`, that is currently **800 pixels wide by 600 pixels high**.
+   Both cameras are also calibrated at **1280x800** (added 10-27; PhotonVision lists the calibrated resolutions, and the Pi
+   publisher logs them as `.../PhotonVision/<camera>/CalibratedResolutions`). The exports of all four calibrations
+   are in [`resources/photonvision-calibrations/`](../../resources/photonvision-calibrations/). `VisionConstants` holds
+   the 800x600 values.
 3. Set and secure the final lens focus. Calibration may be performed before or after mounting, but
    the camera, lens, focus, and resolution must not change afterward. If calibrating on the robot,
    keep the robot/camera stationary and move the board.
@@ -130,12 +138,16 @@ that camera's PhotonVision result. Notice that `fx`, `fy`, `cx`, and `cy` come f
 
 Do not resolve a resolution mismatch by editing only `width` and `height`. The complete calibration
 must match what PhotonVision uses, because this project passes the Java camera matrix and distortion
-back into PhotonLib for robot pose estimation.
+back into PhotonLib for robot pose estimation. (The Pi solves multi-tag poses itself, from its own copy of
+the calibration, so the calibration in PhotonVision on the Pi matters most; the Java values are the robot-side
+copy.) The vision filter that scores how far a tag sits from the image centre reads the image size PhotonVision
+is actually running (it recognises 800x600, 1280x800 and a few others from the calibration PhotonVision reports),
+so switching resolution does not need a code change, but it does need a PhotonVision calibration at that resolution.
 
 ## Validate before competition
 
 - Confirm PhotonVision's selected pipeline mode and the Java `width`/`height` are identical for
-  each camera.
+  each camera. A log shows what ran: `OrangePi/<Pi>/Video/video0/Mode` is the camera's real mode.
 - Build and deploy the robot code, then view several known AprilTags from close, far, centered, and
   near-edge positions. Look for stable poses and an optical center reasonably near the image center.
 - Place the stationary robot at a few tape-measured poses and compare the estimated field pose.
