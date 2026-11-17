@@ -165,8 +165,18 @@ all 8 runs are in it, at the windows above).
 Second problem found in the manifest: the Pi **vision recordings were downloaded with every run**, and the list
 grew by two sessions each time (2, 4, 6, ... 16). The log itself was the same file every time (the robot code
 wasn't restarted), but each fetch re-downloaded all of it plus every recording so far, so each was bigger than the
-last. Fixed: one download at the end, no recordings unless asked. The manifest now records each fetch's size and time,
-so we can see this instead of guessing.
+last. Fixed: no recordings unless asked, and each fetch **resumes** (a log only grows at its end, so LogBench now
+downloads just the bytes the robot wrote since the last fetch, after checking the copy it has is the start of the
+same file). That keeps the safe "fetch after every run", at a few MB per run instead of the whole log again. The
+manifest now records each fetch's size and time, so we can see this instead of guessing.
+
+**Checked on 2026-11-17 against the logs saved in `logs/offseason/11-14/`:** the session's AdvantageKit log is not
+among them. The folder has two `akit_*` logs (`akit_26-11-14_18-40-44`, 197 s, and `akit_26-11-14_19-11-27`, 188 s)
+from earlier boots, and the `FRC_20261114_202608.wpilog` the runner fetched (122 KB, 1034 s, from this session) holds only
+a few dozen entries and no enable/disable events. The runs sit at robot time 319-1026 s, so the log needed is one from
+the same boot that lasts at least ~1035 s (about 90 MB at the rate these logs grow), written at about 20:25 UTC on 11-14.
+It is on the roboRIO (LogBench's Fetch Bundle page lists it); the file name may carry an earlier time if the roboRIO's
+clock hadn't synced when the robot code started.
 
 **Keeping the data without the logs.** `analyze.py` now writes a small extract to `data/<run>/` as it reads a log
 (each camera's raw estimates, the fused pose, the settings, the enable window; about 100-200 KB per run, gzipped).

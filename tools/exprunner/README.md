@@ -36,12 +36,12 @@ python analyze.py                    # (each experiment's own) reads manifest.js
    `/FMSInfo/FMSControlData`, and notes the window in robot time (a log holding several runs can be split
    later). It checks the settings again afterwards and fails the run if anything changed during it.
 6. Writes the run into `manifest.json`: what was asked, what was read back, the enable window (robot time).
-7. **After the last run, fetches the robot log once** through LogBench, as the Fetch Bundle page does. All
-   runs of a session are in one log (the robot code isn't restarted), told apart by their enable windows, so
-   there is one download, not one per run. It prefers the AdvantageKit log (`akit_*`) over WPILib's
-   `FRC_*.wpilog` (NetworkTables mirrored, out of time order), and does **not** download the Pis' vision
-   recordings unless you pass `--with-pi` (they are large, and every session since the last log rotation
-   comes along, so each download was bigger than the last).
+7. **Fetches the robot log** through LogBench, as the Fetch Bundle page does, **after every run**, so a crash or a
+   dead battery later loses nothing. A log only ever grows at its end, so each fetch **resumes**: it checks the
+   copy it already has is the start of the same log and downloads only what the robot wrote since (a few MB, not
+   the whole log again). It prefers the AdvantageKit log (`akit_*`) over WPILib's `FRC_*.wpilog`, and does **not**
+   download the Pis' vision recordings unless you pass `--with-pi` (they are large, and every session since the log
+   rotation comes along, so each download was bigger than the last).
 
 Before the first run it records each camera's settings as a **baseline**; `finish` puts them back, so a
 session never leaves the cameras on an experiment setting.
@@ -59,9 +59,10 @@ session never leaves the cameras on an experiment setting.
 
 Options for `run`, `apply`, `finish`, `doctor`: `--nt HOST[:PORT]` (default: team 1405; `localhost` for
 the simulator), `--manual`, `--no-robot` (don't connect: nothing is checked from the Pis and you press
-Enter at the start and end of each run), `--fetch end|each|none` (when to download the log: once at the end, the
-default; after every run, for sessions where the robot code will restart; never), `--with-pi`, `--logbench URL`.
-If the robot code **restarts** during a session, its earlier runs are in an older log: use `--fetch each`.
+Enter at the start and end of each run), `--fetch each|end|none` (when to download the log: after every run, the
+default; once after the last run; never), `--with-pi`, `--logbench URL`.
+If the robot code **restarts** during a session, runs from before the restart are in an older log; `each` (the
+default) has already fetched them, so nothing is lost.
 
 ### If PhotonVision's web socket changes
 

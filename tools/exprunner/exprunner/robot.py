@@ -46,7 +46,7 @@ class Session:
     clock: Callable[[], float] = time.monotonic
     settle_timeout: float = 20.0                   # how long a setting may take to show up in the readback
     poll: float = 1.0
-    fetch: str = "end"                             # "end": one download after the last run; "each": after every run
+    fetch: str = "each"                            # "each": after every run (resumes, so cheap); "end": once, after the last
     with_pi: bool = False                          # also download the Pis' vision recordings (large)
     apply_settings: bool = True                    # False: don't send; just verify (and wait for the person)
     wait_for_person: bool = True                   # keep waiting for hand changes instead of failing

@@ -336,3 +336,43 @@ def test_fetch_pi_session_wraps_a_listing_failure(tmp_path):
     with patcher:
         with pytest.raises(remote_fetch.RemoteFetchError):
             remote_fetch.fetch_pi_session(_cfg(), 'Left', 'boot0001', tmp_path)
+
+
+# ── resuming a log that has grown since the last fetch ──────────────────────────────
+
+def _fetch(tmp_path, remote, **kw):
+    patcher, _ = _mock_paramiko(_sftp_with(remote))
+    with patcher:
+        return remote_fetch.fetch_rio_log(_cfg(), 'akit_live.wpilog', tmp_path, **kw)
+
+
+def test_a_second_fetch_downloads_only_what_the_robot_wrote_since(tmp_path):
+    first = _FakeRemoteFile(b'WPILOG' + b'a' * 200_000)
+    _fetch(tmp_path, first)
+    grown = _FakeRemoteFile(bytes(first.data) + b'b' * 30_000)
+    path = _fetch(tmp_path, grown)
+    assert path.read_bytes() == bytes(grown.data)
+    assert grown.prefetches == [(200_006, 230_006)]        # only the new 30 KB crossed the wire
+
+
+def test_resume_starts_over_when_the_file_is_not_the_same_log(tmp_path):
+    _fetch(tmp_path, _FakeRemoteFile(b'WPILOG' + b'a' * 100_000))
+    other = _FakeRemoteFile(b'WPILOG' + b'z' * 150_000)       # same name, different content
+    path = _fetch(tmp_path, other)
+    assert path.read_bytes() == bytes(other.data)
+    assert other.prefetches[0][0] == 0
+
+
+def test_resume_starts_over_when_the_remote_file_is_shorter(tmp_path):
+    _fetch(tmp_path, _FakeRemoteFile(b'WPILOG' + b'a' * 100_000))
+    shorter = _FakeRemoteFile(b'WPILOG' + b'a' * 1_000)
+    path = _fetch(tmp_path, shorter)
+    assert path.read_bytes() == bytes(shorter.data)
+
+
+def test_resume_can_be_turned_off(tmp_path):
+    first = _FakeRemoteFile(b'WPILOG' + b'a' * 100_000)
+    _fetch(tmp_path, first)
+    again = _FakeRemoteFile(bytes(first.data) + b'b' * 1_000)
+    _fetch(tmp_path, again, resume=False)
+    assert again.prefetches[0][0] == 0

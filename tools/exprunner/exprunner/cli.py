@@ -161,7 +161,7 @@ def _robot_session(plan: Plan, args, need_logbench: bool = False) -> robot.Sessi
             raise PlanError(str(e)) from None
         print(f"connected to the robot's NetworkTables ({link.target})")
     lb = None
-    if need_logbench and not args.no_fetch and getattr(args, "fetch", "end") != "none":
+    if need_logbench and not args.no_fetch and getattr(args, "fetch", "each") != "none":
         lb = LogBenchClient(args.logbench)
         try:
             lb.ping()
@@ -169,7 +169,7 @@ def _robot_session(plan: Plan, args, need_logbench: bool = False) -> robot.Sessi
             raise PlanError(str(e)) from None
     s = robot.Session(plan=plan, link=link, pi_hosts={n: list(b.hosts) for n, b in known.items()}, logbench=lb)
     s.apply_settings = not getattr(args, "manual", False)
-    s.fetch = getattr(args, "fetch", "end")
+    s.fetch = getattr(args, "fetch", "each")
     s.with_pi = getattr(args, "with_pi", False)
     return s
 
@@ -303,9 +303,10 @@ def main(argv: list[str] | None = None) -> int:
             g.add_argument("--manual", action="store_true",
                            help="don't send settings to PhotonVision; say what to change and wait for the Pi to show it")
             g.add_argument("--no-fetch", action="store_true", help="don't fetch the log through LogBench (same as --fetch none)")
-            g.add_argument("--fetch", choices=("end", "each", "none"), default="end",
-                           help="when to download the robot log: once after the last run (default; all runs share "
-                                "one log), after every run, or never")
+            g.add_argument("--fetch", choices=("each", "end", "none"), default="each",
+                           help="when to download the robot log: after every run (default: each download only "
+                                "fetches what the robot wrote since the last, and a crash loses nothing), once after "
+                                "the last run, or never")
             g.add_argument("--with-pi", action="store_true",
                            help="also download the Pis' vision recordings (large; the odometry experiments don't need them)")
             g.add_argument("--logbench", default=DEFAULT_URL, metavar="URL", help=f"LogBench address ({DEFAULT_URL})")
