@@ -41,7 +41,9 @@ try {
         $values = @('', 'two words', 'say "hello"', 'a\"b', 'C:\space here\', 'dollar$ & semicolon;', '')
         $r = & $runner -File $python.Source -Arguments (@('-c', 'import json,sys; print(json.dumps(sys.argv[1:]))') + $values)
         Assert-Equal 0 $r.ExitCode "$runner argv exit code"
-        $actual = @($r.Out | ConvertFrom-Json)
+        # Windows PowerShell 5.1 returns a JSON array as ONE object (7+ unrolls it): assign first, then wrap.
+        $parsed = $r.Out | ConvertFrom-Json
+        $actual = @($parsed)
         Assert-Equal $values.Count $actual.Count "$runner argument count"
         for ($i = 0; $i -lt $values.Count; $i++) { Assert-Equal $values[$i] $actual[$i] "$runner argv[$i]" }
 

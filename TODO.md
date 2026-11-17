@@ -9,6 +9,8 @@ robot experiment, run its `analyze.py` **before leaving the robot** and commit i
 - **Redo: 800x600 vs 1280x800 on the same autonomous** (about 30 min). The 11-14 session ran but its
    robot log wasn't saved, so there are no numbers. Run with `--redo`. The runner and LogBench are fixed.
    [detail](docs/experiments/vision/2026-11-14-pv-crossover-odometry/README.md)
+- **Left Pi Ethernet at 100 Mbit/s, Right at 1000**: a step-by-step test (cable, port, splitter, the Pi) with a tool that reads the
+  link and says which end is limiting. About 30 minutes, no robot code. [detail](docs/experiments/coprocessor/2026-11-17-left-pi-link-speed/README.md)
 - **Camera mounts: a trustworthy reference for the robot's centreline and heading**, so mount accuracy
    can be measured, not assumed. Constants stay as they are until then (they match tape).
    [detail](docs/vision/camera-mount-calibration-notes.md)
@@ -33,18 +35,14 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
   game is published. The `TODO(2027)` list is in [CLAUDE.md](CLAUDE.md).
 - **Remove feature switches once they're validated.** New robot-code changes go behind a switch in `ExperimentSwitches.java` until their
   cost is measured; the ones waiting are marked `VALIDATE-THEN-REMOVE` (search for it). Now: `RIO_PROCESS_CPU_LOGGING`.
-- **Deploy `beta`** to the robot before the next session (image-size-aware vision filter, `CalibrateCameras`
-  auto, logging).
+- **Deploy `main`** to the robot before the next session. The first two experiments need it: the vision filter that reads the
+  real image size (so 1280x800 isn't scored as if it were 800x600) and the `RIO_PROCESS_CPU_LOGGING` switch.
 - **Decide and write down**: whether camera score dropping to 0 while moving is intended
   ([ADR 0001](docs/adr/0001-camera-health-metric-gating-aggregation-and-range.md)); whether to take frames in
   flight or grey decode to PhotonVision ([ADR 0002](docs/adr/0002-photonvision-throughput-limit.md)).
 
 ## Robot maintenance and pit
 
-- **Orange Pi cooling.** They idle at 73-77 C; throttling starts at 85 C.
-- **Left Pi links at 100 Mbit/s** while the right one gets 1000. Try another cable or port.
-- **Re-bootstrap both Pis** (`coprocessor/Bootstrap-OrangePi.ps1 -All`) when convenient, and re-check that
-  PhotonVision still saves (`journalctl -u photonvision`).
 - **Battery log sheet for the pit**, so each match log can be tied to a battery.
 - **Driver Station on the radio's AUX 2 port** through a PoE splitter: confirm it's allowed.
 - **Leftovers from the 11-07 and 11-10 sessions:** [notes/11-10/notes.md](notes/11-10/notes.md).
@@ -62,17 +60,13 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 
 ## Docs and housekeeping
 
-- **A home Wi-Fi password is committed** in `notes/06-23/sshExport.txt`: redact it and change the password.
-- **Out-of-date docs** (paths now under `docs/guides`, `docs/coprocessor`, `docs/vision`): `docs/coprocessor/orangepi-internet-access.md`, the camera settings in
-  `docs/vision/photonvision-camera-intrinsics-calibration.md`.
-- **Tests that fail on Windows** (`coprocessor/tests/test_setup_orangepi.py`, `Test-BootstrapOrangePi.ps1`).
-- **Install the GitHub CLI (`gh`)** on the team laptop.
 
 ## Done
 
 <details>
 <summary>Done (newest first)</summary>
 
+- 2026-11-17: stale items cleared: Wi-Fi password redacted from the notes; the Linux-only installer test now skips on Windows and the PowerShell 5.1 test is fixed; the Pi internet-access and camera-calibration docs updated
 - 2026-11-17: repo reorganized: root cut to the required files, Guides and reference notes into `docs/guides`, `docs/` grouped, notes and logs in zero-padded day folders, Choreo's program files and `docs/team` removed (`docs/repo-organization-plan.md`)
 - 2026-11-14: robot-experiment runner (sets PhotonVision, confirms from the Pis, detects enable/disable, fetches the log, records a manifest) (`tools/exprunner`, `docs/tools/experiment-runner-plan.md`)
 - 2026-11-14: frame cost on the Pi, bench: matches the robot; 4 frames in flight give ~4x results/s, each ~10 ms later; grey decode saves 1.3-2.8 ms (`docs/experiments/vision/2026-11-11-pv-frame-cost/`)
@@ -120,9 +114,6 @@ Older finished items are in `notes/09-22/todos.md`.
 - [ ] **Confirm the LogBench live fix.** With robot code already running, connect LogBench live,
       leave the Health Check open, and check that no camera has a gap between results over 80 ms.
       This is the case that stalled vision on 10-27 (T1, T2). [10-27 write-up, learning 8]
-- [ ] **Check why the Left Pi links at 100 Mbit/s** when the Right Pi gets 1000. Try another cable
-      and radio/switch port. Not the cause of the frame-rate cliff, but it shouldn't be that way.
-      [10-27 write-up]
 - [ ] **Tune the new Health Check thresholds** (Pi network, roboRIO CPU and memory, radio
       bandwidth) once there's a real log with them. They're educated guesses for now.
       [`tools/logbench/server/health_checks.toml`]
@@ -214,24 +205,7 @@ Older finished items are in `notes/09-22/todos.md`.
 
 ### Docs
 
-- [ ] **`docs/coprocessor/orangepi-internet-access.md` is out of date** (old `pi` user, static IP). Replace with
-      the methods that worked. [9-22 roll-up] *(carried)*
-- [ ] **Reconcile camera settings** in `docs/vision/photonvision-camera-intrinsics-calibration.md`
-      (exposure 100 / brightness 60 / gain 60) with the tested values (AE off, exposure 86,
-      brightness 0, gain 25). [9-5] *(carried)*
 - [ ] **Tick off step 1b of `docs/coprocessor/orangepi-vision-recorder-setup.md`** (`/FMSInfo` enabled bit):
       confirm no session starts while disabled. [9-5] *(carried)*
-
-### Housekeeping
-
-- [ ] **A home Wi-Fi password is committed** in `notes/06-23/sshExport.txt` (the
-      `nmcli device wifi connect` line), still there on 10-28. Redact it and change the password;
-      it stays in git history either way. [9-22 roll-up]
-- [ ] **`coprocessor/tests/test_setup_orangepi.py` fails on Windows** (needs `termios`). Skip it
-      there so the coprocessor tests run cleanly on team laptops.
-- [ ] **`coprocessor/tests/Test-BootstrapOrangePi.ps1` fails on Windows PowerShell 5.1** at its
-      first check ("argument count: expected 7, got 1"): on 5.1 `ConvertFrom-Json` returns a JSON
-      array as one object. Test bug only; it passes on PowerShell 7. [11-07]
-- [ ] **Install the GitHub CLI (`gh`) on the team laptop** so PRs can be opened from the terminal.
 
 </details>

@@ -49,7 +49,7 @@ See https://ubuntu.com/esm or run: sudo pro status
 Last login: Mon Nov  4 12:21:34 2024 from 10.14.5.20
 pi@photonvision:~$ nmcli -v
 nmcli tool, version 1.46.0
-pi@photonvision:~$ sudo nmcli device wifi connect "Cajetan" password "LotionCardboard"
+pi@photonvision:~$ sudo nmcli device wifi connect "Cajetan" password "<redacted>"
 Error: No Wi-Fi device found.
 pi@photonvision:~$ sudo nmcli device wifi list
 pi@photonvision:~$ sudo dhclient

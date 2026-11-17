@@ -55,6 +55,7 @@ session never leaves the cameras on an experiment setting.
 | `finish PLAN` | Restores the baseline |
 | `status PLAN` | Done / failed / to do, with each run's cameras, log and the baseline if cameras are still changed |
 | `check PLAN` | Validates the plan; prints every run's full settings per camera |
+| `link [--board B]` | Each Pi's Ethernet speed, duplex, errors, and what the *other end* of the cable offers (read-only, over SSH; no plan needed). Built for the [Left Pi link-speed test](../../docs/experiments/coprocessor/2026-11-17-left-pi-link-speed/README.md) |
 | `pv-dump HOST` | Prints what PhotonVision's web socket sends (to debug; see below) |
 
 Options for `run`, `apply`, `finish`, `doctor`: `--nt HOST[:PORT]` (default: team 1405; `localhost` for
