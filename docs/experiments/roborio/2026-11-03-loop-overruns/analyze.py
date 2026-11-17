@@ -22,28 +22,28 @@ REPO = HERE.parents[3]
 sys.path.insert(0, str(REPO / "tools" / "wpilog-utils"))
 from wpilog_utils.decode import parse_wpilog
 
-LOGS = REPO / "logs" / "offseason"
+LOGS = REPO / "logs"
 # (ID, what it was, log). Baseline data from the two vision experiments; add this experiment's runs below.
 RUNS = [
     ("B-10-27-T1", "10-27 T1, CircleFacingTag", "10-27/akit_26-10-27_22-13-27"),
     ("B-10-27-T2", "10-27 T2, CircleFacingTag", "10-27/akit_26-10-27_22-37-33"),
     ("B-10-27-T3", "10-27 T3, CircleFacingTag", "10-27/akit_26-10-27_22-42-57"),
     ("B-10-27-T7", "10-27 T7, driven heat soak", "10-27/akit_26-10-27_23-42-41"),
-    ("B-11-03-R1", "11-03 R1, CircleFacingTag", "11-3/akit_26-11-03_23-38-42"),
-    ("B-11-03-R2", "11-03 R2, CircleFacingTag", "11-3/akit_26-11-03_23-58-01"),
-    ("B-11-03-R3", "11-03 R3, CircleFacingTag", "11-3/akit_26-11-04_00-18-32"),
+    ("B-11-03-R1", "11-03 R1, CircleFacingTag", "11-03/akit_26-11-03_23-38-42"),
+    ("B-11-03-R2", "11-03 R2, CircleFacingTag", "11-03/akit_26-11-03_23-58-01"),
+    ("B-11-03-R3", "11-03 R3, CircleFacingTag", "11-03/akit_26-11-04_00-18-32"),
     # 11-7. L1-L3 ran the OLD robot code (338bcfa, built 10-27: no RIO/* stats, extended vision
     # logging ON); L5 ran branch vision-throughput-10-27 + local edits; the rest ran beta d0b8b2c +
     # local edits with VISION_EXTENDED_NT_LOGGING=false (all read from RealMetadata in the logs).
-    ("L1", "AdvantageScope + Elastic, auto (old code, ext. vision logging on)", "11-7/akit_26-11-07_18-04-56"),
-    ("L2", "Driver Station only, auto (old code, ext. vision logging on)", "11-7/akit_26-11-07_18-13-22"),
-    ("L3", "Driver Station only, teleop sticks idle (old code, ext. vision logging on)", "11-7/akit_26-11-07_18-16-38"),
-    ("L5", "AdvantageScope + Elastic, auto, ext. vision logging off", "11-7/akit_26-11-07_18-22-17"),
-    ("L4'", "AdvantageScope + Elastic, auto (beta; vision 800x600@120)", "11-7/akit_26-11-07_19-03-35"),
-    ("L4''", "AdvantageScope + Elastic + LogBench Fetch Bundle page, auto (beta)", "11-7/akit_26-11-07_19-10-49"),
-    ("L2'", "Driver Station only, auto (beta)", "11-7/akit_26-11-07_19-13-10"),
-    ("R6", "AS + Elastic + LogBench, auto, vision dec 1 (frame-pacing R6)", "11-7/akit_26-11-07_19-19-16"),
-    ("R13", "AS + Elastic + LogBench, auto, vision 1280x800 (frame-pacing R13)", "11-7/akit_26-11-07_19-23-31"),
+    ("L1", "AdvantageScope + Elastic, auto (old code, ext. vision logging on)", "11-07/akit_26-11-07_18-04-56"),
+    ("L2", "Driver Station only, auto (old code, ext. vision logging on)", "11-07/akit_26-11-07_18-13-22"),
+    ("L3", "Driver Station only, teleop sticks idle (old code, ext. vision logging on)", "11-07/akit_26-11-07_18-16-38"),
+    ("L5", "AdvantageScope + Elastic, auto, ext. vision logging off", "11-07/akit_26-11-07_18-22-17"),
+    ("L4'", "AdvantageScope + Elastic, auto (beta; vision 800x600@120)", "11-07/akit_26-11-07_19-03-35"),
+    ("L4''", "AdvantageScope + Elastic + LogBench Fetch Bundle page, auto (beta)", "11-07/akit_26-11-07_19-10-49"),
+    ("L2'", "Driver Station only, auto (beta)", "11-07/akit_26-11-07_19-13-10"),
+    ("R6", "AS + Elastic + LogBench, auto, vision dec 1 (frame-pacing R6)", "11-07/akit_26-11-07_19-19-16"),
+    ("R13", "AS + Elastic + LogBench, auto, vision 1280x800 (frame-pacing R13)", "11-07/akit_26-11-07_19-23-31"),
 ]
 SECTIONS = ["LoggedRobot/UserCodeMS", "LoggedRobot/LogPeriodicMS", "LoggedRobot/GCTimeMS",
             "Timing/RobotPeriodicMs", "Timing/CommandSchedulerMs", "Timing/VisionMs",

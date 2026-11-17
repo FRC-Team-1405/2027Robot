@@ -6,7 +6,7 @@
     Run this on the Windows laptop. It is NOT the same thing as setup-orangepi.sh, which runs
     ON the Pi; this script prepares the Pi and then drives setup-orangepi.sh for you.
 
-    It follows docs/orangepi-internet-access.md and docs/orangepi-vision-recorder-setup.md and,
+    It follows docs/coprocessor/orangepi-internet-access.md and docs/coprocessor/orangepi-vision-recorder-setup.md and,
     for each step, tells you what it is about to do and why, then reports PASS / FAIL / ACTION.
     When something needs a human (enabling Internet Connection Sharing, activating the camera
     in PhotonVision, typing the Pi's password once), it stops and tells you exactly what to do.
@@ -339,7 +339,7 @@ function Step-FindPi {
         }
         Write-Fail 'No Pi found.'
         Write-Info 'Typical causes: Pi not powered/booted yet (wait ~1 minute), cable not DIRECTLY into the Pi, or ICS is off.'
-        Write-Action 'To enable ICS (from docs/orangepi-internet-access.md):'
+        Write-Action 'To enable ICS (from docs/coprocessor/orangepi-internet-access.md):'
         Write-Info '  1. Win+R > ncpa.cpl   2. right-click your Wi-Fi > Properties > Sharing tab'
         Write-Info '  3. tick "Allow other network users to connect..." and pick the USB-Ethernet adapter'
         Write-Info '     (if already ticked: untick, OK, then tick again)   4. wait ~30 s for the Pi to get an address'

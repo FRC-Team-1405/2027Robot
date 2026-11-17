@@ -1,7 +1,7 @@
 """Metrics for the 2026-10-27 PhotonVision throughput experiment (see README.md).
 
 Run from the repo root:  python docs/experiments/vision/2026-10-27-pv-throughput/analyze.py
-Reads the WPILog Janitor-trimmed logs in logs/offseason/10-27/ (enabled time only) and writes
+Reads the WPILog Janitor-trimmed logs in logs/10-27/ (enabled time only) and writes
 results.json next to this file. Window = every enabled span longer than 5 s.
 
 Dropped frames: gaps in Vision/<cam>/RawTimestampsSec longer than 1.6x the median interval.
@@ -16,7 +16,7 @@ REPO = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "tools" / "wpilog-utils"))
 from wpilog_utils.decode import parse_wpilog
 
-LOG_DIR = REPO / "logs" / "offseason" / "10-27"
+LOG_DIR = REPO / "logs" / "10-27"
 RUNS = [
     ("T1", "800x600 @100 fps, decimate 3 (baseline)", "akit_26-10-27_22-13-27"),
     ("T2", "800x600 @100 fps, decimate 2", "akit_26-10-27_22-37-33"),

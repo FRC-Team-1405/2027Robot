@@ -3,7 +3,7 @@
 - **Status:** Proposed. D1 (logbench half) and D2 are implemented in logbench; the robot-side changes and D3 are not. See "Implementation status".
 - **Date:** 2026-09-21
 - **Scope:** `VisionHealth.java` / `Vision.java` (on-robot health signals), `tools/logbench` (`core/metrics.py`, `core/composites.py`, `core/compare.py`, compare page and export)
-- **Triggering evidence:** `logs/offseason/9-15/compare-akit_26-09-15_22-01-04_visionRecorder1-vs-akit_26-09-15_23-08-34_visionRecorder2.json`
+- **Triggering evidence:** `logs/09-15/compare-akit_26-09-15_22-01-04_visionRecorder1-vs-akit_26-09-15_23-08-34_visionRecorder2.json`
 
 ## Summary
 

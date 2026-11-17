@@ -45,7 +45,7 @@ adapter can automate the sweep without changing the evaluator.
 
 Camera input tuning and camera-intrinsics calibration are related but separate. Tune the image
 first, then perform the full ChArUco intrinsic calibration using
-[`docs/photonvision-camera-intrinsics-calibration.md`](../../docs/photonvision-camera-intrinsics-calibration.md).
+[`docs/vision/photonvision-camera-intrinsics-calibration.md`](../../docs/vision/photonvision-camera-intrinsics-calibration.md).
 Keep the camera fixed and move the board during intrinsic collection. Only capture a calibration
 view when the board is momentarily sharp; the optimizer intentionally samples gentle motion because
 the robot's AprilTag camera must also work while things move.

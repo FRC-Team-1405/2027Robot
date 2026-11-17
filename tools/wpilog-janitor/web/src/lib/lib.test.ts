@@ -47,7 +47,7 @@ describe('format', () => {
   it('formats percentages and file stems', () => {
     expect(fmtPct(90.94)).toBe('90.9%');
     expect(fmtPct(99.97)).toBe('100%');
-    expect(stemOf('logs/offseason/9-1/akit_x.wpilog')).toBe('akit_x');
+    expect(stemOf('logs/09-01/akit_x.wpilog')).toBe('akit_x');
     expect(stemOf('plain')).toBe('plain');
   });
 });

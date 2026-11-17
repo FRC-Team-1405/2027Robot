@@ -1,7 +1,7 @@
 """Metrics for the PhotonVision frame-pacing experiment (see README.md).
 
 Run from the repo root:  python docs/experiments/vision/2026-10-28-pv-frame-pacing/analyze.py
-Reads the WPILog Janitor-trimmed logs in logs/offseason/11-3/ and 11-7/ and writes results.json
+Reads the WPILog Janitor-trimmed logs in logs/11-03/ and 11-7/ and writes results.json
 next to this file. The per-run metrics are the 10-27 ones (imported from that folder's analyze.py, so the two
 experiments are measured identically), plus:
 
@@ -19,25 +19,25 @@ spec = importlib.util.spec_from_file_location("pv1027", HERE.parent / "2026-10-2
 pv1027 = importlib.util.module_from_spec(spec); spec.loader.exec_module(pv1027)
 from wpilog_utils.decode import parse_wpilog  # put on sys.path by the 10-27 module
 
-LOGS = REPO / "logs" / "offseason"
+LOGS = REPO / "logs"
 CAM_PERIOD_MS = 10.0  # set per run below (1000 / camera fps)
-# (ID, setting, log under logs/offseason/, camera fps). From 11-7 on, the settings are also in the
+# (ID, setting, log under logs/, camera fps). From 11-7 on, the settings are also in the
 # log (OrangePi/<Pi>/PhotonVision/<cam>/* and Video/video0/Mode); the column here was checked
 # against them. The 11-7 L-runs belong to the loop-overrun experiment but used R3's settings, so
 # they count as repeats of R3 (= R5).
 RUNS = [
-    ("R1", "800x600 @100, dec 3, Low Latency on, threads 8", "11-3/akit_26-11-03_23-38-42", 100),
-    ("R2", "800x600 @100, dec 2, Low Latency on, threads 8", "11-3/akit_26-11-03_23-58-01", 100),
-    ("R3", "800x600 @100, dec 2, Low Latency off, threads 8", "11-3/akit_26-11-04_00-18-32", 100),
-    ("R5a", "R3 repeat (11-7 L1)", "11-7/akit_26-11-07_18-04-56", 100),
-    ("R5b", "R3 repeat (11-7 L2)", "11-7/akit_26-11-07_18-13-22", 100),
-    ("R5c", "R3 repeat (11-7 L3, teleop, standing still)", "11-7/akit_26-11-07_18-16-38", 100),
-    ("R5d", "R3 repeat (11-7 L5)", "11-7/akit_26-11-07_18-22-17", 100),
-    ("R12a", "800x600 @120, dec 2, Low Latency off, threads 8", "11-7/akit_26-11-07_19-03-35", 120),
-    ("R12b", "R12 repeat", "11-7/akit_26-11-07_19-10-49", 120),
-    ("R12c", "R12 repeat", "11-7/akit_26-11-07_19-13-10", 120),
-    ("R6", "800x600 @120, dec 1, Low Latency off, threads 8", "11-7/akit_26-11-07_19-19-16", 120),
-    ("R13", "1280x800 @100, dec 2, Low Latency off, threads 8", "11-7/akit_26-11-07_19-23-31", 100),
+    ("R1", "800x600 @100, dec 3, Low Latency on, threads 8", "11-03/akit_26-11-03_23-38-42", 100),
+    ("R2", "800x600 @100, dec 2, Low Latency on, threads 8", "11-03/akit_26-11-03_23-58-01", 100),
+    ("R3", "800x600 @100, dec 2, Low Latency off, threads 8", "11-03/akit_26-11-04_00-18-32", 100),
+    ("R5a", "R3 repeat (11-7 L1)", "11-07/akit_26-11-07_18-04-56", 100),
+    ("R5b", "R3 repeat (11-7 L2)", "11-07/akit_26-11-07_18-13-22", 100),
+    ("R5c", "R3 repeat (11-7 L3, teleop, standing still)", "11-07/akit_26-11-07_18-16-38", 100),
+    ("R5d", "R3 repeat (11-7 L5)", "11-07/akit_26-11-07_18-22-17", 100),
+    ("R12a", "800x600 @120, dec 2, Low Latency off, threads 8", "11-07/akit_26-11-07_19-03-35", 120),
+    ("R12b", "R12 repeat", "11-07/akit_26-11-07_19-10-49", 120),
+    ("R12c", "R12 repeat", "11-07/akit_26-11-07_19-13-10", 120),
+    ("R6", "800x600 @120, dec 1, Low Latency off, threads 8", "11-07/akit_26-11-07_19-19-16", 120),
+    ("R13", "1280x800 @100, dec 2, Low Latency off, threads 8", "11-07/akit_26-11-07_19-23-31", 100),
 ]
 
 

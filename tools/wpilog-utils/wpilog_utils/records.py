@@ -1,7 +1,7 @@
 """
 Low-level WPILog record access: header, record walker (with exact byte ranges), record encoder.
 
-Moved verbatim from vision_analyzer.parser (see docs/wpilog-janitor-plan.md, M0); only the leading
+Moved verbatim from vision_analyzer.parser (see docs/tools/wpilog-janitor-plan.md, M0); only the leading
 underscores were dropped from the names. No decoding of payloads happens here.
 """
 import logging

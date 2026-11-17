@@ -2,7 +2,7 @@
 
 Builds a `.wpilog` plus the Orange Pi recorder's `<log>.vision/<camera>/boot####-<timestamp>/`
 folders from a match timeline, in the exact on-disk shape `server/bundles.py` reads. No robot, Pi
-or camera is needed. Part of the plan in `docs/logbench-e2e-test-plan.md` (Tier 1).
+or camera is needed. Part of the plan in `docs/tools/logbench-e2e-test-plan.md` (Tier 1).
 
 ```
 cd tools/logbench

@@ -7,7 +7,7 @@
 #
 # To add a metric you only add a block here -- no code. Edit and save; the page picks it up on its next
 # refresh. The full vocabulary is documented at the top of server/health/config.py and in
-# docs/health-check.md. In short:
+# docs/logging/health-check.md. In short:
 #
 #   signal   The log/NT key. `*` matches one path segment and makes one row per match; {1} {2} in
 #            group/label are what the stars matched, and `lookup` can pull a nicer name from another signal.

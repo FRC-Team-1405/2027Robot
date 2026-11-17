@@ -73,7 +73,7 @@ public class FeatureSwitches {
      *  CHANGE WHEN: trying a retract strategy. */
     public static final boolean RETRACT_INTAKE_USING_INDEXER_ROTATIONS = false;
 
-    // Vision filters (see docs/vision-testing-protocol.md). These change the pose the robot drives on.
+    // Vision filters (see docs/vision/vision-testing-protocol.md). These change the pose the robot drives on.
     // Each is A/B-tested against replayed match logs; flip one at a time.
 
     /** P1: Reject vision estimates whose 3D pose falls outside field boundaries.
@@ -324,7 +324,7 @@ public class FeatureSwitches {
 
     //#region 5. Experiments to retest
     // =========================================================================
-    // 5. EXPERIMENTS TO RETEST - CAN-load switches (docs/can-bus-load-ab-test.md). On 2026-10-20 none of
+    // 5. EXPERIMENTS TO RETEST - CAN-load switches (docs/performance/can-bus-load-ab-test.md). On 2026-10-20 none of
     //    them moved roboRIO CAN utilization (64-70 % idle, 74-80 % enabled in every run): the drive base
     //    dominates that bus. Once the drive base is on the CANivore, the mechanisms are most of what's
     //    left on the roboRIO bus, so retest these then. Settle each into category 3, or remove it.

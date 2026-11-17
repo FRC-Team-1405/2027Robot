@@ -3,7 +3,7 @@
 Shared, stdlib-only library for reading and rewriting FRC `.wpilog` files. No UI, no analysis
 opinions — just the file format, driver-station modes, and trimming. Used by
 [`wpilog-janitor`](../wpilog-janitor), `logbench`, `vision-analyzer` and `camera-calibration`.
-Design and rationale: [`docs/wpilog-janitor-plan.md`](../../docs/wpilog-janitor-plan.md).
+Design and rationale: [`docs/tools/wpilog-janitor-plan.md`](../../docs/tools/wpilog-janitor-plan.md).
 
 ## Modules
 
@@ -53,7 +53,7 @@ cd tools/wpilog-utils && python -m pytest
 ```
 
 `tests/test_characterization.py` holds the moved parser/mode/trim code to fingerprints captured from the
-original `vision_analyzer` code on the `notes/6-20` logs (skipped if those logs are absent).
+original `vision_analyzer` code on the `notes/06-20` logs (skipped if those logs are absent).
 `tests/wpilog_builder.py` builds synthetic logs; the WPILog Janitor's tests reuse it.
 
 ## Logging

@@ -1,4 +1,4 @@
-"""The CAN-load / loop-time checks used to A/B the FeatureSwitches (see docs/can-bus-load-ab-test.md).
+"""The CAN-load / loop-time checks used to A/B the FeatureSwitches (see docs/performance/can-bus-load-ab-test.md).
 
 Idle (disabled) CAN utilization is the baseline the status-signal switches move; the mean loop time and
 the LOG_SUBSYSTEM_TIMINGS breakdown say where the loop goes. Synthetic logs, real health_checks.toml.

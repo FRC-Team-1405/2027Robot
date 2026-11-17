@@ -1,7 +1,7 @@
 """
 WPILog payload decoding and whole-file parsing into {signal name: [(t_seconds, value), ...]}.
 
-Moved verbatim from vision_analyzer.parser (see docs/wpilog-janitor-plan.md, M0). Signal names have
+Moved verbatim from vision_analyzer.parser (see docs/tools/wpilog-janitor-plan.md, M0). Signal names have
 their leading '/' stripped (an existing convention every caller relies on).
 """
 import logging

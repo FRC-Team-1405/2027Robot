@@ -8,7 +8,7 @@
     "hosts     : network addresses of the Pi, tried in order (normally just <hostname>.local; an IP also works).",
     "cameras   : name = the recorder instance (recordings folder); stream = PhotonVision's RAW MJPEG",
     "            stream as the Pi sees it (input stream of PhotonVision camera i is port 1181 + 2*i).",
-    "Filled in from the 11-07 bootstrap of both Pis (notes/11-7/bootStrappingLogs.md)."
+    "Filled in from the 11-07 bootstrap of both Pis (notes/11-07/bootStrappingLogs.md)."
   ],
   "defaultRobot": "2027",
   "robots": {

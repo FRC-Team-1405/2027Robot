@@ -38,7 +38,7 @@ export function fmtDate(epochSeconds: number): string {
   return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-/** `logs/offseason/9-1/x.wpilog` -> `x` */
+/** `logs/09-01/x.wpilog` -> `x` */
 export function stemOf(path: string): string {
   const name = path.split('/').pop() ?? path;
   return name.replace(/\.wpilog$/i, '');

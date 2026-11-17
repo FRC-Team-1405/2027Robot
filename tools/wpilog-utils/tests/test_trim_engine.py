@@ -12,7 +12,7 @@ from wpilog_utils.trim import (MATCH_CONTEXT_ENTRIES, MATCH_CONTEXT_PREFIXES, SE
                                dry_run, estimate_size, mode_segments, resolve_plan, trim_log)
 from wpilog_utils.verify import verify_trim
 
-NOTES = pathlib.Path(__file__).resolve().parents[3] / 'notes' / '6-20'
+NOTES = pathlib.Path(__file__).resolve().parents[3] / 'notes' / '06-20'
 CYCLE = 20_000          # µs; ds_log's default
 
 TWO_AUTOS = [('disabled', 1.0), ('auto', 1.0), ('disabled', 5.0), ('auto', 1.0), ('disabled', 2.0), ('teleop', 1.0)]

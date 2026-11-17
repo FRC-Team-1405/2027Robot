@@ -11,7 +11,7 @@ robot experiment, run its `analyze.py` **before leaving the robot** and commit i
    [detail](docs/experiments/vision/2026-11-14-pv-crossover-odometry/README.md)
 - **Camera mounts: a trustworthy reference for the robot's centreline and heading**, so mount accuracy
    can be measured, not assumed. Constants stay as they are until then (they match tape).
-   [detail](docs/camera-mount-calibration-notes.md)
+   [detail](docs/vision/camera-mount-calibration-notes.md)
 - **Range experiment** (2 / 4 / 6 / 8 m): whether a finer image sees tags farther. Matters before spending
    effort on faster pipelines. [detail](docs/experiments/vision/2026-11-03-pv-range/README.md)
 - **roboRIO loop overruns**: the logging is written behind the switch `RIO_PROCESS_CPU_LOGGING`, and the experiment is now a runner plan
@@ -21,7 +21,7 @@ robot experiment, run its `analyze.py` **before leaving the robot** and commit i
    [detail](docs/experiments/vision/2026-11-11-pv-frame-cost/README.md)
 
 Parked: the automatic camera calibration ("spin and drive"). It didn't agree with the tape because the vision
-it relies on isn't accurate enough; revisit after the camera-mount reference work. [detail](docs/camera-autocal-plan.md)
+it relies on isn't accurate enough; revisit after the camera-mount reference work. [detail](docs/vision/camera-autocal-plan.md)
 
 ## Robot software, 2027 preparation
 
@@ -53,7 +53,7 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 
 - **Experiment runner**: used live on 11-14; fix what the next session shows. Next candidates: a check that the
   fetched log really contains the run, converting more experiments to robot plans, bench and robot sessions from
-  one place. [docs/experiment-runner-plan.md](docs/experiment-runner-plan.md), [tools/exprunner](tools/exprunner/README.md)
+  one place. [docs/tools/experiment-runner-plan.md](docs/tools/experiment-runner-plan.md), [tools/exprunner](tools/exprunner/README.md)
 - **LogBench usability**: panning on charts, battery insights progress, fetch-and-trim in one step, marking the log
   the robot is still writing. Details in the list at the bottom.
 - **Make every time on a downloaded log agree** (UTC vs local across file names, metadata, LogBench, recordings).
@@ -62,9 +62,9 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 
 ## Docs and housekeeping
 
-- **A home Wi-Fi password is committed** in `notes/6-23/sshExport.txt`: redact it and change the password.
-- **Out-of-date docs**: `docs/orangepi-internet-access.md`, the camera settings in
-  `docs/photonvision-camera-intrinsics-calibration.md`.
+- **A home Wi-Fi password is committed** in `notes/06-23/sshExport.txt`: redact it and change the password.
+- **Out-of-date docs** (paths now under `docs/guides`, `docs/coprocessor`, `docs/vision`): `docs/coprocessor/orangepi-internet-access.md`, the camera settings in
+  `docs/vision/photonvision-camera-intrinsics-calibration.md`.
 - **Tests that fail on Windows** (`coprocessor/tests/test_setup_orangepi.py`, `Test-BootstrapOrangePi.ps1`).
 - **Install the GitHub CLI (`gh`)** on the team laptop.
 
@@ -73,16 +73,17 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 <details>
 <summary>Done (newest first)</summary>
 
-- 2026-11-14: robot-experiment runner (sets PhotonVision, confirms from the Pis, detects enable/disable, fetches the log, records a manifest) (`tools/exprunner`, `docs/experiment-runner-plan.md`)
+- 2026-11-17: repo reorganized: root cut to the required files, Guides and reference notes into `docs/guides`, `docs/` grouped, notes and logs in zero-padded day folders, Choreo's program files and `docs/team` removed (`docs/repo-organization-plan.md`)
+- 2026-11-14: robot-experiment runner (sets PhotonVision, confirms from the Pis, detects enable/disable, fetches the log, records a manifest) (`tools/exprunner`, `docs/tools/experiment-runner-plan.md`)
 - 2026-11-14: frame cost on the Pi, bench: matches the robot; 4 frames in flight give ~4x results/s, each ~10 ms later; grey decode saves 1.3-2.8 ms (`docs/experiments/vision/2026-11-11-pv-frame-cost/`)
-- 2026-11-14: camera mounts checked against tape and an aim check: constants match to ~0.2 in / 0.3 deg, kept (`docs/camera-mount-calibration-notes.md`)
+- 2026-11-14: camera mounts checked against tape and an aim check: constants match to ~0.2 in / 0.3 deg, kept (`docs/vision/camera-mount-calibration-notes.md`)
 - 2026-11-14: LogBench fetch resumes a growing log; Pi recordings off by default (`tools/logbench/server/remote_fetch.py`)
 - 2026-11-10: frame-budget B1-B5 (threads 8/4/3/1, drawing): keep threads 8 (`docs/experiments/vision/2026-11-10-pv-frame-budget/`)
 
 Earlier:
 
 - Frame-budget experiment B1–B5 on 11-10 (threads 8/4/3/1, "drawing off"). Keep threads 8; drawing has no UI switch for AprilTag pipelines and runs off the main thread, so no drawing run planned. B7 = the reset run — `docs/experiments/vision/2026-11-10-pv-frame-budget/`, `notes/11-10/notes.md`. B6 stays open above
-- 11-07 robot session: deploy `beta`, re-bootstrap both Pis, checks 2a/2b, frame-pacing R5/R6/R12/R13, loop-overrun L1–L5 — `notes/11-7/notes.md`, both write-ups. Checks 2c–2e not done; they stay open above
+- 11-07 robot session: deploy `beta`, re-bootstrap both Pis, checks 2a/2b, frame-pacing R5/R6/R12/R13, loop-overrun L1–L5 — `notes/11-07/notes.md`, both write-ups. Checks 2c–2e not done; they stay open above
 - Start-up wizard for the laptop-side coprocessor scripts (Bootstrap, both sim scripts): numbered choices, Enter = default, prints the equivalent command [user, 11-07] — `coprocessor/lib/Wizard.ps1`
 - Our `.wpilog` parser dropped every `string[]` entry (PhotonVision thread names, AdvantageKit Alerts) [11-07] — `tools/wpilog-utils/wpilog_utils/decode.py`, `tests/test_decode_arrays.py`
 - Bootstrap without typing names: per-robot boards/cameras in `coprocessor/robots.json`, `-All`, `-Robot`, wrong-board guard; shared Orange Pi SSH key [user, 11-07] — `coprocessor/robots.json`, `coprocessor/ssh/`, `Bootstrap-OrangePi.ps1` 2026-11-07.1
@@ -95,7 +96,7 @@ Earlier:
 - Periodic vision dropouts in 10-27 T1/T2 — Traced to LogBench live; fixed in `7363770`, still to confirm on the robot
 - Vision recorder manifest with a real timestamp per frame [10-17] — Manifest rows carry a UTC receipt time (`orangepi-vision-recorder.py`)
 
-Older finished items are in `notes/9-22/todos.md`.
+Older finished items are in `notes/09-22/todos.md`.
 
 </details>
 
@@ -179,7 +180,7 @@ Older finished items are in `notes/9-22/todos.md`.
 ### LogBench
 
 - [ ] **Experiment runner, robot runs** (bench runs built in `tools/exprunner`;
-      [plan](docs/experiment-runner-plan.md), steps 1–2 first): after each run,
+      [plan](docs/tools/experiment-runner-plan.md), steps 1–2 first): after each run,
       fetch the newest bundle through LogBench's API and record it in a manifest; before each run,
       check `/OrangePi/*` settings against the run plan. Then steps 3–6 (apply settings over
       PhotonVision's websocket, auto-detect enable/disable, `analyze.py` reads the manifest,
@@ -213,17 +214,17 @@ Older finished items are in `notes/9-22/todos.md`.
 
 ### Docs
 
-- [ ] **`docs/orangepi-internet-access.md` is out of date** (old `pi` user, static IP). Replace with
+- [ ] **`docs/coprocessor/orangepi-internet-access.md` is out of date** (old `pi` user, static IP). Replace with
       the methods that worked. [9-22 roll-up] *(carried)*
-- [ ] **Reconcile camera settings** in `docs/photonvision-camera-intrinsics-calibration.md`
+- [ ] **Reconcile camera settings** in `docs/vision/photonvision-camera-intrinsics-calibration.md`
       (exposure 100 / brightness 60 / gain 60) with the tested values (AE off, exposure 86,
       brightness 0, gain 25). [9-5] *(carried)*
-- [ ] **Tick off step 1b of `docs/orangepi-vision-recorder-setup.md`** (`/FMSInfo` enabled bit):
+- [ ] **Tick off step 1b of `docs/coprocessor/orangepi-vision-recorder-setup.md`** (`/FMSInfo` enabled bit):
       confirm no session starts while disabled. [9-5] *(carried)*
 
 ### Housekeeping
 
-- [ ] **A home Wi-Fi password is committed** in `notes/6-23/sshExport.txt` (the
+- [ ] **A home Wi-Fi password is committed** in `notes/06-23/sshExport.txt` (the
       `nmcli device wifi connect` line), still there on 10-28. Redact it and change the password;
       it stays in git history either way. [9-22 roll-up]
 - [ ] **`coprocessor/tests/test_setup_orangepi.py` fails on Windows** (needs `termios`). Skip it

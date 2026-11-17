@@ -19,7 +19,7 @@ _FALLBACK = {
     'RightCam': {'x_in': 2.19, 'y_in': -10.91, 'z_in': 28.7, 'roll_deg': 0.0, 'pitch_deg': -25.0, 'yaw_deg':  10.0},
 }
 
-# Tape-measure and aim-check numbers taken on the 2027 robot, 2026-11-14 (see docs/camera-autocal-plan.md).
+# Tape-measure and aim-check numbers taken on the 2027 robot, 2026-11-14 (see docs/vision/camera-autocal-plan.md).
 # They prefill the "sanity check" boxes in the Quick tab so they do not have to be typed again.
 # Update them if the cameras are remounted.
 TAPE = {

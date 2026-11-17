@@ -2,7 +2,7 @@
 
 Python scripts that run on the Orange Pi alongside PhotonVision, each installed as a
 systemd service. Full bench-verification/install walkthroughs live in
-`docs/orangepi-nt-publisher-setup.md` and `docs/orangepi-vision-recorder-setup.md` — this
+`docs/coprocessor/orangepi-nt-publisher-setup.md` and `docs/coprocessor/orangepi-vision-recorder-setup.md` — this
 file is just "what's in this folder and why."
 
 ## `Bootstrap-OrangePi.ps1` (runs on the LAPTOP, PowerShell)
@@ -244,4 +244,4 @@ mean something to you — `left`/`right` here, but it could as easily be `cam0`/
 - The `/FMSInfo` enabled-bit decoding the script relies on should be bench-verified once
   (shared across both instances, not per-camera).
 
-Full steps, exact bench values, and troubleshooting: `docs/orangepi-vision-recorder-setup.md`.
+Full steps, exact bench values, and troubleshooting: `docs/coprocessor/orangepi-vision-recorder-setup.md`.

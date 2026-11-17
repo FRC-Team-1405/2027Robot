@@ -1,7 +1,7 @@
 """Holds wpilog_utils to what the ORIGINAL vision_analyzer parser/metrics/trim produced.
 
 tests/golden/legacy_fingerprints.json was captured from the pre-move code (see make_golden.py) on
-real logs in notes/6-20. These tests are the guard for M0's "move verbatim" claim: any behavioural
+real logs in notes/06-20. These tests are the guard for M0's "move verbatim" claim: any behavioural
 drift in the moved code fails here. Skipped when the sample logs aren't checked out.
 """
 import hashlib
@@ -15,7 +15,7 @@ from wpilog_utils.modes import compute_mode_spans, filter_signals_by_time
 from wpilog_utils.trim import trim_wpilog_bytes
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-NOTES = ROOT / 'notes' / '6-20'
+NOTES = ROOT / 'notes' / '06-20'
 GOLDEN = json.loads((pathlib.Path(__file__).parent / 'golden' / 'legacy_fingerprints.json').read_text())
 
 

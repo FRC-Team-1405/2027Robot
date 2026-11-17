@@ -6,7 +6,7 @@ date: 2026-11-03            # written; rename the folder to the day it runs
 status: planned             # planned | running | analyzed | decided
 decision: pending
 robot_code: any build with VISION_EXTENDED_NT_LOGGING = true
-logs: logs/offseason/<run date>/
+logs: logs/<run date>/
 analysis: analyze.py → results.json (to write: reuse cam_stats from ../2026-10-27-pv-throughput, one enabled span per setting)
 raw_notes: notes/<run date>/notes.md
 ---

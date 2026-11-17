@@ -6,9 +6,9 @@ date: 2026-11-03            # R1–R3 run 11-03, R5/R6/R12/R13 run 11-07; folder
 status: analyzed            # planned | running | analyzed | decided
 decision: 800x600 @100, decimate 2, Low Latency Mode off (both Pis). Pushing further continues in 2026-11-10-pv-frame-budget
 robot_code: 11-03 beta @338bcfa; 11-07 see the runs table (L-runs on 338bcfa, R-runs on beta @d0b8b2c + local edits)
-logs: logs/offseason/11-3/, logs/offseason/11-7/
+logs: logs/11-03/, logs/11-07/
 analysis: analyze.py → results.json
-raw_notes: notes.md (this folder), notes/11-7/myNotes.md
+raw_notes: notes.md (this folder), notes/11-07/myNotes.md
 ---
 
 # PhotonVision frame pacing: Low Latency Mode, detector threads, streams
@@ -265,7 +265,7 @@ ArUco detector (L6 below) stays parked unless the AprilTag detector can't keep u
 python docs/experiments/vision/2026-10-28-pv-frame-pacing/analyze.py
 ```
 
-Reads the WPILog Janitor-trimmed logs in `logs/offseason/11-3/` and `11-7/` and writes
+Reads the WPILog Janitor-trimmed logs in `logs/11-03/` and `11-7/` and writes
 `results.json`. Uses the same metric code as the 10-27 experiment, plus the gap histogram, the
 network numbers and (from 11-07) the PhotonVision settings read from the log.
 

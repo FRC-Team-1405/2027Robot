@@ -3,7 +3,7 @@
 Make `.wpilog` files smaller **on purpose**: keep only the periods you care about, drop entries you
 don't need, see what it saves. Per log, by hand — nothing is trimmed automatically.
 
-Plan and design decisions: [`docs/wpilog-janitor-plan.md`](../../docs/wpilog-janitor-plan.md).
+Plan and design decisions: [`docs/tools/wpilog-janitor-plan.md`](../../docs/tools/wpilog-janitor-plan.md).
 File-format work lives in [`wpilog-utils`](../wpilog-utils); this is the tool on top of it.
 
 **Status:** CLI, the **Trim page**, the **Content page** and the **Order page** are done. The LLM extract is planned — see the plan's milestone M5.

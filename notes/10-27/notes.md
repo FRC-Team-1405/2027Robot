@@ -13,7 +13,7 @@ Full write-up, with every metric, per-run verdicts, learnings and the analysis s
 
 Goal: find out whether we can lower decimate, raise resolution, or both, on one OV9281 per
 Orange Pi 5, without losing throughput or throttling the Pi. Each run used the `CircleFacingTag`
-auto (about 20 s enabled). Logs are in `logs/offseason/10-27/`.
+auto (about 20 s enabled). Logs are in `logs/10-27/`.
 
 | Test | Setting | Log bundle | Bench notes | Results/s (L / R) | Dropped % (L / R) | PV ms (median) | Verdict |
 |---|---|---|---|---|---|---|---|

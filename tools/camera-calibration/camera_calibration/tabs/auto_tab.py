@@ -1,6 +1,6 @@
 """Quick (spin & drive): solve a camera's mount from one run of the robot's "CalibrateCameras" auto.
 
-No tape measuring. See docs/camera-autocal-plan.md for the method and its limits.
+No tape measuring. See docs/vision/camera-autocal-plan.md for the method and its limits.
 """
 import logging
 import math
