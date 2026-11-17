@@ -5,7 +5,7 @@ import streamlit as st
 # camera_calibration/__init__.py -> logger.py.
 from vision_analyzer.metrics import find_drivetrain_speeds
 
-LABEL = '3 · Session'
+LABEL = 'Manual 3 · Session'
 
 _LIN_THRESH  = 0.06   # m/s
 _ANG_THRESH  = 0.06   # rad/s

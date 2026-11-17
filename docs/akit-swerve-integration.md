@@ -1,7 +1,13 @@
 # AdvantageKit Swerve Drive Integration
 
-**Research date:** 2026-06-21  
+**Research date:** 2026-10-21  
 **Audience:** Team 1405 programmers planning 2027 robot architecture
+
+**Summary:**
+- Replay cannot tune swerve PID gains under any approach, because those gains run on the TalonFX. The drive-side capability worth having is a replayable **pose estimator**. Approach C gets that while keeping CTRE's swerve library.
+- The AKit template drops three CTRE features we use: MotionMagicExpo steering, PathPlanner wheel-force feedforwards, and coupling-ratio compensation.
+- CTRE's swerve is a vendordep library that gets updates. The AKit template is copied once, and after that we maintain it.
+- PR #7 (`akit-swerve-approach-b-partial-replay`) implements a narrow form of Approach B.
 
 ---
 
@@ -12,9 +18,11 @@ Your robot already uses AdvantageKit for logging (`Logger.recordOutput`, `@AutoL
 That means:
 - **Pose estimation** and **odometry** cannot be replayed deterministically.
 - **Module states, motor velocities, turn angles** are not in the AKit log unless you manually record them with `Logger.recordOutput`.
-- You cannot replay-tune swerve PID gains, path-following behavior, or vision-to-odometry fusion against a real match log.
+- You cannot replay-tune path-following logic or vision-to-odometry fusion against a real match log.
 
-Adding AKit to the swerve drive fixes all of this.
+Adding AKit to the swerve drive addresses these. Some limits apply under every approach:
+- **Swerve PID/FF gains cannot be replay-tuned.** They run on the TalonFX, and replay re-runs RIO code against the *logged* sensor readings. If you change a gain in replay, the logged wheel motion stays the same. Tune gains on the robot, or in physics sim such as maple-sim.
+- **Closed-loop behavior diverges in replay.** If a replayed command decides differently than it did on the robot (different path-following output, different heading command), the logged sensor data still reflects what the robot *actually* did. Replay is trustworthy for estimation and decision logic, and only up to the first point where the replayed output differs from the logged one.
 
 ---
 
@@ -40,7 +48,7 @@ There are two ways to integrate AKit with CTRE swerve. The choice is the central
 - Only `TunerConstants.java` is regenerated (just as your current flow works — Tuner X outputs "Generate only TunerConstants").
 - `CommandSwerveDrivetrain.java` is **gone** — replaced by AKit's `Drive.java`.
 - Comment out the `createSwerveDrivetrain()` factory method and its import in `TunerConstants.java` (same step as current docs, already in your CLAUDE.md).
-- Change `kSteerInertia` → 0.004 and `kDriveInertia` → 0.025 in `TunerConstants.java` (AKit applies gear ratios in firmware, not on the RIO, so these differ from CTRE defaults).
+- Change `kSteerInertia` → 0.004 and `kDriveInertia` → 0.025 in `TunerConstants.java`. These values are only used by the template's `ModuleIOSim`; they don't affect the real robot. (The AKit docs give the values without saying why.)
 
 **IO layer structure (what you'd add to your codebase):**
 
@@ -58,20 +66,26 @@ subsystems/drive/
 
 **Gains note:** AKit's template requires **different PID and feedforward gains** than CTRE's default swerve code because it applies the gear ratio in TalonFX firmware rather than on the RIO. Run AKit's built-in FF characterization routine (auto routine "Drive Simple FF Characterization") on the 2027 robot before competing.
 
-**Replay coverage:** Every layer is replayable — pose estimator, module states, vision fusion, path following. This is the strongest form of AKit integration.
+**Replay coverage:** Every RIO-side layer is replayable: the pose estimator, kinematics, vision fusion, and path-following decisions. This is the strongest form of AKit integration. The on-TalonFX loops are not replayable, as explained in Background.
 
 **Pros:**
-- Full deterministic replay of the entire drive stack
-- No black boxes — can read and tune every layer
+- Deterministic replay of the RIO-side drive stack, including odometry + vision fusion
+- No black boxes: every RIO-side layer is our source code
 - AKit's odometry uses standard FPGA timestamps, so PhotonVision/Limelight pose measurements pass in directly without `Utils.fpgaToCurrentTime()` conversion
 - Physics simulation via `ModuleIOSim` (or maple-sim for rigid body)
 - Built-in wheel radius characterization routine
 - Built-in SysId routines
 
 **Cons:**
-- Significant rewrite — need to migrate PathPlanner integration, vision measurement calls, SysId routines, alliance perspective logic, and any custom `SwerveRequest`-based commands
-- CTRE's Hoot replay (`.hoot` files) becomes redundant — AKit `.wpilog` is the replay source
+- Significant rewrite. We would have to migrate PathPlanner integration, vision measurement calls, SysId routines, alliance perspective logic, and every `SwerveRequest`-based command. Today those live in `AutoPilotCommand`, `AutoPilotV2Command`, `ChainedAutoPilotCommand`, `PidToPoseCommand`, `CircleFacingTagCommand`, `CommandsForAutos`, `FieldCentricAutoPoint`, `SwerveFeatures` and `RobotContainer`.
+- The template drops CTRE features we use today:
+  - **PathPlanner wheel-force feedforwards.** `CommandSwerveDrivetrain` passes them to `ApplyRobotSpeeds`. The template's `AutoBuilder` consumer is `this::runVelocity` and ignores them.
+  - **Heading control at the odometry rate.** `FieldCentricFacingAngle` runs its heading PID inside CTRE's odometry loop. Under A, every heading PID would run in our commands at 50 Hz and need re-tuning.
+  - **Coupling-ratio compensation.** We set `kCoupleRatio = 3.71`. `ModuleIOTalonFX` never reads `CouplingGearRatio`, so steering while driving adds small drive-velocity and odometry errors.
+  - **MotionMagicExpo steering.** CTRE's default steer request is MotionMagicExpo. The template sets the Motion Magic configs but sends plain `PositionVoltage`/`PositionTorqueCurrentFOC`.
+- **Maintenance moves to us.** CTRE's swerve is a vendordep maintained by the hardware vendor, so fixes and new requests arrive when we update it. The AKit template is copied into our repo once. 6328 updates it yearly, but each update would be a manual diff/merge by students.
 - Different gains require re-characterization on new robot hardware
+- CTRE's Hoot replay (`.hoot` files) becomes redundant, since AKit `.wpilog` is the replay source
 
 ---
 
@@ -100,39 +114,75 @@ The AKit developers described this tradeoff explicitly in Chief Delphi discussio
 - CTRE Hoot replay still works for motor-level debugging
 
 **Cons:**
-- Cannot replay-tune swerve PID gains, path following, or vision fusion against a match log
-- Cannot examine module states during replay
+- Vision fusion (CTRE's pose estimator) can't be replayed. Approach C fixes this.
 - Weaker simulation story (CTRE's sim, not physics-based)
-- Still need to manually log module states with `Logger.recordOutput` if you want them in AKit logs
+
+### What PR #7 implements
+
+PR #7 (`akit-swerve-approach-b-partial-replay`) is a narrow form of B. `DriveIO` takes one snapshot of CTRE's **outputs** per loop: fused pose, speeds, module states/targets/positions, raw heading, odometry timestamp and DAQ counts. It records them as AKit inputs. Code reads them through `getLoggedState()` instead of `getState()`.
+
+- **Gains:** everything downstream (AutoPilot, PidToPose, PathPlanner, aiming, vision bookkeeping) reads one consistent snapshot per loop, and that snapshot replays exactly. Module states are in the AKit log.
+- **Limit:** the replayed pose is the **recorded** pose. Changing vision filters or stddevs in replay changes which samples get accepted, but the pose doesn't move, and neither does anything that consumes the pose.
+- **Performance:** no change to how the robot drives. The added cost is one `getStateCopy()` per loop.
+
+---
+
+### Approach C — B plus a Replayable Shadow Pose Estimator
+
+**Keep CTRE's swerve library driving the robot** (as in B), but build a second pose estimator inside the replay boundary from the same raw data.
+
+**How it works:**
+1. CTRE's `registerTelemetry` callback runs inside the odometry loop, every sample (100 Hz on the RIO bus, 250 Hz on CAN FD). Use it to queue each sample's module positions, raw gyro heading, and timestamp (converted to FPGA time). Note that `RobotContainer` already registers `logger::telemeterize` here; registering again replaces the callback, so the two must be chained.
+2. Each loop, `DriveIO.updateInputs()` drains the queue into array inputs. This is the same shape as AKit's `PhoenixOdometryThread` queues.
+3. A WPILib `SwerveDrivePoseEstimator` on the RIO consumes those samples plus the same vision measurements we send to CTRE. This "shadow" estimator is fully replayable.
+4. Log both poses (`Drivetrain/Pose` from CTRE, `Drivetrain/ShadowPose` from ours) and compare them in logbench.
+
+**What this buys:**
+- Replayable vision-fusion tuning: change stddevs or filters, run `replayWatch`, and see the shadow pose change. This is the drive-side capability Approach A was mainly wanted for.
+- No change to robot control. CTRE's request loop, heading PIDs, wheel-force FF and coupling compensation all stay in place.
+- A low-risk way to validate. The shadow estimator can be compared against CTRE's on every match log before anything relies on it. Later we could use it as the authoritative pose for aiming or auto, either by reading it directly or by `resetPose`-ing CTRE to it.
+
+**Costs:**
+- About 150–250 lines of new code (sample queue, inputs, estimator wiring) that we maintain.
+- Two estimators can disagree. We have to decide which one commands use, and that choice should go behind a `FeatureSwitches` flag so it can be A/B tested.
+- The 250 Hz samples add to log size, about the same as Approach A would.
 
 ---
 
 ## What Other Teams Do
 
-**Team 6328 (Mechanical Advantage)** — Authors of AKit. Their competition robots use Approach A exclusively. They do not use CTRE's `TunerSwerveDrivetrain` at all.
+**Team 6328 (Mechanical Advantage)**: authors of AKit. Their competition code uses their own IO-layer drive and does not use CTRE's `TunerSwerveDrivetrain`. Note that 6328 maintains both AKit and the template, so their adoption is not independent evidence.
 
 **Team 3061 (Huskie Robotics) — 3061-lib:** Maintain a full AKit swerve library with CTRE TalonFX support, Approach A architecture. Updated annually, incorporates AKit TalonFX swerve template best practices. Referenced by many teams building on CTRE hardware.  
 Source: [HuskieRobotics/3061-lib](https://github.com/HuskieRobotics/3061-lib)
 
-**Team 4079 (Huskie Robotics template):** FRC-Swerve-Template using AKit IO layer pattern with TalonFX hardware.  
+**Team 4079:** FRC-Swerve-Template using AKit IO layer pattern with TalonFX hardware.  
 Source: [FRC4079/FRC-Swerve-Template](https://github.com/FRC4079/FRC-Swerve-Template)
 
 **Shenzhen Robotics Alliance:** Published `AdvantageKit-TalonSwerveTemplate-MapleSim`, combining AKit's TalonFX swerve template with Team 5516's maple-sim for rigid-body physics simulation (robot colliding with field elements, realistic carpet traction).  
 Source: [Shenzhen-Robotics-Alliance/AdvantageKit-TalonSwerveTemplate-MapleSim](https://github.com/Shenzhen-Robotics-Alliance/AdvantageKit-TalonSwerveTemplate-MapleSim)
 
-**Consensus:** Teams that care about replay-driven tuning universally use Approach A. Teams migrating mid-season or with heavy CTRE-specific customizations sometimes start with Approach B as a stepping stone.
+**What this does and doesn't show:** Approach A is common among teams that prioritize replay. Many teams also run CTRE's generated swerve with only logging layered on. We found **no independent head-to-head benchmark** of the two stacks for path-tracking or heading accuracy. The evidence that A causes no degradation comes from 6328's own work and from a lack of complaints, not from measurement.
 
 ---
 
 ## Recommendation for Team 1405 (2027)
 
-**Use Approach A.** Since you're building a new robot and already have the IO pattern established everywhere else in the codebase, the 2027 robot is the right time to close the gap. The replay workflow you've already built for Vision (`replayWatch`, vision-testing-protocol, A/B testing via FeatureSwitches) becomes dramatically more powerful when the drivetrain's pose estimator is also inside the replay boundary.
+**Merge B (PR #7), build C next, and treat A as an offseason experiment that has to win on data.**
 
-Concrete reasons:
-1. Your existing `Vision.java` feeds `addVisionMeasurement()` — with AKit's template this call gets logged at the IO boundary, making vision-to-odometry fusion replayable.
-2. PathPlanner's path following accuracy is currently not tunable in replay — with Approach A it is.
-3. You're already regenerating `TunerConstants.java` via Tuner X for 2027 hardware; this is the natural time to change `CommandSwerveDrivetrain`.
-4. The gain re-characterization requirement is not additional cost — you'd need to re-characterize anyway for a new robot.
+1. **Merge PR #7** after normal review. It is low risk, doesn't change how the robot drives, and makes everything downstream of the drivetrain replay deterministically.
+2. **Build Approach C** (shadow estimator). This is what the vision replay workflow (`replayWatch`, `docs/vision-testing-protocol.md`, FeatureSwitches A/B) actually needs. It keeps CTRE's control loop, which was built by the hardware vendor and is maintained through a vendordep.
+3. **Only adopt A if a bake-off shows no regression.** If we want A, build it on a test chassis or the 2027 robot in the offseason. Run identical PathPlanner autos and heading-hold/aim tasks on both stacks, and compare in logbench:
+   - end-of-auto pose error (mean and spread), checked against a tape-measured ground truth
+   - heading-tracking error during `FieldCentricFacingAngle`-style aiming while translating
+   - module tracking error (measured vs. target states)
+
+   A should win, or at least tie, before we take on the rewrite and the maintenance.
+
+Why not go straight to A:
+- Its main drive-side benefit is replayable vision fusion, and C provides that.
+- The "replay-tune PathPlanner/PID" benefit doesn't exist, as explained in Background.
+- It gives up features we use: wheel-force FF, heading PID at the odometry rate, and coupling compensation. It also moves maintenance of a core subsystem from CTRE to our students.
 
 ---
 
@@ -248,8 +298,8 @@ Drive/SwerveStates/Setpoints
 ```
 
 This means in replay:
-- You can change swerve PID gains and see how module states would have tracked.
 - You can change vision stddev weights and see how the fused pose would have differed.
+- You can view measured vs. target module states. You **cannot** change swerve PID gains and see how the modules would have tracked, because the logged measurements are what the TalonFX actually did with the old gains.
 - The `vision-analyzer` tool gets all the inputs it needs without any extra `Logger.recordOutput` calls.
 
 ---
@@ -274,7 +324,7 @@ This section addresses a specific concern raised by the AKit developers themselv
 1. Collects synchronized CAN signals (drive position, steer position, gyro yaw) at 250 Hz on CANivore
 2. Immediately reapplies the current `SwerveRequest` using the freshly-read sensor data — computing inverse kinematics and sending new `VelocityVoltage` / `PositionVoltage` control requests to all eight motors
 
-CTRE's documentation states this explicitly: *"Control is run inline with odometry updates."* This means module setpoints are recalculated and sent to the motors **250 times per second**, using gyro data that is at most 4 ms old.
+CTRE's documentation states this explicitly: *"Control is run inline with odometry updates."* This means module setpoints are recalculated and sent to the motors at the odometry rate. That is **250 times per second** on a CANivore (gyro data at most 4 ms old), or **100 times per second** on the RIO CAN bus. Our current `TunerConstants` uses the RIO bus (`kCANBus = ""`), so today we run at 100 Hz. The 2027 bus choice decides which number applies.
 
 **AKit's `Drive.java` separates these two concerns:**
 
@@ -292,14 +342,14 @@ These CTRE features work identically in AKit Approach A because they operate on 
 | Feature | How it works | Preserved in AKit? |
 |---------|-------------|-------------------|
 | **On-controller velocity PID** | TalonFX runs drive velocity PID at ~1 kHz on-device. IO layer's `setDriveVelocity()` sends a `VelocityVoltage` request; the controller holds and regulates the setpoint at 1 kHz between calls. | ✅ Fully preserved |
-| **On-controller position PID + MotionMagicExpo** | Steer motor runs MotionMagicExpo trajectory profile on-device at ~1 kHz. `setTurnPosition()` sends a new target; the profile interpolates smoothly until the next call. | ✅ Fully preserved |
+| **On-controller steer position PID** | Steer motor runs position PID on-device at ~1 kHz. `setTurnPosition()` sends a new target. | ✅ Preserved, but the template sends plain `PositionVoltage`/`PositionTorqueCurrentFOC`, **not** MotionMagicExpo (CTRE's default). Matching CTRE means changing `ModuleIOTalonFX` to send a Motion Magic request. |
 | **FusedCANcoder** (Phoenix Pro) | CANcoder fused with rotor encoder at >1 kHz inside TalonFX firmware. Configured in `ModuleIOTalonFX` via `FeedbackSensorSourceValue.FusedCANcoder`. | ✅ Fully preserved |
 | **TorqueCurrentFOC** (Phoenix Pro) | On-controller torque-current control mode. AKit template explicitly supports it: set `kDriveClosedLoopOutput = TorqueCurrentFOC` in `TunerConstants.java`. | ✅ Fully preserved |
 | **250 Hz odometry** | `PhoenixOdometryThread` collects drive position and steer position at `Drive.ODOMETRY_FREQUENCY` (250 Hz on CAN FD, 100 Hz on RIO CAN). Pose estimator processes all samples in `periodic()`. | ✅ Fully preserved |
 | **CANivore time sync** | `PhoenixOdometryThread` uses the CANivore's hardware clock for synchronized timestamps. All odometry samples arrive with hardware-synchronized timestamps. | ✅ Fully preserved |
 | **Latency compensation** | `BaseStatusSignal` latency compensation is applied inside `PhoenixOdometryThread` when reading high-frequency positions. | ✅ Fully preserved |
 
-Verification: inspecting `ModuleIOTalonFX.java` from the AKit GitHub confirms `VelocityVoltage`, `VelocityTorqueCurrentFOC`, `PositionVoltage`, `PositionTorqueCurrentFOC`, and `MotionMagicExpo` control requests are all used and configured identically to CTRE's template.
+Verification: `ModuleIOTalonFX.java` in the AKit GitHub uses `VelocityVoltage`/`VelocityTorqueCurrentFOC` for drive and `PositionVoltage`/`PositionTorqueCurrentFOC` for steer. It sets Motion Magic configs but never sends a Motion Magic request. It applies `SensorToMechanismRatio` (drive) and `RotorToSensorRatio` (steer) in firmware. It never reads `CouplingGearRatio`.
 
 ---
 
@@ -311,7 +361,7 @@ The kinematics step — converting `ChassisSpeeds` to per-module wheel speed and
 
 Between new setpoints, the motor controller's on-device PID/profile continues running at 1 kHz against the previously-sent target. This is fine for stable-speed path segments but creates a lag at any moment the target is changing (acceleration, deceleration, sharp heading change).
 
-**Estimated impact:** For the drive (velocity) motor, this lag is small. Drive inertia is large relative to 4 ms update gains, so the motor controller's velocity PID easily bridges 20 ms between new targets. For the steer (position) motor, 20 ms between position targets is more noticeable in theory. At peak steer velocity (~10 RPS through a typical gear ratio), the module can rotate ~9° between setpoint updates. MotionMagicExpo smooths this, but a fresh target at 250 Hz vs 50 Hz means the motion profile is re-anchored to the current position 5x more often in CTRE's architecture. In practice, AKit teams report no visible module oscillation or tracking lag attributable to this.
+**Estimated impact:** For the drive (velocity) motor, this lag is small. Drive inertia is large relative to 4 ms update gains, so the motor controller's velocity PID easily bridges 20 ms between new targets. For the steer (position) motor, 20 ms between position targets is more noticeable in theory. At peak steer velocity (~10 RPS through a typical gear ratio), the module can rotate ~9° between setpoint updates. CTRE's default MotionMagicExpo profile smooths the motion toward each target. The AKit template's plain position PID does not. AKit teams report no visible module oscillation or tracking lag from this, but we found no measurement.
 
 #### 2. Field-centric rotation compensation uses older gyro data
 
@@ -323,7 +373,19 @@ For a typical FRC autonomous path, maximum angular velocity is usually under 180
 
 #### 3. `SwerveRequest` mechanism is replaced
 
-CTRE's `SwerveRequest` API provides built-in behaviors like `ForcePointWheels`, heading lock, and dead-band handling that run inside the 250 Hz loop. AKit replaces this entirely with standard WPILib `SwerveDriveKinematics` at 50 Hz. Any team-specific `SwerveRequest` customizations (e.g., snap-to-angle, wheel force control) must be re-implemented in `Drive.java` or command logic.
+CTRE's `SwerveRequest` API provides built-in behaviors like `PointWheelsAt`, `SwerveDriveBrake`, `FieldCentricFacingAngle` heading lock, and deadband handling, all running inside the odometry-rate loop. AKit replaces this entirely with standard WPILib `SwerveDriveKinematics` at 50 Hz. Any team-specific `SwerveRequest` behavior (e.g., snap-to-angle, wheel force control) must be re-implemented in `Drive.java` or command logic. For us, the heading PIDs used throughout AutoPilot, `CircleFacingTagCommand` and `CommandsForAutos` would move to 50 Hz and need re-tuning.
+
+#### 4. PathPlanner wheel-force feedforwards are dropped
+
+`CommandSwerveDrivetrain` passes PathPlanner's `robotRelativeForcesX/YNewtons` into `ApplyRobotSpeeds`, and CTRE turns them into per-module current/voltage feedforward. The template's `AutoBuilder` uses `this::runVelocity`, which takes only `ChassisSpeeds`. Under acceleration, path tracking then depends entirely on feedback. We could add the feedforwards back, but we would have to write that code.
+
+#### 5. No coupling-ratio compensation
+
+On a swerve module, turning the azimuth also turns the drive motor (our `kCoupleRatio = 3.71`). CTRE subtracts this from both the drive velocity command and odometry. The AKit template does neither, so modules that steer while driving introduce small speed and odometry errors.
+
+#### 6. Maintenance model
+
+CTRE's swerve library ships in the Phoenix 6 vendordep, so updating the vendordep brings bug fixes and new features. The AKit template is copied into our repository; it is not a dependency. 6328 publishes a new version yearly, but bringing any of it into our code is a manual merge.
 
 ---
 
@@ -335,9 +397,9 @@ CTRE's `SwerveRequest` API provides built-in behaviors like `ForcePointWheels`, 
 
 This data measures the **odometry** benefit of 250 Hz signals and CANivore time sync — both of which AKit Approach A preserves. AKit's odometry accuracy is therefore expected to match the CANivore 250 Hz row, not degrade toward 50 Hz numbers.
 
-**AKit's high-frequency odometry study** (Team 6328, November 2023): 16 runs of a 12-second PathPlanner auto, 8 runs at 50 Hz and 8 runs at 250 Hz odometry. Result: 250 Hz odometry significantly tightened the cluster of ending positions, confirming the accuracy improvement. AKit Approach A captures this benefit because `PhoenixOdometryThread` still runs at 250 Hz.
+**AKit's high-frequency odometry study** (Team 6328, November 2023): 16 runs of a 12-second PathPlanner auto, 8 at 50 Hz and 8 at 250 Hz odometry, without vision. Mean ending error went from 0.388 m to 0.297 m, and the standard deviation from 0.180 m to 0.028 m. In other words, the autos became far more *consistent*, though only modestly more *accurate*. AKit Approach A keeps this benefit because `PhoenixOdometryThread` still runs at 250 Hz.
 
-**In competition**: Team 6328 has used the AKit TalonFX swerve template on their competition robots since 2024 (the template was first released for 2025). They have placed in the top tier at every championship they have attended since adopting this architecture. No published post-match analysis from any team using AKit Approach A has identified setpoint update frequency (50 Hz vs 250 Hz) as a measurable source of degradation.
+**What hasn't been measured:** Neither study compares *control* at 50 Hz against the odometry rate. We found no published analysis that identifies setpoint update rate as a source of degradation. We also found no independent measurement showing that it isn't one. Our planned bake-off (see Recommendation) would answer this for our robot.
 
 ---
 
@@ -348,7 +410,7 @@ When the AKit creators discuss this con in their talks, the concern is specifica
 - No AKit code can observe or influence module-level setpoints
 - The loss is not performance but **observability and replayability**: you cannot tune swerve PID or view module states in replay
 
-For **Approach A**, the IO boundary sits between the `Drive` subsystem and the TalonFX control requests. The on-controller loops (velocity PID, MotionMagicExpo) run at full 1 kHz speed regardless. What is reduced is the **RIO-side setpoint refresh rate**: 50 Hz instead of 250 Hz. This is not "losing vendor feedback loops" — it is shifting the update rate of the outer (setpoint) loop while preserving all inner (on-device) loops.
+For **Approach A**, the IO boundary sits between the `Drive` subsystem and the TalonFX control requests. The on-controller loops (velocity PID, steer position PID) run at full 1 kHz speed regardless. What is reduced is the **RIO-side setpoint refresh rate**: 50 Hz instead of 250 Hz. This is not "losing vendor feedback loops" — it is shifting the update rate of the outer (setpoint) loop while preserving all inner (on-device) loops.
 
 ---
 
@@ -360,11 +422,16 @@ For **Approach A**, the IO boundary sits between the `Drive` subsystem and the T
 | Odometry accuracy (250 Hz) | **None** | PhoenixOdometryThread preserves 250 Hz |
 | CANivore time sync | **None** | Preserved in PhoenixOdometryThread |
 | Phoenix Pro features (FOC, FusedCANcoder, TorqueCurrentFOC) | **None** | All configured in ModuleIOTalonFX |
-| Setpoint update rate (50 Hz vs 250 Hz) | **Minimal** | On-device profiles bridge the gap; PathPlanner generates at 50 Hz anyway |
+| Setpoint update rate (50 Hz vs 100/250 Hz) | **Likely small, unmeasured** | On-device loops bridge the gap; PathPlanner itself runs at 50 Hz |
 | Field-centric gyro freshness | **Small** | Up to 14.4° stale at max spin; `ChassisSpeeds.discretize()` partially compensates |
-| SwerveRequest replacement | **Medium complexity** | Requires reimplementing any custom SwerveRequest behaviors in Drive.java |
+| Heading PID moves to 50 Hz | **Small–medium, unmeasured** | Affects every `FieldCentricFacingAngle` use (aiming, AutoPilot); needs re-tuning |
+| Steer profile (MotionMagicExpo → plain position PID) | **Small** | Can be restored by editing `ModuleIOTalonFX` |
+| PathPlanner wheel-force FF dropped | **Small–medium** | Path tracking under acceleration relies on feedback alone unless we re-add FF |
+| No coupling-ratio compensation | **Small** | Drive speed/odometry error while modules steer; we'd have to add it |
+| SwerveRequest replacement | **Medium complexity** | Every request-based command must be rewritten |
+| Maintenance | **Ongoing cost** | Template code becomes ours; CTRE's library updates via vendordep |
 
-**Bottom line:** Approach A degrades swerve drive performance by a small, measurable but practically insignificant amount. The odometry accuracy that matters most — the 250 Hz high-frequency batch — is fully preserved. The reduction from 250 Hz to 50 Hz setpoint updates is theoretically present but not observed as a meaningful competitive handicap by the teams that have shipped this architecture. The tradeoff is accepted by the best teams in FRC because the replay and simulation benefits are worth more in practice than the 5x setpoint frequency advantage of CTRE's native template.
+**Bottom line:** A keeps the things that most affect odometry accuracy: 250 Hz sampling, time sync, and on-controller loops. It also drops several CTRE control features we currently use, moves heading control to 50 Hz, and makes the drive code ours to maintain. Each of these is probably small. None has been measured head-to-head. Its one drive-side capability we can't otherwise get, replayable pose estimation, is also available from Approach C without these costs. So A should be adopted only if a bake-off shows it doesn't regress.
 
 ---
 

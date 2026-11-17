@@ -24,10 +24,6 @@ public class SimProfiles {
     @SuppressWarnings("unused")
     private static TalonFXSimProfile simInput;
     @SuppressWarnings("unused")
-    private static TalonFXSimProfile simClimber;
-    @SuppressWarnings("unused")
-    private static TalonFXSimProfile simGrabber;
-    @SuppressWarnings("unused")
     private static TalonFXSimProfile simHopper;
     @SuppressWarnings("unused")
     private static TalonFXSimProfile simIntake;
@@ -133,60 +129,6 @@ public class SimProfiles {
 
         simHopper = new TalonFXSimProfile(motor).withRotorInertia(0.001).build();
         PhysicsSim.getInstance().addTalonFX(simHopper);
-    }
-
-    public static void initClimber(TalonFX motor) {
-        if (!RobotBase.isSimulation())
-            return;
-
-        TalonFXConfiguration configs = new TalonFXConfiguration();
-
-        configs.Slot0.kS = 0.1; // To account for friction, add 0.1 V of static feedforward
-        configs.Slot0.kV = 0.12; // Kraken X60 is a 500 kV motor, 500 rpm per V = 8.333 rps per V, 1/8.33 = 0.12
-                                 // volts / rotation per second
-        configs.Slot0.kP = 0.66; // An error of 1 rotation per second results in 0.11 V output
-        configs.Slot0.kI = 0; // No output for integrated error
-        configs.Slot0.kD = 0; // No output for error derivative
-        // Peak output of 8 volts
-        configs.Voltage.withPeakForwardVoltage(Volts.of(8))
-                .withPeakReverseVoltage(Volts.of(-8));
-
-        configs.MotionMagic
-                .withMotionMagicCruiseVelocity(RotationsPerSecond.of(5))
-                .withMotionMagicAcceleration(RotationsPerSecondPerSecond.of(10))
-                .withMotionMagicJerk(RotationsPerSecondPerSecond.per(Second).of(100));
-
-        motor.getConfigurator().apply(configs);
-
-        simClimber = new TalonFXSimProfile(motor).withRotorInertia(0.001).build();
-        PhysicsSim.getInstance().addTalonFX(simClimber);
-    }
-
-    public static void initGrabber(TalonFX motor) {
-        if (!RobotBase.isSimulation())
-            return;
-
-        TalonFXConfiguration configs = new TalonFXConfiguration();
-
-        configs.Slot0.kS = 0.1; // To account for friction, add 0.1 V of static feedforward
-        configs.Slot0.kV = 0.12; // Kraken X60 is a 500 kV motor, 500 rpm per V = 8.333 rps per V, 1/8.33 = 0.12
-                                 // volts / rotation per second
-        configs.Slot0.kP = 0.66; // An error of 1 rotation per second results in 0.11 V output
-        configs.Slot0.kI = 0; // No output for integrated error
-        configs.Slot0.kD = 0; // No output for error derivative
-        // Peak output of 8 volts
-        configs.Voltage.withPeakForwardVoltage(Volts.of(8))
-                .withPeakReverseVoltage(Volts.of(-8));
-
-        configs.MotionMagic
-                .withMotionMagicCruiseVelocity(RotationsPerSecond.of(5))
-                .withMotionMagicAcceleration(RotationsPerSecondPerSecond.of(10))
-                .withMotionMagicJerk(RotationsPerSecondPerSecond.per(Second).of(100));
-
-        motor.getConfigurator().apply(configs);
-
-        simGrabber = new TalonFXSimProfile(motor).withRotorInertia(0.001).build();
-        PhysicsSim.getInstance().addTalonFX(simGrabber);
     }
 
     public static void initIndexer(TalonFX motor) {

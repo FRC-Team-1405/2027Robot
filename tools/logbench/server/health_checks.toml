@@ -1,0 +1,1121 @@
+# Health Check configuration.
+#
+# Every [[check]] below is one row on the Health Check page. The same file drives both uses:
+#   * Live, in the pits: values come from the robot over NetworkTables (green/amber/red now, and the
+#     worst thing seen since you pressed Reset).
+#   * On a log, after a match: the same signal names, read from the .wpilog.
+#
+# To add a metric you only add a block here -- no code. Edit and save; the page picks it up on its next
+# refresh. The full vocabulary is documented at the top of server/health/config.py and in
+# docs/health-check.md. In short:
+#
+#   signal   The log/NT key. `*` matches one path segment and makes one row per match; {1} {2} in
+#            group/label are what the stars matched, and `lookup` can pull a nicer name from another signal.
+#   measure  How a LOG collapses to one number: last first max min mean seconds_above seconds_below
+#            seconds_true seconds_false fraction_true fraction_false any_true all_true changes delta
+#            max_len last_len.  (Live always uses the current value; measures that need history are
+#            shown as "log only" there.)
+#   window   Which part of a log counts: all (default) enabled auto teleop disabled.
+#   rules    warn_above fail_above warn_below fail_below  |  expect  |  expect_in  |  stale_after
+#   mode     both (default) | live | log.   missing = nodata (grey) | warn | fail.
+#
+# A check with no rule is informational: it shows the number and is never red. That is the way to
+# start tracking something new (for example "how long was the shooter spinning?") before you know
+# what a bad value is; add a threshold later.
+
+[defaults]
+missing = "nodata"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Vision  (cameras as the robot sees them)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "vision.connected"
+section = "Vision"
+group = "{1}"
+label = "Camera connected to robot code"
+signal = "Vision/*/Connected"
+measure = "fraction_true"
+window = "enabled"
+scale = 100
+unit = "% of enabled time"
+decimals = 0
+warn_below = 99
+fail_below = 80
+expect_items = ["LeftCam", "RightCam"]
+help = "PhotonVision is delivering results to the robot's vision code. Log: share of enabled time connected."
+
+[[check]]
+id = "vision.fps"
+section = "Vision"
+group = "{1}"
+label = "Camera frame rate"
+signal = "Vision/*/CurrentFps"
+measure = "mean"
+window = "enabled"
+unit = "fps"
+decimals = 0
+warn_below = 20
+fail_below = 8
+help = "Frames per second PhotonVision reports for this camera (mean while enabled in a log)."
+
+[[check]]
+id = "vision.tags_in_view"
+section = "Vision"
+group = "{1}"
+label = "Tags in view (hold a tag in front of it)"
+signal = "Vision/*/VisibleTagIds"
+measure = "last_len"
+mode = "live"
+warn_below = 1
+decimals = 0
+help = "Pit check: put an AprilTag in front of each camera and this should read 1 or more."
+
+[[check]]
+id = "vision.health_score"
+section = "Vision"
+group = "{1}"
+label = "Tag detection health score (hold the robot still)"
+signal = "Vision/*/Health/ScorePercent"
+mode = "live"
+unit = "%"
+decimals = 0
+warn_below = 60
+fail_below = 30
+help = "VisionHealth.java's overall score, read live. A calibration diagnostic, not a match-accuracy score."
+
+[[check]]
+id = "vision.health_reason"
+section = "Vision"
+group = "{1}"
+label = "Why the score is low, if it is"
+signal = "Vision/*/Health/Reason"
+mode = "live"
+
+[[check]]
+id = "vision.cross_agreement"
+section = "Vision"
+group = "Both cameras"
+label = "Camera agreement"
+signal = "Vision/CrossCameraAgreement/ScorePercent"
+mode = "live"
+unit = "%"
+decimals = 0
+warn_below = 60
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Orange Pis  (CPU/RAM/disk from orangepi-nt-publisher, recorder health from the vision recorder)
+# In a log these only exist when the robot code mirrors /OrangePi/** into the AdvantageKit log.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "pi.reporting"
+section = "Orange Pis"
+group = "{1}"
+label = "Pi is reporting to the robot"
+signal = "OrangePi/*/CPU_Pct"
+mode = "live"
+stale_after = 5
+expect_items = ["LeftPi", "RightPi"]
+missing = "fail"
+help = "The Pi's metrics publisher updates twice a second. Silent for 5 s means the Pi is off, rebooting, or off the network."
+
+[[check]]
+id = "pi.cpu"
+section = "Orange Pis"
+group = "{1}"
+label = "CPU"
+signal = "OrangePi/*/CPU_Pct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 75
+fail_above = 92
+help = "PhotonVision needs headroom for detection. Log: the worst value."
+
+[[check]]
+id = "pi.ram"
+section = "Orange Pis"
+group = "{1}"
+label = "RAM used"
+signal = "OrangePi/*/RAM_Pct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 80
+fail_above = 92
+
+[[check]]
+id = "pi.disk"
+section = "Orange Pis"
+group = "{1}"
+label = "Disk used"
+signal = "OrangePi/*/Disk_Pct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 80
+fail_above = 92
+
+[[check]]
+id = "pi.temp"
+section = "Orange Pis"
+group = "{1}"
+label = "Temperature"
+signal = "OrangePi/*/Temp_C"
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 70
+fail_above = 85
+help = "The board throttles when it gets hot, which slows detection."
+
+[[check]]
+id = "pi.temp_max"
+section = "Orange Pis"
+group = "{1}"
+label = "Hottest thermal zone"
+signal = "OrangePi/*/TempMaxC"
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 75
+fail_above = 85
+help = "The hottest of every thermal zone (TempMaxZone names it; ThermalZones/ThermalTempC have all of them). Temperature above reads only the first zone, which may not be the one that throttles. ThermalPassiveTripC is where each zone starts throttling."
+
+[[check]]
+id = "pi.throttled"
+section = "Orange Pis"
+group = "{1}"
+label = "CPU clock capped (thermal throttling)"
+signal = "OrangePi/*/CpuThrottled"
+measure = "fraction_true"
+window = "enabled"
+mode = "log"
+scale = 100
+unit = "% of enabled time"
+decimals = 0
+warn_above = 0
+fail_above = 10
+help = "A CPU cluster's clock limit (CpuFreqCapMHz) was below its hardware maximum (CpuFreqMaxMHz): the kernel was throttling, so PhotonVision had less CPU than normal."
+
+[[check]]
+id = "pi.core_max"
+section = "Orange Pis"
+group = "{1}"
+label = "Busiest CPU core (average while enabled)"
+signal = "OrangePi/*/CpuCoreMaxPct"
+measure = "mean"
+window = "enabled"
+mode = "log"
+unit = "%"
+decimals = 0
+warn_above = 80
+fail_above = 95
+help = "One saturated core shows as only ~12% in the 8-core CPU average. If this sits near 100% while the average is low, a single thread is the limit; PvTopThreads / PvTopThreadPct / PvTopThreadCore say which."
+
+# ── Why did the Pi's clients drop? Reboot vs link flap vs camera loss ─────────────────────────
+# When the cameras and every other Pi client vanish from the robot's log together, these say which
+# of the causes it was: BootId changes only on a real reboot; NetCarrierChanges climbs when the
+# network link flaps (the Pi keeps running, uptime keeps counting); UsbCameras drops when a camera
+# falls off the USB bus. (Published by orangepi-nt-publisher.py; in a log they need the robot's
+# CoprocessorHealthLogger, i.e. a log recorded after that change.)
+
+[[check]]
+id = "pi.rebooted"
+section = "Orange Pis"
+group = "{1}"
+label = "Rebooted during the match"
+signal = "OrangePi/*/BootId"
+measure = "changes"
+window = "all"
+mode = "log"
+decimals = 0
+fail_above = 0
+help = "The kernel's boot id changes only when the whole board restarts (power loss, crash, reboot). A service restart does not change it. Counts changes across the whole log."
+
+[[check]]
+id = "pi.uptime"
+section = "Orange Pis"
+group = "{1}"
+label = "Time since the board booted"
+signal = "OrangePi/*/SystemUptimeSec"
+measure = "last"
+mode = "live"
+unit = "s"
+decimals = 0
+warn_below = 60
+help = "Under a minute means the board has only just (re)started."
+
+[[check]]
+id = "pi.link_state"
+section = "Orange Pis"
+group = "{1}"
+label = "Network link"
+signal = "OrangePi/*/NetOperState"
+measure = "last"
+expect = "up"
+mode = "live"
+help = "The Pi's network interface state as the Pi sees it."
+
+[[check]]
+id = "pi.link_speed"
+section = "Orange Pis"
+group = "{1}"
+label = "Network link speed"
+signal = "OrangePi/*/NetSpeedMbps"
+measure = "min"
+unit = "Mbit/s"
+decimals = 0
+warn_below = 1000
+fail_below = 100
+help = "The Orange Pi's port is gigabit. Negotiating 100 Mbit/s (warning) or 10 (problem) often means a damaged cable or connector. Remove this check if a board uses a slower USB adapter. Log: the slowest it negotiated (every 10-27 log had LeftPi at 100)."
+
+[[check]]
+id = "pi.net_tx"
+section = "Orange Pis"
+group = "{1}"
+label = "Network sent (peak)"
+signal = "OrangePi/*/NetTxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 50
+fail_above = 80
+help = "What the Pi sends: PhotonVision results to the roboRIO plus every camera stream someone is watching (PhotonVision UI, dashboards, the recorder reads its stream locally and does not count). Thresholds are against a 100 Mbit/s link; on gigabit they are cautious. Streams to a laptop also cross the radio, which is limited to 7 Mbit/s on the field: see roboRIO > Radio bandwidth."
+
+[[check]]
+id = "pi.net_rx"
+section = "Orange Pis"
+group = "{1}"
+label = "Network received (peak)"
+signal = "OrangePi/*/NetRxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 50
+fail_above = 80
+help = "What the Pi receives (NetworkTables from the roboRIO, browser requests). Normally well under 1 Mbit/s."
+
+[[check]]
+id = "pi.net_errors"
+section = "Orange Pis"
+group = "{1}"
+label = "Network receive errors while enabled"
+signal = "OrangePi/*/NetRxErrors"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+warn_above = 0
+fail_above = 20
+help = "Frames that arrived damaged (CRC errors). Any during a match points at the cable or connector, like a low link speed does."
+
+[[check]]
+id = "pi.link_flaps"
+section = "Orange Pis"
+group = "{1}"
+label = "Network link flaps while enabled"
+signal = "OrangePi/*/NetCarrierChanges"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+warn_above = 0
+fail_above = 4
+help = "How many times the Pi's ethernet link changed state (down or up) while the robot was enabled. A link that flapped while the board kept running (uptime and BootId unchanged) points at the cable, connector or the switch/radio port, or their power."
+
+[[check]]
+id = "pi.usb_cameras"
+section = "Orange Pis"
+group = "{1}"
+label = "USB cameras present"
+signal = "OrangePi/*/UsbCameras"
+measure = "last"
+mode = "live"
+decimals = 0
+help = "How many USB cameras the board can see right now. Compare with the number you have fitted."
+
+[[check]]
+id = "pi.usb_camera_loss"
+section = "Orange Pis"
+group = "{1}"
+label = "USB camera count changed"
+signal = "OrangePi/*/UsbCameras"
+measure = "changes"
+window = "all"
+mode = "log"
+decimals = 0
+warn_above = 0
+help = "A camera that fell off the USB bus (cable, connector, power glitch) lowers this count and may not come back until it re-enumerates; the other camera keeps working."
+
+[[check]]
+id = "rec.state"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorder state"
+signal = "OrangePi/*/Recorders/*/State"
+measure = "last"
+expect_in = ["idle", "recording"]
+help = "idle = camera stream is fine and it is waiting for the robot to enable; recording = a session is open. no_stream or error is a problem."
+
+[[check]]
+id = "rec.stream"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Camera stream delivering frames"
+signal = "OrangePi/*/Recorders/*/StreamOk"
+measure = "fraction_true"
+scale = 100
+unit = "% of the time"
+decimals = 0
+expect_items = []
+warn_below = 99
+fail_below = 80
+help = "The recorder is getting fresh frames from PhotonVision's raw stream, even while the robot is disabled."
+
+[[check]]
+id = "rec.fps"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Stream frame rate"
+signal = "OrangePi/*/Recorders/*/StreamFps"
+measure = "mean"
+unit = "fps"
+decimals = 0
+warn_below = 10
+fail_below = 2
+
+[[check]]
+id = "rec.recording"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorded while the robot was enabled"
+signal = "OrangePi/*/Recorders/*/Recording"
+measure = "fraction_true"
+window = "enabled"
+mode = "log"
+scale = 100
+unit = "% of enabled time"
+decimals = 0
+warn_below = 90
+fail_below = 50
+help = "How much of auto + teleop has video."
+
+[[check]]
+id = "rec.disk"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Disk free for recordings"
+signal = "OrangePi/*/Recorders/*/DiskFreeGB"
+measure = "min"
+unit = "GB"
+decimals = 1
+warn_below = 5
+fail_below = 1
+
+[[check]]
+id = "rec.errors"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorder errors since boot"
+signal = "OrangePi/*/Recorders/*/Errors"
+measure = "max"
+decimals = 0
+warn_above = 0
+fail_above = 25
+
+[[check]]
+id = "rec.clock"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Clock synced to the robot"
+signal = "OrangePi/*/Recorders/*/ClockSynced"
+measure = "last"
+expect = true
+severity = "warn"
+help = "Without the robot's clock, session folder names use the Pi's own clock and may not pair with the log."
+
+[[check]]
+id = "rec.nt_disconnects_match"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "NetworkTables drops while enabled"
+signal = "OrangePi/*/Recorders/*/NtDisconnects"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+warn_above = 0
+fail_above = 5
+help = "How many times THIS recorder lost its connection to the robot while enabled, counted by the Pi itself. With the Pi's uptime still counting and BootId unchanged, the Pi did not reboot: the link (or the roboRIO side) dropped."
+
+[[check]]
+id = "rec.nt_down_match"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Time disconnected while enabled"
+signal = "OrangePi/*/Recorders/*/NtDownSec"
+measure = "delta"
+window = "enabled"
+mode = "log"
+unit = "s"
+decimals = 0
+warn_above = 5
+fail_above = 30
+
+[[check]]
+id = "rec.nt_longest"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Longest NetworkTables outage since boot"
+signal = "OrangePi/*/Recorders/*/NtLongestOutageSec"
+measure = "max"
+unit = "s"
+decimals = 0
+warn_above = 5
+fail_above = 30
+help = "The recorder holds a session through an outage up to NT_DROP_GRACE_SEC (45 s); longer ends the session."
+
+[[check]]
+id = "rec.nt_disconnects_live"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "NetworkTables drops since boot"
+signal = "OrangePi/*/Recorders/*/NtDisconnects"
+measure = "last"
+mode = "live"
+decimals = 0
+warn_above = 0
+fail_above = 10
+
+[[check]]
+id = "rec.uptime"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorder process uptime"
+signal = "OrangePi/*/Recorders/*/UptimeSec"
+measure = "last"
+mode = "live"
+unit = "s"
+decimals = 0
+warn_below = 60
+help = "Seconds since this recorder process started. A small number with a large board uptime means the recorder restarted on its own."
+
+[[check]]
+id = "rec.version"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Recorder version"
+signal = "OrangePi/*/Recorders/*/Version"
+measure = "last"
+help = "Which recorder code is running: RECORDER_VERSION+<start of the script's git blob id>. `git log --all --find-object=<id> -- coprocessor/orangepi-vision-recorder.py` names the commit (full id in ScriptBlob)."
+
+[[check]]
+id = "rec.camera_lost_match"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Camera lost while enabled"
+signal = "OrangePi/*/Recorders/*/CameraLostCount"
+measure = "delta"
+window = "enabled"
+mode = "log"
+decimals = 0
+fail_above = 0
+help = "Times the stream showed PhotonVision's static 'Camera Lost' card (the USB camera disappeared) while enabled. StreamOk stays true during this, so only this row shows it. Check the camera's USB cable and connectors at both ends."
+
+[[check]]
+id = "rec.camera_lost_live"
+section = "Orange Pis"
+group = "{1}"
+subject = "Recorder ({2})"
+label = "Camera present"
+signal = "OrangePi/*/Recorders/*/CameraLost"
+measure = "last"
+mode = "live"
+expect = false
+help = "False when the stream is repeating one identical frame: PhotonVision's 'Camera Lost' card, or a frozen stream."
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# roboRIO
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "rio.can_util"
+section = "roboRIO"
+group = "CAN bus"
+label = "CAN utilization (worst)"
+signal = "SystemStats/CANBus/Utilization"
+measure = "max"
+scale = 100
+unit = "%"
+decimals = 0
+warn_above = 70
+fail_above = 90
+help = "A saturated CAN bus delays every motor and sensor. Above ~70% is a problem to look into."
+
+[[check]]
+id = "rio.can_util_idle"
+section = "roboRIO"
+group = "CAN bus"
+label = "CAN utilization while disabled (idle baseline)"
+signal = "SystemStats/CANBus/Utilization"
+measure = "mean"
+window = "disabled"
+scale = 100
+unit = "%"
+decimals = 0
+warn_above = 40
+fail_above = 80
+help = "With the robot disabled and nothing driving, the bus should be quiet. A high idle level is status-signal traffic (see FeatureSwitches POWER_TELEMETRY_SIGNALS, MECHANISM_STATUS_SIGNAL_HZ, OPTIMIZE_BUS_UTILIZATION). Ruckus 2026 idled at about 65%."
+
+[[check]]
+id = "rio.can_util_enabled"
+section = "roboRIO"
+group = "CAN bus"
+label = "CAN utilization while enabled (mean)"
+signal = "SystemStats/CANBus/Utilization"
+measure = "mean"
+window = "enabled"
+scale = 100
+unit = "%"
+decimals = 0
+warn_above = 60
+fail_above = 85
+mode = "log"
+help = "The average load during the match, as opposed to the worst instant above."
+
+[[check]]
+id = "rio.can_off"
+section = "roboRIO"
+group = "CAN bus"
+label = "Bus-off events"
+signal = "SystemStats/CANBus/OffCount"
+measure = "max"
+decimals = 0
+fail_above = 0
+
+[[check]]
+id = "rio.can_txfull"
+section = "roboRIO"
+group = "CAN bus"
+label = "Transmit buffer full events"
+signal = "SystemStats/CANBus/TxFullCount"
+measure = "max"
+decimals = 0
+warn_above = 0
+
+[[check]]
+id = "rio.can_rx_err"
+section = "roboRIO"
+group = "CAN bus"
+label = "Receive errors"
+signal = "SystemStats/CANBus/ReceiveErrorCount"
+measure = "max"
+decimals = 0
+warn_above = 10
+fail_above = 100
+
+[[check]]
+id = "rio.can_tx_err"
+section = "roboRIO"
+group = "CAN bus"
+label = "Transmit errors"
+signal = "SystemStats/CANBus/TransmitErrorCount"
+measure = "max"
+decimals = 0
+warn_above = 10
+fail_above = 100
+
+[[check]]
+id = "rio.battery_min"
+section = "roboRIO"
+group = "Power"
+label = "Battery voltage (lowest while enabled)"
+signal = "SystemStats/BatteryVoltage"
+measure = "min"
+window = "enabled"
+unit = "V"
+decimals = 1
+warn_below = 10.5
+fail_below = 8
+help = "In the pits, with the robot disabled, this is just the resting voltage; enable it to see it sag under load."
+
+[[check]]
+id = "rio.battery_now"
+section = "roboRIO"
+group = "Power"
+label = "Battery voltage (now)"
+signal = "SystemStats/BatteryVoltage"
+mode = "live"
+unit = "V"
+decimals = 1
+warn_below = 12
+fail_below = 11
+
+[[check]]
+id = "rio.brownout"
+section = "roboRIO"
+group = "Power"
+label = "Brownout"
+signal = "SystemStats/BrownedOut"
+measure = "any_true"
+expect = false
+
+[[check]]
+id = "rio.rails"
+section = "roboRIO"
+group = "Power"
+label = "{1} rail current faults"
+signal = "SystemStats/*Rail/CurrentFaults"
+measure = "max"
+decimals = 0
+warn_above = 0
+
+[[check]]
+id = "rio.comms"
+section = "roboRIO"
+group = "Power"
+label = "Comms disable events"
+signal = "SystemStats/CommsDisableCount"
+measure = "max"
+decimals = 0
+fail_above = 0
+
+[[check]]
+id = "pdh.faults"
+section = "roboRIO"
+group = "Power distribution"
+label = "PDH active faults"
+signal = "PowerDistribution/Faults"
+measure = "max"
+decimals = 0
+warn_above = 0
+help = "A bit field; any non-zero value means the PDH reported a fault at some point."
+
+[[check]]
+id = "pdh.current_peak"
+section = "roboRIO"
+group = "Power distribution"
+label = "Total current (peak)"
+signal = "PowerDistribution/TotalCurrent"
+measure = "max"
+unit = "A"
+decimals = 0
+
+[[check]]
+id = "rio.cpu_temp"
+section = "roboRIO"
+group = "Controller"
+label = "CPU temperature (peak)"
+signal = "SystemStats/CPUTempCelsius"
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 70
+fail_above = 85
+
+[[check]]
+id = "rio.cpu"
+section = "roboRIO"
+group = "Controller"
+label = "CPU (mean while enabled)"
+signal = "RealOutputs/RIO/CpuPct"
+measure = "sample_mean"
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 70
+fail_above = 85
+help = "Both roboRIO cores together, sampled once a second (RioSystemStats). A busy CPU makes every loop slow, not one subsystem, so read it next to the loop times below. Live: the latest second."
+
+[[check]]
+id = "rio.cpu_p95"
+section = "roboRIO"
+group = "Controller"
+label = "CPU (95th percentile while enabled)"
+signal = "RealOutputs/RIO/CpuPct"
+measure = "percentile"
+q = 95
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 90
+fail_above = 98
+mode = "log"
+help = "1 second in 20 was busier than this. Near 100 % means the loop has nothing left for spikes."
+
+[[check]]
+id = "rio.memory"
+section = "roboRIO"
+group = "Controller"
+label = "Memory used (peak)"
+signal = "RealOutputs/RIO/MemUsedPct"
+measure = "max"
+unit = "%"
+decimals = 0
+warn_above = 85
+fail_above = 95
+help = "Share of RAM in use (MemAvailable). Low free memory on the roboRIO makes the JVM collect garbage more often."
+
+[[check]]
+id = "rio.net_rx"
+section = "roboRIO"
+group = "Network"
+label = "Ethernet received (peak)"
+signal = "RealOutputs/RIO/NetRxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+help = "Everything into the roboRIO's ethernet port: PhotonVision results from both Pis, Driver Station and dashboard traffic. Informational until we know a normal value."
+
+[[check]]
+id = "rio.net_tx"
+section = "roboRIO"
+group = "Network"
+label = "Ethernet sent (peak)"
+signal = "RealOutputs/RIO/NetTxMbps"
+measure = "max"
+unit = "Mbit/s"
+decimals = 1
+help = "Everything out of the roboRIO's ethernet port: NetworkTables to dashboards (AdvantageScope live, Elastic, LogBench) and to the Pis. Informational until we know a normal value."
+
+[[check]]
+id = "rio.radio_bandwidth"
+section = "roboRIO"
+group = "Network"
+label = "Radio bandwidth used, 6 GHz link (peak while enabled)"
+signal = "RadioStatus/Status"
+field = "networkStatus6.bandwidthUsedMbps"
+measure = "max"
+window = "enabled"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 5
+fail_above = 7
+help = "What the radio reports crossing it, robot to Driver Station side. R704: at most 7 Mbit/s with the Vivid Hosting radio; above that the field limits it and packets are dropped or delayed. Camera streams viewed on a laptop are the usual cause. The radio reports this about every 5 s. 10-27: under 1.3 Mbit/s in every run except one at 7.2-8.7 (a PhotonVision stream open on the laptop)."
+
+[[check]]
+id = "rio.radio_bandwidth_24"
+section = "roboRIO"
+group = "Network"
+label = "Radio bandwidth used, 2.4 GHz link (peak while enabled)"
+signal = "RadioStatus/Status"
+field = "networkStatus24.bandwidthUsedMbps"
+measure = "max"
+window = "enabled"
+unit = "Mbit/s"
+decimals = 1
+warn_above = 5
+fail_above = 7
+help = "Same as the 6 GHz row, for the 2.4 GHz link (zero when nothing is linked on 2.4 GHz)."
+
+[[check]]
+id = "rio.loop_time"
+section = "roboRIO"
+group = "Controller"
+label = "Robot loop time (worst while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "max"
+window = "enabled"
+unit = "ms"
+decimals = 0
+warn_above = 40
+fail_above = 100
+help = "The loop should take about 20 ms; long cycles mean overruns."
+
+[[check]]
+id = "rio.loop_mean"
+section = "roboRIO"
+group = "Controller"
+label = "Robot loop time (mean while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "sample_mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+warn_above = 25
+fail_above = 45
+mode = "log"
+help = "The typical loop, not the worst: the target is 20 ms. Ruckus 2026 averaged about 38 ms. A mean of loops (each loop counted once), not of time: a time-weighted mean counts a 100 ms loop five times and reads high. Turn on FeatureSwitches LOG_SUBSYSTEM_TIMINGS to see where it goes."
+
+[[check]]
+id = "rio.loop_p95"
+section = "roboRIO"
+group = "Controller"
+label = "Robot loop time (95th percentile while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "percentile"
+q = 95
+window = "enabled"
+unit = "ms"
+decimals = 1
+warn_above = 30
+fail_above = 60
+mode = "log"
+help = "1 loop in 20 was slower than this. Steadier than the worst loop (one GC pause sets that) and shows the tail the mean hides. Bench 2026-10-20: 56 ms before the CPU switches, 20.5 ms after."
+
+[[check]]
+id = "rio.loop_overrun_share"
+section = "roboRIO"
+group = "Controller"
+label = "Loops over 20 ms (share while enabled)"
+signal = "RealOutputs/LoggedRobot/FullCycleMS"
+measure = "share_above"
+above = 20
+scale = 100
+window = "enabled"
+unit = "%"
+decimals = 0
+warn_above = 10
+fail_above = 50
+mode = "log"
+help = "How many loops overran the 20 ms period. Bench 2026-10-20: 99 % before the CPU switches, 6 % after."
+
+[[check]]
+id = "rio.gc_time_mean"
+section = "roboRIO"
+group = "Controller"
+label = "Java garbage collection per loop (mean while enabled)"
+signal = "RealOutputs/LoggedRobot/GCTimeMS"
+measure = "sample_mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+mode = "log"
+help = "Time the JVM reported in garbage collection each loop. Allocation-heavy code (string building, new objects every loop) raises it; one long collection is a whole-robot freeze."
+
+[[check]]
+id = "rio.loop_usercode_mean"
+section = "roboRIO"
+group = "Controller"
+label = "Robot code time per loop (mean while enabled)"
+signal = "RealOutputs/LoggedRobot/UserCodeMS"
+measure = "sample_mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+warn_above = 20
+fail_above = 40
+mode = "log"
+help = "How much of the loop is your code (the rest is logging and WPILib). Over 20 ms alone means the loop cannot hold 20 ms."
+
+[[check]]
+id = "rio.timing_breakdown"
+section = "roboRIO"
+group = "Loop time breakdown"
+label = "{1} (mean while enabled)"
+signal = "RealOutputs/Timing/*"
+measure = "sample_mean"
+window = "enabled"
+unit = "ms"
+decimals = 1
+mode = "log"
+help = "Per-section time, only logged when FeatureSwitches LOG_SUBSYSTEM_TIMINGS is on. RobotPeriodic is the whole robotPeriodic(); CommandScheduler contains each subsystem's periodic (Shooter, Vision, ...) plus commands."
+
+[[check]]
+id = "rio.log_backlog"
+section = "roboRIO"
+group = "Controller"
+label = "Logging backlog (worst)"
+signal = "RealOutputs/Logger/QueuedCycles"
+measure = "max"
+decimals = 0
+warn_above = 10
+fail_above = 40
+help = "AdvantageKit cycles waiting to be written; a growing queue risks dropped log data."
+
+[[check]]
+id = "rio.feature_switches"
+section = "roboRIO"
+group = "Build"
+label = "Feature switches deployed"
+signal = "RealMetadata/FeatureSwitches"
+measure = "last"
+mode = "log"
+help = "What the deployed code was compiled with (PerformanceProfile), not what the laptop's file says now. Compare two logs' values before comparing their numbers."
+
+[[check]]
+id = "rio.radio"
+section = "roboRIO"
+group = "Controller"
+label = "Radio connected"
+signal = "RadioStatus/Connected"
+measure = "last"
+expect = true
+severity = "warn"
+
+[[check]]
+id = "rio.alert_errors"
+missing = "ok"
+section = "roboRIO"
+group = "Robot alerts"
+label = "Errors reported by robot code"
+signal = "Alerts/errors"
+measure = "max_len"
+decimals = 0
+fail_above = 0
+
+[[check]]
+id = "rio.alert_warnings"
+missing = "ok"
+section = "roboRIO"
+group = "Robot alerts"
+label = "Warnings reported by robot code"
+signal = "Alerts/warnings"
+measure = "max_len"
+decimals = 0
+warn_above = 0
+
+[[check]]
+id = "rio.photon_alerts"
+missing = "ok"
+section = "roboRIO"
+group = "Robot alerts"
+label = "PhotonVision alerts"
+signal = "PhotonAlerts/warnings"
+measure = "max_len"
+decimals = 0
+warn_above = 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Robot -- one group per subsystem, one row per motor and thing checked
+# (from Power/Motors/<bus>-<id>/..., which the robot logs for every motor it knows about)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "motor.responding"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "responding on CAN"
+signal = "Power/Motors/*/SignalStatus"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "fraction_equals"
+equals = "OK"
+window = "enabled"
+scale = 100
+unit = "% of enabled time"
+decimals = 0
+warn_below = 97
+fail_below = 80
+help = "Phoenix 6 reports OK for a motor controller it is hearing. A controller that is missing, unpowered or off the bus reports RxTimeout and never recovers. (Healthy motors read 99-100%; a missing one reads 0%.)"
+
+[[check]]
+id = "motor.signal_age"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "newest status age (worst)"
+signal = "Power/Motors/*/SignalAgeSeconds"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "max"
+unit = "s"
+decimals = 2
+warn_above = 1
+fail_above = 2.5
+help = "How old the freshest CAN status from this motor was. Seconds-old data means it dropped off the bus."
+
+[[check]]
+id = "motor.status"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "last CAN signal status"
+signal = "Power/Motors/*/SignalStatus"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "last"
+help = "Phoenix 6's reason when it is not OK: RxTimeout (not heard), CanMessageStale, ..."
+
+[[check]]
+id = "motor.temp"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "temperature (peak)"
+signal = "Power/Motors/*/TemperatureCelsius"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "max"
+unit = "C"
+decimals = 0
+warn_above = 70
+fail_above = 85
+
+[[check]]
+id = "motor.undervoltage"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "undervoltage"
+signal = "Power/Motors/*/Undervoltage"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "any_true"
+expect = false
+severity = "warn"
+
+[[check]]
+id = "motor.stator_limited"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "time at the stator current limit"
+signal = "Power/Motors/*/StatorLimited"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "fraction_true"
+window = "enabled"
+scale = 100
+unit = "% of enabled time"
+decimals = 1
+warn_above = 35
+help = "A motor pinned at its current limit for long is stalled, overloaded, or mis-tuned. Drive motors sit at the limit 15-20% of an enabled match on this robot; the threshold is set above that."
+
+[[check]]
+id = "motor.supply_peak"
+section = "Robot"
+group = "{subsystem}"
+subject = "{name}"
+label = "supply current (peak)"
+signal = "Power/Motors/*/SupplyCurrentAmps"
+lookup = { name = "Power/Motors/{1}/Name", subsystem = "Power/Motors/{1}/Subsystem" }
+measure = "max"
+unit = "A"
+decimals = 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Examples of tracking something new. These have no thresholds, so they only inform. Copy one,
+# change the signal, and (once you know what is too much) add warn_above / fail_above.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+[[check]]
+id = "example.shooter_spin_time"
+section = "Robot"
+group = "Shooter"
+label = "Shooter wheels spinning (time while enabled)"
+signal = "Shooter/Motor1VelocityRPS"
+measure = "seconds_above"
+above = 5
+window = "enabled"
+unit = "s"
+decimals = 0
+mode = "log"
+help = "Seconds the first shooter motor was above 5 rotations/s. Long spin-up time costs battery; add warn_above once you know your normal."

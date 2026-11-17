@@ -1,0 +1,152 @@
+{
+ "kind": "camera-autocal",
+ "saved": "2026-11-14T14:17:11",
+ "git_sha": "ba2197f381a8",
+ "log_file": "akit_26-11-14_19-11-27.wpilog",
+ "camera": "RightCam",
+ "tag_ids": [
+  9,
+  10
+ ],
+ "calibration_window_s": [
+  112.982194,
+  129.990503
+ ],
+ "samples": {
+  "used": 1066,
+  "total": 1073,
+  "results_in_window": 1073,
+  "dropped_by_tag_filter": 0
+ },
+ "current_mount": {
+  "x_m": 0.055625999999999995,
+  "y_m": -0.27711399999999997,
+  "z_m": 0.72898,
+  "roll_deg": -1.5902773407317584e-15,
+  "pitch_deg": -24.999999999999996,
+  "yaw_deg": 10.0,
+  "x_in": 2.19,
+  "y_in": -10.91,
+  "z_in": 28.7
+ },
+ "calibrated_mount": {
+  "x_m": 0.0610592913374649,
+  "y_m": -0.24744059502686397,
+  "z_m": 0.598907830108303,
+  "roll_deg": -2.773178532347689,
+  "pitch_deg": -28.24832218371669,
+  "yaw_deg": 19.41346315331148,
+  "x_in": 2.4039091077742087,
+  "y_in": -9.741755709719055,
+  "z_in": 23.579048429460748
+ },
+ "sigma_1": {
+  "x_mm": 9.723654390562332,
+  "y_mm": 10.208356408319569,
+  "z_mm": 0.8530862538437672,
+  "roll_deg": 0.058870875949542475,
+  "pitch_deg": 0.053659766738260506,
+  "yaw_deg": 0.22035086908859328
+ },
+ "residual_rms": {
+  "position_mm": 52.03606943581873,
+  "rotation_deg": 1.2512786497812427
+ },
+ "clock_offset_ms": -27.712666210655414,
+ "odometry_scale": 0.9000000000140854,
+ "repeatability_split_half": {
+  "dx_mm": -28.240528055842276,
+  "dy_mm": -9.112579039675966,
+  "dz_mm": 8.080426281593333,
+  "rot_deg": 0.24188155491677002
+ },
+ "phases": [
+  {
+   "phase": "Hold",
+   "seconds": 2.0137129999999956,
+   "samples": 126,
+   "rate": 62.57098206149549,
+   "rms_t_mm": 28.71591178694786,
+   "rms_r_deg": 0.41218185558524234
+  },
+  {
+   "phase": "SweepCCW",
+   "seconds": 1.2438889999999958,
+   "samples": 78,
+   "rate": 62.70655982969563,
+   "rms_t_mm": 30.49245109772787,
+   "rms_r_deg": 0.6909618561101086
+  },
+  {
+   "phase": "SweepCW",
+   "seconds": 2.4965700000000055,
+   "samples": 157,
+   "rate": 62.886279976127106,
+   "rms_t_mm": 24.40559206186466,
+   "rms_r_deg": 0.7772107664169405
+  },
+  {
+   "phase": "SweepBack",
+   "seconds": 1.2623279999999966,
+   "samples": 82,
+   "rate": 64.95934495630314,
+   "rms_t_mm": 22.592142050814612,
+   "rms_r_deg": 0.7879120797247011
+  },
+  {
+   "phase": "DriveForward",
+   "seconds": 1.487690999999998,
+   "samples": 92,
+   "rate": 61.84079892934764,
+   "rms_t_mm": 44.11341632954793,
+   "rms_r_deg": 0.46988500091962865
+  },
+  {
+   "phase": "DriveBack",
+   "seconds": 1.5150720000000035,
+   "samples": 95,
+   "rate": 62.703290668694144,
+   "rms_t_mm": 57.23259499407155,
+   "rms_r_deg": 0.6513638057693313
+  },
+  {
+   "phase": "StrafeLeft",
+   "seconds": 1.4857799999999912,
+   "samples": 94,
+   "rate": 63.26643244625756,
+   "rms_t_mm": 61.57875943152922,
+   "rms_r_deg": 1.6926112184531217
+  },
+  {
+   "phase": "StrafeRight",
+   "seconds": 2.994991000000013,
+   "samples": 188,
+   "rate": 62.771474104596365,
+   "rms_t_mm": 71.92986864059104,
+   "rms_r_deg": 2.0435362799137735
+  },
+  {
+   "phase": "StrafeCenter",
+   "seconds": 1.5058700000000016,
+   "samples": 94,
+   "rate": 62.42238705864377,
+   "rms_t_mm": 86.77372331550602,
+   "rms_r_deg": 2.0731857873251966
+  },
+  {
+   "phase": "HoldEnd",
+   "seconds": 1.0024049999999818,
+   "samples": 65,
+   "rate": 64.84405005960782,
+   "rms_t_mm": 45.09913004456501,
+   "rms_r_deg": 0.433098278592262
+  }
+ ],
+ "warnings": [
+  "x_mm uncertainty is 9.72 mm (limit 8): more data or a better tag view would help.",
+  "y_mm uncertainty is 10.21 mm (limit 8): more data or a better tag view would help.",
+  "The two halves of the run disagree by 28/9 mm and 0.24 deg: the result is not repeatable. Re-run, or check for odometry slip.",
+  "Wheel odometry distance is off by 10.0% (fitted scale 0.900): check the wheel radius in the swerve constants, and for wheel slip."
+ ],
+ "java_snippet": "// RightCam \u2014 calibrated 2026-11-14\nnew Transform3d(\n    new Translation3d(\n        Units.inchesToMeters(2.404),\n        Units.inchesToMeters(-9.742),\n        Units.inchesToMeters(23.579)),\n    new Rotation3d(\n        Math.toRadians(-2.773),\n        Math.toRadians(-28.248),\n        Math.toRadians(19.413)))"
+}

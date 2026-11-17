@@ -106,8 +106,7 @@ def motor_sources(signals):
                        'fields': fields, 'aliases': [fields['Aliases'].at(float('inf'))] if 'Aliases' in fields else [], 'legacy': False})
     # Known historical physical inventory. Pickup and Intake/Pickup are the SAME motor.
     legacy = [('Intake', 'Deploy', 'Intake', 28), ('Pickup', '', 'Pickup', 29),
-              ('Hopper', '', 'Hopper', 25), ('Indexer', '', 'Indexer', 40),
-              ('Climber', 'Climber', 'Climber', 45), ('Climber', 'Grabber', 'Climber', 37)]
+              ('Hopper', '', 'Hopper', 25), ('Indexer', '', 'Indexer', 40)]
     legacy += [('Shooter', f'Motor{i}', 'Shooter', 0) for i in (1, 2, 3)]
     for base, part, group, can in legacy:
         # New registration supersedes its legacy alias; never count both.
@@ -213,7 +212,7 @@ def analyze(log, window=None, low_voltage=8.0):
         warnings.append('Legacy acquisition health is unknown; plausible readings are lower-confidence evidence.')
     if not intervals:
         warnings.append('No valid acquisition intervals; trim metadata may be unsupported.')
-    expected = {'Intake Deploy', 'Pickup', 'Hopper', 'Indexer', 'Climber Climber', 'Climber Grabber',
+    expected = {'Intake Deploy', 'Pickup', 'Hopper', 'Indexer',
                 *(f'Shooter Motor{i}' for i in (1, 2, 3)),
                 *(f'{kind} {i}' for kind in ('Drive', 'Steer') for i in range(4))}
     missing_motors = sorted(expected - {m['name'] for m in motors})

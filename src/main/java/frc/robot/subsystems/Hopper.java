@@ -22,6 +22,15 @@ public class Hopper extends SubsystemBase {
 
     @Override
     public void periodic() {
+        long timingStart = frc.robot.util.LoopTimings.begin();
+        try {
+            periodicImpl();
+        } finally {
+            frc.robot.util.LoopTimings.end("Timing/Hopper", timingStart);
+        }
+    }
+
+    private void periodicImpl() {
         io.updateInputs(inputs);
         Logger.processInputs("Hopper", inputs);
     }

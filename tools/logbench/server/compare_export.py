@@ -34,6 +34,9 @@ VERDICTS = ('improved', 'regressed', 'neutral', 'n/a', CONTEXT_VERDICT)
 # The *_pct factors are scored on the robot by VisionHealth.java and merely averaged over the
 # window here; the log-derived ones are computed from the raw log by vision_analyzer.
 DESCRIPTIONS: Dict[str, str] = {
+    'accepted_poses_per_sec': 'Accepted pose count divided by selected-window seconds. Reconstructs unchanged arrays on logged robot cycles or raw timestamp batches; null without an exact counting source. Half-open intervals use robot receipt time.',
+    'generated_poses_per_sec': 'Generated raw pose count divided by selected-window seconds, before robot rejection filters. Excludes frames that did not produce poses. Null without an exact counting source.',
+    'best_3s_accepted_poses_per_sec': 'Highest accepted poses/sec over any full sliding three-second interval inside the selected window. Null for windows shorter than three seconds or missing counting data. A secondary capacity measure, not a whole-run accuracy score.',
     'health_score': 'Optional convenience number: availability_score x quality_score / 100. '
                     'Context is never part of it. Prefer reading the two scores it is made of, '
                     'because a product hides which one moved.',

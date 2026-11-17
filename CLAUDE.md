@@ -65,7 +65,7 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 ### Feature switches
 
-`constants/FeatureSwitches.java` contains `public static final boolean` flags. All vision improvement candidates (P1/P2/P3) are switches that default to `false` (2026 behavior baseline), allowing scientific A/B comparison against real match logs. See `docs/vision-testing-protocol.md` for the measurement methodology.
+**Every robot-code change goes behind a feature switch until its performance cost is measured**, unless it is clearly negligible. A change under validation goes in `constants/ExperimentSwitches.java` (an AdvantageKit `LoggedNetworkBoolean`, flippable while the robot code runs, so the experiment runner can toggle it, verify it and record it with each run; mark it `VALIDATE-THEN-REMOVE` and list it in `TODO.md`), and gets a `runs.toml` that toggles it (off/on/off/on, same maneuver). Delete the switch (keep or drop the code) once validated. Whenever you would write "next time on the robot, do X", write an experiment plan instead. `constants/FeatureSwitches.java` contains settled `public static final boolean` flags. All vision improvement candidates (P1/P2/P3) are switches that default to `false` (2026 behavior baseline), allowing scientific A/B comparison against real match logs. See `docs/vision-testing-protocol.md` for the measurement methodology.
 
 ### Swerve drivetrain
 
@@ -85,13 +85,29 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 ### Coprocessor
 
-`coprocessor/orangepi-nt-publisher.py` runs on the Orange Pi alongside PhotonVision, publishing CPU/RAM/disk/temp to NT4 under `/OrangePi/`. Managed as a systemd service (`orangepi-nt-publisher.service`).
+`coprocessor/orangepi-nt-publisher.py` runs on the Orange Pi alongside PhotonVision, publishing CPU/RAM/disk/temp to NT4 under `/OrangePi/`, plus PhotonVision's active pipeline settings (read-only from its `photon.sqlite`) and each camera's real V4L2 mode, on change. The robot mirrors all of `/OrangePi/` into the log (`CoprocessorHealthLogger`). Managed as a systemd service (`orangepi-nt-publisher.service`).
 
 `coprocessor/orangepi-vision-recorder.py` also runs on the Orange Pi alongside PhotonVision: taps PhotonVision's own raw (pre-AprilTag-processing) MJPEG stream, gated on robot-enabled, and saves a low-rate JPEG sequence with NT-synced timestamps locally under a 5GB rotating cap — for post-match diagnosis of missed detections. Managed as a systemd service (`orangepi-vision-recorder.service`); see `docs/orangepi-vision-recorder-setup.md` for the two bench-verification steps (raw stream port, `/FMSInfo` bit decoding) required before trusting it on a given Pi/camera config.
+
+### Experiments
+
+Robot test write-ups live in `docs/experiments/<area>/YYYY-MM-DD-<slug>/` (README from
+`docs/experiments/_template.md`, plus an `analyze.py` that regenerates every number from the
+gitignored logs, and its `results.json`). `notes/<date>/` stays the rough lab notebook and links to
+the write-up. Index and conventions: `docs/experiments/README.md`.
+
+### To-do list
+
+`TODO.md` at the repo root is the one open to-do list, and it is deliberately high level: experiments to run (in
+order, each linking to its detail doc), robot software for 2027, maintenance, tools, housekeeping. Specifics belong in
+the linked doc or a `TODO(2027):` marker in code, because specifics in the list go stale. Keep lines short. When a note, experiment or change leaves
+something undone, add it there with its source in brackets; move finished items to its Done table.
 
 ### Tools
 
 `tools/logbench/` is the primary tool: a generic (not vision-specific) metric/composite-score comparison library over `.wpilog`s, with a CLI and a Vite + React + TypeScript / FastAPI web UI as two views over the same core. It's in the process of absorbing `tools/vision-analyzer` and `tools/ab-metrics` (see `tools/logbench/README.md` for migration status) — check there before assuming a tool listed below still owns a piece of functionality.
+
+`tools/exprunner/` — the **experiment runner**: runs an experiment's `runs.toml` run by run and records what ran in `manifest.json` next to it. Bench experiments (copy `coprocessor/bench/` to the Pis, run a step over SSH, fetch the results) and robot experiments (`kind = "robot"`: set PhotonVision on the Pis over its web socket, check it from the Pi publisher, hand over for an auto, notice enable/disable on NetworkTables, fetch the log through LogBench, record it in `manifest.json`) are both built; `doctor PLAN` checks a session is ready and `finish PLAN` restores the cameras. Robot plans need `pip install -r requirements.txt`. Design and status: `docs/experiment-runner-plan.md`. `cd tools/exprunner && python -m exprunner check|sync|run|status <plan>`; tests `python -m pytest`.
 
 `tools/wpilog-utils/` — shared, stdlib-only `.wpilog` library (`wpilog_utils`): record reader/writer, payload decoding, DS-mode spans, a per-log `LogIndex` (entry sizes, loop cycles), and the multi-segment trim engine + verifier. The parser and mode-span code moved here from `vision_analyzer`, which keeps a re-exporting shim (`vision_analyzer/parser.py`) so existing callers are unchanged. Reached via `sys.path` bridges like the other tools; `cd tools/wpilog-utils && python -m pytest`.
 
@@ -99,7 +115,7 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 `tools/vision-analyzer/analyze.py` — Streamlit + Plotly dashboard over a `.wpilog`: vision acceptance/rejection, pose estimates, correction magnitudes, and a CSV/Markdown export for comparing two runs. Being migrated into `logbench`; being kept in place until that migration is reviewed for parity. `streamlit run analyze.py`.
 
-`tools/camera-calibration/calibrate.py` — Streamlit app for solving camera mount transforms from a tape-measure calibration run, plus live health monitoring over NetworkTables. Six tabs; Tab 6 (Replay) embeds `logbench`'s player below. Out of scope for the `logbench` migration — it solves a geometry problem (mount transform), not a metrics problem.
+`tools/camera-calibration/calibrate.py` — Streamlit app for solving camera mount transforms, plus live health monitoring over NetworkTables. **Quick · Spin & drive** (first tab) solves the mounts from a log of the robot's `CalibrateCameras` auto with no tape measuring (`autocal.py`; plan and procedure in `docs/camera-autocal-plan.md`); **Manual 1-4** are the original tape-measure workflow, kept for cross-checks. Tab 6 (Replay) embeds `logbench`'s player below. Out of scope for the `logbench` migration — it solves a geometry problem (mount transform), not a metrics problem.
 
 `tools/logbench/` — shares the `vision_analyzer/parser.py` stdlib-only `.wpilog` parser (bridged onto `sys.path`, see `server/paths.py`) rather than vendoring a copy. Vite + React + TypeScript front end (canvas, 60fps) with a FastAPI back end, for playing back a log and watching metrics move against the robot's field position — this replaced a Streamlit implementation that took seconds per frame; see its README for the measurements and the reasoning. **The player core is metric-agnostic** — adding a new kind of playback (shooter, swerve modules) means writing one `server/specs/*.py` builder and registering it, with no front-end changes. `server/assets/player.singlefile.html` is a committed build artifact; rebuild it with `cd web && npm run build:single` whenever `web/src` changes, or the Streamlit tab and the standalone export will serve stale UI.
 

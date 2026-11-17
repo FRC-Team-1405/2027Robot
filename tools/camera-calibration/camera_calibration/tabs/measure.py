@@ -11,7 +11,7 @@ from ..session import (
 
 log = logging.getLogger(__name__)
 
-LABEL = '1 · Measure'
+LABEL = 'Manual 1 · Measure'
 
 _DEFAULT_DF = pd.DataFrame({
     'Label':        ['Stop 1', 'Stop 2', 'Stop 3'],

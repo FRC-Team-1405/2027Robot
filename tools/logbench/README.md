@@ -1,32 +1,52 @@
 # Logbench
+One stop shop for logging!
 
-Play back a `.wpilog` and watch metrics move against the robot's position on the field —
-smoothly, at 60fps, with a play button that actually plays.
+## Install
 
-Built for camera health, but the player itself knows nothing about cameras. "Metrics over
-a match timeline" is a shape we keep wanting (shooter tuning, swerve module health, intake
-state), so the domain knowledge is isolated in one file per view.
+### Prereqs
 
-## Why this exists
+Python 3.13
+```powershell
+winget install -e --id Python.Python.3.13
+```
 
-The Replay tab in the camera-calibration Streamlit app had the right features and was
-unusable. It drove playback with `st.fragment(run_every=0.2)`, so every frame was a full
-server round-trip: re-run Python, rebuild two Plotly trend figures containing *every
-sample of all nine health traces per camera* (~135k points), rebuild the field figure,
-rescan the whole pose series three times for a 3-second trail, serialize it all to JSON,
-ship it over the websocket, re-render. Seconds per frame.
+NPM
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
 
-Streamlit's execution model is request/response. The fix was not a faster Streamlit — it
-was to send the data to the browser **once** and animate client-side with no round-trips
-at all.
+FFmpeg
+```powershell
+winget install Gyan.FFmpeg
+ffmpeg -version
+```
+> **Restart VS Code** after installing prereqs!
 
-Measured on a 5.5-minute log with 26 tracks and 199k samples:
+### Install logbench
 
-| | before | after |
-|---|---|---|
-| per frame | seconds | **0.09 ms** mean, 1.3 ms worst |
-| data sent | all traces, 5×/second | 0.47 MB gzipped, once |
-| trail lookup | O(N) scan ×3 per tick | O(1) amortized |
+```powershell
+cd tools/logbench
+pip install -r requirements.txt
+cd web; npm install; npm run build
+```
+
+### Fix Script Execution Error
+
+Example error:
+```
+npm : File C:\Program Files\nodejs\npm.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see
+about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.
+At line:1 char:1
++ npm install
++ ~~~
+    + CategoryInfo          : SecurityError: (:) [], PSSecurityException
+    + FullyQualifiedErrorId : UnauthorizedAccess
+```
+
+Fix:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
 
 ## Running it
 
@@ -53,8 +73,6 @@ pip install -r requirements.txt
 cd web && npm install && npm run build && cd ..
 python server/main.py --logs ../../logs
 ```
-
-Install NPM if you see an error indicating NPM missing: `winget install OpenJS.NodeJS.LTS`
 
 `--logs` is only the starting folder. The pages that list logs (Vision Logs, Compare,
 Battery Insights) have a **Change folder…** button that opens the OS folder picker and
@@ -90,12 +108,93 @@ the job reports cancellation.
 
 ### Fetch Bundle diagnostics
 
+After a match, click **Fetch, trim & download** on its RIO log row. This fetches
+the original `.wpilog` and selected Pi sessions, creates a verified trimmed copy,
+and starts a ZIP download without leaving the page. The original stays unchanged.
+Automatic pairing includes separate auto/teleop sessions for each camera; expand
+the row to inspect or override the selection, especially when timestamps are uncertain.
+
+**How a Pi frame is tied to a log.** Log timestamps and the Pi's `t_sec` are the same axis (seconds
+since the roboRIO booted), so the only question is *which boot*. A boot is identified by its
+**epoch**, the wall clock at log t=0 (`wall clock - time since boot`), which is constant for the
+boot and minutes apart between boots (`server/pairing.py`, `server/log_clock.py`):
+
+1. **Exact, once the log is downloaded.** Robot code records the epoch into the AdvantageKit log
+   (`RealOutputs/RobotTime/EpochMs`, plus a per-run `BootId`; `WallClockEpoch.java`, written on change
+   only). The plain WPILib log has `NT:/RobotTime/WallClockMs` (and the same two entries mirrored from
+   NetworkTables), from which the epoch is the value minus the sample's log time. A Pi session's epoch is
+   its first manifest row's `timestamp_utc` minus `t_sec` (or, for older recordings, the session folder's
+   name time minus the first `t_sec`). The bundle job reads the log's epoch and true duration after the
+   download and takes **every session of that boot whose frames overlap the log's time range**, however many
+   pieces the recorder cut the match into. The note ("picked N session(s) by boot clock: ...") is on the
+   job result as `pairing_note`. A hand-picked selection (`manual`) is never changed; if the log has no
+   epoch (an AdvantageKit log from before `WallClockEpoch`) or no session shares it, the file-name
+   suggestion is kept and the note says why.
+2. **Suggested in the list, from file names.** Before anything is downloaded only the file name is
+   known, and its time is when the Driver Station first synced the roboRIO clock (20 s to 412 s
+   after boot at Ruckus), not boot. The listing reads each session's epoch from its manifest (the
+   first and last 16 KB, over SFTP) and gives each boot to the first log named within 20 minutes
+   after it, so a match that starts an hour after the sync still pairs. Epoch-less sessions fall back to the old window
+   (the file time plus an assumed 30 minutes, cut off at the next log).
+3. **Twin logs share.** Every boot writes an `akit_*` and an `FRC_*` log a few seconds apart with the
+   same FMS event/match suffix; they are treated as one boot and get the same sessions (previously the
+   `akit_*` log claimed them all and the `FRC_*` twin got none).
+
+The Health Check page adds a **Vision recording** section for a log opened with its `.vision` folder:
+per camera, the share of the enabled (auto + teleop) time within 0.5 s of a frame, and the longest
+stretch with none, with the largest gaps (seconds into the log) in the row's detail
+(`server/vision_coverage.py`). A bundle can hold every frame that exists and still be sparse, because
+the recorder never captured what fell between sessions; this makes that visible instead of silent. Warn below
+90 %, fail below 50 %; longest gap warns above 10 s, fails above 60 s. A camera the robot logged but
+that has no recording folder is a failure.
+
+The ZIP contains the original, `<name>.trimmed.wpilog`, `<name>.trim.json`, and
+`<name>.vision/<camera>/boot.../` with all selected recording files, including
+`recorder.log` and its rotated backup when the updated recorder is installed
+(see the recorder session diagnostics change). Trimming uses the shared WPILog Janitor
+engine: all enabled periods with two seconds before/after, original timestamps,
+and full-log battery/DS/match context. Out-of-order logs are sorted only in a working
+copy and verified before trimming. Vision timestamps stay aligned. If no enabled
+periods can be identified, the derived copy keeps the entire original and the page
+and report explain why. If timestamp parsing, ordering, or trim verification fails,
+the download still contains the exact original log, selected recordings, and a
+`<name>.trim.json` report explaining the failure. The page shows the same warning;
+no unverified `.trimmed.wpilog` is included. This covers the oversized timestamp
+error in `logs/logbench-20261020-191034-010167.log` (a 259,823,168-byte RIO log had
+already finished downloading before trim indexing failed). Transfer failures,
+cancellation, and filesystem/ZIP write errors still stop the job.
+
+Use **Open log** to review the fetched original or **Download ZIP again** to repeat
+the prepared download. ZIP import accepts both original-only legacy bundles and
+these original-plus-trimmed bundles. Prepared ZIPs and derived copies are stored
+under the local log root's `.bundles/<job-id>/`; the original remains at the log root.
+Those prepared files can be removed when no longer needed. One action covers the
+selected RIO log and camera sessions; it does not export unrelated matches or the
+Pi's entire systemd journal.
+
+The adjacent **Fetch + battery analysis** button runs that same complete workflow
+and adds `<name>.battery.html` (self-contained Battery Insights report) and
+`<name>.battery.json` to the ZIP. Analysis always uses the full original log, with
+the whole-log window and default 8 V low-voltage warning, so disabled recovery and
+current telemetry are available. The trimmed copy preserves full-log voltage and
+brownout signals but trims most current/motor signals; it is not used for this
+analysis. Both report files are also retained when the ZIP is imported. After
+completion, **Open Battery Insights** opens the original full log for interactive
+review. The normal button skips battery analysis. Missing telemetry is explained
+in the report; analysis errors stop the job visibly without altering the original.
+If trimming cannot safely process the log, battery analysis is skipped with a warning
+and the original-plus-recordings ZIP is still available for diagnosis.
+
 The Fetch Bundle page runs remote directory discovery and downloads as tracked jobs. It
 shows the current remote phase, elapsed time, bytes/files transferred, rolling throughput,
 and ETA when a byte total is known. A transfer that receives no data for 60 seconds fails
 instead of appearing stalled; set the optional top-level
 `"transfer_idle_timeout_seconds"` value in the ignored
-`server/remote_config.json` to adjust that per network. Each server run writes a detailed
+`server/remote_config.json` to adjust that per network. A roboRIO log the robot is still
+writing (the newest one, while robot code runs) is copied as it is at the moment of the
+download, plus one catch-up pass, and the result says how much was left on the robot; fetch
+it again after the robot code restarts for the rest. Before this, the download followed the end
+of the growing file, and over a slow link it never finished (11-03). Each server run writes a detailed
 diagnostic log under `tools/logbench/logs/`; the newest ten runs are retained locally and
 the folder is ignored by Git.
 
@@ -142,8 +241,8 @@ doesn't recognise are reported the same way instead of being silently ignored. I
 the logs still appear but there are no vision recordings to fetch.
 
 A board that shows up on NetworkTables with no address was not re-synced with the current
-publisher: copy `coprocessor/` to it again (`sync-to-orangepi.bat`) and restart
-`orangepi-nt-publisher`.
+publisher: re-run `coprocessor\Bootstrap-OrangePi.ps1` for that board (it copies the current
+publisher and restarts it).
 
 #### How cameras are named
 
@@ -213,6 +312,14 @@ view** (the robot zeroes every factor on a loop with no tag; that dropout is rep
 than one camera (`speed_mean_mps`) is declared `per_camera=False` and appears once, as camera
 `All`. Not yet done (see the ADR): range-normalised tag area, block/bootstrap verdicts, and the
 robot-side `TagInViewFraction` log.
+
+## Health Check
+
+The **Health Check** tab (it replaced Pit Check) runs one configurable list of checks over either the live
+robot in the pits (NetworkTables) or a finished match log: vision, the Orange Pis and their recorders, the
+roboRIO (CAN, battery, loop time, alerts) and every motor, each with a green/amber/red icon, the value, and
+the rule in words. The checks live in `server/health_checks.toml`; adding a metric is a few lines of TOML and
+no code. See `docs/health-check.md`.
 
 ## Layout
 

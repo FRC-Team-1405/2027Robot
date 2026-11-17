@@ -33,12 +33,29 @@ def case(request):
     return name, raw, parse_wpilog_bytes(raw), GOLDEN[name]
 
 
+def _legacy_view(sigs, g):
+    """The parsed signals the legacy parser produced. It dropped string[] entries entirely (fixed
+    11-07); those may now appear, but only as lists of strings -- everything else must match."""
+    extra = {k: v for k, v in sigs.items() if k not in g['signals']}
+    for k, v in extra.items():
+        assert all(isinstance(x, list) and all(isinstance(s, str) for s in x) for _, x in v), \
+            f'{k} is new but is not a string[] signal'
+    return {k: v for k, v in sigs.items() if k in g['signals']}
+
+
 def test_parsed_signals_identical(case):
     _, raw, sigs, g = case
     assert len(raw) == g['file_bytes']
-    assert len(sigs) == g['n_signals']
-    got = {k: [len(v), _sha(v)] for k, v in sorted(sigs.items())}
+    legacy = _legacy_view(sigs, g)
+    assert len(legacy) == g['n_signals']
+    got = {k: [len(v), _sha(v)] for k, v in sorted(legacy.items())}
     assert got == g['signals']
+
+
+def test_string_arrays_now_decoded(case):
+    name, _, sigs, g = case
+    # The 6-20 sample logs carry AdvantageKit's alert lists, which the legacy parser dropped.
+    assert 'RealOutputs/Alerts/errors' in sigs and 'RealOutputs/Alerts/errors' not in g['signals'], name
 
 
 def test_mode_spans_identical(case):
@@ -51,7 +68,7 @@ def test_mode_spans_identical(case):
 def test_filter_signals_identical(case):
     _, _, sigs, g = case
     lo, hi = g['trim_window']
-    assert _sha(filter_signals_by_time(sigs, lo, hi)) == g['filtered_sha']
+    assert _sha(filter_signals_by_time(_legacy_view(sigs, g), lo, hi)) == g['filtered_sha']
 
 
 def test_trim_bytes_identical(case):

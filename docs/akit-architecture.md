@@ -127,7 +127,6 @@ All eight hardware subsystems follow the IO pattern:
 | `Hopper` | `HopperIO` | `"Hopper"` | Velocity, stator/supply current, voltage, CL error |
 | `Pickup` | `PickupIO` | `"Pickup"` | Velocity, stator/supply current, voltage, CL error |
 | `Intake` | `IntakeIO` | `"Intake"` | Deploy: position, velocity, currents, voltage, CL error/ref; Pickup roller: same |
-| `Climber` | `ClimberIO` | `"Climber"` | Arm + grabber: position, velocity, currents, voltage, CL error/ref |
 | `AdjustableHood` | `HoodIO` | `"Hood"` | Servo 1 position, servo 2 position, target, enabled |
 | `Vision` (per camera) | `VisionIO` | `"Vision/<CameraName>"` | Connected, FPS, rejection counts, pose estimate arrays, visible tag IDs |
 
@@ -145,7 +144,6 @@ calculation and see different results without re-running the robot.
 | `Hopper` | `Active`, `VelocityRPS` |
 | `Pickup` | `Active`, `VelocityRPS` |
 | `Intake` | `IsDeployed`, `PositionTarget`, `AtTarget` |
-| `Climber` | `ArmPositionTarget`, `GrabberPositionTarget`, `ArmAtTarget`, `GrabberAtTarget` |
 | `Hood` | `Target`, `CurrentPosition` |
 
 ---

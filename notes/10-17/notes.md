@@ -20,3 +20,4 @@ TODO:
 |Qual 20| Comp 6 |
 |Qual 24| Comp 7 |
 |Qual 28| Comp 8 |
+|Elim x| Comp 2 |

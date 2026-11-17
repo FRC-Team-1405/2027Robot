@@ -1,0 +1,44 @@
+.vision-insights { max-width: 1280px; margin: 0 auto; padding: 24px; }
+.vision-insights h1 { margin: 8px 0; }
+.vision-insights > p { max-width: 90ch; line-height: 1.6; }
+.vision-controls { display: flex; flex-wrap: wrap; gap: 24px; margin: 20px 0; align-items: center; }
+.vision-controls label { display: flex; align-items: center; gap: 10px; }
+.vision-controls select { padding: 8px; }
+.vision-analyze { margin: 20px 0; padding: 12px 24px; cursor: pointer; }
+.vision-camera { padding: 16px 24px; margin: 12px 0; border: 1px solid #334155; border-left: 4px solid #94a3b8; border-radius: 12px; background: #111c2e; }
+.vision-camera > summary { cursor: pointer; font-size: 17px; }
+.vision-camera[open] > summary { margin-bottom: 12px; }
+.vision-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+.vision-glossary { margin: 20px 0; padding: 16px 24px; border: 1px solid #334155; border-radius: 12px; background: #0f1a2b; }
+.vision-glossary h2 { margin: 0 0 8px; font-size: 18px; }
+.vision-glossary ul { margin: 0; padding-left: 20px; line-height: 1.6; max-width: 100ch; }
+.vision-glossary li { margin: 6px 0; }
+.vision-overview { margin: 24px 0; }
+.vision-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 16px 0 24px; }
+.vision-card { padding: 16px 20px; border: 1px solid #334155; border-top: 4px solid #94a3b8; border-radius: 12px; background: #111c2e; }
+.vision-card h3 { margin: 0 0 8px; font-size: 16px; }
+.vision-big { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.vision-big small { display: block; font-size: 12px; font-weight: normal; color: #a7b4c8; margin-top: 4px; }
+.vision-card dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 14px 0 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.vision-card dt { color: #a7b4c8; }
+.vision-card dd { margin: 0; text-align: right; }
+.vision-ab { display: inline-flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.vision-ab i { font-style: normal; font-size: 0.5em; color: #a7b4c8; }
+.vision-big .vision-ab { font-size: 22px; }
+.delta.up { color: #4ade80; }
+.delta.down { color: #f87171; }
+.vision-chart-head { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+.vision-chart-title { margin: 16px 0 4px; padding-left: 10px; border-left: 4px solid #94a3b8; }
+.vision-muted { color: #a7b4c8; font-size: 13px; line-height: 1.5; }
+.vision-summary { width: 100%; border-collapse: collapse; margin: 20px 0; font-variant-numeric: tabular-nums; }
+.vision-summary th, .vision-summary td { padding: 12px 8px; text-align: right; border-bottom: 1px solid #334155; }
+.vision-summary th:first-child { text-align: left; }
+.vision-summary tbody th { font-weight: normal; }
+.vision-chart { overflow-x: auto; }
+.vision-chart > svg { width: 100%; min-width: 600px; min-height: 180px; display: block; }
+.vision-chart text { fill: #a7b4c8; font-size: 12px; }
+.vision-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; margin: 6px 0 24px; }
+.vision-idle { fill: rgba(148, 163, 184, 0.14); stroke: rgba(148, 163, 184, 0.3); stroke-width: 0.5; }
+.vision-legend svg { vertical-align: middle; }
+.vision-insights details { margin: 24px 0; line-height: 1.7; }
+@media (max-width: 600px) { .vision-insights { padding: 12px; } .vision-camera { padding: 12px; }  .vision-big { font-size: 28px; } .vision-summary { font-size: 12px; } .vision-summary th, .vision-summary td { padding: 10px 3px; } }

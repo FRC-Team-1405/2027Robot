@@ -38,6 +38,9 @@ public class HopperIOTalonFX implements HopperIO {
         if (!status.isOK()) {
             System.out.println("Could not configure hopper motor. Error: " + status);
         }
+        frc.robot.power.BusLoad.tuneMechanismMotor(motor, motor.getVelocity(), motor.getStatorCurrent(),
+                motor.getSupplyCurrent(), motor.getMotorVoltage(), motor.getClosedLoopError(),
+                motor.getClosedLoopReference());
     }
 
     @Override

@@ -8,9 +8,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { CategoryPanels } from './CategoryPanels';
 import { LogSide } from './LogSide';
-import { LogRootButton } from '../loader/LogRootButton';
+import { useLogSelection } from '../logpicker/LogSelection';
 import type {
-  CategoryId, CompareResult, LogEntry, ManualWindow, MetricCatalog, MetricDescriptor, Mode,
+  CategoryId, CompareResult, ManualWindow, MetricCatalog, MetricDescriptor, Mode,
 } from './types';
 
 const MODES: Mode[] = ['whole', 'auto', 'teleop', 'disabled'];
@@ -29,10 +29,9 @@ function emptyManual(): ManualWindow {
 }
 
 export function ComparePage() {
-  const [logs, setLogs] = useState<LogEntry[] | null>(null);
-  const [root, setRoot] = useState<string | null>(null);
+  // Side A is the open log (the log bar); only side B is picked on this page.
+  const { logs, selected: logA, folderVersion } = useLogSelection();
   const [catalog, setCatalog] = useState<MetricCatalog | null>(null);
-  const [logA, setLogA] = useState<string | null>(null);
   const [logB, setLogB] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('whole');
   const [manualA, setManualA] = useState<ManualWindow>(emptyManual());
@@ -46,26 +45,15 @@ export function ComparePage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const loadLogs = () => {
-    fetch('/api/logs')
-      .then((r) => r.json())
-      .then((d) => {
-        setLogs(d.logs);
-        setRoot(d.root);
-      });
-  };
-
-  // A new folder means the old selections (and any result computed from them) are gone.
-  const changeRoot = () => {
-    setLogA(null);
-    setLogB(null);
+  // A different open log or folder means the result on screen (and a custom slice of the old log) no longer applies.
+  useEffect(() => {
     setResult(null);
     setResultQuery(null);
-    loadLogs();
-  };
+    setManualA(emptyManual());
+  }, [logA]);
+  useEffect(() => { setLogB(null); }, [folderVersion]);
 
   useEffect(() => {
-    loadLogs();
     fetch('/api/metric-catalog')
       .then((r) => r.json())
       .then((d: MetricCatalog) => {
@@ -144,21 +132,20 @@ export function ComparePage() {
       <div className="compare-page__head">
         <h1 className="compare-page__title">Compare two logs</h1>
       </div>
-      <LogRootButton root={root} onChanged={changeRoot} />
-
       <div className="compare-sides">
         <LogSide
           label="A"
-          logs={logs ?? []}
+          logs={logs}
           logPath={logA}
-          onLogChange={setLogA}
+          onLogChange={() => undefined}
+          locked
           mode={mode}
           manual={manualA}
           onManualChange={setManualA}
         />
         <LogSide
           label="B"
-          logs={logs ?? []}
+          logs={logs}
           logPath={logB}
           onLogChange={setLogB}
           mode={mode}

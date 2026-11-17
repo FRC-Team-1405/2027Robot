@@ -36,6 +36,7 @@ from vision_analyzer import metrics as va_metrics
 
 from . import categories as cat
 from . import signals as sig
+from . import throughput
 
 Compute = Callable[[object, Optional[str]], Optional[float]]
 
@@ -271,3 +272,18 @@ _VA_FIELDS = [
 
 for _field, _label, _unit, _lower, _category in _VA_FIELDS:
     register(_field, _label, _unit, _lower, _make_va_field_compute(_field), category=_category)
+
+
+# Throughput counts every pose in a multi-result robot loop.
+def _throughput_field(field):
+    def compute(run, camera):
+        return throughput.summary(run, camera).get(field) if camera is not None else None
+    return compute
+
+
+for _id, _label in (
+    ('accepted_poses_per_sec', 'Accepted poses/sec'),
+    ('generated_poses_per_sec', 'Generated poses/sec'),
+    ('best_3s_accepted_poses_per_sec', 'Best sustained 3s accepted poses/sec'),
+):
+    register(_id, _label, 'poses/s', False, _throughput_field(_id), category=cat.AVAILABILITY)

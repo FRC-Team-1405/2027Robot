@@ -12,6 +12,7 @@ ensure_preview_video) and knows nothing about FastAPI, paramiko, or the wpilog b
 format -- it only understands this one directory convention, so it is testable with
 plain tmp_path fixtures and no server running.
 """
+import dataclasses
 import json
 import pathlib
 import shutil
@@ -42,7 +43,13 @@ def ffmpeg_available() -> bool:
 def vision_dir_for(log_path) -> pathlib.Path:
     """The sibling `.vision` directory for a given .wpilog path (need not exist)."""
     log_path = pathlib.Path(log_path)
-    return log_path.parent / (log_path.stem + VISION_SUFFIX)
+    own = log_path.parent / (log_path.stem + VISION_SUFFIX)
+    if not own.exists() and log_path.stem.endswith('.trimmed'):
+        source_stem = log_path.stem[:-len('.trimmed')]
+        shared = log_path.parent / (source_stem + VISION_SUFFIX)
+        if shared.is_dir() and (log_path.parent / (source_stem + '.wpilog')).is_file():
+            return shared
+    return own
 
 
 def list_vision_sessions(log_path) -> Dict[str, List[pathlib.Path]]:
@@ -77,25 +84,58 @@ def list_vision_sessions(log_path) -> Dict[str, List[pathlib.Path]]:
     return sessions
 
 
-def load_manifest(session_dir) -> List[Tuple[float, str]]:
-    """Returns [(t_sec, frame_filename), ...] sorted by t_sec, read from
-    <session_dir>/manifest.jsonl. Empty list if the manifest is missing or empty --
-    callers decide whether that's an error."""
+@dataclasses.dataclass
+class ManifestReport:
+    """What a session's manifest actually held. `bad_lines` are rows that could not be read (the
+    recorder flushes a row per frame, so power loss mid-write leaves a torn last line) and
+    `missing_frames` are rows whose JPEG is not on disk (only counted when asked)."""
+    frames: List[Tuple[float, str]]
+    bad_lines: int = 0
+    missing_frames: int = 0
+
+    @property
+    def damaged(self) -> bool:
+        return bool(self.bad_lines or self.missing_frames)
+
+
+def read_manifest(session_dir, check_files: bool = False) -> ManifestReport:
+    """Tolerant manifest reader. Never raises on a damaged manifest: unreadable rows are counted
+    and skipped, and with check_files=True so are rows whose frame file is missing. A session that
+    lost its tail to a brown-out is still worth showing; refusing it would take the whole log's
+    page down with it."""
     session_dir = pathlib.Path(session_dir)
     manifest_path = session_dir / MANIFEST_NAME
     if not manifest_path.is_file():
-        return []
+        return ManifestReport([])
 
     frames: List[Tuple[float, str]] = []
-    with open(manifest_path, encoding='utf-8') as f:
+    bad = missing = 0
+    with open(manifest_path, encoding='utf-8', errors='replace') as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            row = json.loads(line)
-            frames.append((float(row['t_sec']), row['frame']))
+            try:
+                row = json.loads(line)
+                t_sec, name = float(row['t_sec']), str(row['frame'])
+                if t_sec != t_sec or t_sec in (float('inf'), float('-inf')):
+                    raise ValueError('non-finite t_sec')
+            except (ValueError, KeyError, TypeError):
+                bad += 1
+                continue
+            if check_files and not (session_dir / name).is_file():
+                missing += 1
+                continue
+            frames.append((t_sec, name))
     frames.sort(key=lambda row: row[0])
-    return frames
+    return ManifestReport(frames, bad, missing)
+
+
+def load_manifest(session_dir) -> List[Tuple[float, str]]:
+    """Returns [(t_sec, frame_filename), ...] sorted by t_sec, read from
+    <session_dir>/manifest.jsonl. Empty list if the manifest is missing or empty --
+    callers decide whether that's an error. Tolerates damaged rows; see read_manifest."""
+    return read_manifest(session_dir).frames
 
 
 def ensure_preview_video(session_dir, camera: str = '') -> pathlib.Path:
@@ -121,7 +161,9 @@ def ensure_preview_video(session_dir, camera: str = '') -> pathlib.Path:
     unless its `file` line is repeated once more with no trailing duration. That repeated
     line is what actually makes the last frame hold for its intended time.
     """
-    session_dir = pathlib.Path(session_dir)
+    # Absolute, because the concat list names frames by path and ffmpeg resolves a relative one
+    # against the list's own folder -- so a relative --logs directory doubled the path.
+    session_dir = pathlib.Path(session_dir).resolve()
     manifest_path = session_dir / MANIFEST_NAME
     preview_path = session_dir / PREVIEW_NAME
 
@@ -138,9 +180,9 @@ def ensure_preview_video(session_dir, camera: str = '') -> pathlib.Path:
             'the Pi).' % (camera or '(unnamed camera)', session_dir)
         )
 
-    frames = load_manifest(session_dir)
+    frames = read_manifest(session_dir, check_files=True).frames
     if not frames:
-        raise ValueError('%s in %s has no frames' % (MANIFEST_NAME, session_dir))
+        raise ValueError('%s in %s has no readable frames' % (MANIFEST_NAME, session_dir))
 
     concat_lines: List[str] = []
     for i, (t_sec, filename) in enumerate(frames):
@@ -161,15 +203,20 @@ def ensure_preview_video(session_dir, camera: str = '') -> pathlib.Path:
     concat_file.write_text('\n'.join(concat_lines) + '\n', encoding='utf-8')
 
     try:
-        result = subprocess.run(
-            ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', str(concat_file),
-             '-vsync', 'vfr', '-pix_fmt', 'yuv420p', str(preview_path)],
-            capture_output=True, text=True,
-        )
+        # Variable frame rate is `-fps_mode vfr` since ffmpeg 5.1; the older `-vsync vfr` spelling
+        # was deprecated then and is gone in ffmpeg 9, so try the new one and fall back for old builds.
+        for vfr_flag in (['-fps_mode', 'vfr'], ['-vsync', 'vfr']):
+            result = subprocess.run(
+                ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', str(concat_file),
+                 *vfr_flag, '-pix_fmt', 'yuv420p', str(preview_path)],
+                capture_output=True, text=True,
+            )
+            if result.returncode == 0 or 'Unrecognized option' not in result.stderr:
+                break
         if result.returncode != 0:
             raise RuntimeError(
                 'ffmpeg failed transcoding %s (%s camera):\n%s'
-                % (session_dir, camera or '(unnamed)', result.stderr[-4000:])
+                % (session_dir, camera or '(unnamed)', result.stderr[-800:])
             )
     finally:
         concat_file.unlink(missing_ok=True)

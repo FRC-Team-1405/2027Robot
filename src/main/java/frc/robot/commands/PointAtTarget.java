@@ -41,7 +41,7 @@ public class PointAtTarget extends Command {
     double currentAngle = drivetrain.getState().Pose.getRotation().getRadians();
 
     double rateToRotate = rotationController.calculate(currentAngle);
-    System.out.printf("PID error: %.3f, target: %.3f, current: %.3f, rateToRotate: %.3f\n",
+    if (frc.robot.constants.FeatureSwitches.ENABLE_SUBSYSTEM_DEBUG_PRINTS) System.out.printf("PID error: %.3f, target: %.3f, current: %.3f, rateToRotate: %.3f\n",
         rotationController.getError(),
         rotationController.getSetpoint(), currentAngle, rateToRotate);
     drivetrain.applyRequest(() -> SwerveFeatures.drive.withRotationalRate(rateToRotate));

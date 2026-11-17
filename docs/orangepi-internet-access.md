@@ -1,3 +1,5 @@
+> `coprocessor/Bootstrap-OrangePi.ps1` automates most of this document (finding the Pi, SSH key, install). The manual steps below are the Internet Connection Sharing part it asks you to do.
+
 # Step 1: allow internet passthrough for your wifi adapter
 - ensure your usb to ethernet connector is connected to the laptop and connected DIRECTLY into the orange pi
 - start menu > ncpa.cpl

@@ -42,6 +42,8 @@ public class PickupIOTalonFX implements PickupIO {
         if (!status.isOK()) {
             System.out.println("Could not configure pickup motor. Error: " + status);
         }
+        frc.robot.power.BusLoad.tuneMechanismMotor(motor, motor.getVelocity(), motor.getStatorCurrent(),
+                motor.getSupplyCurrent(), motor.getMotorVoltage(), motor.getClosedLoopError());
     }
 
     @Override

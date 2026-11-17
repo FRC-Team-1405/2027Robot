@@ -8,11 +8,13 @@ import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.controls.ControlRequest;
 import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Preferences;
 import org.littletonrobotics.conduit.ConduitApi;
 import org.littletonrobotics.junction.LogTable;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.inputs.LoggableInputs;
+import frc.robot.constants.FeatureSwitches;
 
 /** Read-only power observation. Never changes a motor request or current limit.
  * Register existing motor objects; aliases share one physical identity. Call initialize()
@@ -21,6 +23,7 @@ import org.littletonrobotics.junction.inputs.LoggableInputs;
 public final class PowerTelemetry {
     private PowerTelemetry() {}
     private static final Map<String, Device> devices = new LinkedHashMap<>();
+    private static final frc.robot.util.PeriodicGate sampleGate = new frc.robot.util.PeriodicGate();
     private static final Values distribution = new Values();
     private static final Map<TalonFX, String> owners = new java.util.IdentityHashMap<>();
 
@@ -30,6 +33,7 @@ public final class PowerTelemetry {
     }
 
     public static void register(TalonFX motor, String name, String subsystem) {
+        if (!FeatureSwitches.ENABLE_POWER_TELEMETRY) return;
         owners.put(motor, name);
         String id = identity(motor.getNetwork().getName(), motor.getDeviceID());
         // Last owner wins (Pickup is constructed after Intake). Preserve its alias.
@@ -41,6 +45,7 @@ public final class PowerTelemetry {
 
     /** Declare simulated/replay mechanism identities without creating hardware. */
     public static void declare(String bus, int id, String name, String subsystem) {
+        if (!FeatureSwitches.ENABLE_POWER_TELEMETRY) return;
         devices.putIfAbsent(identity(bus, id), new Device(null, name, subsystem));
     }
 
@@ -48,6 +53,7 @@ public final class PowerTelemetry {
      * Returns the same request unchanged; the existing caller still sends it.
      */
     public static <T extends ControlRequest> T request(TalonFX motor, T request) {
+        if (!FeatureSwitches.ENABLE_POWER_TELEMETRY || !FeatureSwitches.POWER_REQUEST_DETAILS) return request;
         Device device = devices.get(identity(motor.getNetwork().getName(), motor.getDeviceID()));
         if (device != null) {
             device.observeRequest(request, owners.getOrDefault(motor, "Unknown"));
@@ -57,6 +63,7 @@ public final class PowerTelemetry {
     }
 
     public static void initialize() {
+        if (!FeatureSwitches.ENABLE_POWER_TELEMETRY) return;
         for (Device device : devices.values()) device.initialize();
         distribution.numbers.put("ModuleId", Double.NaN);
         distribution.numbers.put("ChannelCount", Double.NaN);
@@ -81,6 +88,9 @@ public final class PowerTelemetry {
     }
 
     public static void periodic() {
+        if (!FeatureSwitches.ENABLE_POWER_TELEMETRY) return;
+        if (FeatureSwitches.POWER_TELEMETRY_10_HZ && !Logger.hasReplaySource()
+                && !sampleGate.ready(Timer.getFPGATimestamp(), 0.1)) return;
         Logger.recordOutput("Power/SchemaVersion", 1);
         Logger.recordOutput("Power/HeartbeatSeconds", Logger.getTimestamp() / 1e6);
         if (RobotBase.isReal()) {
@@ -93,9 +103,10 @@ public final class PowerTelemetry {
             distribution.strings.put("BatteryId", Preferences.getString("Power/BatteryId", "Unknown"));
         }
         Logger.processInputs("Power/Distribution", distribution);
+        double now = Timer.getFPGATimestamp();
         for (var entry : devices.entrySet()) {
             Device device = entry.getValue();
-            if (RobotBase.isReal() && device.motor != null) device.update();
+            if (RobotBase.isReal() && device.motor != null && FeatureSwitches.POWER_TELEMETRY_SIGNALS) device.refresh(now);
             Logger.processInputs("Power/Motors/" + entry.getKey(), device.inputs);
         }
         PowerStates.periodic();
@@ -123,6 +134,7 @@ public final class PowerTelemetry {
         final Map<String, BaseStatusSignal> signals = new LinkedHashMap<>();
         final Map<String, DoubleSupplier> values = new LinkedHashMap<>();
         boolean requestObserved;
+        final AbsenceTracker absence = new AbsenceTracker();
         Device(TalonFX motor, String name, String subsystem) {
             this.motor = motor;
             for (String key : new String[]{"SupplyCurrentAmps", "StatorCurrentAmps", "TorqueCurrentAmps",
@@ -151,6 +163,12 @@ public final class PowerTelemetry {
         }
         void initialize() {
             if (motor == null || !RobotBase.isReal()) return;
+            if (!FeatureSwitches.POWER_TELEMETRY_SIGNALS) {
+                // Declared and configuration read, but no status signals: no extra bus traffic.
+                BusLoad.finishMechanismMotor(motor, signals);
+                readConfiguration();
+                return;
+            }
             var supply = motor.getSupplyCurrent();
             signal("SupplyCurrentAmps", supply, supply::getValueAsDouble);
             var stator = motor.getStatorCurrent();
@@ -185,7 +203,18 @@ public final class PowerTelemetry {
             motor.getDeviceTemp().setUpdateFrequency(4);
             motor.getStickyFault_SupplyCurrLimit().setUpdateFrequency(4);
             motor.getStickyFault_StatorCurrLimit().setUpdateFrequency(4);
+            BusLoad.finishMechanismMotor(motor, signals);
             readConfiguration();
+        }
+        /** update() unless SKIP_ABSENT_DEVICES has parked this motor as absent. */
+        void refresh(double now) {
+            if (FeatureSwitches.SKIP_ABSENT_DEVICES && !absence.shouldRefresh(now)) {
+                inputs.booleans.put("Valid", false);
+                inputs.strings.put("SignalStatus", "SkippedAbsent");
+                return;
+            }
+            boolean ok = update();
+            if (FeatureSwitches.SKIP_ABSENT_DEVICES) absence.record(ok, now);
         }
         void readConfiguration() {
             if (motor == null || !RobotBase.isReal()) return;
@@ -200,7 +229,7 @@ public final class PowerTelemetry {
             inputs.booleans.put("SupplyLimitEnabled", status.isOK() && config.SupplyCurrentLimitEnable);
             inputs.booleans.put("StatorLimitEnabled", status.isOK() && config.StatorCurrentLimitEnable);
         }
-        void update() {
+        boolean update() {
             var status = BaseStatusSignal.refreshAll(signals.values().toArray(BaseStatusSignal[]::new));
             double age = signals.values().stream().mapToDouble(s -> s.getTimestamp().getLatency()).max().orElse(Double.POSITIVE_INFINITY);
             boolean valid = status.isOK() && age <= 0.1;
@@ -222,15 +251,17 @@ public final class PowerTelemetry {
             inputs.booleans.put("StickyFaultsValid", stickyValid);
             inputs.booleans.put("StickySupplyLimited", stickyValid && stickySupply.getValue());
             inputs.booleans.put("StickyStatorLimited", stickyValid && stickyStator.getValue());
-            if (!requestObserved) observeRequest(motor.getAppliedControl(), inputs.strings.get("Name"));
+            if (FeatureSwitches.POWER_REQUEST_DETAILS && !requestObserved) observeRequest(motor.getAppliedControl(), inputs.strings.get("Name"));
+            return status.isOK();
         }
         void observeRequest(ControlRequest request, String owner) {
             inputs.strings.put("ControlMode", request.getName());
-            inputs.strings.put("Request", request.getControlInfo().toString());
-            inputs.strings.put("Follower", request.getName().contains("Follower") ? request.getControlInfo().toString() : "None");
+            Map<String, String> info = request.getControlInfo();
+            String description = info.toString();
+            inputs.strings.put("Request", description);
+            inputs.strings.put("Follower", request.getName().contains("Follower") ? description : "None");
             inputs.strings.put("RequestOwner", owner);
             inputs.numbers.put("RequestTimestampSeconds", Logger.getTimestamp() / 1e6);
-            Map<String, String> info = request.getControlInfo();
             String field = info.containsKey("Velocity") ? "Velocity" : info.containsKey("Position") ? "Position" : "Output";
             String unit = field.equals("Velocity") ? "rotations/s" : field.equals("Position") ? "rotations"
                     : request.getName().contains("TorqueCurrent") ? "A" : request.getName().contains("Voltage") ? "V"

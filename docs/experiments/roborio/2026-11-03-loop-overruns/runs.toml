@@ -1,0 +1,36 @@
+# Run plan for the loop-overrun follow-up (README.md next to this file): does logging which process and thread uses the
+# roboRIO's CPU cost anything, and what does it show?
+#
+# The robot-code switch RIO_PROCESS_CPU_LOGGING is flipped by the experiment runner (no redeploy), alternating
+# off / on / off / on so drift (battery, temperature) hits both. From tools/exprunner:
+#   python -m exprunner doctor ../../docs/experiments/roborio/2026-11-03-loop-overruns/runs.toml
+#   python -m exprunner run    ../../docs/experiments/roborio/2026-11-03-loop-overruns/runs.toml
+#   python -m exprunner finish ../../docs/experiments/roborio/2026-11-03-loop-overruns/runs.toml
+# Then, from the repo root: python docs/experiments/roborio/2026-11-03-loop-overruns/analyze.py --manifest
+#
+# Needs a robot code build that has the switch (ExperimentSwitches.java) deployed.
+
+experiment = "RIO-2026-11-03-loop-overruns-process-cpu"
+kind = "robot"
+routine = "Teleop, sticks untouched, for 2 minutes"
+
+[[runs]]
+id = "OFF1"
+what = "Switch off: the reference"
+switches = { RIO_PROCESS_CPU_LOGGING = false }
+prompt = "Close every dashboard except the Driver Station. Same battery for all four runs."
+
+[[runs]]
+id = "ON1"
+what = "Switch on: which process and thread uses the CPU"
+switches = { RIO_PROCESS_CPU_LOGGING = true }
+
+[[runs]]
+id = "OFF2"
+what = "Switch off again"
+switches = { RIO_PROCESS_CPU_LOGGING = false }
+
+[[runs]]
+id = "ON2"
+what = "Switch on again"
+switches = { RIO_PROCESS_CPU_LOGGING = true }

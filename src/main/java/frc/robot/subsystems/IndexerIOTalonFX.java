@@ -38,6 +38,9 @@ public class IndexerIOTalonFX implements IndexerIO {
         if (!status.isOK()) {
             System.out.println("Could not configure indexer motor. Error: " + status);
         }
+        frc.robot.power.BusLoad.tuneMechanismMotor(motor, motor.getVelocity(), motor.getStatorCurrent(),
+                motor.getSupplyCurrent(), motor.getMotorVoltage(), motor.getClosedLoopError(),
+                motor.getClosedLoopReference(), motor.getRotorPosition());
     }
 
     @Override

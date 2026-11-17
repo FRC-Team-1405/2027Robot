@@ -128,6 +128,17 @@ def test_index_handles_wide_headers_and_huge_timestamps():
     assert ix.t_min_us == 5_000_000_000 and list(ix.cycles_us) == info['cycles_us']
 
 
+@pytest.mark.parametrize('bad_timestamp', [2**63, 2**80])
+def test_invalid_timestamp_reports_record_offset_instead_of_overflowing(bad_timestamp):
+    raw, info = wb.ds_log(SPANS)
+    offset = len(raw)
+    raw += wb.record(info['ids']['/Sensor/X'], bad_timestamp, wb.double(1))
+    # 2**80 needs an illegal 11-byte timestamp field. The old 4-bit
+    # timestamp-width mask read it and later overflowed the cycle array.
+    with pytest.raises(ValueError, match=f'byte {offset}:'):
+        build_index(raw)
+
+
 def test_index_of_a_log_with_no_data_records():
     b = wb.LogBuilder(); b.entry('/A', 'double')
     ix = build_index(b.build())

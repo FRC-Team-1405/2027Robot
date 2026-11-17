@@ -15,6 +15,7 @@ pi@...` from a bench laptop for the first time.
 """
 import dataclasses
 import datetime as dt
+import json
 import logging
 import pathlib
 import posixpath
@@ -23,6 +24,7 @@ import stat
 import time
 from typing import Callable, List, Optional
 
+import pairing
 from remote_config import HostConfig
 
 # The roboRIO writes two logs per boot into the same folder, both renamed with the time
@@ -106,6 +108,58 @@ def _parse_pi_session_wall_clock(name: str) -> Optional[dt.datetime]:
         return None
 
 
+# How much of a manifest.jsonl to read from each end to learn a session's clock. A row is ~300 bytes, so
+# this is dozens of rows: enough to skip a few unsynced ones, small enough that listing hundreds of
+# sessions stays quick.
+_MANIFEST_PEEK_BYTES = 16 * 1024
+# A finished session's manifest does not change, so its clock is looked up once per (host, path, size).
+_clock_cache: dict = {}
+
+
+def _json_rows(text: str, drop_first: bool, drop_last: bool) -> List[dict]:
+    lines = text.splitlines()
+    if drop_first and lines:
+        lines = lines[1:]      # starts mid-row
+    if drop_last and lines:
+        lines = lines[:-1]     # ends mid-row (or the recorder is still writing it)
+    rows = []
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict):
+            rows.append(row)
+    return rows
+
+
+def _session_clock(sftp, cfg: HostConfig, remote_session: str, name_wall: Optional[dt.datetime]) -> dict:
+    """{epoch, t_first, t_last} (each None when unknown) read from the head and tail of the session's
+    manifest. Never raises: a Pi that cannot be read just means that session pairs by file name."""
+    path = posixpath.join(remote_session, 'manifest.jsonl')
+    try:
+        size = int(sftp.stat(path).st_size)
+        key = (cfg.host, path, size)
+        if key in _clock_cache:
+            return _clock_cache[key]
+        with sftp.open(path, 'rb') as f:
+            head = f.read(min(size, _MANIFEST_PEEK_BYTES)).decode('utf-8', 'replace')
+            tail = head
+            if size > _MANIFEST_PEEK_BYTES:
+                f.seek(size - _MANIFEST_PEEK_BYTES)
+                tail = f.read(_MANIFEST_PEEK_BYTES).decode('utf-8', 'replace')
+        big = size > _MANIFEST_PEEK_BYTES
+        epoch, t_first, t_last = pairing.session_clock(
+            _json_rows(head, False, big), _json_rows(tail, big, not tail.endswith(chr(10))), name_wall)
+    except (OSError, IOError, ValueError) as exc:
+        log.debug('could not read the clock of %s: %s', remote_session, exc)
+        return {'epoch': None, 't_first': None, 't_last': None}
+    out = {'epoch': epoch, 't_first': t_first, 't_last': t_last}
+    if t_first is not None:
+        _clock_cache[key] = out
+    return out
+
+
 def list_rio_logs(cfg: HostConfig) -> List[dict]:
     """[{name, path (remote, posix), size, mtime, wall_clock: datetime|None}, ...],
     newest first."""
@@ -136,7 +190,8 @@ def list_rio_logs(cfg: HostConfig) -> List[dict]:
 
 
 def list_pi_sessions(cfg: HostConfig) -> List[dict]:
-    """[{camera, name, path (remote, posix), wall_clock: datetime|None}, ...] across both
+    """[{camera, name, path (remote, posix), wall_clock: datetime|None, epoch, t_first, t_last}, ...]
+    (the last three read from the manifest: see pairing.session_clock) across both
     the camera-namespaced layout (<recordings_path>/<camera>/boot####-*) and the legacy,
     single-camera layout (<recordings_path>/boot####-*), newest first."""
     client, sftp = _connect(cfg)
@@ -153,12 +208,10 @@ def list_pi_sessions(cfg: HostConfig) -> List[dict]:
         out = []
         if legacy:
             for entry in legacy:
-                out.append({
-                    'camera': '',
-                    'name': entry.filename,
-                    'path': posixpath.join(cfg.path, entry.filename),
-                    'wall_clock': _parse_pi_session_wall_clock(entry.filename),
-                })
+                wall = _parse_pi_session_wall_clock(entry.filename)
+                path = posixpath.join(cfg.path, entry.filename)
+                out.append({'camera': '', 'name': entry.filename, 'path': path, 'wall_clock': wall,
+                            **_session_clock(sftp, cfg, path, wall)})
         else:
             for cam_entry in top_entries:
                 if not stat.S_ISDIR(cam_entry.st_mode or 0) or cam_entry.filename.startswith('.'):
@@ -169,12 +222,10 @@ def list_pi_sessions(cfg: HostConfig) -> List[dict]:
                 except (OSError, IOError):
                     continue
                 for entry in _boot_dirs(cam_dir, cam_entries):
-                    out.append({
-                        'camera': cam_entry.filename,
-                        'name': entry.filename,
-                        'path': posixpath.join(cam_dir, entry.filename),
-                        'wall_clock': _parse_pi_session_wall_clock(entry.filename),
-                    })
+                    wall = _parse_pi_session_wall_clock(entry.filename)
+                    path = posixpath.join(cam_dir, entry.filename)
+                    out.append({'camera': cam_entry.filename, 'name': entry.filename, 'path': path,
+                                'wall_clock': wall, **_session_clock(sftp, cfg, path, wall)})
         out.sort(key=lambda s: s['name'], reverse=True)
         log.info('listed %d Pi recording sessions from %s', len(out), cfg.host)
         return out
@@ -236,11 +287,97 @@ def _download_error(remote_path: str, cfg: HostConfig, exc: Exception,
     return RemoteFetchError('could not fetch %s from %s -- %s' % (remote_path, cfg.host, exc))
 
 
+# How many times a download re-checks a file that grew while it was being copied. A finished log
+# needs none. A log the robot is still writing gets one pass for what arrived during the copy; the
+# robot is almost always disabled by then, so anything after that isn't worth waiting for.
+_CATCH_UP_PASSES = 1
+_READ_SIZE = 32768
+
+
+_RESUME_CHECK = 65536
+
+
+def _resume_point(remote, local_path: pathlib.Path) -> int:
+    """How many bytes of an earlier download of this same log can be kept.
+
+    A .wpilog only ever grows at its end, so a second fetch of a log the robot has kept writing needs only
+    the bytes after the ones we already have. That is only true if it is the same file: the first and the
+    last 64 KB of what we have must match the remote file's bytes at the same offsets. Anything else
+    (a different log, a shorter remote file, a changed header) starts over. Returns 0 to start over."""
+    try:
+        have = local_path.stat().st_size
+    except OSError:
+        return 0
+    if have <= 0 or int(remote.stat().st_size) < have:
+        return 0
+    n = min(_RESUME_CHECK, have)
+    with open(local_path, 'rb') as f:
+        head = f.read(n)
+        f.seek(have - n)
+        tail = f.read(n)
+    remote.seek(0)
+    if remote.read(n) != head:
+        return 0
+    remote.seek(have - n)
+    return have if remote.read(n) == tail else 0
+
+
+def _copy_snapshot(sftp, remote_path: str, local_path: pathlib.Path,
+                   callback: Optional[Callable[[int, int], None]] = None, resume: bool = False) -> tuple:
+    """Copy remote_path as it is now, plus what is appended during the copy, without chasing it.
+
+    sftp.get() reads until EOF but only prefetches the size it saw when it opened the file. On a
+    log the robot is still writing, everything past that is read one 32 KB round trip at a time,
+    which over the access point (11-03) was no faster than AdvantageKit writes (~100 kB/s): the
+    download ran for 10 minutes and never reached the end. Here every pass is bounded by a fresh
+    stat and fully prefetched, and after one catch-up pass whatever is still arriving is left behind.
+    With resume=True, bytes already in local_path are kept when they are the start of the same remote log
+    (see _resume_point), so only what the robot wrote since is downloaded.
+    Returns (bytes copied in total, remote size at the end)."""
+    done = 0
+    with sftp.open(remote_path, 'rb') as remote:
+        done = _resume_point(remote, local_path) if resume else 0
+        if done:
+            log.info('resuming %s from byte %d', remote_path, done)
+        with open(local_path, 'r+b' if done else 'wb') as local:
+            if done:
+                local.seek(done)
+                local.truncate()
+            return _copy_from(remote, local, done, callback)
+
+
+def _copy_from(remote, local, done: int, callback) -> tuple:
+    """Copy remote[done:] to local (which is positioned at `done`), in bounded, prefetched passes."""
+    target = int(remote.stat().st_size)
+    for _ in range(1 + _CATCH_UP_PASSES):
+        if target <= done:
+            break
+        remote.seek(done)
+        remote.prefetch(target)
+        while done < target:
+            data = remote.read(min(_READ_SIZE, target - done))
+            if not data:
+                break
+            local.write(data)
+            done += len(data)
+            if callback:
+                callback(done, target)
+        if done < target:  # the file shrank or was replaced under us; keep what we have
+            break
+        target = int(remote.stat().st_size)
+    return done, max(done, target)
+
+
 def fetch_rio_log(cfg: HostConfig, name: str, dest_dir: pathlib.Path,
                   progress: Optional[ProgressCallback] = None,
-                  idle_timeout_seconds: Optional[int] = None) -> pathlib.Path:
+                  idle_timeout_seconds: Optional[int] = None,
+                  on_still_growing: Optional[Callable[[int, int], None]] = None,
+                  resume: bool = True) -> pathlib.Path:
     """Downloads <logs_path>/<name> into dest_dir (typically LOG_ROOT). Returns the local
-    path."""
+    path. If the robot is still writing the log, this keeps a snapshot rather than following it
+    (see _copy_snapshot) and calls on_still_growing(bytes copied, remote size now).
+    If an earlier copy is already in dest_dir and is the start of the same log, only the new end is
+    downloaded (resume=False forces a full download)."""
     dest_dir = pathlib.Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
     remote_path = posixpath.join(cfg.path, name)
@@ -256,12 +393,14 @@ def fetch_rio_log(cfg: HostConfig, name: str, dest_dir: pathlib.Path,
                 if progress:
                     progress(name, done, total)
 
-            if progress:
-                sftp.get(remote_path, str(local_path), callback=callback)
-            else:
-                sftp.get(remote_path, str(local_path))
-            log.info('downloaded RIO log %s (%d bytes) in %.2fs', name, local_path.stat().st_size,
+            copied, remote_size = _copy_snapshot(sftp, remote_path, local_path, callback, resume=resume)
+            log.info('downloaded RIO log %s (%d bytes) in %.2fs', name, copied,
                      time.monotonic() - started)
+            if remote_size > copied:
+                log.warning('RIO log %s is still being written: kept the first %d of %d bytes',
+                            name, copied, remote_size)
+                if on_still_growing:
+                    on_still_growing(copied, remote_size)
         except (OSError, IOError) as exc:
             raise _download_error(remote_path, cfg, exc, idle_timeout_seconds) from exc
     finally:

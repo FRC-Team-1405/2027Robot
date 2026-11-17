@@ -41,10 +41,6 @@ import frc.robot.lib.AprilTags;
 import frc.robot.lib.CommandTracker;
 import edu.wpi.first.wpilibj.RobotBase;
 import frc.robot.subsystems.AdjustableHood;
-import frc.robot.subsystems.ClimberIO;
-import frc.robot.subsystems.ClimberIOSim;
-import frc.robot.subsystems.ClimberIOTalonFX;
-import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.HoodIO;
 import frc.robot.subsystems.HoodIOSim;
@@ -102,8 +98,6 @@ public class RobotContainer {
 
         public Indexer indexer = new Indexer(
                         RobotBase.isReal() ? new IndexerIOTalonFX() : new IndexerIOSim());
-        public final Climber climber = new Climber(
-                        RobotBase.isReal() ? new ClimberIOTalonFX() : new ClimberIOSim());
         public final AdjustableHood hood = new AdjustableHood(
                         RobotBase.isReal() ? new HoodIOServo() : new HoodIOSim());
         public final Hopper hopper = new Hopper(
@@ -119,7 +113,7 @@ public class RobotContainer {
                         RobotBase.isReal() ? new ShooterIOTalonFX() : new ShooterIOSim(),
                         operatorJoystick, moveMode.setToStandardMode());
         ShootMode shootMode = new ShootMode(drivetrain, swerveFeatures, intake, indexer, shooter, driverJoystick);
-        public final CommandsForAutos commandsForAutos = new CommandsForAutos(drivetrain, climber,
+        public final CommandsForAutos commandsForAutos = new CommandsForAutos(drivetrain,
                         intake,
                         pickup,
                         hopper,
@@ -149,7 +143,7 @@ public class RobotContainer {
                 // configureBindings_CTReDefault();
                 drivetrain.configureAutoBuilder();
                 full_Autos.registerAutos(commandsForAutos);
-                AutoCommands.setupAutoChooser(drivetrain, climber, intake, hopper, indexer, shooter, hood,
+                AutoCommands.setupAutoChooser(drivetrain, intake, hopper, indexer, shooter, hood,
                                 swerveFeatures, commandsForAutos);
                 AprilTags.publishTags(AprilTags.getAprilTagFieldLayout());
                 drivetrain.initOverridePose();
@@ -443,14 +437,16 @@ public class RobotContainer {
                 //
                 // A: spin up to whatever value is set in the Shooter/TestTargetRPS dashboard
                 // slider
-                shooterJoystick.a().onTrue(shooter.runShooterAtTestRPS());
-                // // B: stop shooter
-                shooterJoystick.b().onTrue(shooter.stopShooter());
-                // // Preset speeds
-                shooterJoystick.y().onTrue(shooter.runSetRequestedSpeed(() ->
-                ShooterPreferences.SHORT));
-                shooterJoystick.x().onTrue(shooter.runSetRequestedSpeed(() ->
-                ShooterPreferences.MEDIUM));
+                if (FeatureSwitches.ENABLE_SHOOTER_TEST_CONTROLLER) {
+                    shooterJoystick.a().onTrue(shooter.runShooterAtTestRPS());
+                    // // B: stop shooter
+                    shooterJoystick.b().onTrue(shooter.stopShooter());
+                    // // Preset speeds
+                    shooterJoystick.y().onTrue(shooter.runSetRequestedSpeed(() ->
+                    ShooterPreferences.SHORT));
+                    shooterJoystick.x().onTrue(shooter.runSetRequestedSpeed(() ->
+                    ShooterPreferences.MEDIUM));
+                }
                 // // shooterJoystick.a().onTrue(shooter.runSetRequestedSpeed(() ->
                 // // ShooterPreferences.LONG));
                 // // Fire + stop

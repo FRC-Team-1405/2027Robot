@@ -34,7 +34,23 @@ class SharedTable:
         path = f"{self.path}/{name}"
         return SimpleNamespace(publish=lambda: SimpleNamespace(set=lambda value: self.values.__setitem__(path, value)))
 
-    getStringTopic = getDoubleTopic
+    getStringTopic = getIntegerTopic = getBooleanTopic = getDoubleTopic
+    getDoubleArrayTopic = getStringArrayTopic = getIntegerArrayTopic = getDoubleTopic
+
+
+def fake_sampler(names, cpu):
+    """Stands in for PerformanceSampler (tested against a fake /proc and /sys in test_publisher_system)."""
+    class Sampler:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def sample(self):
+            return {**{name: 0 for name in names}, "CPU_Pct": cpu}
+    return Sampler
+
+
+SYSTEM = {"uptime_sec": 120.5, "boot_id": "boot-1", "iface": "eth0", "carrier_changes": 3, "operstate": "up",
+          "speed_mbps": 1000, "video_devices": 4, "usb_cameras": 2}
 
 
 class NetworkTablesIdentityTests(unittest.TestCase):
@@ -43,13 +59,16 @@ class NetworkTablesIdentityTests(unittest.TestCase):
         clients = []
         for board, cpu, ip in (("LeftPi", 11.0, "10.14.5.21"), ("RightPi", 29.0, "10.14.5.22")):
             module = load_script("orangepi-nt-publisher.py", board)
+            perf_names = tuple(module.PERFORMANCE_TOPICS)
+            sampler = fake_sampler(perf_names, cpu)
             instance = MagicMock()
             instance.getTable.side_effect = lambda name: SharedTable(values, f"/{name}")
             ntcore = SimpleNamespace(NetworkTableInstance=SimpleNamespace(getDefault=lambda: instance))
             with patch.dict(sys.modules, ntcore=ntcore), \
-                 patch.object(module, "read_cpu_pct", return_value=cpu), \
+                 patch.object(module, "PerformanceSampler", sampler), \
                  patch.object(module, "read_ram", return_value=(100, 200, 50)), \
                  patch.object(module, "read_disk", return_value=(1, 10, 10)), \
+                 patch.object(module, "read_system", return_value=SYSTEM), \
                  patch.object(module, "read_temp_c", return_value=40),                  patch.object(module, "read_ip", return_value=ip),                  patch.object(module, "read_host", return_value=f"{board.lower()}.local"), \
                  patch.object(module.time, "sleep", side_effect=StopLoop), patch("builtins.print"):
                 with self.assertRaises(StopLoop):
@@ -61,7 +80,16 @@ class NetworkTablesIdentityTests(unittest.TestCase):
         # How to reach each board, for tools/logbench's Pi discovery.
         self.assertEqual(values["/OrangePi/LeftPi/IP"], "10.14.5.21")
         self.assertEqual(values["/OrangePi/RightPi/Host"], "rightpi.local")
-        self.assertEqual(len(values), 20)  # eight metrics plus IP and Host per board
+        # seven basic metrics, IP, Host, eight system diagnostics, the 21 performance values, the five
+        # network traffic values per board, plus PvSettingsOk / PvSettingsError / PvCameras (no
+        # PhotonVision settings file on a test machine)
+        self.assertEqual(len(perf_names), 21)
+        self.assertEqual(len(module.NET_TRAFFIC_TOPICS), 5)
+        self.assertEqual(len(values), 2 * (7 + 2 + 8 + 21 + 5 + 3))
+        self.assertEqual(values["/OrangePi/LeftPi/PvSettingsOk"], False)
+        self.assertEqual(values["/OrangePi/LeftPi/CpuCorePct"], 0)
+        self.assertEqual(values["/OrangePi/LeftPi/BootId"], "boot-1")
+        self.assertEqual(values["/OrangePi/RightPi/NetCarrierChanges"], 3)
         self.assertNotIn("/OrangePi/CPU_Pct", values)
         self.assertEqual(clients, ["OrangePiMetrics-LeftPi", "OrangePiMetrics-RightPi"])
 
@@ -79,7 +107,7 @@ class NetworkTablesIdentityTests(unittest.TestCase):
                     module.main()
             clients.append(instance.startClient4.call_args.args[0])
             self.assertEqual([call.args[0] for call in instance.getTable.call_args_list],
-                             ["FMSInfo", "RobotTime"])
+                             ["FMSInfo", "RobotTime", f"OrangePi/{board}/Recorders/{camera}"])
             instance.getTable.return_value.getIntegerTopic.return_value.getEntry.return_value.set.assert_not_called()
         self.assertEqual(clients, ["OrangePiVisionRecorder-LeftPi-left", "OrangePiVisionRecorder-RightPi-right",
                                    "OrangePiVisionRecorder-PracticeVision-front", "OrangePiVisionRecorder-PracticeVision-rear"])

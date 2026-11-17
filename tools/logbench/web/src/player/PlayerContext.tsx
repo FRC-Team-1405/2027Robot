@@ -20,12 +20,16 @@ interface PlayerContextValue {
   /** Track ids the user has hidden. Changing this re-renders panels (rare, deliberate). */
   hidden: ReadonlySet<string>;
   toggleTrack: (trackId: string) => void;
+  /** Charts show the whole log instead of just the match (enabled time plus padding). */
+  fullLog: boolean;
+  setFullLog: (full: boolean) => void;
 }
 
 const Ctx = createContext<PlayerContextValue | null>(null);
 
 export function PlayerProvider({ spec, children }: { spec: Spec; children: ReactNode }) {
   const clock = useMemo(() => new PlayerClock(spec.duration), [spec]);
+  const [fullLog, setFullLog] = useState(false);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(
     () => new Set(spec.tracks.filter((t) => t.hidden).map((t) => t.id)),
   );
@@ -92,8 +96,10 @@ export function PlayerProvider({ spec, children }: { spec: Spec; children: React
           next.has(trackId) ? next.delete(trackId) : next.add(trackId);
           return next;
         }),
+      fullLog,
+      setFullLog,
     }),
-    [spec, clock, hidden],
+    [spec, clock, hidden, fullLog],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

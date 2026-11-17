@@ -30,6 +30,10 @@ from typing import List, Optional
 import paths  # noqa: F401  (side effect: sys.path bridges)
 
 import bundles
+import bundle_pairing
+import vision_coverage
+import nt_clients
+import match_bundle
 import app_logging
 import compare_export
 import battery
@@ -48,7 +52,11 @@ from core.compare import WindowSelector, compare, make_run
 from core.composites import COMPOSITES
 from core.log import Log
 from core.metrics import METRICS
+from core import signals as sig
+from core import throughput
 from core.severity import BANDS as SEVERITY_BANDS
+from health import config as health_config
+from health import engine as health_engine
 from encode import spec_to_dict
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
@@ -145,12 +153,18 @@ def list_logs() -> dict:
     root = LOG_ROOT.resolve()
     out = []
     for p in sorted(root.rglob('*.wpilog')):
+        if '.bundles' in p.relative_to(root).parts:
+            continue  # prepared downloads are job artifacts, not additional input logs
         stat = p.stat()
+        rel = p.relative_to(root)
         out.append({
-            'path': p.relative_to(root).as_posix(),
+            'path': rel.as_posix(),
             'name': p.name,
             'size': stat.st_size,
             'mtime': stat.st_mtime,
+            'folder': rel.parent.as_posix() if rel.parent.parts else '',
+            # Cheap directory listing only (no parsing): cameras that have a recorded .vision session.
+            'vision_cameras': sorted(c or '(unnamed)' for c, sessions in bundles.list_vision_sessions(p).items() if sessions),
         })
     return {'root': str(root), 'logs': out, 'specs': specs.listing()}
 
@@ -246,6 +260,41 @@ def log_info(log: str = Query(..., description='log path relative to the log roo
     }
 
 
+def _last_value(parsed, name, empty=(None, '', 0)):
+    """Latest non-empty value of a DriverStation signal, or None. Event and match fields start out blank
+    and fill in once the robot connects to FMS, so the first sample is not the interesting one."""
+    series = sig.find_signal(parsed.signals, name) or []
+    for _, value in reversed(series):
+        if value not in empty:
+            return value
+    return None
+
+
+_MATCH_TYPES = {1: 'Practice', 2: 'Qualification', 3: 'Elimination'}
+
+
+@app.get('/api/log-details')
+def log_details(log: str = Query(..., description='log path relative to the log root')) -> dict:
+    """What the log browser shows when asked to inspect a log: log-info plus the match identity the
+    driver station recorded and how long the robot was enabled. Parses the log (cached like the rest)."""
+    info = log_info(log)
+    parsed = _load_log(_resolve(log))
+    seconds = {'auto': 0.0, 'teleop': 0.0}
+    for span in info['mode_spans']:
+        if span['mode'] in seconds:
+            seconds[span['mode']] += span['hi'] - span['lo']
+    match_type = _last_value(parsed, 'DriverStation/MatchType')
+    return {
+        **info,
+        'event': _last_value(parsed, 'DriverStation/EventName'),
+        'match_type': _MATCH_TYPES.get(match_type) if isinstance(match_type, int) else None,
+        'match_number': _last_value(parsed, 'DriverStation/MatchNumber'),
+        'fms': bool(_last_value(parsed, 'DriverStation/FMSAttached', empty=(None, False))),
+        'auto_sec': seconds['auto'],
+        'teleop_sec': seconds['teleop'],
+    }
+
+
 @app.get('/api/metric-catalog')
 def metric_catalog() -> dict:
     """Every registered Metric and Composite, so the compare page's metric picker never
@@ -266,6 +315,20 @@ def metric_catalog() -> dict:
                 'description': desc.get(c.id, '')} for c in COMPOSITES.values()]
         ),
     }
+
+
+@app.get('/api/vision-insights')
+def vision_insights(log: str = Query(...), mode: str = Query('whole'),
+                    window: Optional[str] = Query(None), rolling_sec: float = Query(1.0),
+                    tracking_gap_sec: float = Query(throughput.DEFAULT_TRACKING_GAP_SEC)) -> dict:
+    try:
+        loaded = _load_log(_resolve(log))
+        selector = WindowSelector(manual=_parse_manual_window(window)) if window else WindowSelector(mode=mode)
+        result = throughput.analyze(make_run(loaded, selector), rolling_sec, tracking_gap_sec)
+        result['order'] = _order_notice(loaded.order_stats)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.get('/api/battery')
@@ -391,6 +454,7 @@ def live_connect(
     Check page polls. There is exactly one live connection at a time -- this tool runs on
     a laptop on a bench next to one robot, not a fleet."""
     try:
+        _want_health_signals(_health_specs()[0])
         live_nt.connect(server, root_table)
     except ModuleNotFoundError as exc:
         raise HTTPException(status_code=501, detail=(
@@ -413,6 +477,79 @@ def live_snapshot() -> dict:
 def live_disconnect() -> dict:
     live_nt.disconnect()
     return {'connected': False}
+
+
+# -- Health Check ------------------------------------------------------------------------------
+# One configuration file (health_checks.toml, re-read when it changes) drives both a live robot
+# and a finished log; see health/engine.py.
+
+HEALTH_CONFIG_PATH = pathlib.Path(__file__).resolve().parent / 'health_checks.toml'
+_health_latch = health_engine.Latch()
+
+
+def _health_specs():
+    specs_, errors = health_config.load(HEALTH_CONFIG_PATH)
+    return specs_, errors
+
+
+def _want_health_signals(specs_) -> None:
+    """Tell the live client which topics' values the checks read, so it never subscribes to all."""
+    live_nt.set_health_signals([s.signal for s in specs_] + [p for s in specs_ for _n, p in s.lookup])
+
+
+@app.get('/api/health/config')
+def health_config_info() -> dict:
+    specs_, errors = _health_specs()
+    return {'path': str(HEALTH_CONFIG_PATH), 'checks': len(specs_), 'errors': errors,
+            'sections': sorted({s.section for s in specs_})}
+
+
+@app.get('/api/health/log')
+def health_for_log(path: str = Query(..., description='log path relative to the log root')) -> dict:
+    """The health report for a finished log: every configured check over the log's own samples."""
+    p = _resolve(path)
+    log_ = _load_log(p)
+    specs_, errors = _health_specs()
+    source = health_engine.LogSource(log_.signals, log_.mode_spans())
+    lo, hi = log_.bounds()
+    # Rows that need the bundle's files, not just the log: how much of the match each Pi camera saw.
+    coverage_rows = vision_coverage.for_log(p, log_.mode_spans(), lo, log_.cameras())
+    coverage_rows += nt_clients.for_log(log_.signals, log_.mode_spans(), lo)
+    report = health_engine.evaluate(specs_, source, extra_rows=coverage_rows)
+    report['config_errors'] = errors
+    report['meta'] = {
+        'log': path, 'duration': hi - lo,
+        'modes': [{'mode': m, 'start': a, 'end': b} for a, b, m in log_.mode_spans()],
+    }
+    return report
+
+
+@app.get('/api/health/live')
+def health_live() -> dict:
+    """The health report for the live robot (connect first with /api/live/connect). Each row also
+    carries `worst` (and `peak` for numbers) since the last reset, so a red that came and went while
+    the robot was enabled is still visible."""
+    specs_, errors = _health_specs()
+    if not live_nt.is_connected():
+        return {'connected': False, 'config_errors': errors}
+    _want_health_signals(specs_)
+    data = live_nt.health_snapshot()
+    report = health_engine.evaluate(specs_, health_engine.SnapshotSource(data), latch=_health_latch)
+    enabled = data.get('DriverStation/Enabled', (None, None))[0]
+    auto = data.get('DriverStation/Autonomous', (None, None))[0]
+    report['connected'] = True
+    report['config_errors'] = errors
+    report['meta'] = {
+        'topics': len(data),
+        'robot': None if enabled is None else ('disabled' if not enabled else ('auto' if auto else 'teleop')),
+    }
+    return report
+
+
+@app.post('/api/health/live/reset')
+def health_live_reset() -> dict:
+    _health_latch.reset()
+    return {'reset': True}
 
 
 @app.get('/api/spec')
@@ -503,6 +640,8 @@ class BundleRequest(BaseModel):
     # matters to the client (whether to keep showing an auto-suggested pairing or one
     # the user picked by hand); fetching happens identically either way.
     manual: bool = False
+    prepare_download: bool = False
+    include_battery: bool = False
 
 
 def _iso(d) -> Optional[str]:
@@ -562,7 +701,8 @@ def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict], pi_not
     """Build the stable wire shape shared by the legacy and tracked list endpoints."""
     rio_infos = [pairing.RioLogInfo(name=r['name'], wall_clock=r['wall_clock']) for r in rio_raw]
     pi_infos = [pairing.PiSessionInfo(camera=s['camera'], name=s['name'], wall_clock=s['wall_clock'],
-                              pi=s['pi'])
+                                      pi=s['pi'], epoch=s.get('epoch'), t_first=s.get('t_first'),
+                                      t_last=s.get('t_last'))
                 for s in pi_raw]
     suggestions = pairing.suggest_pairings(rio_infos, pi_infos)
 
@@ -573,13 +713,14 @@ def _remote_sessions_result(cfg, rio_raw: list[dict], pi_raw: list[dict], pi_not
         'status': bundles.local_status(root / r['name']),
     } for r in rio_raw]
     pi_out = [{'camera': s['camera'], 'name': s['name'], 'pi': s['pi'],
-               'wall_clock': _iso(s['wall_clock'])}
+               'wall_clock': _iso(s['wall_clock']), 'epoch': _iso(s.get('epoch'))}
               for s in pi_raw]
     pairings_out = [{
         'rio_log': p.rio_log,
         'pi_sessions': [{'camera': s.camera, 'name': s.name, 'pi': s.pi} for s in p.pi_sessions],
         'confidence': p.confidence,
         'reason': p.reason,
+        'method': p.method,
     } for p in suggestions]
     return {'configured': True, 'rio_logs': rio_out, 'pi_sessions': pi_out, 'pairings': pairings_out,
             'pi_notes': list(pi_notes)}
@@ -590,6 +731,22 @@ def _job_or_404(job_id: str) -> dict:
     if snapshot is None:
         raise HTTPException(status_code=404, detail='remote job not found or has expired')
     return snapshot
+
+
+def _refine_sessions(cfg, local_log: pathlib.Path, requested: List[PiSessionRef],
+                     job_id: str) -> tuple[list[PiSessionRef], str]:
+    """The automatic pick, redone from the downloaded log's own boot clock (bundle_pairing.refine).
+    Anything that stops that (no clock in the log, a Pi that cannot be listed) keeps the suggestion."""
+    remote_jobs.set_phase(job_id, "Matching Orange Pi sessions to this log's boot")
+    try:
+        resolution = pi_discovery.resolve_pis(cfg, refresh=False)
+        pi_raw, _notes = _list_all_pi_sessions(resolution.pis)
+        refined = bundle_pairing.refine(local_log, [{'camera': r.camera, 'name': r.name, 'pi': r.pi} for r in requested], pi_raw)
+    except Exception as exc:  # noqa: BLE001 -- the file-name pick is still a usable answer
+        log.warning('could not refine Pi sessions by boot clock: %s', exc)
+        return requested, 'kept the file-name suggestion (boot-clock match failed: %s)' % exc
+    log.info('bundle %s: %s', local_log.name, refined.note)
+    return [PiSessionRef(camera=s['camera'], name=s['name'], pi=s['pi']) for s in refined.sessions], refined.note
 
 
 @app.post('/api/remote/sessions/jobs', status_code=202)
@@ -643,13 +800,20 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
     def work(job_id: str) -> dict:
         remote_jobs.set_phase(job_id, 'Inspecting selected remote files')
         rio_size = remote_fetch.rio_log_size(cfg.rio, body.rio_log)
-        pi_files: list[tuple[PiSessionRef, list[dict]]] = []
-        inventory = [(body.rio_log, rio_size)]
-        for ref in body.pi_sessions:
-            files = remote_fetch.pi_session_files(_pi_for(cfg, ref), ref.camera, ref.name)
-            pi_files.append((ref, files))
-            inventory.extend((f'{ref.camera or "vision"}/{ref.name}/{item["name"]}', item['size'])
-                             for item in files)
+
+        def pi_inventory(refs: list[PiSessionRef]):
+            listed, inv = [], []
+            for ref in refs:
+                files = remote_fetch.pi_session_files(_pi_for(cfg, ref), ref.camera, ref.name)
+                listed.append((ref, files))
+                inv.extend((f'{ref.camera or "vision"}/{ref.name}/{item["name"]}', item['size'])
+                           for item in files)
+            return listed, inv
+
+        # A hand-picked set is fetched as chosen, so its size is known up front. An automatic one
+        # is re-picked from the log's own clock after the download (below), so only the log counts yet.
+        pi_files, pi_inv = pi_inventory(body.pi_sessions) if body.manual else ([], [])
+        inventory = [(body.rio_log, rio_size)] + pi_inv
         remote_jobs.set_inventory(job_id, inventory)
         log.info('bundle job %s inventory: %d files, %d bytes', job_id, len(inventory),
                  sum(size for _, size in inventory))
@@ -657,14 +821,29 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
         def rio_progress(name: str, done: int, total: int) -> None:
             remote_jobs.file_progress(job_id, name, done, total)
 
+        log_warnings: List[str] = []
+
+        def still_growing(copied: int, remote_size: int) -> None:
+            log_warnings.append(
+                'The robot was still writing %s, so this bundle has it up to the moment of the '
+                'download (%.1f of %.1f MB so far). Fetch it again after the robot code restarts '
+                'to get the rest.' % (body.rio_log, copied / 1e6, remote_size / 1e6))
+
         remote_jobs.set_phase(job_id, 'Downloading RoboRIO log', body.rio_log)
         local_log = remote_fetch.fetch_rio_log(
             cfg.rio, body.rio_log, LOG_ROOT, progress=rio_progress,
-            idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
+            idle_timeout_seconds=cfg.transfer_idle_timeout_seconds,
+            on_still_growing=still_growing)
         remote_jobs.file_complete(job_id, body.rio_log)
 
+        pairing_note = None
+        if not body.manual:
+            refs, pairing_note = _refine_sessions(cfg, local_log, body.pi_sessions, job_id)
+            pi_files, pi_inv = pi_inventory(refs)
+            remote_jobs.set_inventory(job_id, [(body.rio_log, rio_size)] + pi_inv)
         fetched: List[dict] = []
-        if body.pi_sessions:
+        fetched_dirs = []
+        if pi_files:
             vision_dir = bundles.vision_dir_for(local_log)
             for ref, files in pi_files:
                 remote_jobs.set_phase(job_id, 'Downloading Orange Pi vision session', ref.name)
@@ -676,6 +855,7 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
                 session_dir = remote_fetch.fetch_pi_session(
                     _pi_for(cfg, ref), ref.camera, ref.name, vision_dir, progress=pi_progress,
                     idle_timeout_seconds=cfg.transfer_idle_timeout_seconds)
+                fetched_dirs.append(session_dir)
                 # Empty files do not produce an SFTP byte callback; mark every file
                 # idempotently so the completed count stays accurate in that case too.
                 for item in files:
@@ -683,12 +863,38 @@ def start_remote_bundle_job(body: BundleRequest) -> dict:
                                               f'{ref.camera or "vision"}/{ref.name}/{item["name"]}')
                 fetched.append({'camera': ref.camera, 'name': ref.name, 'pi': ref.pi,
                                 'path': session_dir.relative_to(LOG_ROOT.resolve()).as_posix()})
-        remote_jobs.set_phase(job_id, 'Finalizing bundle')
-        return {'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
-                'pi_sessions': fetched, 'manual': body.manual}
+        if remote_jobs.cancelled(job_id):
+            raise RuntimeError('cancelled by user')
+        result = {'log': local_log.relative_to(LOG_ROOT.resolve()).as_posix(),
+                  'pi_sessions': fetched, 'manual': body.manual}
+        if pairing_note:
+            result['pairing_note'] = pairing_note
+        if body.prepare_download or body.include_battery:
+            prepared = match_bundle.prepare(
+                local_log, fetched_dirs, LOG_ROOT / '.bundles' / job_id,
+                phase=lambda text: remote_jobs.set_phase(job_id, text),
+                cancelled=lambda: remote_jobs.cancelled(job_id), include_battery=body.include_battery)
+            result.update(prepared)
+            result['download_url'] = f'/api/remote/jobs/{job_id}/download'
+        if log_warnings:
+            result['warnings'] = log_warnings + list(result.get('warnings') or [])
+        remote_jobs.set_phase(job_id, 'Ready')
+        return result
 
     job_id = remote_jobs.start('bundle', work)
     return {'job_id': job_id}
+
+
+@app.get('/api/remote/jobs/{job_id}/download')
+def download_remote_bundle(job_id: str):
+    job = _job_or_404(job_id)
+    result = job.get('result') or {}
+    if job['status'] != 'complete' or not result.get('archive'):
+        raise HTTPException(status_code=409, detail='bundle download is not ready')
+    archive = LOG_ROOT / '.bundles' / job_id / result['archive']
+    if not archive.is_file():
+        raise HTTPException(status_code=404, detail='prepared bundle is no longer available; fetch it again')
+    return FileResponse(archive, media_type='application/zip', filename=archive.name)
 
 
 @app.get('/api/remote/sessions')
@@ -762,8 +968,8 @@ def remote_bundle_zip(log: str = Query(..., description='log path relative to th
 @app.post('/api/import/zip')
 async def import_zip(file: UploadFile = File(...)) -> dict:
     """Multipart upload for teammates without SSH access to the RIO/Pi. Validates the
-    zip has exactly one top-level .wpilog (+ optionally that log's own <name>.vision/
-    tree, matching what /api/remote/bundle-zip produces) and extracts it into LOG_ROOT.
+    zip has one original .wpilog, optionally its .trimmed.wpilog and .trim.json,
+    and that log's own <name>.vision/ tree, then extracts it into LOG_ROOT.
     409s on a name collision so the client can prompt for a rename rather than silently
     overwriting someone's existing log."""
     contents = await file.read()
@@ -774,23 +980,33 @@ async def import_zip(file: UploadFile = File(...)) -> dict:
 
     names = [n for n in zf.namelist() if not n.endswith('/')]
     top_level_logs = [n for n in names if n.endswith('.wpilog') and '/' not in n]
-    if len(top_level_logs) != 1:
+    # New match bundles contain the original plus its explicitly named derived copy.
+    originals = [n for n in top_level_logs
+                 if not any(match_bundle.trimmed_name(other) == n for other in top_level_logs if other != n)]
+    if len(originals) != 1:
         raise HTTPException(
             status_code=400,
-            detail='zip must contain exactly one top-level .wpilog file (found %d)' % len(top_level_logs),
+            detail='zip must contain exactly one original top-level .wpilog, optionally its trimmed copy (found %d logs)' % len(top_level_logs),
         )
-    wpilog_name = top_level_logs[0]
+    wpilog_name = originals[0]
+    allowed_logs = {wpilog_name, match_bundle.trimmed_name(wpilog_name)}
+    allowed_reports = {match_bundle.report_name(wpilog_name), *match_bundle.battery_report_names(wpilog_name)}
+    if not set(top_level_logs).issubset(allowed_logs):
+        raise HTTPException(status_code=400, detail='zip contains unrelated wpilog files')
     vision_prefix = pathlib.Path(wpilog_name).stem + bundles.VISION_SUFFIX + '/'
     for n in names:
-        if n != wpilog_name and not n.startswith(vision_prefix):
+        parts = pathlib.PurePosixPath(n).parts
+        if ('\\' in n or n.startswith('/') or '..' in parts
+                or (n not in allowed_logs and n not in allowed_reports
+                    and not n.startswith(vision_prefix))):
             raise HTTPException(
                 status_code=400,
                 detail='unexpected entry in zip: %r (expected only %r and %r*)' % (n, wpilog_name, vision_prefix),
             )
 
-    dest_log = LOG_ROOT / wpilog_name
-    if dest_log.exists():
-        raise HTTPException(status_code=409, detail='%s already exists in the log root' % wpilog_name)
+    for n in names:
+        if (LOG_ROOT / n).exists():
+            raise HTTPException(status_code=409, detail='%s already exists in the log root' % n)
 
     zf.extractall(LOG_ROOT, members=names)
     return {'log': wpilog_name, 'imported': names}

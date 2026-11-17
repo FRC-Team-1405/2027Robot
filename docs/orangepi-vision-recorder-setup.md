@@ -67,7 +67,61 @@ Left Cam live raw stream: http://photonvision.local:1183/stream.mjpg
 
 Re-verify if cameras are added/reordered, since PhotonVision assigns port pairs per camera index.
 
-**b. Confirm the `/FMSInfo` enabled-bit decoding.** With `./gradlew simulateJava` running and the Driver Station GUI open, use a throwaway NT4 client (or run the real script with extra print statements) to watch the `/FMSInfo/FMSControlData` topic while toggling Enabled/Disabled and Autonomous/Teleop in the DS GUI. The script assumes `enabled = bool(raw_value & 1)` per WPILib's standard `HAL_ControlWord` bit order — confirm this bit actually flips with Enabled before relying on it, since a wrong bit means the recorder either never runs or runs constantly. This only needs checking once — it's shared by both camera instances.
+**b. Confirm the `/FMSInfo` enabled-bit decoding.** *(Checked against WPILib 2026.2.1's source: `/FMSInfo/FMSControlData` is the raw HAL control word, bit 0 enabled, 1 autonomous, 2 test, 3 eStop, 4 fmsAttached, 5 dsAttached, so the decoding below is right. The live toggle check is still a worthwhile one-time sanity check on the real robot.)* With `./gradlew simulateJava` running and the Driver Station GUI open, use a throwaway NT4 client (or run the real script with extra print statements) to watch the `/FMSInfo/FMSControlData` topic while toggling Enabled/Disabled and Autonomous/Teleop in the DS GUI. The script assumes `enabled = bool(raw_value & 1)` per WPILib's standard `HAL_ControlWord` bit order — confirm this bit actually flips with Enabled before relying on it, since a wrong bit means the recorder either never runs or runs constantly. This only needs checking once — it's shared by both camera instances.
+
+## Verifying without a robot
+
+`coprocessor/sim/Run-SimulatedMatch.ps1` plays a full match (auto, pause, teleop) against the real
+service and PhotonVision stream with a fake roboRIO on the Pi, and checks sessions, timestamps,
+frame counts and frame freshness. See `coprocessor/sim/README.md`. Run it after any change to the
+recorder, and after setting up a new Pi (`coprocessor/Bootstrap-OrangePi.ps1` does the setup).
+
+## How the recorder behaves (worth knowing when reading recordings)
+
+- **Frames are fresh and stamped on arrival.** A background thread drains PhotonVision's stream
+  continuously and the sampler takes the newest frame, so `t_sec` is when PhotonVision sent it
+  (measured: median frame age under 20 ms). An earlier version read one frame per sample from a
+  ~100 fps stream and recorded frames that fell minutes behind real time by the end of a match.
+  A frame older than 2 s at write time (stream stalled) is skipped, not recorded.
+- **NT dropouts.** A dropout reads as "disabled". The recorder holds the session through a dropout
+  shorter than `NT_DROP_GRACE_SEC` (default 45 s; field logs show ~21 s dropouts repeating through teleop) and ignores a stale "disabled" for 2 s after a
+  reconnect, so one continuous enabled period stays one session. A dropout longer than the grace
+  period ends the session. During a hold, `t_sec` keeps using the last known server clock offset.
+- **Camera Lost detection.** When the USB camera disappears, PhotonVision keeps serving its raw
+  stream but every frame is the same static "Camera Lost" card, so the stream still looks fresh
+  (`StreamOk` stays true). The recorder treats `CAMERA_LOST_REPEATS` (3) byte-identical sampled
+  frames in a row as a lost camera (a real sensor never produces two identical JPEGs), logs
+  `Camera lost` / `Camera back after N s` and frame-size changes to `recorder.log`, flags each
+  manifest row with `camera_lost`, adds the count and lost time to the "session ended" line, and
+  publishes `CameraLost`, `CameraLostCount`, `CameraLostSec` and `FrameSize` in the heartbeat. Added
+  after the 2026-10-24 practice log, where LeftCam recorded 93 s of the card as healthy frames.
+- **Writes survive a power cut.** Every frame, manifest row and `recorder.log` line is fsynced as it
+  is written (`FSYNC_WRITES=0` turns this off). The robot is usually powered off seconds after a
+  match; before this, a Pi could lose the last ~20 s of its log (zero-filled), the "session ended"
+  line and its last frames (0-byte files).
+- **Version.** `Version` is `RECORDER_VERSION+<first 12 hex of the script's git blob id>`; the full id
+  is in the `ScriptBlob` topic and the log's startup line. The blob id is exactly what
+  `git hash-object` prints for the deployed file, so
+  `git log --all --find-object=<id> -- coprocessor/orangepi-vision-recorder.py` names the commit, even
+  when `RECORDER_VERSION` wasn't bumped.
+- **Auto and teleop are separate sessions** (the pause is a disable), but nothing in a recording
+  says which is which; infer it from order and time.
+- **Health heartbeat.** About once a second the recorder publishes its own status to NetworkTables under
+  `/OrangePi/[<ORANGEPI_METRICS_NAME>/]Recorders/<camera>/`: `State` (`idle` = stream fine and waiting for the
+  robot to enable, `recording`, `no_stream`, `error`), `StreamOk`, `StreamFps`, session and frame counters,
+  `Errors`/`LastError`, `DiskFreeGB`, `ClockSynced`, `Version`/`ScriptBlob`, `CameraLost`/`CameraLostCount`/
+  `CameraLostSec`/`FrameSize`, and the recorder's own view of its NetworkTables
+  connection (`NtDisconnects`, `NtDownSec`, `NtLongestOutageSec`), so after a reconnect the Pi can show it never
+  rebooted and the link dropped N times. It reports while the robot is disabled too, so the
+  camera stream and disk can be checked in the pits. LogBench's **Health Check** page reads it
+  (`docs/health-check.md`), and the robot's `CoprocessorHealthLogger` copies it into the match log. A
+  publishing failure is logged once and never affects recording.
+- **Environment overrides** (in the instance's env file): `SAMPLE_HZ`, `MAX_STORAGE_BYTES`,
+  `NT_DROP_GRACE_SEC`, and `NT_SERVER` / `NT_PORT` (point at a non-roboRIO NT server, used by the
+  simulation).
+- The service runs as root, so recordings under `~/vision-recordings` are root-owned (readable by `pi`).
+- The drain thread reads the stream even while disabled: about 1.5% of one core measured with
+  PhotonVision's 320x240 stream at ~100 fps on an Orange Pi 5. Larger frames cost more.
 
 ## 2. Copy the script and unit file to the Pi
 
@@ -133,11 +187,13 @@ ls /home/pi/vision-recordings/<instance>/
 cat /home/pi/vision-recordings/<instance>/<latest-session>/manifest.jsonl
 ```
 
-You should see JPEGs accumulating at roughly `SAMPLE_HZ` (default 3/sec) per camera and a `manifest.jsonl` line per frame with a `t_sec` timestamp. **Also watch PhotonVision's own dashboard FPS/latency counters while this runs** — they shouldn't visibly regress, since the whole point of tapping the existing MJPEG stream instead of the camera device is to avoid competing with the detection pipeline.
+You should see JPEGs accumulating at roughly `SAMPLE_HZ` (default 3/sec) per camera and a `manifest.jsonl` line per frame with `t_sec` for WPILog alignment plus `timestamp_utc` and `timestamp_unix_ms` for the real date/time. Check that `timestamp_status` is `synced` and the UTC date/time matches the Driver Station clock (UTC differs from local time). Unsynced or stale clocks produce null wall timestamps and an explicit status; they never use the Pi's unverified date. `timestamp_basis` is `recorder_receive`, not exposure time. See `coprocessor/README.md` for the full schema. **Also watch PhotonVision's own dashboard FPS/latency counters while this runs** — they shouldn't visibly regress, since the whole point of tapping the existing MJPEG stream instead of the camera device is to avoid competing with the detection pipeline.
 
 **Session folder names.** This Pi has no RTC battery, so its wall clock can reset to a stale build-image date on any power cycle that doesn't reach NTP (typical on a field network). Folders are named `<CAMERA_NAME>/boot<NNNN>-<timestamp>`, where `<NNNN>` is a counter in `RECORDINGS_DIR/<CAMERA_NAME>/.boot_id` that increments once per service instance start — so folders from the current power-on are always distinguishable from an older one even if the timestamp half of the name is wrong, and the `left`/`right` counters never interfere with each other.
 
 For the timestamp itself: robot code (`RobotContainer.publishRobotData()`) publishes the roboRIO's system clock — which the Driver Station sets on every connect, so it's accurate — to NT under `RobotTime/WallClockMs`. This script reads it once per session start and uses the offset to render the folder timestamp in America/New_York, without ever changing the Pi's own OS clock. The startup log line for each session says `(synced to roboRIO, offset +N.Ns)` when this worked, or `(NOT synced to roboRIO — using Pi's own possibly-stale clock)` if the Pi hadn't connected to NT yet when the session started (e.g. robot code isn't running, or the Pi came up before the radio/roboRIO did) — in that case trust the boot number, not the timestamp.
+
+**How LogBench uses these clocks.** The AdvantageKit log records the robot's own *epoch* (the wall clock at FPGA time zero: `RealOutputs/RobotTime/EpochMs`, on change only, with a per-run `RobotTime/BootId`; `WallClockEpoch.java`). A session's epoch is its first manifest row's `timestamp_utc` minus `t_sec` (or, for rows without one, the folder-name time minus the first `t_sec`), and it agrees with the log's to within a few seconds, so LogBench can put every session of a roboRIO boot into that boot's match bundle however many short pieces NT/camera flapping cut it into. Two things in the recorder matter for that: keep `t_sec` in the NT-server domain (rows with a Pi-wall-clock `t_sec` are ignored), and keep `timestamp_utc` filled in (check `timestamp_status` is `synced`); without it the session-name time, which is stamped a moment before the first frame, is used and the match is a few seconds looser. If the Health Check page's **Vision recording** rows show low coverage, the gap is in what was recorded (it is listed per camera with times), not in the pairing.
 
 ## 6. Storage cap
 

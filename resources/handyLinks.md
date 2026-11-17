@@ -10,6 +10,7 @@
 | Wireless (DHCP) Factory Default | Status | http://10.0.1.1/status |
 | Wireless (DHCP) Team Number Previously Set | Configuration | http://10.14.5.1/configuration |
 | Wireless (DHCP) Team Number Previously Set | Status | http://10.14.5.1/status |
+| Access Point | Configuration | http://10.14.5.4/configuration
 
 # Photon Vision Local URL
 
@@ -25,7 +26,7 @@ User/Pass - pi:raspberry
 
 # Left Orange Pi - PhotonVision URLs
 http://leftpi.local:5800/
-http://leftpi.local:1183/stream.mjpg
+http://leftpi.local:1181/stream.mjpg
 
 `ssh pi@leftpi.local`
 

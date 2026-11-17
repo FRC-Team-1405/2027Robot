@@ -70,6 +70,19 @@ def test_matches_one_session_per_camera():
     assert matched_names == {'boot0001-left', 'boot0001-right'}
 
 
+def test_all_auto_and_teleop_sessions_are_selected_without_claiming_the_next_match():
+    early = _rio(name='akit_early.wpilog', duration_sec=None)
+    late = _rio(name='akit_late.wpilog', minutes_after_t0=5, duration_sec=None)
+    sessions = [_pi(name=name, camera=camera, seconds_after_t0=seconds)
+                for camera in ('LeftCam', 'RightCam')
+                for name, seconds in [('auto', 30), ('teleop', 48), ('next-auto', 320)]]
+    first, second = suggest_pairings([early, late], sessions)
+    assert len(first.pi_sessions) == 4
+    assert {s.name for s in first.pi_sessions} == {'auto', 'teleop'}
+    assert len(second.pi_sessions) == 2
+    assert {s.name for s in second.pi_sessions} == {'next-auto'}
+
+
 def test_a_pi_session_with_no_wall_clock_is_ignored():
     rio = _rio()
     pi = _pi(wall_clock=False)
@@ -133,7 +146,8 @@ def test_sessions_from_different_pis_pair_to_one_log_and_keep_their_pi():
     assert {(s.pi, s.camera) for s in pairing.pi_sessions} == {('LeftPi', 'left'), ('RightPi', 'right')}
 
 
-def test_the_advantagekit_log_gets_the_sessions_not_the_wpilib_log_from_the_same_boot():
+def test_the_advantagekit_and_wpilib_logs_of_one_boot_share_the_sessions():
+    """Both logs are written a few seconds apart by the same boot, so both get the recording."""
     wpilib = _rio(name='FRC_20260115_143000.wpilog')
     akit = RioLogInfo(name='akit_26-01-15_14-30-01.wpilog', wall_clock=_T0 + dt.timedelta(seconds=1),
                       duration_sec=150.0)
@@ -141,4 +155,4 @@ def test_the_advantagekit_log_gets_the_sessions_not_the_wpilib_log_from_the_same
 
     by_log = {p.rio_log: p for p in suggest_pairings([wpilib, akit], [left, right])}
     assert {s.camera for s in by_log[akit.name].pi_sessions} == {'Left', 'Right'}
-    assert by_log[wpilib.name].pi_sessions == []
+    assert {s.camera for s in by_log[wpilib.name].pi_sessions} == {'Left', 'Right'}

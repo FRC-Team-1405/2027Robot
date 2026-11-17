@@ -5,6 +5,75 @@ systemd service. Full bench-verification/install walkthroughs live in
 `docs/orangepi-nt-publisher-setup.md` and `docs/orangepi-vision-recorder-setup.md` — this
 file is just "what's in this folder and why."
 
+## `Bootstrap-OrangePi.ps1` (runs on the LAPTOP, PowerShell)
+
+Not the same thing as `setup-orangepi.sh` below, which runs on the Pi. This is the one-time,
+guided setup of a **new** Pi from the Windows laptop. It explains each step, reports PASS / FAIL /
+"needs you", and is safe to re-run:
+
+**Easiest: run it with no options.** A short wizard asks which board(s) and whether to run
+straight through, with numbered choices (Enter takes the default), then prints the equivalent
+command line so you can skip the questions next time. The `sim\` scripts work the same way
+(shared code in `lib\Wizard.ps1`). Set `COPROCESSOR_WIZARD=off` to never be asked.
+
+```powershell
+cd coprocessor
+.\Bootstrap-OrangePi.ps1                    # wizard
+.\Bootstrap-OrangePi.ps1 LeftPi             # one board, everything from robots.json
+.\Bootstrap-OrangePi.ps1 -All -Yes          # every board of the default robot, no questions
+.\Bootstrap-OrangePi.ps1 -Robot practice RightPi   # a board of another robot in robots.json
+.\Bootstrap-OrangePi.ps1 -Address 192.168.137.241 -BoardName LeftPi -Cameras left
+```
+
+**`robots.json`** lists each robot's boards once: the board's NetworkTables name, the addresses to
+try, and each camera's name and raw PhotonVision stream. The stream is the address **the
+recorder on the Pi** reads PhotonVision from, so it's `localhost` (the Pi itself), not something
+the laptop opens; from the laptop the same stream is `http://LeftPi:1181/stream.mjpg`. Add a block per robot (`"practice"`,
+`"2028"`, …) and set `defaultRobot`. Anything given on the command line wins over the file. If
+the Pi you reach is already set up under a different board name, bootstrap stops and asks before
+renaming it, so a wrong address can't quietly turn the right-hand Pi into `LeftPi`. In unattended
+mode the stream URL from the file (or the prompt) now replaces a different one already on the Pi;
+before 11-07 an old URL was kept silently (RightPi kept `rightpi.local` that way).
+
+**SSH key:** `ssh\id_ed25519_orangepi` is the team's Orange Pi key, committed on purpose (see
+[ssh/README.md](ssh/README.md)). On a laptop without `~\.ssh\id_ed25519_orangepi`, bootstrap copies
+it there, so no Pi password is needed.
+
+It finds the Pi (mDNS, the Internet-Connection-Sharing subnet, the bench address), creates and
+installs an SSH key (you type the Pi password into ssh itself; the script never sees it), offers
+passwordless sudo, checks the Pi (OS, Python, disk, internet), checks the camera is activated in
+PhotonVision and finds its raw stream port, checks PhotonVision's team number is 1405, copies the
+scripts, runs `setup-orangepi.sh` unattended (which also adds `pi` to the `video` group, so bench
+capture can open the camera) and verifies the services. Things only a person can
+do (enable Internet Connection Sharing, press ACTIVATE on the camera in PhotonVision) stop the
+script with exact instructions. `Get-Help .\Bootstrap-OrangePi.ps1 -Full` lists the parameters.
+
+Use the Windows **OpenSSH Client** optional feature; we do not bundle OpenSSH binaries or
+automatically upgrade/downgrade them. Preflight prints the executable paths and `ssh -V`
+to help diagnose laptops with multiple installations. The script supports Windows PowerShell
+5.1 and PowerShell 7. Version `2026-11-07.1` adds `robots.json`, `-All`, `-Robot` and the
+team key. Version `2026-10-20.1` fixes the `ssh-keygen: Too many arguments`
+error recorded in `notes/10-20/notes.md`: the native-process helper was dropping the empty
+passphrase argument after `-N`. Updating OpenSSH would not repair that malformed command.
+It also keeps a single discovered hostname intact instead of selecting its first character.
+Pull `beta` and re-run the same bootstrap command; existing keys are reused.
+
+Regression checks (Python 3 and OpenSSH on PATH, no Pi needed):
+
+```powershell
+powershell -NoProfile -File .\tests\Test-BootstrapOrangePi.ps1
+# Or: pwsh -NoProfile -File .\tests\Test-BootstrapOrangePi.ps1
+```
+
+`setup-orangepi.sh` also has an opt-in unattended mode used by this script
+(`SETUP_UNATTENDED=1 SETUP_CHOICE SETUP_BOARD_NAME SETUP_CAMERAS SETUP_STREAMS`); without
+`SETUP_UNATTENDED` it behaves exactly as before.
+
+## `sim/` simulated match
+
+Verify the recorder end to end with no roboRIO: `sim\Run-SimulatedMatch.ps1` plays pre-match,
+auto, pause, teleop and post-match on a real Pi and checks the recordings. See `sim/README.md`.
+
 ## `setup-orangepi.sh`
 
 After copying this folder to the Pi, run the installer **on the Pi**, from your normal
@@ -77,30 +146,6 @@ not proof of roboRIO connectivity or recording correctness: bench-verify NT metr
 enabled-bit decoding, raw frames, and PhotonVision FPS/latency using the setup guides.
 Each camera has a 5GB storage cap. Remove temporary internet/Wi-Fi access when finished.
 
-## `sync-to-orangepi.bat`
-
-On Windows, double-click this batch file (or run it from a Command Prompt) to copy the
-entire `coprocessor` folder, including subfolders, to `/home/pi/coprocessor` using SCP.
-It needs the Windows OpenSSH Client (`ssh` and `scp`); no archive utility is required.
-It defaults to `pi@photonvision.local` and requires the `pi` user. It checks SSH access
-and that `/home/pi` is writable before transferring. Matching remote files are replaced;
-extra remote files are retained. You can run it from any working directory, including
-when the repository path contains spaces. After copying, it normalizes the Bash
-installer's line endings on the Pi so an older Windows checkout can run it.
-
-```bat
-sync-to-orangepi.bat
-sync-to-orangepi.bat pi@192.168.1.252
-sync-to-orangepi.bat pi@192.168.1.252 --setup
-```
-
-Copying alone does not reload or restart services. Add `--setup` to open the guided
-Pi-side installer over SSH after a successful transfer. Select the services to update;
-the installer applies their latest files and restarts/checks them. If copying fails,
-the installer does not run. Without `--setup`, SSH in as `pi` and run
-`cd ~/coprocessor && bash setup-orangepi.sh` afterward. A fresh install may still need
-temporary internet for dependencies; updating an existing working venv can be offline.
-
 ## `orangepi-nt-publisher.py` / `orangepi-nt-publisher.service`
 
 Publishes the Pi's CPU/RAM/disk/temp to NT4 under `/OrangePi/` once a second. One process,
@@ -114,6 +159,48 @@ Launching the Python script outside this setup with no name still uses the legac
 Samples PhotonVision's raw (pre-AprilTag) camera stream at low rate while the robot is
 enabled and saves timestamped JPEGs locally, for post-match vision diagnosis. See the
 script's own module docstring for how session folders are named and clock-synced.
+
+Each `manifest.jsonl` row now contains a real per-frame UTC date/time, not just
+the NT seconds embedded in its filename. Recorder version `2026.10.18.1` adds:
+
+```json
+{"frame":"frame_12.500000.jpg","t_sec":12.5,"timestamp_utc":"2026-10-18T14:00:00.500Z","timestamp_unix_ms":1792332000500,"timestamp_source":"roborio_wall_clock","timestamp_basis":"recorder_receive","timestamp_status":"synced"}
+```
+
+The recorder maps the robot's published `RobotTime/WallClockMs` and its atomic NT
+server timestamp to each frame's NT receipt time. This accounts for elapsed time
+since publication without relying on the Orange Pi's batteryless wall clock.
+Accuracy follows the roboRIO clock supplied by the Driver Station; millisecond
+formatting does not promise millisecond capture accuracy. These are recorder receipt
+timestamps, **not camera exposure timestamps**: this MJPEG reader has no exposure
+timestamp metadata. `t_sec` and filenames stay compatible with WPILog replay.
+
+When disconnected, awaiting NT clock sync, or lacking a valid robot clock sample
+within five seconds of the frame, `timestamp_utc`, `timestamp_unix_ms` and
+`timestamp_source` are `null`. `timestamp_status` states why (`nt_disconnected`,
+`nt_clock_unsynced`, `robot_clock_unavailable`, or `robot_clock_stale`). Frames still
+record; the recorder never substitutes an unverified Pi date. Install the updated
+script on every camera instance via `bash setup-orangepi.sh`. Existing manifests
+are not rewritten: their original rows did not record this clock correlation.
+
+Each new session also contains `recorder.log`: recorder version, board/camera/stream
+configuration, NT connection and enabled/control-word changes, ten-second progress
+reports (frames, errors, NT timestamp and clock-sync status), exception tracebacks,
+and the final frame/error count on disable or clean shutdown. These messages still go
+to the systemd journal. The file stays open while disabled until the next session,
+so a missing teleop enable can be investigated from the previous recording. The last
+100 diagnostic events are carried into the next session for startup/transition context.
+Logs rotate at 1 MiB with one backup (`recorder.log.1`) per session and are removed with
+their session under the normal storage cap. Wall-clock log timestamps use the Pi's OS
+clock (which may be stale); progress reports also include NT-server-domain time.
+
+Logbench **Fetch Bundle** already downloads every flat file in a selected session,
+including both diagnostic files, alongside `manifest.jsonl` and the JPEGs. Find them
+under `<match>.vision/<camera>/boot.../` beside the downloaded `.wpilog`. Install the
+updated recorder with `bash setup-orangepi.sh` (select all camera instances on this
+board); historical recordings cannot acquire diagnostics retroactively. These are
+application diagnostics, not an export of the full systemd journal: abrupt power loss,
+OS kills and failures before recorder startup may still require `journalctl`.
 
 ### Why the `@` in the filename
 

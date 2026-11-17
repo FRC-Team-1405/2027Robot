@@ -1,0 +1,3 @@
+# Keep the key files byte-for-byte. With core.autocrlf=true (the Windows default) git would
+# check them out with CRLF line endings, and OpenSSH then rejects the private key ("invalid format").
+* -text
