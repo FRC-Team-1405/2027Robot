@@ -122,6 +122,8 @@ def _check_robot(plan: Plan) -> int:
         print(f"\n{r.id}  {r.what}")
         for cam, full in plan.settings_for(r).items():
             print(f"  {cam}: " + ", ".join(f"{k}={v}" for k, v in full.items()))
+        if r.switches:
+            print("  switches: " + ", ".join(f"{k}={v}" for k, v in r.switches.items()))
     return 0
 
 
@@ -135,13 +137,15 @@ def _status_robot(plan: Plan, args) -> int:
             state += " (log not fetched)"
         log = (e or {}).get("log") or {}
         extra = f"  {log.get('name', '')}" if log else ""
-        use = ", ".join(f"{c}={n}" for c, n in r.use.items())
+        use = ", ".join([f"{c}={n}" for c, n in r.use.items()] + [f"{k}={v}" for k, v in r.switches.items()])
         print(f"{r.id:<{width}}  {state:<28}{use}{extra}")
     base = m.data.get("baseline")
-    if base:
-        print("\nCameras were changed from their baseline; `finish` puts them back:")
-        for cam, b in base.items():
+    if base or m.data.get("baseline_switches"):
+        print("\nCameras and switches were changed from their baseline; `finish` puts them back:")
+        for cam, b in (base or {}).items():
             print(f"  {cam}: " + ", ".join(f"{k}={v}" for k, v in b.items() if k in ("camera_mode", "decimate", "threads")))
+        for k, v in (m.data.get("baseline_switches") or {}).items():
+            print(f"  switch {k}: {v}")
     return 0
 
 
@@ -231,8 +235,9 @@ def cmd_finish(plan: Plan, args) -> int:
     m = Manifest.open(plan.folder, plan.experiment)
     s = _robot_session(plan, args)
     ok = robot.finish(s, m)
-    if ok and m.data.get("baseline"):
-        m.data["baseline"] = None
+    if ok and m.data.get("baseline_recorded"):
+        for k in ("baseline", "baseline_switches", "baseline_recorded"):
+            m.data[k] = None
         m.save()
     return 0 if ok else 1
 

@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.wpilibj.RobotBase;
+import frc.robot.constants.ExperimentSwitches;
 import frc.robot.constants.FeatureSwitches;
 
 /**
@@ -48,6 +49,8 @@ public final class RioSystemStats {
 
     private static volatile Sample latest;
     private static volatile ProcSample latestProc;
+    /** ExperimentSwitches.RIO_PROCESS_CPU_LOGGING, read on the robot loop and handed to the reader thread. */
+    private static volatile boolean processLoggingOn;
     private static long loggedSeq = -1;
     private static long loggedProcSeq = -1;
     private static Thread thread;
@@ -58,6 +61,7 @@ public final class RioSystemStats {
     public static void periodic() {
         if (!FeatureSwitches.RIO_SYSTEM_STATS_LOGGING || !RobotBase.isReal() || Logger.hasReplaySource()) return;
         if (thread == null) start();
+        processLoggingOn = ExperimentSwitches.RIO_PROCESS_CPU_LOGGING.get();
         Sample s = latest;
         if (s == null || s.seq() == loggedSeq) return;
         loggedSeq = s.seq();
@@ -70,7 +74,7 @@ public final class RioSystemStats {
         Logger.recordOutput("RIO/NetRxErrors", s.netRxErrors());
         Logger.recordOutput("RIO/NetRxDropped", s.netRxDropped());
         ProcSample p = latestProc;
-        if (FeatureSwitches.RIO_PROCESS_CPU_LOGGING && p != null && p.seq() != loggedProcSeq) {
+        if (processLoggingOn && p != null && p.seq() != loggedProcSeq) {
             loggedProcSeq = p.seq();
             Logger.recordOutput("RIO/SelfCpuPct", p.selfPct());
             Logger.recordOutput("RIO/TopProcesses", p.topProcesses());
@@ -103,7 +107,7 @@ public final class RioSystemStats {
                     String stat = read("/proc/stat");
                     Sample s = sample(stat, read("/proc/meminfo"), read("/proc/net/dev"), System.nanoTime());
                     if (s != null) latest = s;
-                    if (FeatureSwitches.RIO_PROCESS_CPU_LOGGING) {
+                    if (processLoggingOn) {
                         ProcSample p = processSample(stat);
                         if (p != null) latestProc = p;
                     }

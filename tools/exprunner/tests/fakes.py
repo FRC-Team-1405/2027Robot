@@ -60,9 +60,18 @@ class FakeLink:
         self.i = 0
         self.t = 100.0
         self.target = "fake"
+        self.switches = {"RIO_PROCESS_CPU_LOGGING": False}      # what the robot publishes; flipped by set_switch
+        self.switch_writes = []
 
     def readback(self, pi, cam):
         return self.world.readback(pi, cam)
+
+    def switch(self, name):
+        return self.switches.get(name)
+
+    def set_switch(self, name, value):
+        self.switch_writes.append((name, value))
+        self.switches[name] = value
 
     def robot_state(self):
         if not self.states:

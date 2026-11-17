@@ -69,6 +69,7 @@ class Run:
     args: dict[str, Any] = field(default_factory=dict)
     boards: list[str] | None = None  # None = the plan's boards
     use: dict[str, str] = field(default_factory=dict)  # robot runs: camera -> setting name
+    switches: dict[str, bool] = field(default_factory=dict)  # robot runs: experiment switch -> value
 
     def cli_args(self) -> list[str]:
         """The run's options as ``--key value`` pairs, in a stable order."""
@@ -219,12 +220,14 @@ def parse(data: dict[str, Any], path: Path) -> Plan:
 
 
 def parse_robot(data: dict[str, Any], path: Path) -> Plan:
-    from .settings import SettingsError, validate
+    from .settings import SettingsError, validate, validate_switches
 
     where = path.name
     extra = set(data) - {"experiment", "kind", "robot", "routine", "cameras", "defaults", "settings", "runs"}
     if extra:
         raise PlanError(f"{where}: unknown keys {sorted(extra)}")
+    # cameras and settings are optional: an experiment may only flip robot-code switches
+    data = {"cameras": [], "settings": {}, **data}
     for key, kind in (("experiment", str), ("routine", str), ("cameras", list), ("settings", dict), ("runs", list)):
         if key not in data:
             raise PlanError(f"{where}: missing {key!r}")
@@ -235,8 +238,6 @@ def parse_robot(data: dict[str, Any], path: Path) -> Plan:
         if not isinstance(c, str) or c.count("/") != 1 or not all(c.split("/")):
             raise PlanError(f"{where}: cameras are written Pi/camera, e.g. \"LeftPi/LeftCam\" (got {c!r})")
         cameras.append((c.split("/")[0], c.split("/")[1]))
-    if not cameras:
-        raise PlanError(f"{where}: 'cameras' is empty")
     if len({cam for _pi, cam in cameras}) != len(cameras):
         raise PlanError(f"{where}: two cameras share a name; camera names must be unique")
     try:
@@ -244,8 +245,8 @@ def parse_robot(data: dict[str, Any], path: Path) -> Plan:
         settings = {name: validate(tbl, f"{where}: [settings.{name}]") for name, tbl in data["settings"].items()}
     except SettingsError as e:
         raise PlanError(str(e)) from None
-    if not settings:
-        raise PlanError(f"{where}: no [settings.X] tables")
+    if cameras and not settings:
+        raise PlanError(f"{where}: cameras are listed but there are no [settings.X] tables")
     camera_names = [cam for _pi, cam in cameras]
     runs: list[Run] = []
     seen: set[str] = set()
@@ -253,7 +254,7 @@ def parse_robot(data: dict[str, Any], path: Path) -> Plan:
         here = f"{where}: run #{i}"
         if not isinstance(r, dict):
             raise PlanError(f"{here}: must be a table")
-        extra = set(r) - {"id", "what", "prompt", "use"}
+        extra = set(r) - {"id", "what", "prompt", "use", "switches"}
         if extra:
             raise PlanError(f"{here}: unknown keys {sorted(extra)}")
         rid = r.get("id")
@@ -263,9 +264,18 @@ def parse_robot(data: dict[str, Any], path: Path) -> Plan:
         if rid in seen:
             raise PlanError(f"{here}: duplicate id")
         seen.add(rid)
-        use = r.get("use")
-        if not isinstance(use, dict) or not use:
-            raise PlanError(f"{here}: 'use' must name a setting per camera, e.g. use = {{ LeftCam = \"A\", RightCam = \"B\" }}")
+        use = r.get("use", {})
+        try:
+            run_switches = validate_switches(r.get("switches", {}), here)
+        except SettingsError as e:
+            raise PlanError(str(e)) from None
+        if not isinstance(use, dict):
+            raise PlanError(f"{here}: 'use' must be a table")
+        if not use and not run_switches:
+            raise PlanError(f"{here}: a run needs 'use' (a setting per camera, e.g. use = {{ LeftCam = \"A\" }}) "
+                            "and/or 'switches' (e.g. switches = { RIO_PROCESS_CPU_LOGGING = true })")
+        if use and not cameras:
+            raise PlanError(f"{here}: 'use' names cameras, but the plan has no cameras")
         if "all" in use:
             if set(use) != {"all"}:
                 raise PlanError(f"{here}: use 'all' on its own, or name each camera")
@@ -279,7 +289,8 @@ def parse_robot(data: dict[str, Any], path: Path) -> Plan:
         for text_key in ("what", "prompt"):
             if text_key in r and not isinstance(r[text_key], str):
                 raise PlanError(f"{here}: {text_key!r} must be a string")
-        runs.append(Run(id=rid, what=r.get("what", ""), prompt=r.get("prompt", ""), use=dict(use)))
+        runs.append(Run(id=rid, what=r.get("what", ""), prompt=r.get("prompt", ""), use=dict(use),
+                        switches=run_switches))
     if not runs:
         raise PlanError(f"{where}: no [[runs]]")
     robot = data.get("robot")

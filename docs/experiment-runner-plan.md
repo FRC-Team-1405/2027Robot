@@ -25,6 +25,10 @@ How it differs from the design below (decided while building):
   PhotonVision's web socket and mode list, LogBench), and **`--manual`** exists: if the web socket fails
   the runner says what to set in the PhotonVision UI and waits for the Pi to show it.
 - The settings are checked again **after** the run; a change during it fails the run.
+- **Robot-code switches** (2026-11-17): a run can set `switches = { NAME = true }`, which the runner writes to
+  `/Tuning/ExperimentSwitches/NAME` (an AdvantageKit `LoggedNetworkBoolean`, see `ExperimentSwitches.java`), reads back
+  from the robot, records, re-checks after the run, and restores on `finish`. A plan may have no cameras at all. This is
+  the standard way to validate a change: flip it on and off in one session, with no redeploy between runs.
 
 ## Why
 

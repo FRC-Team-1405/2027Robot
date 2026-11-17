@@ -4,6 +4,10 @@ Run from the repo root:  python docs/experiments/roborio/2026-11-03-loop-overrun
 Reads WPILog Janitor-trimmed logs and writes results.json next to this file. Window = every
 enabled span longer than 5 s.
 
+With --manifest it instead reads the experiment runner's manifest.json (runs.toml next to this file): each run's
+log and its enable window, which experiment switches were asked for, and CHECKS THE LOG agrees with them. It writes
+results-process-cpu.json and prints the runs with the switch off against on.
+
 A slow cycle is one where LoggedRobot/FullCycleMS > 20 ms. For each section timed by
 LOG_SUBSYSTEM_TIMINGS (RealOutputs/Timing/*) plus AdvantageKit's own GC and logging times, it
 compares the mean on slow cycles with the mean on normal ones: one section jumping points at that
@@ -58,9 +62,9 @@ def spans(sig):
     return [s for s in out if s[1] - s[0] > 5]
 
 
-def analyze(path):
+def analyze(path, window=None):
     sig = parse_wpilog(str(path))
-    sp = spans(sig)
+    sp = spans(sig) if window is None else [window]
     inside = lambda t: any(a <= t <= b for a, b in sp)
     full = {t: v for t, v in sig.get("RealOutputs/LoggedRobot/FullCycleMS", []) if inside(t)}
     slow = {t for t, v in full.items() if v > 20}
@@ -95,12 +99,74 @@ def analyze(path):
     r["gc_in_normal_pct"] = round(100 * sum(1 for t in full if t not in slow and gcc.get(t, 0) > 0) / nnorm) if nnorm else None
     # Slow loops that would still be over 20 ms with their GC time removed.
     r["slow_without_gc_pct"] = round(100 * sum(1 for t in slow if full[t] - gct.get(t, 0) > 20) / nslow) if nslow else None
+    # Which process / thread used the CPU (only when RIO_PROCESS_CPU_LOGGING was on).
+    selfp = [v for t, v in sig.get("RealOutputs/RIO/SelfCpuPct", []) if inside(t)]
+    r["self_cpu_pct_median"] = round(st.median(selfp), 1) if selfp else None
+    for key, out in (("RIO/SelfTopThreads", "top_threads"), ("RIO/TopProcesses", "top_other_processes")):
+        totals, seconds = {}, 0
+        for t, v in sig.get("RealOutputs/" + key, []):
+            if not inside(t) or not v:
+                continue
+            seconds += 1
+            for item in v:
+                name, _id, pct = item.rsplit(":", 2)
+                totals[name] = totals.get(name, 0.0) + float(pct)
+        r[out] = ({k: round(x / seconds, 1) for k, x in sorted(totals.items(), key=lambda kv: -kv[1])[:6]}
+                  if seconds else None)
     md = sig.get("RealMetadata/GitSHA", [])
     r["git_sha"] = md[-1][1][:7] if md else None
     fs = sig.get("RealMetadata/FeatureSwitches", [])
     r["vision_extended_nt_logging"] = ("VISION_EXTENDED_NT_LOGGING=true" in fs[-1][1]) if fs else None
     return r
 
+
+def from_manifest():
+    """The runner's way: logs, windows and switch states come from manifest.json, and the log is checked against them."""
+    import tomllib
+    sys.path.insert(0, str(REPO / "tools" / "wpilog-utils"))
+    from wpilog_utils.switches import switch_values
+    plan = tomllib.loads((HERE / "runs.toml").read_text(encoding="utf-8"))
+    manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))["runs"]
+    rows = []
+    for run in plan["runs"]:
+        entry = (manifest.get(run["id"]) or {}).get("robot")
+        if not entry or entry.get("status") != "ok" or not (entry.get("log") or {}).get("name"):
+            print(f"{run['id']}: not run yet, or no log")
+            continue
+        name = Path(entry["log"]["name"]).stem
+        hits = sorted(LOGS.glob(f"**/{name}.wpilog"))
+        if not hits:
+            print(f"{run['id']}: log {name} not found under logs/")
+            continue
+        w = entry.get("enable_window") or {}
+        window = (w["t_enable"], w["t_disable"]) if w.get("t_enable") else None
+        sig_path = hits[0]
+        r = analyze(sig_path, window)
+        r.update(id=run["id"], log=name, switches_asked=entry.get("switches_asked", {}))
+        sig = parse_wpilog(str(sig_path))
+        r["switches_in_log"], r["problems"] = {}, []
+        for sw, want in r["switches_asked"].items():
+            seen = switch_values(sig, sw, window)
+            r["switches_in_log"][sw] = sorted(seen)
+            if seen != {want}:
+                r["problems"].append(f"switch {sw}: asked {want}, the log shows {sorted(seen) or 'nothing recorded'}")
+        rows.append(r)
+        flag = "  !! " + "; ".join(r["problems"]) if r["problems"] else ""
+        print(f"{run['id']:6s} {str(r['switches_asked']):40s} slow {r['slow_cycles_pct']}%  rio cpu {r['rio_cpu_pct_median']}%  "
+              f"self cpu {r['self_cpu_pct_median']}%  threads {r['top_threads']}{flag}")
+    json.dump(rows, open(HERE / "results-process-cpu.json", "w"), indent=1)
+    good = [r for r in rows if not r["problems"]]
+    for sw in sorted({k for r in good for k in r["switches_asked"]}):
+        for val in (False, True):
+            g = [r for r in good if r["switches_asked"].get(sw) == val and r["slow_cycles_pct"] is not None]
+            if g:
+                print(f"  {sw}={val}: slow loops {[r['slow_cycles_pct'] for r in g]}%, "
+                      f"rio cpu median {[r['rio_cpu_pct_median'] for r in g]}%")
+
+
+if __name__ == "__main__" and "--manifest" in sys.argv:
+    from_manifest()
+    sys.exit(0)
 
 if __name__ == "__main__":
     out = []

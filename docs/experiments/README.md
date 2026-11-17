@@ -25,6 +25,12 @@ brownout), `drivetrain`, `mechanisms`, `tools`. Add an area when the first exper
 
 ## Conventions
 
+- **"Next time on the robot, do X" should be an experiment plan.** If you catch yourself writing that, write a
+  `runs.toml` for the experiment runner instead (`tools/exprunner`): the runner sets the cameras and robot-code switches,
+  confirms them, notices enable/disable, fetches the log and records it, so nothing depends on remembering to flip
+  something. Validating a change is the usual case: put it behind a switch in `ExperimentSwitches.java`, then run off /
+  on / off / on with the same maneuver and compare. See `tools/exprunner/README.md`.
+
 - **Commit a small extract, not the logs.** When an analysis reads a log, have it write just what it used
   (the series, the settings, the window) to `data/<run>/` as compressed CSV/JSON, and be able to run again from
   that alone (`--from-extract`). The crossover experiment's `analyze.py` is the example: about 100-200 KB per run.

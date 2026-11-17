@@ -47,6 +47,27 @@ class SettingsError(ValueError):
     pass
 
 
+# Experiment switches: robot-code switches that can be flipped while the code runs (ExperimentSwitches.java).
+# Each is a NetworkTables boolean the runner writes and reads back.
+SWITCH_PREFIX = "/Tuning/ExperimentSwitches/"
+_SWITCH_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
+
+def switch_path(name: str) -> str:
+    return SWITCH_PREFIX + name
+
+
+def validate_switches(switches: dict[str, Any], where: str) -> dict[str, bool]:
+    out: dict[str, bool] = {}
+    for name, value in switches.items():
+        if not _SWITCH_NAME.match(name):
+            raise SettingsError(f"{where}: switch {name!r}: use the name from ExperimentSwitches.java (UPPER_SNAKE_CASE)")
+        if not isinstance(value, bool):
+            raise SettingsError(f"{where}: switch {name} must be true or false")
+        out[name] = value
+    return out
+
+
 def parse_mode(text: str) -> tuple[int, int, str, float]:
     """'800x600 MJPG @100' -> (800, 600, 'MJPG', 100.0)."""
     m = _MODE.match(str(text))

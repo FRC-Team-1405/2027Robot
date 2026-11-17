@@ -74,6 +74,40 @@ pv-dump LeftPi.local` prints the messages PhotonVision sends (and the camera mod
 is what to look at when fixing it. **The first live session is the first test against real PhotonVision**:
 the message shapes were checked against the PhotonVision v2026.1.1 source (`DataSocketHandler`, `VisionModuleChangeSubscriber`, `UIPhotonConfiguration`) and tested here against fake servers.
 
+## Flipping robot-code switches (the common validation experiment)
+
+A change we want to validate goes behind a switch in
+[`ExperimentSwitches.java`](../../src/main/java/frc/robot/constants/ExperimentSwitches.java): an AdvantageKit
+`LoggedNetworkBoolean` at `/Tuning/ExperimentSwitches/<NAME>` that can be flipped **while the robot code runs**, so
+no redeploy sits between the "off" and "on" runs. The runner writes it, reads it back from the robot, and the log
+records it every loop, so the analysis can check the log agrees. A plan just names it per run:
+
+```toml
+experiment = "RIO-2026-11-03-loop-overruns-process-cpu"
+kind = "robot"
+routine = "Teleop, sticks untouched, for 2 minutes"       # no cameras needed: a plan can be switches only
+
+[[runs]]
+id = "OFF1"
+switches = { RIO_PROCESS_CPU_LOGGING = false }
+
+[[runs]]
+id = "ON1"
+switches = { RIO_PROCESS_CPU_LOGGING = true }
+```
+
+Switches and camera settings can be mixed in one run (`use = {...}` and `switches = {...}`). Per run the runner reads the
+switch, writes it if it differs, waits until the robot reports the new value (or fails the run, saying so), and records
+`switches_asked` and `switches_read_back`. It checks again after the run and fails it if the switch moved. The first run
+records what the switches were before; `finish` puts them back. `doctor` says if the robot isn't publishing a switch
+(the code on the robot doesn't have it: deploy the branch that does). It can't flip the compile-time constants in
+`FeatureSwitches.java`; those need a redeploy, and the analysis can read them from the log's `Metadata/FeatureSwitches`.
+
+**The whole pattern, in a runs.toml:** off, on, off, on (so drift hits both) with the same maneuver, then
+`wpilog_utils.switches.switch_values(signals, NAME, window)` in the experiment's `analyze.py` to confirm from the log
+which way each run really was. The loop-overruns experiment is the example:
+[`docs/experiments/roborio/2026-11-03-loop-overruns/`](../../docs/experiments/roborio/2026-11-03-loop-overruns/runs.toml).
+
 ## Robot plan files
 
 ```toml
@@ -102,6 +136,7 @@ prompt = "Optional text shown before the run"
 Settings you can name (see [`settings.py`](exprunner/settings.py)): `camera_mode`, `decimate`, `threads`,
 `low_latency`, `multitag`, `refine_edges`, `blur`, `decision_margin`, `pose_iterations`, `hamming`,
 `auto_exposure`, `exposure`, `brightness`, `gain`. A setting a plan doesn't name is left as it is.
+A run can also set robot-code `switches` (above), with or without cameras.
 
 ## Use
 

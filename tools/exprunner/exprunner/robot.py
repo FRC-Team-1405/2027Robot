@@ -65,6 +65,45 @@ def readback_all(s: Session) -> dict[str, dict[str, Any]]:
     return {cam: s.link.readback(pi, cam) for pi, cam in s.plan.cameras}
 
 
+def plan_switch_names(plan: Plan) -> list[str]:
+    return sorted({n for r in plan.runs for n in r.switches})
+
+
+def switches_now(s: Session, names: list[str]) -> dict[str, bool | None]:
+    return {n: (s.link.switch(n) if s.link is not None else None) for n in names}
+
+
+def apply_switches(s: Session, wanted: dict[str, bool]) -> dict[str, bool]:
+    """Set robot-code experiment switches and wait until the robot reports them. Returns the read-back values."""
+    if not wanted:
+        return {}
+    if s.link is None:
+        raise RobotRunError("this run flips robot-code switches, which needs the robot link (don't use --no-robot)")
+    now = switches_now(s, list(wanted))
+    missing = [n for n, v in now.items() if v is None]
+    if missing:
+        raise RobotRunError(
+            f"the robot isn't publishing {', '.join(S.SWITCH_PREFIX + n for n in missing)}: the code on the robot doesn't have "
+            "that switch (deploy the branch that has it; look in ExperimentSwitches.java) or the robot code isn't running")
+    for n, v in wanted.items():
+        if now[n] != v:
+            s.out(f"  switch {n}: {now[n]} -> {v}")
+            s.link.set_switch(n, v)
+    start = s.clock()
+    while True:
+        got = switches_now(s, list(wanted))
+        if all(got[n] == v for n, v in wanted.items()):
+            if any(now[n] != v for n, v in wanted.items()):
+                s.out("  switches confirmed from the robot: " + ", ".join(f"{n}={v}" for n, v in wanted.items()))
+            else:
+                s.out("  switches already as asked: " + ", ".join(f"{n}={v}" for n, v in wanted.items()))
+            return {n: bool(v) for n, v in got.items()}
+        if s.clock() - start > min(s.settle_timeout, 10.0):
+            raise RobotRunError("switches didn't take: " + ", ".join(
+                f"{n} wanted {wanted[n]} but is {got[n]}" for n in wanted if got[n] != wanted[n]))
+        s.sleep(0.2)
+
+
 def public(settings: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in settings.items() if not k.startswith("_")}
 
@@ -261,11 +300,17 @@ def run_one(s: Session, run: Run, manifest: Manifest, git: dict | None = None) -
                              "asked": wanted, "started": now_utc(), "git": git or {}}
     try:
         require_disabled(s)
-        if s.link is not None and not manifest.data.get("baseline"):
+        if s.link is not None and not manifest.data.get("baseline_recorded"):
+            manifest.data["baseline_recorded"] = True
             manifest.data["baseline"] = {c: public(v) for c, v in readback_all(s).items()}
+            manifest.data["baseline_switches"] = {n: v for n, v in switches_now(s, plan_switch_names(plan)).items() if v is not None}
             manifest.save()
-        final = apply_and_verify(s, wanted)
+        if run.switches:
+            entry["switches_asked"] = dict(run.switches)
+        final = apply_and_verify(s, wanted) if wanted else {}
         entry["read_back"] = {c: public(v) for c, v in final.items()}
+        if run.switches:
+            entry["switches_read_back"] = apply_switches(s, run.switches)
         if run.prompt:
             s.out(f"  {run.prompt}")
         s.out(f"  ► Close any PhotonVision tabs. Enable {plan.routine} now; disable when it's done.")
@@ -273,7 +318,11 @@ def run_one(s: Session, run: Run, manifest: Manifest, git: dict | None = None) -
         entry["enable_window"] = {"t_enable": t0, "t_disable": t1, "autonomous": was_auto}
         # the readback again: the settings must still be what we asked for after the run
         after = readback_all(s) if s.link is not None else {}
-        drift = {c: S.describe(d) for c, d in _pending(wanted, after).items()} if after else {}
+        drift = {c: S.describe(d) for c, d in _pending(wanted, after).items()} if (after and wanted) else {}
+        if run.switches and s.link is not None:
+            for n, v in run.switches.items():
+                if s.link.switch(n) != v:
+                    drift[f"switch {n}"] = f"wanted {v} but is {s.link.switch(n)}"
         if drift:
             entry["drifted_during_run"] = drift
             s.out("  !! settings changed during the run: " + "; ".join(f"{c}: {t}" for c, t in drift.items()))
@@ -303,19 +352,26 @@ def run_one(s: Session, run: Run, manifest: Manifest, git: dict | None = None) -
 
 def apply_only(s: Session, run: Run) -> None:
     require_disabled(s)
-    apply_and_verify(s, s.plan.settings_for(run))
+    if s.plan.settings_for(run):
+        apply_and_verify(s, s.plan.settings_for(run))
+    apply_switches(s, run.switches)
 
 
 def finish(s: Session, manifest: Manifest) -> bool:
     """Put every camera back to what it was when the first run started."""
     base = manifest.data.get("baseline")
-    if not base:
+    base_sw = manifest.data.get("baseline_switches")
+    if not base and not base_sw:
         s.out("no baseline recorded (no run has started a session yet); nothing to restore")
         return True
     require_disabled(s)
-    wanted = {cam: {k: v for k, v in b.items() if k in S.SETTING_KEYS} for cam, b in base.items()}
-    s.out("restoring the settings the cameras had before the first run:")
-    apply_and_verify(s, wanted)
+    if base:
+        wanted = {cam: {k: v for k, v in b.items() if k in S.SETTING_KEYS} for cam, b in base.items()}
+        s.out("restoring the settings the cameras had before the first run:")
+        apply_and_verify(s, wanted)
+    if base_sw:
+        s.out("restoring the robot-code switches to what they were before the first run:")
+        apply_switches(s, base_sw)
     return True
 
 
@@ -347,6 +403,11 @@ def doctor(s: Session) -> bool:
     except PvError as e:
         line(False, str(e))
         s.apply_settings = False          # can't talk to PhotonVision from here; the Pis are checked below
+    names = plan_switch_names(s.plan)
+    if names and s.link is not None:
+        for n, v in switches_now(s, names).items():
+            line(v is not None, f"switch {n}: " + (f"the robot reports {v}" if v is not None else
+                 f"the robot isn't publishing {S.SWITCH_PREFIX}{n}: deploy the code that has this switch, and start it"))
     modes = sorted({v["camera_mode"] for v in list(s.plan.settings.values()) + [s.plan.defaults] if "camera_mode" in v})
     now = readback_all(s) if s.link else {}
     for pi, cam in s.plan.cameras:

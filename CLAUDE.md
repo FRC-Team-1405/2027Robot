@@ -65,7 +65,7 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 ### Feature switches
 
-**Every robot-code change goes behind a feature switch until its performance cost is measured**, unless it is clearly negligible. A switch that exists only to validate a change is marked `VALIDATE-THEN-REMOVE` in its comment and listed in `TODO.md`; delete the switch (keep or drop the code) once the change is validated. `constants/FeatureSwitches.java` contains `public static final boolean` flags. All vision improvement candidates (P1/P2/P3) are switches that default to `false` (2026 behavior baseline), allowing scientific A/B comparison against real match logs. See `docs/vision-testing-protocol.md` for the measurement methodology.
+**Every robot-code change goes behind a feature switch until its performance cost is measured**, unless it is clearly negligible. A change under validation goes in `constants/ExperimentSwitches.java` (an AdvantageKit `LoggedNetworkBoolean`, flippable while the robot code runs, so the experiment runner can toggle it, verify it and record it with each run; mark it `VALIDATE-THEN-REMOVE` and list it in `TODO.md`), and gets a `runs.toml` that toggles it (off/on/off/on, same maneuver). Delete the switch (keep or drop the code) once validated. Whenever you would write "next time on the robot, do X", write an experiment plan instead. `constants/FeatureSwitches.java` contains settled `public static final boolean` flags. All vision improvement candidates (P1/P2/P3) are switches that default to `false` (2026 behavior baseline), allowing scientific A/B comparison against real match logs. See `docs/vision-testing-protocol.md` for the measurement methodology.
 
 ### Swerve drivetrain
 

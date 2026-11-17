@@ -175,6 +175,15 @@ Also checked, from the same logs:
 3. **GC as one A/B**: different JVM GC flags in `build.gradle`, since GC is in a quarter to half
    of the slow loops.
 
+## Follow-up run plan (2026-11-17): which process, and what does logging it cost?
+
+[`runs.toml`](runs.toml), for the experiment runner: four 2-minute runs in teleop with the sticks untouched, with the
+robot-code switch `RIO_PROCESS_CPU_LOGGING` (`ExperimentSwitches.java`) **off, on, off, on**. The runner flips the switch
+over NetworkTables (no redeploy), confirms the robot reports it, and records it; `analyze.py --manifest` then checks
+the log shows the same, and prints the slow-loop share and roboRIO CPU with the switch off against on (the cost of the
+logging), plus, from the "on" runs, our program's own CPU and its busiest threads (the answer). The off-versus-off gap
+is the run-to-run noise. Needs a `beta` build with the switch deployed. Not run yet.
+
 ## Next experiment
 
 Depends on the answer. If it's GC, an allocation hunt in the loop. If it's the CPU being full, a

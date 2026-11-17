@@ -15,7 +15,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from .settings import FIELDS, MODE_KEY, MODE_TOPIC
+from .settings import FIELDS, MODE_KEY, MODE_TOPIC, SWITCH_PREFIX
 
 ENABLED_BIT, AUTO_BIT = 0x01, 0x02
 
@@ -50,7 +50,7 @@ class NtLink:
             time.sleep(0.05)
         # Subscribe to everything we read up front: a value only arrives once something subscribes, so
         # reading on demand would return nothing the first time (and record an empty baseline).
-        self._sub = ntcore.MultiSubscriber(self.inst, ["/OrangePi/", "/FMSInfo/"])
+        self._sub = ntcore.MultiSubscriber(self.inst, ["/OrangePi/", "/FMSInfo/", "/Tuning/"])
         end = time.monotonic() + 3.0
         while time.monotonic() < end and not self.inst.getTopics("/OrangePi/"):
             time.sleep(0.05)
@@ -83,6 +83,16 @@ class NtLink:
         if ok is not None:
             out["_settings_ok"] = bool(ok)
         return out
+
+    def switch(self, name: str) -> bool | None:
+        """An experiment switch's value on the robot, or None if the robot isn't publishing it."""
+        v = self._value(SWITCH_PREFIX + name)
+        return None if v is None else bool(v)
+
+    def set_switch(self, name: str, value: bool) -> None:
+        """Write an experiment switch. The robot code reads it on its next loop, and AdvantageKit logs it."""
+        self.inst.getEntry(SWITCH_PREFIX + name).setBoolean(bool(value))
+        self.inst.flush()
 
     def robot_state(self) -> tuple[bool, bool] | None:
         """(enabled, autonomous), or None if the Driver Station hasn't published a control word."""
