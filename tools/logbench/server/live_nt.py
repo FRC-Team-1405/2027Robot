@@ -86,7 +86,7 @@ def set_health_signals(patterns: Iterable[str]) -> None:
     matches against every topic, on the thread that also forwards PhotonVision's results to robot
     code. On 10-27 every LogBench connect was followed ~0.35 s later by 100-280 ms late vision
     results on both cameras for about a second, and the client dropped and reconnected every
-    ~2.4 s, repeating it (docs/experiments/vision/2026-10-27-pv-throughput, learning 8). Now: one
+    ~2.4 s, repeating it (docs/experiments/vision/pv-throughput, learning 8). Now: one
     names-only subscription over the checks' prefixes, and one value subscription to exactly the
     topics the checks read, rebuilt at most once a second as new ones appear."""
     global _wanted_src, _wanted_rx

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from exprunner import bench, cli
+from exprunner import attempts, bench, cli
 from exprunner import plan as P
 from exprunner.manifest import Manifest
 from exprunner.remote import Pi, RemoteError
@@ -121,7 +121,8 @@ def test_cli_run_resumes_and_prompts(monkeypatch, plan, capsys):
     code, prompts = run_cli(monkeypatch, plan, fakes, ["run"])
     assert code == 1  # stopped at RightPi's failed capture
     assert len(prompts) == 1 and "tags please" in prompts[0]
-    m = Manifest.open(plan.folder, plan.experiment)
+    first = attempts.latest(plan.folder)
+    m = Manifest.open(first, plan.experiment)
     assert m.done("S0", "LeftPi") and m.done("S0", "RightPi") and m.done("C1", "LeftPi")
     assert not m.done("C1", "RightPi")
 
@@ -132,9 +133,15 @@ def test_cli_run_resumes_and_prompts(monkeypatch, plan, capsys):
     assert [c for c in fakes["LeftPi"].commands if c[0] == "stream"] == []
     assert len([c for c in fakes["RightPi"].commands if c[0] == "stream"]) == 1
 
-    # Everything done: nothing to run.
-    code, _ = run_cli(monkeypatch, plan, fakes, ["run"])
-    assert code == 0 and "nothing to run" in capsys.readouterr().out
+    # The second go continued the SAME attempt (it was unfinished); nothing was started elsewhere.
+    assert attempts.latest(plan.folder) == first and len(attempts.list_attempts(plan.folder)) == 1
+    assert Manifest.open(first, plan.experiment).done("C1", "RightPi")
+
+    # Everything done: running again is a new attempt, and the old one is left as it was.
+    code, _ = run_cli(monkeypatch, plan, fakes, ["run", "--yes"])
+    out = capsys.readouterr().out
+    assert code == 0 and "new attempt" in out
+    assert len(attempts.list_attempts(plan.folder)) == 2
 
 
 def test_cli_run_named_ids_and_yes(monkeypatch, plan):
@@ -159,7 +166,7 @@ def test_cli_check_and_status(monkeypatch, plan, capsys):
     out = capsys.readouterr().out
     assert "bash bench/code/run.sh capture" in out and "prompt: tags please" in out
     assert cli.main(["status", str(plan.path)]) == 0
-    assert "LeftPi: to do" in capsys.readouterr().out
+    assert "no attempts yet" in capsys.readouterr().out
 
 
 def test_pi_connect_tries_hosts_in_order(tmp_path):

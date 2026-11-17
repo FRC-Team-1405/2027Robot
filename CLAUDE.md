@@ -91,7 +91,7 @@ Camera configs (names, transforms, intrinsics) live in `VisionConstants.CONFIGS`
 
 ### Experiments
 
-Robot test write-ups live in `docs/experiments/<area>/YYYY-MM-DD-<slug>/` (README from
+Robot test write-ups live in `docs/experiments/<area>/<slug>/` (no date in the name; each run of it is `attempts/<date>/` holding its `manifest.json`, `data/` and `results.json`; README from
 `docs/experiments/_template.md`, plus an `analyze.py` that regenerates every number from the
 gitignored logs, and its `results.json`). `notes/<date>/` stays the rough lab notebook and links to
 the write-up. Index and conventions: `docs/experiments/README.md`.

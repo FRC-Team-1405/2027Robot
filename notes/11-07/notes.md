@@ -53,14 +53,14 @@ Each write-up has the full run table. Fill in the settings there **before** enab
 passed, the log records them too, but write them anyway.
 
 1. **Frame pacing R4–R14** (about 1 hour):
-   [docs/experiments/vision/2026-10-28-pv-frame-pacing](../../docs/experiments/vision/2026-10-28-pv-frame-pacing/README.md).
+   [docs/experiments/vision/pv-frame-pacing](../../docs/experiments/vision/pv-frame-pacing/README.md).
    First, set **Low Latency Mode off** on every pipeline on both Pis.
    The most important runs are R6 (decimate 1) and R13 (1280x800).
 2. **roboRIO loop overruns L1–L6** (about 40 min, one extra deploy):
-   [docs/experiments/roborio/2026-11-03-loop-overruns](../../docs/experiments/roborio/2026-11-03-loop-overruns/README.md).
+   [docs/experiments/roborio/loop-overruns](../../docs/experiments/roborio/loop-overruns/README.md).
    Needs 2a to pass.
 3. **Range** (about 1 hour, needs taped floor marks and one pipeline per setting), if there's time:
-   [docs/experiments/vision/2026-11-03-pv-range](../../docs/experiments/vision/2026-11-03-pv-range/README.md).
+   [docs/experiments/vision/pv-range](../../docs/experiments/vision/pv-range/README.md).
    Needs R6 and R13 done first.
 
 ## Recorded
@@ -68,8 +68,8 @@ passed, the log records them too, but write them anyway.
 Raw notes: [myNotes.md](myNotes.md). Bootstrap output for both Pis: [bootStrappingLogs.md](bootStrappingLogs.md).
 What ran is read from each log's metadata and (from 19:03) the PhotonVision settings the Pis
 publish, not just the notes. Results are in the two write-ups:
-[frame pacing](../../docs/experiments/vision/2026-10-28-pv-frame-pacing/README.md) and
-[loop overruns](../../docs/experiments/roborio/2026-11-03-loop-overruns/README.md).
+[frame pacing](../../docs/experiments/vision/pv-frame-pacing/README.md) and
+[loop overruns](../../docs/experiments/roborio/loop-overruns/README.md).
 
 | Log (`akit_26-11-07_…`) | What | Robot code | Camera | Dashboards connected |
 |---|---|---|---|---|

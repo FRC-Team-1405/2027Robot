@@ -2,7 +2,7 @@
 
 About 1 h 40 min, in this order. Tick the boxes and fill the blank columns as you go.
 
-**The main event is Part 3**, the [frame-budget experiment](../../docs/experiments/vision/2026-11-10-pv-frame-budget/README.md):
+**The main event is Part 3**, the [frame-budget experiment](../../docs/experiments/vision/pv-frame-budget/README.md):
 can fewer detector threads or turning off output drawing make PhotonVision faster per frame?
 Background on why, in one line: each camera handles one frame at a time, so results/s = 1 ÷ time
 per frame, and idle CPU can't help.
@@ -97,12 +97,12 @@ while the robot was writing them, and all finished.
 
 ## If there's time: range
 
-The [range experiment](../../docs/experiments/vision/2026-11-03-pv-range/README.md) needs taped floor
+The [range experiment](../../docs/experiments/vision/pv-range/README.md) needs taped floor
 marks at 2 / 4 / 6 / 8 m and one pipeline per setting. Better as its own session after this one.
 
 ## Afterwards (at home)
 
-- Put the B-run logs in `RUNS` in `docs/experiments/vision/2026-11-10-pv-frame-budget/analyze.py`
+- Put the B-run logs in `RUNS` in `docs/experiments/vision/pv-frame-budget/analyze.py`
   and run it; it prints each run's time per frame split into main thread and detector work.
 - Open an 11-07 log (from `18-22-17` on) in LogBench's Health Check and see whether the roboRIO
   CPU / memory, radio and Pi network rows have values (11-07 check 2e).

@@ -69,7 +69,7 @@ throughout calibration and normal AprilTag use. Check the live values with
    settings recorded in `notes/09-05/9-5.md`, that is currently **800 pixels wide by 600 pixels high**.
    Both cameras are also calibrated at **1280x800** (added 10-27; PhotonVision lists the calibrated resolutions, and the Pi
    publisher logs them as `.../PhotonVision/<camera>/CalibratedResolutions`). The exports of all four calibrations
-   are in [`resources/photonvision-calibrations/`](../../resources/photonvision-calibrations/). `VisionConstants` holds
+   are in [`resources/photonvision-calibrations/`](../../resources/photonvision-calibrations). `VisionConstants` holds
    the 800x600 values.
 3. Set and secure the final lens focus. Calibration may be performed before or after mounting, but
    the camera, lens, focus, and resolution must not change afterward. If calibrating on the robot,

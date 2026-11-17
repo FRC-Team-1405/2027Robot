@@ -259,6 +259,11 @@ def test_cli_check_and_status_for_a_robot_plan(plan, capsys):
     out = capsys.readouterr().out
     assert "routine CircleFacingTag_Tag10" in out and "RightCam: decimate=2, threads=8, low_latency=False, camera_mode=1280x800" in out
     assert cli.main(["status", str(plan.path)]) == 0
+    assert "no attempts yet" in capsys.readouterr().out
+    att = plan.folder / "attempts" / "2026-01-01"
+    att.mkdir(parents=True)
+    Manifest.open(att, plan.experiment).save()
+    assert cli.main(["status", str(plan.path)]) == 0
     assert "X1" in capsys.readouterr().out
 
 

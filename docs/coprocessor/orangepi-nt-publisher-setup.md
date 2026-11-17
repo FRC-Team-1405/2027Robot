@@ -190,7 +190,7 @@ value shows up within about 10 s. Set `PHOTONVISION_CONFIG_DB` in
 | `PvCameras` | string[] | The active cameras, by nickname. Each has a `PhotonVision/<nickname>/` table. |
 | `PhotonVision/<cam>/PipelineIndex`, `PipelineName`, `PipelineType`, `PipelineCount` | | The active pipeline. Index -1 = driver mode, -2 = calibration; then the pipeline values below keep their last values. |
 | `.../Decimate`, `Threads`, `RefineEdges`, `Blur`, `DecisionMargin`, `PoseIterations`, `HammingDist`, `TagFamily`, `MultiTag` | | AprilTag tab. |
-| `.../LowLatencyMode` | boolean | PhotonVision's `blockForFrames`. On = the ÷2 frame-rate cliff when a frame takes longer than one frame period (`docs/experiments/vision/2026-10-28-pv-frame-pacing/`). |
+| `.../LowLatencyMode` | boolean | PhotonVision's `blockForFrames`. On = the ÷2 frame-rate cliff when a frame takes longer than one frame period (`docs/experiments/vision/pv-frame-pacing/`). |
 | `.../AutoExposure`, `Exposure`, `Brightness`, `Gain` | | Input tab. |
 | `.../VideoModeIndex` | integer | Which entry of PhotonVision's resolution list is selected. The real mode is under `Video/` below. |
 | `.../StreamDivisor`, `InputStream`, `OutputStream` | | Stream resolution and which streams are on. |

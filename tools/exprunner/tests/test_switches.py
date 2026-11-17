@@ -154,5 +154,8 @@ def test_cli_check_and_status_show_switches(plan, capsys):
     assert cli.main(["check", str(plan.path)]) == 0
     out = capsys.readouterr().out
     assert "switches: RIO_PROCESS_CPU_LOGGING=True" in out
+    att = plan.folder / "attempts" / "2026-01-01"
+    att.mkdir(parents=True)
+    Manifest.open(att, plan.experiment).save()
     assert cli.main(["status", str(plan.path)]) == 0
     assert "RIO_PROCESS_CPU_LOGGING=True" in capsys.readouterr().out

@@ -7,7 +7,7 @@ disables the robot. Everything else is done by the tool.
 
 Status: **built** (`tools/exprunner`). **Bench experiments** (2026-11-11): plan files, manifest,
 copy-only sync of `coprocessor/bench/` to the Pis, steps run over SSH, results fetched back; first used
-by the [frame-cost bench test](../experiments/vision/2026-11-11-pv-frame-cost/README.md). **Robot
+by the [frame-cost bench test](../experiments/vision/pv-frame-cost/README.md). **Robot
 experiments** (2026-11-14): build order steps 1-5 below, all built, and tested end to end against fakes
 and against real in-process NetworkTables and web socket servers. **Not yet run against a live
 PhotonVision**: that is the first real test of the web socket messages (`pv-dump` exists for debugging).
@@ -74,7 +74,7 @@ B1  800x600 @100, dec 1, threads 8, drawing on
   ► Close any PhotonVision tabs. Enable CircleFacingTag now; disable when it's done.
   enabled 23:15:02 … disabled 23:15:24 (21.9 s)
   fetching akit_26-11-10_23-14-41 via LogBench … ok (trimmed, 3.2 MB)
-  recorded B1 → manifest.json
+  recorded B1 → attempts/<date>/manifest.json
 B2  800x600 @100, dec 1, threads 4, drawing on
   ...
 ```
@@ -107,7 +107,7 @@ One per experiment, next to its README. Defaults first, then what each run chang
 one thing per run" is visible at a glance:
 
 ```yaml
-experiment: VIS-2026-11-10-pv-frame-budget
+experiment: VIS-pv-frame-budget
 cameras: [LeftPi/LeftCam, RightPi/RightCam]   # Pi/camera, as in robots.json
 routine: CircleFacingTag
 defaults:

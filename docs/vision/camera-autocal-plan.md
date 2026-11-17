@@ -285,5 +285,5 @@ while both cameras keep the tag. We have not built that yet; it depends on what 
 
 - [ ] Run it on the robot; validate once against a tape-measured calibration.
 - [ ] Use the calibrated mounts for the camera crossover odometry experiment
-      ([plan](../experiments/vision/2026-11-14-pv-crossover-odometry/README.md)).
+      ([plan](../experiments/vision/pv-crossover-odometry/README.md)).
 - [ ] Optional: the wall-distance heading cross-check; a live (NetworkTables) mode.

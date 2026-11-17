@@ -5,7 +5,7 @@ import pytest
 from exprunner import plan as P
 
 REPO = Path(__file__).resolve().parents[3]
-FRAME_COST = REPO / "docs" / "experiments" / "vision" / "2026-11-11-pv-frame-cost" / "runs.toml"
+FRAME_COST = REPO / "docs" / "experiments" / "vision" / "pv-frame-cost" / "runs.toml"
 
 
 def write(tmp_path, text):
@@ -95,7 +95,7 @@ def test_missing_plan_and_bad_toml(tmp_path):
 
 def test_frame_cost_plan_loads():
     p = P.load(FRAME_COST)
-    assert p.experiment == "VIS-2026-11-11-pv-frame-cost"
+    assert p.experiment == "VIS-pv-frame-cost"
     assert [r.id for r in p.runs][:3] == ["S0", "C1", "C2"]
     assert p.run("F1").args["workers"] == [1, 2, 3, 4]
     assert p.run("F0a").args["workers"] == [1]  # run args beat defaults

@@ -6,14 +6,14 @@
 - **Scope:** PhotonVision v2026.1.1 on 2× Orange Pi 5 (RK3588S), one Arducam OV9281 (USB, MJPEG)
   per Pi, AprilTag 36h11 pipeline, 3D mode. Robot side: `Vision.java`.
 - **Triggering evidence:** the three PhotonVision experiments,
-  [throughput (10-27)](../experiments/vision/2026-10-27-pv-throughput/README.md),
-  [frame pacing (11-03, 11-07)](../experiments/vision/2026-10-28-pv-frame-pacing/README.md) and
-  [frame budget (11-10)](../experiments/vision/2026-11-10-pv-frame-budget/README.md), plus the
+  [throughput (10-27)](../experiments/vision/pv-throughput/README.md),
+  [frame pacing (11-03, 11-07)](../experiments/vision/pv-frame-pacing/README.md) and
+  [frame budget (11-10)](../experiments/vision/pv-frame-budget/README.md), plus the
   PhotonVision and WPILib (cscore) source.
 
 ## Update 2026-11-14: bench results
 
-The [frame-cost bench test](../experiments/vision/2026-11-11-pv-frame-cost/README.md) ran on both
+The [frame-cost bench test](../experiments/vision/pv-frame-cost/README.md) ran on both
 Pis. It confirms the main claims and answers two open questions; the text below is as written on
 11-11, so read it with these in mind:
 
@@ -81,7 +81,7 @@ by its fastest core, and is it true that nothing can be spread over the other co
 **Decision:** for 2027 competition we stay on stock PhotonVision at **800x600 @100, decimate 2,
 Low Latency Mode off, threads 8**. That's the only setting at the full 101/s. Whether to chase
 higher resolution at all depends on the
-[range experiment](../experiments/vision/2026-11-03-pv-range/README.md). If a finer image doesn't
+[range experiment](../experiments/vision/pv-range/README.md). If a finer image doesn't
 see tags meaningfully farther or more accurately, none of the options below are worth doing.
 
 ## The frame, step by step (PhotonVision v2026.1.1)
@@ -311,11 +311,11 @@ tests 1–2 below, which put numbers on steps 2–3 and on frames in flight.
 
 ## Next steps
 
-1. **Range experiment** ([plan](../experiments/vision/2026-11-03-pv-range/README.md)). Does
+1. **Range experiment** ([plan](../experiments/vision/pv-range/README.md)). Does
    1280x800 or decimate 1 see tags meaningfully farther or more accurately than 800x600 dec 2? If
    not, stop here: the current setting is the right one.
 Bench tests 1 and 2 are written up and scripted as the
-[frame-cost bench test](../experiments/vision/2026-11-11-pv-frame-cost/README.md), run by the
+[frame-cost bench test](../experiments/vision/pv-frame-cost/README.md), run by the
 [experiment runner](../../tools/exprunner/README.md).
 
 2. **Bench test 1: where the main thread's time goes.** No robot needed. On a Pi, record a few

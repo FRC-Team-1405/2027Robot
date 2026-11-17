@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import bench, boards, build, robot
+from . import attempts, bench, boards, build, robot
 from .logbench import DEFAULT_URL, LogBenchClient, LogBenchError
 from .manifest import Manifest
 from .plan import Plan, PlanError, load
@@ -34,6 +34,24 @@ def _pis(plan: Plan, only: list[str] | None = None) -> dict[str, Pi]:
     if missing:
         raise PlanError(f"boards {missing} aren't in coprocessor/robots.json for robot {plan.robot or '(default)'}")
     return {n: Pi(n, known[n].hosts) for n in names}
+
+
+def _open(plan: Plan, args, create: bool = False) -> Manifest | None:
+    """Pick the attempt folder (see attempts.py) and open its manifest. None if there is no attempt yet and create is False."""
+    try:
+        att = attempts.resolve(plan.folder, getattr(args, "attempt", None), create=create,
+                               expected={r.id: plan.boards_for(r) for r in plan.runs}, force_new=getattr(args, "redo", False))
+    except attempts.AttemptError as e:
+        raise PlanError(str(e)) from None
+    if att is None:
+        return None
+    plan.attempt_dir = att
+    others = [a.name for a in attempts.list_attempts(plan.folder) if a != att]
+    fresh = create and not (att / "manifest.json").exists()
+    note = f"   (new attempt; earlier: {', '.join(others)})" if (fresh and others) else \
+        f"   (others: {', '.join(others)})" if others else ""
+    print(f"attempt: {att.name}{note}")
+    return Manifest.open(att, plan.experiment)
 
 
 def cmd_check(plan: Plan, args) -> int:
@@ -61,9 +79,12 @@ def cmd_sync(plan: Plan, args) -> int:
 
 
 def cmd_status(plan: Plan, args) -> int:
+    m = _open(plan, args)
+    if m is None:
+        print("no attempts yet: `run` starts one")
+        return 0
     if plan.kind == "robot":
-        return _status_robot(plan, args)
-    m = Manifest.open(plan.folder, plan.experiment)
+        return _status_robot(plan, args, m)
     width = max(len(r.id) for r in plan.runs)
     for r in plan.runs:
         cells = []
@@ -78,11 +99,11 @@ def cmd_run(plan: Plan, args) -> int:
     if plan.kind == "robot":
         return _run_robot(plan, args)
     runs = [plan.run(i) for i in args.ids] if args.ids else plan.runs
-    m = Manifest.open(plan.folder, plan.experiment)
+    m = _open(plan, args, create=True)
     pis = _pis(plan, args.board)
     todo = []
     for r in runs:
-        targets = [b for b in plan.boards_for(r) if b in pis and (args.ids or args.redo or not m.done(r.id, b))]
+        targets = [b for b in plan.boards_for(r) if b in pis and (args.ids or not m.done(r.id, b))]
         if targets:
             todo.append((r, targets))
     if not todo:
@@ -104,7 +125,7 @@ def cmd_run(plan: Plan, args) -> int:
                 if not args.keep_going:
                     print("\nstopped after a failure (use --keep-going to carry on); `status` shows what's left")
                     return 1
-    print(f"\ndone: {len(todo)} run(s), {failed} failed. Results under {plan.folder / 'data'}")
+    print(f"\ndone: {len(todo)} run(s), {failed} failed. Results under {plan.out_dir / 'data'}")
     return 1 if failed else 0
 
 
@@ -128,8 +149,7 @@ def _check_robot(plan: Plan) -> int:
     return 0
 
 
-def _status_robot(plan: Plan, args) -> int:
-    m = Manifest.open(plan.folder, plan.experiment)
+def _status_robot(plan: Plan, args, m: Manifest) -> int:
     width = max(len(r.id) for r in plan.runs)
     for r in plan.runs:
         e = m.entry(r.id, robot.BOARD)
@@ -181,8 +201,8 @@ def _robot_session(plan: Plan, args, need_logbench: bool = False) -> robot.Sessi
 
 def _run_robot(plan: Plan, args) -> int:
     runs = [plan.run(i) for i in args.ids] if args.ids else plan.runs
-    m = Manifest.open(plan.folder, plan.experiment)
-    todo = [r for r in runs if args.ids or args.redo or not m.done(r.id, robot.BOARD)]
+    m = _open(plan, args, create=True)
+    todo = [r for r in runs if args.ids or not m.done(r.id, robot.BOARD)]
     if not todo:
         print("nothing to run: every run is done (use `run PLAN ID` or --redo to run again)")
         return 0
@@ -207,7 +227,9 @@ def _run_robot(plan: Plan, args) -> int:
 def cmd_fetch(plan: Plan, args) -> int:
     if plan.kind != "robot":
         raise PlanError("`fetch` is for robot plans")
-    m = Manifest.open(plan.folder, plan.experiment)
+    m = _open(plan, args)
+    if m is None:
+        raise PlanError("no attempts yet: nothing to fetch")
     args.no_robot = True                  # fetching needs LogBench, not the robot link
     s = _robot_session(plan, args, need_logbench=True)
     if s.logbench is None:
@@ -233,7 +255,9 @@ def cmd_apply(plan: Plan, args) -> int:
 def cmd_finish(plan: Plan, args) -> int:
     if plan.kind != "robot":
         raise PlanError("`finish` is for robot plans")
-    m = Manifest.open(plan.folder, plan.experiment)
+    m = _open(plan, args)
+    if m is None:
+        raise PlanError("no attempts yet: nothing to restore")
     s = _robot_session(plan, args)
     ok = robot.finish(s, m)
     if ok and m.data.get("baseline_recorded"):
@@ -325,9 +349,12 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--board", action="append", help="bench plans: only this board (repeatable)")
         if name == "apply":
             p.add_argument("id", help="the run whose settings to apply")
+        if name in ("run", "status", "apply", "finish", "fetch"):
+            p.add_argument("--attempt", metavar="NAME", help="the attempt folder under attempts/ (default: `run` continues the "
+                           "latest unfinished one or starts today's; the others use the latest)")
         if name == "run":
             p.add_argument("ids", nargs="*", help="run only these run IDs (runs them again if done)")
-            p.add_argument("--redo", action="store_true", help="run again even if done")
+            p.add_argument("--redo", action="store_true", help="start a new attempt even if the latest one is unfinished")
             p.add_argument("--yes", action="store_true", help="bench plans: don't wait at prompts")
             p.add_argument("--no-sync", action="store_true", help="bench plans: don't copy the bench bundle first")
             p.add_argument("--keep-going", action="store_true", help="carry on after a failed run")

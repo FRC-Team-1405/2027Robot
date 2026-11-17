@@ -2,14 +2,14 @@
 - [x] Add roboRIO CPU to health check, akit_26-10-27_22-13-27.wpilog shows it consistently high but the health check doesn't surface this.
   - Done (not yet deployed): `RioSystemStats` logs `RIO/CpuPct`, per-core CPU, memory and ethernet once a second; the Health Check has roboRIO CPU mean (warn 70, fail 85 %) and p95 (warn 90, fail 98 %) rows, plus memory. The .wpilog had no CPU signal before, only loop times (the DS log has CPU).
 - [x] could network bandwith limiting cause issues? should this be added to the health check? if so what is the threshold? can we currently measure how much bandwith we are using?
-  - Not the cause of the half-rate cliff: it hit the 1000 Mbit/s Right Pi exactly like the 100 Mbit/s Left Pi, and decimate doesn't change network traffic. See [the follow-up](../../docs/experiments/vision/2026-10-28-pv-frame-pacing/README.md).
+  - Not the cause of the half-rate cliff: it hit the 1000 Mbit/s Right Pi exactly like the 100 Mbit/s Left Pi, and decimate doesn't change network traffic. See [the follow-up](../../docs/experiments/vision/pv-frame-pacing/README.md).
   - We could already measure the radio: AdvantageKit logs `RadioStatus/Status` with `bandwidthUsedMbps`. Under 1.4 Mbit/s in every run except test 5.1 (7.2-8.7 Mbit/s, over the 7 Mbit/s R704 field limit, most likely a PhotonVision browser stream).
   - Added: Health Check radio bandwidth rows (warn 5, fail 7 Mbit/s), Pi `NetTxMbps`/`NetRxMbps`/errors (publisher, needs re-bootstrap), roboRIO ethernet Mbit/s, and Pi link speed on logs (it now flags the Left Pi's 100 Mbit/s link).
 
 # Vision throughput test (10-27)
 
 Full write-up, with every metric, per-run verdicts, learnings and the analysis script:
-[docs/experiments/vision/2026-10-27-pv-throughput](../../docs/experiments/vision/2026-10-27-pv-throughput/README.md)
+[docs/experiments/vision/pv-throughput](../../docs/experiments/vision/pv-throughput/README.md)
 
 Goal: find out whether we can lower decimate, raise resolution, or both, on one OV9281 per
 Orange Pi 5, without losing throughput or throttling the Pi. Each run used the `CircleFacingTag`

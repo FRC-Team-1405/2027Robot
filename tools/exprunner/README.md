@@ -49,13 +49,13 @@ session never leaves the cameras on an experiment setting.
 | Command | Does |
 |---|---|
 | `doctor PLAN` | Checks NetworkTables, the Driver Station word, each camera's publisher, PhotonVision's web socket and its camera-mode list, and LogBench |
-| `run PLAN [IDS...]` | Runs the runs not done yet (or the named IDs again). `--redo`, `--keep-going` |
+| `run PLAN [IDS...]` | Runs the runs not done yet (or the named IDs again). `--attempt NAME`, `--redo` (new attempt), `--keep-going` |
 | `fetch PLAN` | Downloads the robot log for runs that don't have it yet (`run` does this itself at the end; use this to retry) |
 | `apply PLAN ID` | Sets PhotonVision to a run's settings without running it |
 | `finish PLAN` | Restores the baseline |
 | `status PLAN` | Done / failed / to do, with each run's cameras, log and the baseline if cameras are still changed |
 | `check PLAN` | Validates the plan; prints every run's full settings per camera |
-| `link [--board B]` | Each Pi's Ethernet speed, duplex, errors, and what the *other end* of the cable offers (read-only, over SSH; no plan needed). Built for the [Left Pi link-speed test](../../docs/experiments/coprocessor/2026-11-17-left-pi-link-speed/README.md) |
+| `link [--board B]` | Each Pi's Ethernet speed, duplex, errors, and what the *other end* of the cable offers (read-only, over SSH; no plan needed). Built for the [Left Pi link-speed test](../../docs/experiments/coprocessor/left-pi-link-speed/README.md) |
 | `pv-dump HOST` | Prints what PhotonVision's web socket sends (to debug; see below) |
 
 Options for `run`, `apply`, `finish`, `doctor`: `--nt HOST[:PORT]` (default: team 1405; `localhost` for
@@ -84,7 +84,7 @@ no redeploy sits between the "off" and "on" runs. The runner writes it, reads it
 records it every loop, so the analysis can check the log agrees. A plan just names it per run:
 
 ```toml
-experiment = "RIO-2026-11-03-loop-overruns-process-cpu"
+experiment = "RIO-loop-overruns-process-cpu"
 kind = "robot"
 routine = "Teleop, sticks untouched, for 2 minutes"       # no cameras needed: a plan can be switches only
 
@@ -107,12 +107,12 @@ records what the switches were before; `finish` puts them back. `doctor` says if
 **The whole pattern, in a runs.toml:** off, on, off, on (so drift hits both) with the same maneuver, then
 `wpilog_utils.switches.switch_values(signals, NAME, window)` in the experiment's `analyze.py` to confirm from the log
 which way each run really was. The loop-overruns experiment is the example:
-[`docs/experiments/roborio/2026-11-03-loop-overruns/`](../../docs/experiments/roborio/2026-11-03-loop-overruns/runs.toml).
+[`docs/experiments/roborio/loop-overruns/`](../../docs/experiments/roborio/loop-overruns/runs.toml).
 
 ## Robot plan files
 
 ```toml
-experiment = "VIS-2026-11-14-pv-crossover-odometry"
+experiment = "VIS-pv-crossover-odometry"
 kind = "robot"
 routine = "CircleFacingTag_Tag10"                   # the auto you'll be asked to enable
 cameras = ["LeftPi/LeftCam", "RightPi/RightCam"]    # Pi/camera, as in coprocessor/robots.json
@@ -144,16 +144,16 @@ A run can also set robot-code `switches` (above), with or without cameras.
 From this folder:
 
 ```bash
-python -m exprunner check  ../../docs/experiments/vision/2026-11-11-pv-frame-cost/runs.toml
-python -m exprunner run    ../../docs/experiments/vision/2026-11-11-pv-frame-cost/runs.toml
-python -m exprunner status ../../docs/experiments/vision/2026-11-11-pv-frame-cost/runs.toml
+python -m exprunner check  ../../docs/experiments/vision/pv-frame-cost/runs.toml
+python -m exprunner run    ../../docs/experiments/vision/pv-frame-cost/runs.toml
+python -m exprunner status ../../docs/experiments/vision/pv-frame-cost/runs.toml
 ```
 
 | Command | Does |
 |---|---|
 | `check PLAN` | Validates the plan; prints each run's prompt, boards and the exact command it runs on the Pi |
 | `sync PLAN [--board B]` | Builds the bench bundle and copies it to the plan's Pis (copy only; nothing is installed) |
-| `run PLAN [IDS...]` | Syncs, then runs every run not done yet, in order. Named IDs run again even if done. `--redo` reruns everything, `--board B` limits to one Pi, `--yes` skips prompts, `--keep-going` carries on after a failure, `--no-sync` skips the copy |
+| `run PLAN [IDS...]` | Syncs, then runs every run not done yet, in order. Named IDs run again even if done. each go is an *attempt* (`<plan folder>/attempts/<date>/`): it continues the latest unfinished one (under 18 h old) or starts today's; `--attempt NAME` picks one, `--redo` forces a new one; `--board B` limits to one Pi, `--yes` skips prompts, `--keep-going` carries on after a failure, `--no-sync` skips the copy |
 | `status PLAN` | Done / failed / to do, per run and board |
 
 Stopping (Ctrl+C) or a failure is safe: run it again and it carries on from what's left. A rerun
@@ -175,7 +175,7 @@ keeps the previous attempt under `history` in the manifest.
 ## Plan files
 
 See the docstring at the top of [`exprunner/plan.py`](exprunner/plan.py), and
-[the frame-cost plan](../../docs/experiments/vision/2026-11-11-pv-frame-cost/runs.toml) for a full
+[the frame-cost plan](../../docs/experiments/vision/pv-frame-cost/runs.toml) for a full
 example. In short: `experiment`, `kind = "bench"`, `boards`, optional `[defaults.<step>]` tables,
 then `[[runs]]` with `id`, `step`, `what`, an optional `prompt` (the runner waits for Enter), and
 `args` (passed to the step as `--key value`; lists become `1,2,3`, booleans `yes`/`no`).
@@ -190,7 +190,7 @@ The steps are those of [`coprocessor/bench/run.sh`](../../coprocessor/bench/READ
 | Pi: `~/bench/frames/` | Captured frames (`<name>.mjpg`). Kept between runs; they're big, so they stay on the Pi |
 | Pi: `~/bench/results/<experiment>/<run>/` | One run's output, cleared before the run |
 | Laptop: `<plan folder>/data/<run>/<board>/` | That output fetched back, plus `step.log` (everything the step printed) |
-| Laptop: `<plan folder>/manifest.json` | Per run and board: status, exit code, command, start/finish, git commit, Pi host |
+| Laptop: `<plan folder>/attempts/<date>/manifest.json` | Per run and board: status, exit code, command, start/finish, git commit, Pi host |
 
 ## Tests
 

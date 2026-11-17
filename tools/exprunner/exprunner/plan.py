@@ -2,7 +2,7 @@
 
 A plan lives next to its experiment's README. Example (bench kind)::
 
-    experiment = "VIS-2026-11-11-pv-frame-cost"
+    experiment = "VIS-pv-frame-cost"
     kind = "bench"                 # runs on the Pis over SSH; no robot, no auto
     robot = "2027"                 # block in coprocessor/robots.json (optional: its default)
     boards = ["LeftPi"]            # which Pis, by robots.json name
@@ -19,7 +19,7 @@ A plan lives next to its experiment's README. Example (bench kind)::
 
 A ``robot`` plan sets PhotonVision on the Pis, hands over for an auto, and fetches the log::
 
-    experiment = "VIS-2026-11-14-pv-crossover-odometry"
+    experiment = "VIS-pv-crossover-odometry"
     kind = "robot"
     routine = "CircleFacingTag_Tag10"              # the auto the person enables (shown in the prompt)
     cameras = ["LeftPi/LeftCam", "RightPi/RightCam"]   # Pi/camera, as in coprocessor/robots.json
@@ -92,6 +92,13 @@ class Plan:
     cameras: list[tuple[str, str]] = field(default_factory=list)   # (Pi, camera)
     defaults: dict[str, Any] = field(default_factory=dict)
     settings: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # The attempt folder this invocation reads and writes (attempts/<date>/); set by the CLI. See attempts.py.
+    attempt_dir: Path | None = None
+
+    @property
+    def out_dir(self) -> Path:
+        """Where manifest.json and data/ go: the attempt folder (the plan's own folder if none was chosen)."""
+        return self.attempt_dir or self.path.parent
 
     def settings_for(self, run: "Run") -> dict[str, dict[str, Any]]:
         """{camera: full settings} for a robot run: the plan's defaults, then the named setting on top."""

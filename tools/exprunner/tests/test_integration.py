@@ -211,7 +211,9 @@ def test_cli_run_end_to_end(tmp_path, monkeypatch, capsys):
         assert "settings confirmed from the Pi publisher" in out and "fetched akit_26-11-14_19-11-27.wpilog" in out
         assert changes == [{"cameraUniqueName": "uid-left", "cameraVideoModeIndex": 7}]
         import json as _json
-        e = _json.loads((tmp_path / "manifest.json").read_text())["runs"]["R1"]["robot"]
+        manifests = list((tmp_path / "attempts").glob("*/manifest.json"))
+        assert len(manifests) == 1                         # one attempt folder, named for the day
+        e = _json.loads(manifests[0].read_text())["runs"]["R1"]["robot"]
         assert e["status"] == "ok" and e["read_back"]["LeftCam"]["camera_mode"] == "1280x800 MJPG @100"
         assert e["enable_window"]["t_disable"] > e["enable_window"]["t_enable"]
         # finish puts the camera back

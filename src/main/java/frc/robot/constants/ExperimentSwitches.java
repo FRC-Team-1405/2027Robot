@@ -41,6 +41,6 @@ public final class ExperimentSwitches {
      *  (RIO/SelfCpuPct, RIO/TopProcesses, RIO/SelfTopThreads). Needs FeatureSwitches.RIO_SYSTEM_STATS_LOGGING.
      *  true  = logged. false = not logged.
      *  Default false until its own cost is measured (slow-loop share and RIO/CpuPct with it on vs off).
-     *  Experiment: docs/experiments/roborio/2026-11-03-loop-overruns/runs.toml. */
+     *  Experiment: docs/experiments/roborio/loop-overruns/runs.toml. */
     public static final Switch RIO_PROCESS_CPU_LOGGING = new Switch("RIO_PROCESS_CPU_LOGGING", false);
 }

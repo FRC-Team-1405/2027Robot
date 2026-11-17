@@ -51,7 +51,7 @@ def sync(pis: Iterable[Pi], log: Callable[[str], None] = print, stage_dir: Path 
 def run_on(plan: Plan, run: Run, pi: Pi, manifest: Manifest, git: dict,
            log: Callable[[str], None] = print) -> bool:
     """Runs one run on one Pi and records it. Returns True if the step succeeded."""
-    local = plan.folder / "data" / safe(run.id) / pi.name
+    local = plan.out_dir / "data" / safe(run.id) / pi.name
     cmd = command(plan, run)
     log(f"{run.id} on {pi.name}: {cmd}")
     lines: list[str] = []
@@ -77,7 +77,7 @@ def run_on(plan: Plan, run: Run, pi: Pi, manifest: Manifest, git: dict,
         local.mkdir(parents=True, exist_ok=True)
         (local / "step.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
         entry.update(finished=now_utc(), seconds=round(time.monotonic() - t0, 1),
-                     results=local.relative_to(plan.folder).as_posix())
+                     results=local.relative_to(plan.out_dir).as_posix())
         manifest.record(run.id, pi.name, entry)
     log(f"{run.id} on {pi.name}: {entry['status']}" + (f" ({entry.get('error') or entry.get('fetch_error')})"
                                                      if entry['status'] != 'ok' else ""))

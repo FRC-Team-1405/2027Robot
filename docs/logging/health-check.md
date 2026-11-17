@@ -104,7 +104,7 @@ whatever any temperature reads.
   back to subscribing to everything. On 2026-10-27 the old client (every AdvantageKit value, plus
   one more subscription per topic on its first poll) delayed both cameras' results to robot code
   by 100–280 ms after each connect. It then fell into a reconnect loop that repeated this every
-  2.4 s ([write-up](../experiments/vision/2026-10-27-pv-throughput/README.md), learning 8).
+  2.4 s ([write-up](../experiments/vision/pv-throughput/README.md), learning 8).
 - **Orange Pi rows** read `/OrangePi/...`. `orangepi-nt-publisher.py` publishes CPU/RAM/disk/temperature;
   `orangepi-vision-recorder.py` publishes a heartbeat per camera under
   `/OrangePi/[<board>/]Recorders/<camera>/`: `State`, `Recording`, `StreamOk`, `StreamAgeSec`, `StreamFps`,

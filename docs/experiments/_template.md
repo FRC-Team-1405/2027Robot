@@ -1,5 +1,5 @@
 ---
-id: <AREA>-YYYY-MM-DD-<slug>     # e.g. VIS-2026-10-27-pv-throughput
+id: <AREA>-<slug>     # e.g. VIS-pv-throughput (no date: dates belong to attempts)
 title: <one line>
 area: <vision | coprocessor | roborio | can | power | drivetrain | mechanisms | tools>
 date: YYYY-MM-DD
@@ -7,7 +7,7 @@ status: planned               # planned | running | analyzed | decided
 decision: pending             # what the team chose, once it chooses
 robot_code: <branch> @ <sha>  # from RealMetadata/GitSHA in the log
 logs: logs/<season>/<date>/   # logs are gitignored; say where they live
-analysis: analyze.py → results.json
+analysis: analyze.py → attempts/<date>/results.json
 raw_notes: notes/<date>/notes.md
 ---
 

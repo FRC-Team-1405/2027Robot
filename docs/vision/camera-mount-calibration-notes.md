@@ -23,7 +23,7 @@ it on 2026-11-14 to come back to. The tool-specific details are in
 2. **A measured accuracy**, not a hope: a number we can state ("x, y within 5 mm, angles within
    0.3 deg") backed by an independent check against tape.
 3. **Both cameras agree at a standstill**, because comparing camera settings on odometry (the
-   [crossover experiment](../experiments/vision/2026-11-14-pv-crossover-odometry/README.md)) is only as
+   [crossover experiment](../experiments/vision/pv-crossover-odometry/README.md)) is only as
    good as the mounts.
 4. **No extra hardware that lives on the robot**, e.g. a third camera only to say where the robot is.
 5. Keep the manual (tape) method alongside any automatic one: it is the reference.
