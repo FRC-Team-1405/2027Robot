@@ -11,6 +11,7 @@ Robot experiments (kind = "robot") also have:
     python -m exprunner fetch  PLAN            download the robot log for runs that don't have it (run does this once, at the end)
     python -m exprunner finish PLAN            put the cameras back to what they were before the session
     python -m exprunner pv-dump HOST           print what PhotonVision's web socket sends (to debug)
+    python -m exprunner link [--board B]       each Pi's Ethernet speed and what the other end of the cable offers
 
 Run from tools/exprunner. PLAN is a runs.toml next to an experiment's README.
 """
@@ -242,6 +243,37 @@ def cmd_finish(plan: Plan, args) -> int:
     return 0 if ok else 1
 
 
+def cmd_link(args) -> int:
+    from . import link
+
+    known = boards.load(None)
+    names = args.board or list(known)
+    missing = [n for n in names if n not in known]
+    if missing:
+        raise PlanError(f"boards {missing} aren't in coprocessor/robots.json")
+    for n in names:
+        pi = Pi(n, known[n].hosts)
+        try:
+            links = link.check(pi)
+        except RemoteError as e:
+            print(f"{n}: {e}")
+            continue
+        print(f"{n} ({pi.host}):")
+        for lk in links or []:
+            print("  " + lk.summary())
+            partner = sorted(lk.modes("Link partner advertised link modes"))
+            mine = sorted(lk.modes("Advertised link modes"))
+            if mine or partner:
+                print(f"    this Pi advertises up to {max(mine) if mine else '?'}; "
+                      f"the other end up to {max(partner) if partner else 'nothing readable'} Mbit/s")
+            v = lk.verdict()
+            if v:
+                print("    -> " + v)
+        if not links:
+            print("  no wired interface found")
+    return 0
+
+
 def cmd_pv_dump(args) -> int:
     import json
 
@@ -316,6 +348,8 @@ def main(argv: list[str] | None = None) -> int:
             g.add_argument("--with-pi", action="store_true",
                            help="also download the Pis' vision recordings (large; the odometry experiments don't need them)")
             g.add_argument("--logbench", default=DEFAULT_URL, metavar="URL", help=f"LogBench address ({DEFAULT_URL})")
+    lk = sub.add_parser("link", help="each Pi's Ethernet speed, duplex and errors, and what the other end offers")
+    lk.add_argument("--board", action="append", help="only this board (repeatable)")
     d = sub.add_parser("pv-dump", help="print what PhotonVision's web socket sends (to debug the runner)")
     d.add_argument("host", help="the Pi, e.g. LeftPi.local")
     d.add_argument("--seconds", type=float, default=2.0)
@@ -324,6 +358,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.cmd == "pv-dump":
             return cmd_pv_dump(args)
+        if args.cmd == "link":
+            return cmd_link(args)
         plan = load(args.plan)
         return {"check": cmd_check, "sync": cmd_sync, "status": cmd_status, "run": cmd_run,
                 "apply": cmd_apply, "finish": cmd_finish, "doctor": cmd_doctor, "fetch": cmd_fetch}[args.cmd](plan, args)

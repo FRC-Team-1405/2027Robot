@@ -9,6 +9,8 @@ robot experiment, run its `analyze.py` **before leaving the robot** and commit i
 - **Redo: 800x600 vs 1280x800 on the same autonomous** (about 30 min). The 11-14 session ran but its
    robot log wasn't saved, so there are no numbers. Run with `--redo`. The runner and LogBench are fixed.
    [detail](docs/experiments/vision/2026-11-14-pv-crossover-odometry/README.md)
+- **Left Pi Ethernet at 100 Mbit/s, Right at 1000**: a step-by-step test (cable, port, splitter, the Pi) with a tool that reads the
+  link and says which end is limiting. About 30 minutes, no robot code. [detail](docs/experiments/coprocessor/2026-11-17-left-pi-link-speed/README.md)
 - **Camera mounts: a trustworthy reference for the robot's centreline and heading**, so mount accuracy
    can be measured, not assumed. Constants stay as they are until then (they match tape).
    [detail](docs/vision/camera-mount-calibration-notes.md)
@@ -42,8 +44,6 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 ## Robot maintenance and pit
 
 - **Orange Pi cooling.** They idle at 73-77 C; throttling starts at 85 C.
-- **Left Pi links at 100 Mbit/s** while the right one gets 1000. Still true in the logs of 11-07, 11-10 and 11-14, with no
-  errors, drops or link flaps. Not the cause of the vision rate; try another cable or switch port.
 - **Re-bootstrap both Pis** (`coprocessor/Bootstrap-OrangePi.ps1 -All`) when convenient, and re-check that
   PhotonVision still saves (`journalctl -u photonvision`).
 - **Battery log sheet for the pit**, so each match log can be tied to a battery.
@@ -63,7 +63,6 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 
 ## Docs and housekeeping
 
-- **Change the home Wi-Fi password** that was in the 06-23 SSH notes. It's redacted in the repo now, but stays in git history.
 
 ## Done
 
