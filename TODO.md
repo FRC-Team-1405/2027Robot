@@ -57,6 +57,8 @@ it relies on isn't accurate enough; revisit after the camera-mount reference wor
 - **Make every time on a downloaded log agree** (UTC vs local across file names, metadata, LogBench, recordings).
 - **Log more**: NetworkTables clients, and a vision-gap row in the Health Check.
 - **Turn experiment `analyze.py` scripts into LogBench comparisons** where practical.
+- make the exprunner make a sound when its ready to run the next experiment on the robot to indicate to the user that they need to perform an action.
+- make the live robot health check in logbench assume the 1405 team number and check that by default. there shouldn't be any need to enter the team number in the text field and click the connect button becaues 99% of the time the user is doing the same thing: "1405" -> Connect
 
 ## Docs and housekeeping
 
